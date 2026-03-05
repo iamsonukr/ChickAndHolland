@@ -146,10 +146,10 @@ const SearchBar = () => {
         return setSearchData([]);
       }
 
-      await fetch(API_URL + `products/searchStyleNo/?query=${search}`)
+      await fetch(API_URL + `/products/searchStyleNo/?query=${search}`)
         .then((res) => res.json())
         .then((data) => {
-          setSearchData(data.products);
+          setSearchData(data.products ?? []);
         });
     } catch (error) {
       console.log(error);
@@ -157,7 +157,7 @@ const SearchBar = () => {
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" && searchData.length === 1) {
+    if (event.key === "Enter" && searchData?.length === 1) {
       navigateToProduct(searchData[0].productId);
     }
   };
@@ -182,7 +182,7 @@ const SearchBar = () => {
   }, []);
 
   return (
-    <div className="relative" ref={searchBarRef}>
+    <div className="relative" ref={searchBarRef} >
       <Search
         className="cursor-pointer text-[#C9A39A] hover:text-white 2xl:text-4xl 3xl:text-6xl 4xl:text-9xl"
         onClick={toggleSearchOpen}

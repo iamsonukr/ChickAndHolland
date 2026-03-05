@@ -27,12 +27,11 @@ const SponserImages = ({ sponsor }: any) => {
           {sponsor &&
             sponsor.map((item: any, index: number) => (
               <CarouselItem
-                className="pl-2 md:pl-4 basis-full md:basis-1/2 lg:basis-1/3"
+                className="pl-2 md:pl-4 basis-full sm:basis-1/2 lg:basis-1/3"
                 key={index}
               >
                 <div className="flex h-full font-adornstoryserif flex-col items-center gap-2">
-                  {/* Fixed height container so image doesn't get cut */}
-                  <div className="w-full h-48 md:h-56 lg:h-64 relative">
+                  <div className="w-full h-[220px] sm:h-[280px] md:h-[448px] lg:h-[512px] relative">
                     <CustomizedImage
                       src={item.image_url}
                       alt="sponsor image"
@@ -41,7 +40,7 @@ const SponserImages = ({ sponsor }: any) => {
                       className="object-contain"
                     />
                   </div>
-                  <p className="text-center font-mysi md:text-xl 2xl:text-2xl 3xl:text-3xl 4xl:text-3xl">
+                  <p className="text-center text-sm sm:text-base font-mysi md:text-xl 2xl:text-2xl 3xl:text-3xl 4xl:text-3xl">
                     {item.description && item.description}
                   </p>
                 </div>

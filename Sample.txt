@@ -105,17 +105,36 @@ const Header = async () => {
                               {category.name} <ChevronDown />
                             </Button>
                           </CollapsibleTrigger>
+                          {/* <CollapsibleContent asChild>
+                            <div className="ml-2 mt-2 flex w-full flex-col items-center justify-between gap-1">
+                              {category.subCategories.map(
+                                (subcategory: any) => (
+                                  <MenubarItem asChild>
+                                    <Link
+                                      key={subcategory.id}
+                                      href={`/collections/${category.id}/${subcategory.id}`}
+                                    >
+                                      <button className="text-center font-mysi text-xl text-[#C9A39A]">
+                                        {subcategory.name}
+                                      </button>
+                                    </Link>
+                                  </MenubarItem>
+                                ),
+                              )}
+                            </div>
+                          </CollapsibleContent> */}
                           <CollapsibleContent asChild>
                             <div className="mx-auto mt-2 flex max-w-fit flex-col gap-2 text-center">
                               {category.subCategories.map((subcategory: any) => (
-                                <MenubarItem key={subcategory.id} asChild>
-                                  <Link href={`/collections/${category.id}/${subcategory.id}`}>
-                                    <button className="w-full text-left font-mysi text-xl text-[#C9A39A]">
-                                      {subcategory.name}
-                                    </button>
-                                  </Link>
-                                </MenubarItem>
-                              ))}
+  <MenubarItem key={subcategory.id} asChild>
+    <Link href={`/collections/${category.id}/${subcategory.id}`}>
+      <button className="w-full text-left font-mysi text-xl text-[#C9A39A]">
+        {subcategory.name}
+      </button>
+    </Link>
+  </MenubarItem>
+))}
+
                             </div>
                           </CollapsibleContent>
                         </Collapsible>
@@ -166,8 +185,12 @@ const Header = async () => {
                     </Link>
                   </MenubarItem>
                 )}
+                {/*<MenubarItem className="!w-full" asChild>*/}
+                {/*  <Link href={"/my-favourites"}>My Favourites</Link>*/}
+                {/*</MenubarItem>*/}
                 {!isLoggedIn ? (
                   <MenubarItem className="!w-full" asChild>
+                    {/*<Link href={"/retailer-login"}>Login</Link>*/}
                     <RetailerAuthButton
                       isLoggedIn={isLoggedIn}
                       isRetailer={isRetailer}
@@ -175,6 +198,7 @@ const Header = async () => {
                   </MenubarItem>
                 ) : (
                   <MenubarItem className="!w-full" asChild>
+                    {/*<Link href={"/retailer-login"}>Login</Link>*/}
                     <RetailerAuthButton
                       isLoggedIn={isLoggedIn}
                       isRetailer={isRetailer}
@@ -185,6 +209,18 @@ const Header = async () => {
             </MenubarMenu>
           </Menubar>
         </div>
+
+        {/* <Link
+          href={"/"}
+          className="4xl:w-12/12 ml-7 flex w-6/12 justify-center md:ml-0 md:inline-block md:w-fit"
+        >
+          <img
+            // src="/logo-1.png"
+            src="https://ymts.blr1.cdn.digitaloceanspaces.com/chicandholland/Brand_New/logo.png"
+            alt="Chic & Holland"
+            className="w-[110px] md:w-[75px] 2xl:w-[77px] 3xl:w-[100px] 4xl:w-[105px]"
+          />
+        </Link> */}
 
         <Link
           href={"/"}
@@ -201,19 +237,26 @@ const Header = async () => {
           {/* desktop view */}
           <NavigationMenu className="hidden  lg:flex">
             <NavigationMenuList>
-
+            
               <NavigationMenuItem>
-                <NavigationMenuLink href="/" className={`${navigationMenuTriggerStyle()} font-brandon`}>
-                  HOME
-                </NavigationMenuLink>
+                <Link href={"/"} legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={`${navigationMenuTriggerStyle()} font-brandon  `}
+                  >
+                    HOME
+                  </NavigationMenuLink>
+                </Link>
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <NavigationMenuLink href="/brand" className={`${navigationMenuTriggerStyle()} font-brandon`}>
-                  BRAND
-                </NavigationMenuLink>
+                <Link href={"/brand"} legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={`${navigationMenuTriggerStyle()} font-brandon `}
+                  >
+                    BRAND
+                  </NavigationMenuLink>
+                </Link>
               </NavigationMenuItem>
-
               <NavigationMenuItem>
                 <NavigationMenuTrigger>
                   <p className="attention font-brandon">
@@ -222,86 +265,128 @@ const Header = async () => {
                 </NavigationMenuTrigger>
                 <NavigationMenuContent className="flex min-w-[100vw] max-w-[100vw] flex-row justify-between px-8 xl:justify-center xl:gap-[135px]">
                   {sortedCategories.map((category: any) => (
-                    <HoverCard key={category.id} closeDelay={200}>
-                      <HoverCardTrigger asChild className="cursor-pointer">
-                        <div>
-                          <p className="!mb-4 !mt-3 w-fit border-b-[3px] border-[#C9A39A] pb-1 font-adornstoryserif text-xl font-bold md:text-2xl 2xl:text-3xl 3xl:text-3xl">
-                            {category.name}
-                          </p>
-                          {category.subCategories.map((subcategory: any) => (
-                            <Link
-                              key={subcategory.id}
-                              className="cursor-pointer"
-                              href={`/collections/${category.id}/${subcategory.id}`}
-                            >
-                              <p className="!my-3 font-mysi text-base transition-all hover:text-blue-500 md:text-xl 2xl:text-2xl 3xl:text-3xl">
-                                {subcategory.name}
-                              </p>
-                            </Link>
-                          ))}
-                        </div>
-                      </HoverCardTrigger>
-                    </HoverCard>
+                   <HoverCard key={category.id} closeDelay={200}>
+  <HoverCardTrigger asChild className="cursor-pointer">
+   <div>
+  <p className="!mb-4 !mt-3 w-fit border-b-[3px] border-[#C9A39A] pb-1 font-adornstoryserif text-xl font-bold md:text-2xl 2xl:text-3xl 3xl:text-3xl">
+    {category.name}
+  </p>
+
+  {category.subCategories.map((subcategory) => (
+    <Link
+      key={subcategory.id}
+      className="cursor-pointer"
+      href={`/collections/${category.id}/${subcategory.id}`}
+    >
+      <p className="!my-3 font-mysi text-base transition-all hover:text-blue-500 md:text-xl 2xl:text-2xl 3xl:text-3xl">
+        {subcategory.name}
+      </p>
+    </Link>
+  ))}
+</div>
+  </HoverCardTrigger>
+</HoverCard>
+
                   ))}
                 </NavigationMenuContent>
               </NavigationMenuItem>
-
               <NavigationMenuItem>
-                <NavigationMenuLink href="/shows-and-events" className={`${navigationMenuTriggerStyle()} font-brandon`}>
-                  SHOW/EVENTS
-                </NavigationMenuLink>
+                <Link href={"/shows-and-events"} legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={`${navigationMenuTriggerStyle()} font-brandon`}
+                  >
+                    SHOW/EVENTS
+                  </NavigationMenuLink>
+                </Link>
               </NavigationMenuItem>
-
               <NavigationMenuItem>
-                <NavigationMenuLink href="/contact-us" className={`${navigationMenuTriggerStyle()} font-brandon`}>
-                  CONTACT US
-                </NavigationMenuLink>
+                <Link href={"/contact-us"} legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={`${navigationMenuTriggerStyle()} font-brandon`}
+                  >
+                    CONTACT US
+                  </NavigationMenuLink>
+                </Link>
               </NavigationMenuItem>
-
               <NavigationMenuItem>
-                <NavigationMenuLink href="/find-a-store" className={`${navigationMenuTriggerStyle()} font-brandon`}>
-                  FIND A STORE
-                </NavigationMenuLink>
+                <Link href={"/find-a-store"} legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={`${navigationMenuTriggerStyle()} font-brandon`}
+                  >
+                    FIND A STORE
+                  </NavigationMenuLink>
+                </Link>
               </NavigationMenuItem>
-
               <NavigationMenuItem>
-                <NavigationMenuLink href="/size-chart" className={`${navigationMenuTriggerStyle()} font-brandon`}>
-                  SIZE CHART
-                </NavigationMenuLink>
+                <Link href={"/size-chart"} legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={`${navigationMenuTriggerStyle()} font-brandon`}
+                  >
+                    SIZE CHART
+                  </NavigationMenuLink>
+                </Link>
               </NavigationMenuItem>
 
               {!isLoggedIn && (
                 <NavigationMenuItem>
-                  <NavigationMenuLink href="/become-a-retailer" className={`${navigationMenuTriggerStyle()} font-brandon`}>
-                    BECOME A RETAILER
-                  </NavigationMenuLink>
+                  <Link href={"/become-a-retailer"} legacyBehavior passHref>
+                    <NavigationMenuLink
+                      className={`${navigationMenuTriggerStyle()} font-brandon`}
+                    >
+                      BECOME A RETAILER
+                    </NavigationMenuLink>
+                  </Link>
                 </NavigationMenuItem>
               )}
-
+              {/*<NavigationMenuItem>*/}
+              {/*  <Link href={"/my-favourites"} legacyBehavior passHref>*/}
+              {/*    <NavigationMenuLink className={navigationMenuTriggerStyle()}>*/}
+              {/*      My Favourites*/}
+              {/*    </NavigationMenuLink>*/}
+              {/*  </Link>*/}
+              {/*</NavigationMenuItem>*/}
               {!isLoggedIn ? (
                 <NavigationMenuItem>
-                  <NavigationMenuLink asChild>
-                    <RetailerAuthButton
-                      isLoggedIn={isLoggedIn}
-                      isRetailer={isRetailer}
-                    />
-                  </NavigationMenuLink>
+                  <Link href={"/retailer-login"} legacyBehavior passHref>
+                    <NavigationMenuLink
+                      // className={navigationMenuTriggerStyle()}
+                      asChild
+                    >
+                      {/* Login */}
+                      {/*<Button>Login</Button>*/}
+                      <RetailerAuthButton
+                        isLoggedIn={isLoggedIn}
+                        isRetailer={isRetailer}
+                      />
+                    </NavigationMenuLink>
+                  </Link>
                 </NavigationMenuItem>
               ) : (
                 <NavigationMenuItem>
-                  <NavigationMenuLink asChild>
-                    <RetailerAuthButton
-                      isLoggedIn={isLoggedIn}
-                      isRetailer={isRetailer}
-                    />
-                  </NavigationMenuLink>
+                  <Link href={"/logout"} legacyBehavior passHref>
+                    <NavigationMenuLink
+                      // className={navigationMenuTriggerStyle()}
+                      asChild
+                    >
+                      {/* Login */}
+                      <RetailerAuthButton
+                        isLoggedIn={isLoggedIn}
+                        isRetailer={isRetailer}
+                      />
+                    </NavigationMenuLink>
+                  </Link>
                 </NavigationMenuItem>
               )}
             </NavigationMenuList>
-          </NavigationMenu>
 
+            {/* <NavigationMenuViewport className="NavigationMenuViewport" /> */}
+          </NavigationMenu>
+          {/* make one input on click */}
           <div className="flex w-full justify-end pe-4 md:inline-flex md:w-fit md:justify-between md:pe-0">
             <SearchBar />
+            {/*<Link href={"/my-favourites"} className={"ml-2"}>*/}
+            {/*  <Heart color="#000000" strokeWidth={3} />*/}
+            {/*</Link>*/}
             {isRetailer ? (
               <Link
                 href={"/retailer-panel/favourites"}
@@ -314,16 +399,17 @@ const Header = async () => {
                 >
                   {favourites.favourites.length}
                 </p>
+                {/* <ShoppingCart color="#000000" strokeWidth={3} /> */}
                 <ShoppingCart
                   className="text-[#C9A39A] hover:text-white 4xl:text-9xl"
                   strokeWidth={3}
                 />
               </Link>
             ) : (
-              <HeaderFavouritesIcon
-                favourites={favourites?.favourites}
-                isRetailer={isRetailer}
-              />
+<HeaderFavouritesIcon
+  favourites={favourites?.favourites}
+  isRetailer={isRetailer}
+/>
             )}
           </div>
         </div>
