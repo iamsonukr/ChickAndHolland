@@ -1,0 +1,142 @@
+/* Container styling */
+.shows-events-section {
+  overflow: hidden;
+  background-color: #fff;
+}
+
+/* Grid Border Logic - Updated */
+.shows-grid {
+  display: grid;
+  /* Outer borders */
+  border-top: 1px solid #d1d5db;
+  border-left: 1px solid #d1d5db;
+}
+
+.show-card {
+  height: 400px;
+  perspective: 1500px;
+  background: transparent;
+  /* Inner borders */
+  border-right: 1px solid #d1d5db;
+  border-bottom: 1px solid #d1d5db;
+  cursor: pointer;
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.show-card:hover .card-inner {
+  transform: rotateY(180deg);
+}
+
+.card-front, .card-back {
+  position: absolute;
+  inset: 0; /* Ensures it fills the card perfectly */
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Front Side: Clean White */
+.card-front {
+  background-color: #ffffff;
+  z-index: 2;
+}
+
+/* Back Side: Light background for Dark Text */
+.card-back {
+  background-color: transparent;
+  transform: rotateY(180deg);
+  z-index: 1;
+}
+
+.location-text {
+  font-family: "Adorn Story Serif", serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.15em;
+  color: #000000; /* Deep Dark Black */
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.image-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.image-layer img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0.15; /* Image ko light rakha hai taaki text dark dikhe */
+}
+
+/* Scan Line logic */
+.scan-line {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #777676; /* Dark Scan Line */
+  box-shadow: 0 0 10px rgba(0,0,0,0.2);
+  z-index: 5;
+}
+
+.show-card:hover .scan-line {
+  animation: scan 2.5s linear infinite;
+}
+
+@keyframes scan {
+  0% { top: -5%; }
+  100% { top: 105%; }
+}
+
+/* Content over image (Back side) - DARK TEXT */
+.hover-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  color: #000000; /* Dark Text */
+  z-index: 6;
+  text-align: center;
+}
+
+.hover-content h3 {
+  font-family: "Adorn Story Serif", serif;
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.hover-content p {
+  font-size: 0.875rem;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+/* Scroll Animations */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s ease-out;
+}
+
+.animate-on-scroll.animate-in {
+  opacity: 1;
+  transform: translateY(0);
+}

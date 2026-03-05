@@ -1,0 +1,1700 @@
+@import "swiper/css";
+@import "swiper/css/navigation";
+@import "swiper/css/pagination";
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@300;400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 0.3rem;
+    --chart-1: 221.2 83.2% 53.3%;
+    --chart-2: 212 95% 68%;
+    --chart-3: 216 92% 60%;
+    --chart-4: 210 98% 78%;
+    --chart-5: 212 97% 87%;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --chart-1: 221.2 83.2% 53.3%;
+    --chart-2: 212 95% 68%;
+    --chart-3: 216 92% 60%;
+    --chart-4: 210 98% 78%;
+    --chart-5: 212 97% 87%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .footer-links {
+    @apply text-primary-foreground hover:text-destructive;
+  }
+}
+
+@layer utilities {
+  .popover-content-width-full {
+    width: var(--radix-popover-trigger-width);
+    max-height: var(--radix-popover-content-available-height);
+  }
+}
+
+/* ::-webkit-scrollbar {
+  height: 4px;
+  background: rgb(0, 0, 0);
+  color: rgb(0, 0, 0);
+} */
+.react-image-magnify__image {
+  object-fit: cover; /* Ensure image covers the container without stretching */
+  width: 100%;
+}
+
+.react-image-magnify__container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  overflow: hidden;
+}
+
+.embla__slide {
+  margin-right: 5px;
+  margin-left: 5px;
+}
+
+/* header media queries for logo */
+
+/* iPhone SE (1st gen, 5s) - 320px */
+@media screen and (max-width: 320px) {
+  .logo-ios-se {
+    margin-left: 2rem; /* ml-8 */
+  }
+}
+
+/* iPhone 6/7/8/SE (2nd gen) - 375px (Primary iOS target) */
+@media screen and (max-width: 375px) and (min-width: 321px) {
+  .logo-ios-standard {
+    margin-left: 2.5rem; /* ml-10 */
+  }
+}
+
+/* iPhone X/11/12/13/14 - 390px (Primary iOS target) */
+@media screen and (max-width: 390px) and (min-width: 376px) {
+  .logo-ios-x-series {
+    margin-left: 2.75rem; /* ml-11 */
+  }
+}
+
+/* iPhone 6/7/8 Plus - 414px (Primary iOS target) */
+@media screen and (max-width: 414px) and (min-width: 391px) {
+  .logo-ios-plus {
+    margin-left: 3rem; /* ml-12 */
+  }
+}
+
+/* iPhone 12/13/14 Pro Max - 428px (Primary iOS target) */
+@media screen and (max-width: 428px) and (min-width: 415px) {
+  .logo-ios-pro-max {
+    margin-left: 3.25rem; /* ml-13 */
+  }
+}
+
+/* iPhone 15 Pro Max - 430px (Latest iOS) */
+@media screen and (max-width: 430px) and (min-width: 429px) {
+  .logo-ios-15-pro-max {
+    margin-left: 3.25rem; /* ml-13 */
+  }
+}
+
+/* Android fallback for larger screens */
+@media screen and (min-width: 431px) and (max-width: 767px) {
+  .logo-android-fallback {
+    margin-left: 3.5rem; /* ml-14 */
+  }
+}
+.font-superheavy {
+  text-shadow:
+    2.2px 0 0 currentColor,
+    -2.2px 0 0 currentColor,
+    0 2.2px 0 currentColor,
+    0 -2.2px 0 currentColor,
+    1.5px 1.5px 0 currentColor,
+    -1.5px 1.5px 0 currentColor,
+    1.5px -1.5px 0 currentColor,
+    -1.5px -1.5px 0 currentColor;
+}
+.font-outline-bold {
+  color: #fff;
+  text-shadow:
+    -1px 0 0 rgba(0, 0, 0, 0.6),
+    1px 0 0 rgba(0, 0, 0, 0.6),
+    0 -1px 0 rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.font-premium-bold {
+  text-shadow:
+    0 0.7px 1px rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Luxury Brand Page Styles */
+.luxury-brand-page {
+  font-family: "Cormorant Garamond", serif;
+}
+
+/* Hero Section */
+.hero-section {
+  background: linear-gradient(135deg, #000000 0%, #1a0f0b 50%, #000000 100%);
+}
+
+.floating-elements {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.float-element {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #87635522 0%, transparent 70%);
+  animation-duration: 20s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.float-element.element-1 {
+  width: 300px;
+  height: 300px;
+  top: 10%;
+  left: 10%;
+  animation-name: float-slow;
+}
+
+.float-element.element-2 {
+  width: 200px;
+  height: 200px;
+  top: 60%;
+  right: 15%;
+  animation-name: float-medium;
+}
+
+.float-element.element-3 {
+  width: 150px;
+  height: 150px;
+  bottom: 20%;
+  left: 20%;
+  animation-name: float-fast;
+}
+
+/* Luxury Image Frames */
+.luxury-image-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.luxury-image {
+  transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center;
+}
+
+.luxury-image.hover-reveal:hover {
+  transform: scale(1.05);
+}
+
+.image-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    45deg,
+    transparent 0%,
+    rgba(135, 99, 85, 0.1) 50%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.luxury-image-frame:hover .image-overlay {
+  opacity: 1;
+}
+
+/* Scroll Reveal Animations */
+.section-reveal {
+  opacity: 0;
+  transform: translateY(50px);
+  transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.section-reveal.animate-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.section-reveal.animate-out {
+  opacity: 0;
+  transform: translateY(-50px);
+}
+
+/* Text Stagger Animations */
+.text-stagger [data-text-animate] {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.text-stagger [data-text-animate].text-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Image Fade Animations */
+.image-fade {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.image-fade.image-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Luxury Underline */
+.luxury-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.luxury-underline::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #c9a39a, transparent);
+  transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.section-reveal.animate-in .luxury-underline::after {
+  width: 100%;
+}
+
+/* Scroll Indicator */
+.scroll-indicator {
+  width: 1px;
+  height: 60px;
+  background: linear-gradient(to bottom, #c9a39a, transparent);
+  position: relative;
+}
+
+.scroll-line {
+  width: 1px;
+  height: 30px;
+  background: #c9a39a;
+  animation: scrollLine 2s ease-in-out infinite;
+}
+
+@keyframes scrollLine {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(30px);
+    opacity: 1;
+  }
+}
+
+/* Luxury Video */
+.luxury-video-container {
+  position: relative;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.luxury-video {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.video-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.3) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+  pointer-events: none;
+}
+
+/* Navigation Buttons */
+.luxury-nav-btn {
+  width: 50px;
+  height: 50px;
+  border: 1px solid #c9a39a;
+  background: transparent;
+  color: #c9a39a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.luxury-nav-btn:hover {
+  background: #c9a39a;
+  color: black;
+  transform: scale(1.1);
+}
+
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom Selection */
+::selection {
+  background: #c9a39a40;
+  color: inherit;
+}
+/* Luxury Contact Page Styles */
+.luxury-contact-page {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #000000 0%, #1a0f0b 50%, #000000 100%);
+}
+
+/* Background Elements */
+.luxury-background-elements {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.floating-orb {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #87635515 0%, transparent 70%);
+  animation-duration: 20s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  filter: blur(20px);
+}
+
+.orb-1 {
+  width: 300px;
+  height: 300px;
+  top: 10%;
+  left: 5%;
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+.orb-2 {
+  width: 200px;
+  height: 200px;
+  top: 60%;
+  right: 10%;
+  animation: float-medium 6s ease-in-out infinite 2s;
+}
+
+.orb-3 {
+  width: 250px;
+  height: 250px;
+  bottom: 20%;
+  left: 15%;
+  animation: float-fast 10s ease-in-out infinite 4s;
+}
+
+.grid-pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(135, 99, 85, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(135, 99, 85, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  opacity: 0.3;
+}
+
+/* Luxury Title */
+.luxury-title {
+  background: linear-gradient(135deg, #ffffff 0%, #c9a39a 50%, #ffffff 100%);
+  background-size: 200% 200%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 4s ease-in-out infinite;
+}
+
+.luxury-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.luxury-line::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #c9a39a, transparent);
+  animation: slideLine 2s ease-in-out 0.5s forwards;
+}
+
+/* Contact Cards */
+.luxury-contact-card {
+  position: relative;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.02)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1rem;
+  backdrop-filter: blur(10px);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  max-height: 170px;
+  max-width: 750px;
+}
+
+.luxury-contact-card:hover {
+  transform: translateY(-8px);
+  border-color: rgba(201, 163, 154, 0.3);
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(201, 163, 154, 0.1);
+}
+
+.card-inner {
+  position: relative;
+  z-index: 2;
+}
+
+.card-icon {
+  width: 30px;
+  height: 30px;
+  background: rgba(201, 163, 154, 0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+
+  color: #c9a39a;
+  transition: all 0.3s ease;
+}
+
+.luxury-contact-card:hover .card-icon {
+  background: rgba(201, 163, 154, 0.2);
+  transform: scale(1.1);
+}
+
+.card-title {
+  font-family: "Playfair Display", serif;
+  font-size: 1.2rem;
+  color: white;
+  margin-bottom: 1rem;
+  font-weight: 300;
+}
+
+.card-text {
+  color: #c9a39a;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.card-email {
+  margin-bottom: 0.5rem;
+}
+
+.email-link {
+  color: #c9a39a;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.email-link::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: #c9a39a;
+  transition: width 0.3s ease;
+}
+
+.email-link:hover::after {
+  width: 100%;
+}
+
+.card-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transform: skewX(-20deg);
+  transition: left 0.8s ease;
+}
+
+.luxury-contact-card:hover .card-shine {
+  left: 150%;
+}
+
+/* Video Section */
+.luxury-video-section {
+  position: relative;
+}
+
+.video-container {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(201, 163, 154, 0.1);
+}
+
+.luxury-contact-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background-color: black; /* for letterbox */
+}
+
+.video-container:hover .luxury-contact-video {
+  transform: scale(1.02);
+}
+
+.video-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.2) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+  pointer-events: none;
+}
+
+.video-frame {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+/* Form Styles */
+.luxury-form-section {
+  position: relative;
+  z-index: 2;
+}
+
+.form-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 2rem;
+}
+
+.luxury-contact-form {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 2.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.luxury-form-item {
+  margin-bottom: 1.5rem;
+}
+
+.luxury-form-label {
+  color: white;
+  font-weight: 300;
+  margin-bottom: 0.5rem;
+  display: block;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.luxury-input,
+.luxury-phone-input,
+.luxury-textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  padding: 0.75rem 1rem;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.luxury-input:focus,
+.luxury-phone-input:focus,
+.luxury-textarea:focus {
+  outline: none;
+  border-color: #c9a39a;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(201, 163, 154, 0.1);
+}
+
+.luxury-input::placeholder,
+.luxury-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.luxury-form-description {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.luxury-form-message {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+/* Submit Button */
+.luxury-submit-btn {
+  background: linear-gradient(135deg, #c9a39a, #876355);
+  border: none;
+  border-radius: 8px;
+  padding: 1rem 2rem;
+  color: white;
+  font-weight: 500;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.luxury-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 25px rgba(201, 163, 154, 0.3),
+    0 0 0 1px rgba(201, 163, 154, 0.2);
+}
+
+.luxury-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.btn-arrow {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.3s ease;
+}
+
+.luxury-submit-btn:hover .btn-arrow {
+  transform: translateX(4px);
+}
+
+/* Animations */
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  50% {
+    transform: translateY(-20px) translateX(10px);
+  }
+}
+
+@keyframes float-medium {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-15px) scale(1.05);
+  }
+}
+
+@keyframes float-fast {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-10px) rotate(120deg);
+  }
+  66% {
+    transform: translateY(10px) rotate(240deg);
+  }
+}
+
+@keyframes gradientShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes slideLine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .luxury-contact-form {
+    padding: 1.5rem;
+  }
+
+  .luxury-contact-card {
+    padding: 1.5rem;
+  }
+
+  .luxury-contact-video {
+    height: 400px;
+  }
+}
+
+/* Luxury Store Finder Styles */
+.luxury-store-finder {
+  position: relative;
+  background: linear-gradient(135deg, #f5f7fb 0%, #ffffff 50%, #f5f7fb 100%);
+}
+
+/* Background Elements */
+.luxury-background-elements {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.floating-orb {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(135, 99, 85, 0.08) 0%,
+    transparent 70%
+  );
+  animation-duration: 20s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  filter: blur(15px);
+}
+
+.orb-1 {
+  width: 200px;
+  height: 200px;
+  top: 10%;
+  left: 5%;
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+.orb-2 {
+  width: 150px;
+  height: 150px;
+  top: 60%;
+  right: 10%;
+  animation: float-medium 6s ease-in-out infinite 2s;
+}
+
+.orb-3 {
+  width: 180px;
+  height: 180px;
+  bottom: 20%;
+  left: 15%;
+  animation: float-fast 10s ease-in-out infinite 4s;
+}
+
+.grid-pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(135, 99, 85, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(135, 99, 85, 0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.5;
+}
+
+/* Luxury Title */
+.luxury-title {
+  background: linear-gradient(135deg, #1a0f0b 0%, #876355 50%, #1a0f0b 100%);
+  background-size: 200% 200%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 6s ease-in-out infinite;
+}
+
+.luxury-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.luxury-line::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #876355, transparent);
+  animation: slideLine 2s ease-in-out 0.5s forwards;
+}
+
+/* Search Section */
+.luxury-search-section {
+  position: relative;
+}
+
+.luxury-search-card {
+  background: white;
+  border-radius: 20px;
+  padding: 2.5rem;
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(135, 99, 85, 0.1);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  height: fit-content;
+  position: relative;
+  overflow: hidden;
+}
+
+.luxury-search-card:hover {
+  transform: translateY(-5px);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(135, 99, 85, 0.15);
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.search-icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #876355, #c9a39a);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.luxury-search-card:hover .search-icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.search-title {
+  font-family: "Playfair Display", serif;
+  font-size: 1.75rem;
+  color: #1a0f0b;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.search-subtitle {
+  color: #666;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.search-content {
+  margin-bottom: 2rem;
+}
+
+/* Store Statistics */
+.store-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(135, 99, 85, 0.1);
+}
+
+.stat-item {
+  text-align: center;
+  padding: 1rem;
+  background: rgba(135, 99, 85, 0.05);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+  background: rgba(135, 99, 85, 0.1);
+  transform: translateY(-2px);
+}
+
+.stat-number {
+  font-family: "Playfair Display", serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #876355;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Map Section */
+.luxury-map-section {
+  position: relative;
+}
+
+.luxury-map-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(135, 99, 85, 0.1);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  height: 100%;
+}
+
+.luxury-map-card:hover {
+  transform: translateY(-5px);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(135, 99, 85, 0.15);
+}
+
+.map-header {
+  padding: 2rem 2rem 1rem;
+  border-bottom: 1px solid rgba(135, 99, 85, 0.1);
+}
+
+.map-title {
+  font-family: "Playfair Display", serif;
+  font-size: 1.5rem;
+  color: #1a0f0b;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.map-subtitle {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.map-container {
+  position: relative;
+  height: 400px;
+}
+
+.map-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    transparent 90%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+}
+
+.quick-actions {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  border-top: 1px solid rgba(135, 99, 85, 0.1);
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(135, 99, 85, 0.05);
+  border: 1px solid rgba(135, 99, 85, 0.1);
+  border-radius: 10px;
+  color: #876355;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.action-btn:hover {
+  background: rgba(135, 99, 85, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(135, 99, 85, 0.15);
+}
+
+/* Information Grid */
+.luxury-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.info-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow:
+    0 5px 20px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(135, 99, 85, 0.1);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.info-card:hover {
+  transform: translateY(-8px);
+  box-shadow:
+    0 15px 40px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(135, 99, 85, 0.15);
+}
+
+.info-icon {
+  width: 70px;
+  height: 70px;
+  background: linear-gradient(135deg, #876355, #c9a39a);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.info-card:hover .info-icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.info-title {
+  font-family: "Playfair Display", serif;
+  font-size: 1.25rem;
+  color: #1a0f0b;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.info-text {
+  color: #666;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+/* Animations */
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  50% {
+    transform: translateY(-15px) translateX(8px);
+  }
+}
+
+@keyframes float-medium {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-10px) scale(1.03);
+  }
+}
+
+@keyframes float-fast {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-8px) rotate(120deg);
+  }
+  66% {
+    transform: translateY(8px) rotate(240deg);
+  }
+}
+
+@keyframes gradientShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes slideLine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 1280px) {
+  .luxury-search-card,
+  .luxury-map-card {
+    padding: 2rem;
+  }
+
+  .store-stats {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .luxury-title {
+    font-size: 2.5rem;
+  }
+
+  .luxury-search-card,
+  .luxury-map-card {
+    padding: 1.5rem;
+  }
+
+  .quick-actions {
+    flex-direction: column;
+  }
+
+  .luxury-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Custom scrollbar for webkit */
+.luxury-store-finder::-webkit-scrollbar {
+  width: 6px;
+}
+
+.luxury-store-finder::-webkit-scrollbar-track {
+  background: rgba(135, 99, 85, 0.1);
+}
+
+.luxury-store-finder::-webkit-scrollbar-thumb {
+  background: rgba(135, 99, 85, 0.3);
+  border-radius: 3px;
+}
+
+.luxury-store-finder::-webkit-scrollbar-thumb:hover {
+  background: rgba(135, 99, 85, 0.5);
+}
+/* REMOVE WHITE BLUR CIRCLE */
+.luxury-contact-page .floating-orb {
+  display: none !important;
+}
+
+/* Luxury Retailer Page Styles */
+.luxury-retailer-page {
+  background: #ffffff;
+}
+/* Hero Section */
+.luxury-hero-section {
+  position: relative;
+}
+
+.hero-image-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.hero-background-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+/* Video Section */
+.luxury-video-section {
+  position: relative;
+}
+
+.video-container {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.luxury-retailer-video {
+  width: 100%;
+  height: 500px;
+  object-fit: cover;
+}
+
+.video-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.1) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  pointer-events: none;
+}
+
+/* Retailer Benefits */
+.retailer-benefits {
+  margin-top: 2rem;
+}
+
+.benefits-card {
+  background: rgba(135, 99, 85, 0.05);
+  border: 1px solid rgba(135, 99, 85, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.benefits-title {
+  font-family: "Playfair Display", serif;
+  font-size: 1.25rem;
+  color: #1a0f0b;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #666;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.benefit-bullet {
+  width: 6px;
+  height: 6px;
+  background: #876355;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Content Section */
+.luxury-content-section {
+  position: relative;
+}
+
+.content-card {
+  background: white;
+  border-radius: 16px;
+  padding: 0;
+}
+
+.content-header {
+  margin-bottom: 2rem;
+}
+
+.content-main-title {
+  font-family: "Playfair Display", serif;
+  font-size: 1.75rem;
+  color: #1a0f0b;
+  line-height: 1.3;
+  margin-bottom: 1rem;
+}
+
+.title-underline {
+  width: 60px;
+  height: 2px;
+  background: #876355;
+}
+
+.content-text {
+  margin-bottom: 2rem;
+}
+
+.text-paragraph {
+  color: #666;
+  line-height: 1.7;
+  font-size: 1.05rem;
+}
+
+.luxury-email-link {
+  color: #876355;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.luxury-email-link:hover {
+  color: #1a0f0b;
+  border-bottom-color: #876355;
+}
+
+/* Retailer Form Section */
+.retailer-form-section {
+  border-top: 1px solid rgba(135, 99, 85, 0.1);
+  padding-top: 2rem;
+}
+
+.form-header {
+  margin-bottom: 2rem;
+}
+
+.form-title {
+  font-family: "Playfair Display", serif;
+  font-size: 1.5rem;
+  color: #1a0f0b;
+  margin-bottom: 0.5rem;
+}
+
+.form-subtitle {
+  color: #666;
+  font-size: 1rem;
+}
+
+.form-container {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(135, 99, 85, 0.1);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+/* Stats Section */
+.luxury-stats-section {
+  border-top: 1px solid rgba(135, 99, 85, 0.1);
+  padding-top: 3rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.stat-card {
+  text-align: center;
+  padding: 2rem 1rem;
+  background: rgba(135, 99, 85, 0.03);
+  border: 1px solid rgba(135, 99, 85, 0.1);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  background: rgba(135, 99, 85, 0.08);
+  transform: translateY(-2px);
+}
+
+.stat-number {
+  font-family: "Playfair Display", serif;
+  font-size: 2rem;
+  font-weight: 600;
+  color: #876355;
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  color: #666;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Luxury Contact Form Integration */
+.luxury-contact-form {
+  background: transparent;
+  border: none;
+  padding: 0;
+  backdrop-filter: none;
+}
+
+.luxury-form-item {
+  margin-bottom: 1.5rem;
+}
+
+.luxury-form-label {
+  color: #1a0f0b;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  display: block;
+  font-size: 0.9rem;
+}
+
+.luxury-input,
+.luxury-phone-input,
+.luxury-textarea {
+  background: white;
+  border: 1px solid rgba(135, 99, 85, 0.2);
+  border-radius: 8px;
+  color: #1a0f0b;
+  padding: 0.75rem 1rem;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.luxury-input:focus,
+.luxury-phone-input:focus,
+.luxury-textarea:focus {
+  outline: none;
+  border-color: #876355;
+  box-shadow: 0 0 0 3px rgba(135, 99, 85, 0.1);
+}
+
+.luxury-input::placeholder,
+.luxury-textarea::placeholder {
+  color: #999;
+}
+
+.luxury-form-description {
+  color: #666;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.luxury-form-message {
+  color: #dc2626;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.luxury-submit-btn {
+  background: #876355;
+  border: none;
+  border-radius: 8px;
+  padding: 1rem 2rem;
+  color: white;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.luxury-submit-btn:hover:not(:disabled) {
+  background: #756055;
+  transform: translateY(-1px);
+}
+
+.luxury-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.btn-arrow {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.3s ease;
+}
+
+.luxury-submit-btn:hover .btn-arrow {
+  transform: translateX(4px);
+}
+
+/* Animations */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .content-main-title {
+    font-size: 1.5rem;
+  }
+
+  .luxury-retailer-video {
+    height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .form-container {
+    padding: 1.5rem;
+  }
+
+  .content-card {
+    padding: 0;
+  }
+}
+
+@media (min-width: 1536px) {
+  .luxury-retailer-video {
+    height: 1100px;
+  }
+}
+.floating-frame {
+  transition:
+    transform 0.6s ease,
+    box-shadow 0.6s ease,
+    filter 0.6s ease;
+}
+.floating-frame:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 35px rgba(201, 163, 154, 0.55);
+  filter: brightness(1.04) contrast(1.05);
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

@@ -1,0 +1,11 @@
+stages:
+  - test_deploy
+
+test_deploy:
+  stage: test_deploy
+  script:
+    - echo "Starting deployment process..."
+    - echo "Commit - $CI_COMMIT_TITLE at $(date '+%Y-%m-%d %H:%M:%S')"
+
+    # SSH Setup
+    - echo "Setting up SSH connection..."
