@@ -37,7 +37,7 @@ export const getCategories = async () => {
     const response = await fetch(`${API_URL}/categories`, { cache: "no-store" });
     const data = await response.json();
 
-    console.log("this is data ", data)
+    console.log("Categories received at data.ts ", data)
 
     // 🧠 Handle different API shapes gracefully
     if (Array.isArray(data)) {

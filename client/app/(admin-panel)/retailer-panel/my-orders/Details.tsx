@@ -903,9 +903,6 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
     </Button>
   </div>
 )}
-
-
-
                   </TableHeader>
                 </Table>
 

@@ -47,6 +47,7 @@ const Header = async () => {
   }
 
   const categories = await getCategories();
+  console.log("categories received at header.tsx",categories)
 
   const sortedCategories = categories
     ?.sort((a: any, b: any) => a.priority - b.priority)
@@ -220,8 +221,9 @@ const Header = async () => {
                     COLLECTIONS
                   </p>
                 </NavigationMenuTrigger>
-                <NavigationMenuContent className="flex min-w-[100vw] max-w-[100vw] flex-row justify-between px-8 xl:justify-center xl:gap-[135px]">
-                  {sortedCategories.map((category: any) => (
+// AFTER
+<NavigationMenuContent className="flex min-w-[100vw] max-w-[100vw] flex-row flex-wrap justify-center gap-x-[80px] gap-y-4 px-8 py-4 overflow-y-auto max-h-[80vh]">
+                    {sortedCategories.map((category: any) => (
                     <HoverCard key={category.id} closeDelay={200}>
                       <HoverCardTrigger asChild className="cursor-pointer">
                         <div>
