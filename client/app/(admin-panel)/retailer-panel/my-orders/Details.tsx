@@ -18,8 +18,6 @@ import {
   getRetailerAcceptedFreshOrderDetails,
   getRetailerAcceptedStockOrderDetails,
 } from "@/lib/data";
-import { cookies } from "next/headers";
-import ProductCard from "@/components/custom/ProductCard";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Accordion,
