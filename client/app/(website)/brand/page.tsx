@@ -85,9 +85,12 @@ export default function BrandPage() {
               <span className="text-6xl text-[#876355] mb-6 leading-none">❝</span>
 
               {/* Quote Text */}
-              <p className="text-2xl md:text-2xl lg:text-2xl font-light italic text-gray-100 leading-snug text-center max-w-5xl mx-auto px-4">
-                "Every dress tells a story of elegance, craftsmanship, and the dreams of the woman who wears it."
-              </p>
+              <p 
+  className="text-2xl md:text-3xl font-brandon lg:text-4xl text-center text-gray-300 italic leading-relaxed transform transition-all duration-700"
+  style={{ fontWeight: 100  }}
+>
+  "Every dress tells a story of elegance, craftsmanship, and the dreams of the woman who wears it."
+</p>
 
               {/* Author */}
               <p className="font-adornstoryserif text-2xl text-[#C9A39A] 3xl:text-3xl 4xl:text-5xl">
@@ -250,7 +253,7 @@ export default function BrandPage() {
           {/* Sponsors */}
           <div
             ref={addToSectionsRef}
-            className="rounded-2xl overflow-hidden shadow-[0_0_15px_rgba(0,0,0,0.3)] floating-frame max-w-6xl mx-auto"
+            className="rounded-2xl overflow-hidden shadow-[0_0_15px_rgba(0,0,0,0.3)] floating-frame max-w-full md:max-w-6xl mx-auto"
           >
             <SponserImages sponsor={sponsor} />
           </div>
