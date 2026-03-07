@@ -186,36 +186,38 @@ export const retailerLoginForm = async (values: LoginForm) => {
 
     const oneDay = 24 * 60 * 60;
 
-    // ⭐ Save cookies after successful login only
-    cookies().set("token", data.token, {
+    // ✅ await cookies() — required in Next.js 15
+    const cookieStore = await cookies();
+
+    cookieStore.set("token", data.token, {
       httpOnly: true,
       maxAge: oneDay,
       sameSite: "lax",
       path: "/",
     });
 
-    cookies().set("retailerId", String(data.retailerId), {
+    cookieStore.set("retailerId", String(data.retailerId), {
       httpOnly: false,
       maxAge: oneDay,
       sameSite: "lax",
       path: "/",
     });
 
-    cookies().set("userType", "RETAILER", {
+    cookieStore.set("userType", "RETAILER", {
       httpOnly: false,
       maxAge: oneDay,
       sameSite: "lax",
       path: "/",
     });
 
-    cookies().set("countryId", String(data.countryId ?? ""), {
+    cookieStore.set("countryId", String(data.countryId ?? ""), {
       httpOnly: false,
       maxAge: oneDay,
       sameSite: "lax",
       path: "/",
     });
 
-    cookies().set("currencyId", String(data.currencyId ?? ""), {
+    cookieStore.set("currencyId", String(data.currencyId ?? ""), {
       httpOnly: false,
       maxAge: oneDay,
       sameSite: "lax",
@@ -229,7 +231,7 @@ export const retailerLoginForm = async (values: LoginForm) => {
     };
 
   } catch (error) {
-    console.error("Login Error:", error);
+    console.error("Login Error:", error); // check terminal for exact error
     return { success: false, message: "Something went wrong" };
   }
 };

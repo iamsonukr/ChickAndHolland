@@ -29,6 +29,7 @@ router.get(
         },
         relations: ["subCategories"],
       });
+      console.log("categorues fetched from database", categories)
       res.json(categories);
     } catch (error) {
       console.log(error)

@@ -10,7 +10,7 @@ export default class BodyDetail extends BaseModel {
 
   @Column("int", { nullable: false })
   head: number;
-
+  
   @Column("int", { nullable: false })
   neck: number;
 

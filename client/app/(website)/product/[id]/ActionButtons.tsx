@@ -108,7 +108,7 @@ const formSchema = z.object({
 
 const ActionButtons = ({
 
-  
+
   productDetails,
   isRetailer,
   isLoggedIn,
@@ -155,28 +155,28 @@ const ActionButtons = ({
   const [open, setOpen] = useState(false);
   const [colors, setColors] = useState([] as any);
   const sizeOptions = {
-  EU: [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60],
-  US: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
-  IT: [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64],
-  UK: [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32],
-};
-
-const [colorChart, setColorChart] = useState<string | null>(null);
-const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-
-useEffect(() => {
-  const loadChart = async () => {
-    try {
-      const res = await fetch(`${API_URL}/color-chart`, { cache: "no-store" });
-      const data = await res.json();
-      setColorChart(data.imageUrl || null);
-      setLastUpdated(data.updatedAt || data.createdAt || null);
-    } catch (err) {
-      console.error(err);
-    }
+    EU: [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60],
+    US: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
+    IT: [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64],
+    UK: [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32],
   };
-  loadChart();
-}, []);
+
+  const [colorChart, setColorChart] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadChart = async () => {
+      try {
+        const res = await fetch(`${API_URL}/color-chart`, { cache: "no-store" });
+        const data = await res.json();
+        setColorChart(data.imageUrl || null);
+        setLastUpdated(data.updatedAt || data.createdAt || null);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadChart();
+  }, []);
 
 
 
@@ -215,13 +215,13 @@ useEffect(() => {
   const action = form.handleSubmit(async (data: any, e: any) => {
     e.preventDefault();
 
-    if(data.lining === "No Lining"){
+    if (data.lining === "No Lining") {
       data.liningColor = "No Color"
     }
 
     const formData = new FormData();
 
-  
+
 
     // Append top-level fields
     formData.append("retailerId", retailerId || "");
@@ -368,24 +368,24 @@ useEffect(() => {
         <SheetContent className="!min-w-[90%] !max-w-[90%] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Add Cart</SheetTitle>
-          <SheetDescription asChild>
-  <div className="flex justify-between">
-    <div className="text-sm text-muted-foreground space-y-1">
-      <span>
-        After Size 48: <b>49-52 - 20%, 53-56 - 40%, 57-60 - 60%</b> price increasing will be there respectively.
-      </span>
-      <span>SAS: Same as sample</span>
-    </div>
+            <SheetDescription asChild>
+              <div className="flex justify-between">
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <span>
+                    After Size 48: <b>49-52 - 20%, 53-56 - 40%, 57-60 - 60%</b> price increasing will be there respectively.
+                  </span>
+                  <span>SAS: Same as sample</span>
+                </div>
 
-    <button
-      type="button"
-      className="cursor-pointer text-base font-semibold text-blue-500 underline"
-      onClick={() => setColorChartDialog(true)}
-    >
-      Color Chart
-    </button>
-  </div>
-</SheetDescription>
+                <button
+                  type="button"
+                  className="cursor-pointer text-base font-semibold text-blue-500 underline"
+                  onClick={() => setColorChartDialog(true)}
+                >
+                  Color Chart
+                </button>
+              </div>
+            </SheetDescription>
 
 
           </SheetHeader>
@@ -410,72 +410,72 @@ useEffect(() => {
                   <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
 
 
-                       <FormField
-  control={form.control}
-  name={`productDetails.${index}.size_country`}
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>Size Country</FormLabel>
-      <Select
-        onValueChange={(val) => {
-          field.onChange(val);
-          form.setValue(`productDetails.${index}.size`, ""); // Reset size
-        }}
-        defaultValue={field.value}
-      >
-        <FormControl>
-          <SelectTrigger>
-            <SelectValue placeholder="Size Country" />
-          </SelectTrigger>
-        </FormControl>
-        <SelectContent>
-          {Object.keys(sizeOptions).map((country) => (
-            <SelectItem key={country} value={country}>
-              {country}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
+                    <FormField
+                      control={form.control}
+                      name={`productDetails.${index}.size_country`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Size Country</FormLabel>
+                          <Select
+                            onValueChange={(val) => {
+                              field.onChange(val);
+                              form.setValue(`productDetails.${index}.size`, ""); // Reset size
+                            }}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Size Country" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {Object.keys(sizeOptions).map((country) => (
+                                <SelectItem key={country} value={country}>
+                                  {country}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                   <FormField
-  control={form.control}
-  name={`productDetails.${index}.size`}
-  render={({ field }) => {
-    const country = form.getValues(`productDetails.${index}.size_country`);
-    const options = sizeOptions[country] || [];
+                    <FormField
+                      control={form.control}
+                      name={`productDetails.${index}.size`}
+                      render={({ field }) => {
+                        const country = form.getValues(`productDetails.${index}.size_country`);
+                        const options = sizeOptions[country] || [];
 
-    return (
+                        return (
 
 
-      
-      <FormItem>
-        <FormLabel>Select Size</FormLabel>
-        <Select
-          onValueChange={field.onChange}
-          value={field.value}
-        >
-          <FormControl>
-            <SelectTrigger>
-              <SelectValue placeholder="Select Size" />
-            </SelectTrigger>
-          </FormControl>
-          <SelectContent>
-            {options.map((s) => (
-              <SelectItem key={s} value={String(s)}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <FormMessage />
-      </FormItem>
-    );
-  }}
-/>
+
+                          <FormItem>
+                            <FormLabel>Select Size</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select Size" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {options.map((s) => (
+                                  <SelectItem key={s} value={String(s)}>
+                                    {s}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
 
 
                     <FormField
@@ -955,7 +955,7 @@ useEffect(() => {
                       )}
                     />
 
-                 
+
 
                     <FormField
                       control={form.control}
@@ -1049,36 +1049,34 @@ useEffect(() => {
           <DialogHeader>
             <DialogTitle>Color Chart</DialogTitle>
           </DialogHeader>
-      <div className="space-y-4 text-center">
-  {lastUpdated && (
-<div className="flex items-center justify-center gap-4 mt-[-10px] mb-10">
-    <span className="h-[1px] bg-gray-300 flex-1 max-w-[120px]  mb-1" />
+          <div className="space-y-4 text-center">
+            {lastUpdated && (
+              <div className="flex items-center justify-center gap-4 mt-[-10px] mb-10">
+                <span className="h-[1px] bg-gray-300 flex-1 max-w-[120px]  mb-1" />
 
-    {(() => {
-      const year = new Date(lastUpdated).getFullYear();
-      return (
-        <span className="text-2xl font-extrabold text-gray-800 tracking-wide">
-          {year}
-        </span>
-      );
-    })()}
+                {(() => {
+                  const year = new Date(lastUpdated).getFullYear();
+                  return (
+                    <span className="text-2xl font-extrabold text-gray-800 tracking-wide">
+                      {year}
+                    </span>
+                  );
+                })()}
 
-    <span className="h-[1px] bg-gray-300 flex-1 max-w-[120px]" />
-  </div>
-)}
-
-
-  <div className="rounded-xl overflow-hidden shadow-lg border border-gray-200 ">
-    <CustomizedImage
-      src={colorChart}
-      alt="Color Chart"
-      unoptimized
-      className="w-full max-h-[80vh] object-contain bg-white"
-    />
-  </div>
-</div>
+                <span className="h-[1px] bg-gray-300 flex-1 max-w-[120px]" />
+              </div>
+            )}
 
 
+            <div className="rounded-xl overflow-hidden shadow-lg border border-gray-200 ">
+              <CustomizedImage
+                src={colorChart}
+                alt="Color Chart"
+                unoptimized
+                className="w-full max-h-[80vh] object-contain bg-white"
+              />
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

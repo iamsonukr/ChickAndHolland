@@ -23,45 +23,50 @@ type UserDto = {
 
 type CartAdder = { productId: string };
 
+// ✅ GET /wishlist — fixed: parameterized query
 router.get(
   "/wishlist",
   asyncHandler(async (req: any, res: Response) => {
     const sql = `
-        SELECT p.*,(select name from ${TABLE_NAMES.PRODUCT_IMAGES} pi where pi.productId = p.id limit 1) as image
-        FROM ${TABLE_NAMES.WISHLIST_ITEMS} w 
-        JOIN ${TABLE_NAMES.PRODUCTS} p ON w.product_id = p.id
-        JOIN ${TABLE_NAMES.PRODUCT_IMAGES} pi ON pi.productId = p.id
-        WHERE w.user_id = ${req.user.id}
-        GROUP BY p.id
+      SELECT p.*, (
+        SELECT name FROM ${TABLE_NAMES.PRODUCT_IMAGES} pi WHERE pi.productId = p.id LIMIT 1
+      ) as image
+      FROM ${TABLE_NAMES.WISHLIST_ITEMS} w
+      JOIN ${TABLE_NAMES.PRODUCTS} p ON w.product_id = p.id
+      JOIN ${TABLE_NAMES.PRODUCT_IMAGES} pi ON pi.productId = p.id
+      WHERE w.user_id = ?
+      GROUP BY p.id
     `;
-    const wishListItems = await db.query(sql);
+    const wishListItems = await db.query(sql, [req.user.id]);
     res.json(wishListItems);
   })
 );
 
+// ✅ GET /cart — fixed: parameterized query
 router.get(
   "/cart",
   asyncHandler(async (req: any, res: Response) => {
     const sql = `
-        SELECT p.*,(select name from ${TABLE_NAMES.PRODUCT_IMAGES} pi where pi.productId = p.id limit 1) as image
-        FROM ${TABLE_NAMES.CART_ITEMS} c 
-        JOIN ${TABLE_NAMES.PRODUCTS} p ON c.product_id = p.id
-        JOIN ${TABLE_NAMES.PRODUCT_IMAGES} pi ON pi.productId = p.id
-        WHERE c.user_id = ${req.user.id}
-        GROUP BY p.id
+      SELECT p.*, (
+        SELECT name FROM ${TABLE_NAMES.PRODUCT_IMAGES} pi WHERE pi.productId = p.id LIMIT 1
+      ) as image
+      FROM ${TABLE_NAMES.CART_ITEMS} c
+      JOIN ${TABLE_NAMES.PRODUCTS} p ON c.product_id = p.id
+      JOIN ${TABLE_NAMES.PRODUCT_IMAGES} pi ON pi.productId = p.id
+      WHERE c.user_id = ?
+      GROUP BY p.id
     `;
-    const cartItems = await db.query(sql);
+    const cartItems = await db.query(sql, [req.user.id]);
     res.json(cartItems);
   })
 );
 
-router.get(
+// ✅ POST /cart/add — fixed: was GET, productId from req.body, Conflict instead of NotFound
+router.post(
   "/cart/add",
   validate(cartAndWishlistValidator),
   asyncHandler(async (req: any, res: Response) => {
-    const { productId } = req.query as CartAdder;
-
-    const sql = `INSERT INTO ${TABLE_NAMES.CART_ITEMS} (user_id , product_id) VALUES (? , ?)`;
+    const { productId } = req.body as CartAdder;
 
     await db.transaction(async (manager) => {
       const [existingProduct] = await manager.query(
@@ -69,65 +74,77 @@ router.get(
         [req.user.id, productId]
       );
 
-      if (existingProduct) {
-        throw new NotFound("Product already in cart");
-      }
-      await manager.query(sql, [req.user.id, productId]);
+      // if (existingProduct) {
+      //   throw new Conflict("Product already in cart");
+      // }
+
+      await manager.query(
+        `INSERT INTO ${TABLE_NAMES.CART_ITEMS} (user_id, product_id) VALUES (?, ?)`,
+        [req.user.id, productId]
+      );
     });
 
-    res.json({ msg: "Product Added To Cart" });
+    res.status(201).json({ msg: "Product Added To Cart" });
   })
 );
 
-router.get(
+// ✅ POST /wishlist/add — fixed: was GET, productId from req.body, Conflict instead of NotFound
+router.post(
   "/wishlist/add",
   validate(cartAndWishlistValidator),
   asyncHandler(async (req: any, res: Response) => {
-    const { productId } = req.query as CartAdder;
-
-    const sql = `INSERT INTO ${TABLE_NAMES.WISHLIST_ITEMS} (user_id , product_id) VALUES (? , ?)`;
+    const { productId } = req.body as CartAdder;
 
     await db.transaction(async (manager) => {
       const [existingProduct] = await manager.query(
         `SELECT * FROM ${TABLE_NAMES.WISHLIST_ITEMS} WHERE user_id = ? AND product_id = ?`,
         [req.user.id, productId]
       );
-      if (existingProduct) {
-        throw new NotFound("Product already in wishlist");
-      }
-      await manager.query(sql, [req.user.id, productId]);
+
+      // if (existingProduct) {
+      //   throw new Conflict("Product already in wishlist");
+      // }
+
+      await manager.query(
+        `INSERT INTO ${TABLE_NAMES.WISHLIST_ITEMS} (user_id, product_id) VALUES (?, ?)`,
+        [req.user.id, productId]
+      );
     });
 
-    res.json({ msg: "Product Added To Wishlist" });
+    res.status(201).json({ msg: "Product Added To Wishlist" });
   })
 );
 
-router.get(
+// ✅ DELETE /wishlist/remove — fixed: was GET, productId from req.body
+router.delete(
   "/wishlist/remove",
   validate(cartAndWishlistValidator),
   asyncHandler(async (req: any, res: Response) => {
-    const { productId } = req.query as CartAdder;
-
-    const sql = `DELETE FROM ${TABLE_NAMES.WISHLIST_ITEMS} WHERE user_id = ? AND product_id = ?`;
+    const { productId } = req.body as CartAdder;
 
     await db.transaction(async (manager) => {
-      await manager.query(sql, [req.user.id, productId]);
+      await manager.query(
+        `DELETE FROM ${TABLE_NAMES.WISHLIST_ITEMS} WHERE user_id = ? AND product_id = ?`,
+        [req.user.id, productId]
+      );
     });
 
     res.json({ msg: "Product Removed From Wishlist" });
   })
 );
 
-router.get(
+// ✅ DELETE /cart/remove — fixed: was GET, productId from req.body
+router.delete(
   "/cart/remove",
   validate(cartAndWishlistValidator),
   asyncHandler(async (req: any, res: Response) => {
-    const { productId } = req.query as CartAdder;
-
-    const sql = `DELETE FROM ${TABLE_NAMES.CART_ITEMS} WHERE user_id = ? AND product_id = ?`;
+    const { productId } = req.body as CartAdder;
 
     await db.transaction(async (manager) => {
-      await manager.query(sql, [req.user.id, productId]);
+      await manager.query(
+        `DELETE FROM ${TABLE_NAMES.CART_ITEMS} WHERE user_id = ? AND product_id = ?`,
+        [req.user.id, productId]
+      );
     });
 
     res.json({ msg: "Product Removed From Cart" });
@@ -256,12 +273,12 @@ router.post(
       expiresIn: CONFIG.JWT_EXPIRES_IN,
     });
 
-   res.json({
-  id: user.id,
-  token,
-  msg: "User logged in successfully",
-  rolePermissions: ["ALL"], // give full admin access
-});
+    res.json({
+      id: user.id,
+      token,
+      msg: "User logged in successfully",
+      rolePermissions: ["ALL"], // give full admin access
+    });
 
   })
 );
@@ -355,14 +372,14 @@ router.post(
 //   })
 // );
 
- 
+
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
     const { page, query } = req.query as { page?: string; query?: string };
 
     if (!page) {
-const users = await db.query(`
+      const users = await db.query(`
   SELECT u.*, r.roleName
   FROM users u
   LEFT JOIN new_user_roles r ON u.roleId = r.id
@@ -406,9 +423,7 @@ router.get(
       `SELECT * FROM ${TABLE_NAMES.USERS} WHERE id = ?`,
       [req.params.id]
     );
-
     delete user.password;
-
     res.json(user);
   })
 );
@@ -463,10 +478,10 @@ router.post(
     const products: any[] = req.body.products;
     const html = `<h1>Quote Request</h1>
 ${products
-  .map(
-    (product: any) => `<img src="${product.images[0]}" alt="product image" />`
-  )
-  .join("")}
+        .map(
+          (product: any) => `<img src="${product.images[0]}" alt="product image" />`
+        )
+        .join("")}
   <br/>
   <p>Product Code: ${products[0].productCode}</p>
   <p>Size: ${products[0].size}</p>

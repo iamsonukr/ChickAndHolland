@@ -23,16 +23,23 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { userName: username, password } = req.body;
 
-    // console.log(req.bo)
+    console.log(req.body)
+
+    console.log("Reached for retailer login on backend", username, password)
 
     const retailer = await Retailer.findOne({
       where: {
-        username,
-        password,
+        username: username,
+        password: password,
         isDeleted: false,
       },
       relations: ["customer", "customer.currency"],
     });
+
+    const allRetailer = await Retailer.find({})
+
+    console.log(allRetailer)
+    // return
 
     if (!retailer || retailer.customer.isDeleted) {
       return res.status(404).json({
@@ -57,15 +64,15 @@ router.post(
       expiresIn: CONFIG.JWT_EXPIRES_IN,
     });
 
-   res.json({
-  success: true,
-  message: "Retailer logged in successfully",
-  token,
-  retailerId: retailer.id,
-  countryId: retailer.customer.countryId,
-  currencyId: retailer.customer.currencyId,
-  phoneNumber: retailer.customer.phoneNumber,   // <-- ADD THIS
-});
+    res.json({
+      success: true,
+      message: "Retailer logged in successfully",
+      token,
+      retailerId: retailer.id,
+      countryId: retailer.customer.countryId,
+      currencyId: retailer.customer.currencyId,
+      phoneNumber: retailer.customer.phoneNumber,   // <-- ADD THIS
+    });
 
   })
 );
@@ -349,8 +356,8 @@ router.get(
       right join  customers as c on c.id = r.customerId
     `;
 
-// '' AS rejected_comments
-    
+    // '' AS rejected_comments
+
     // Handle retailerId condition
     if (retailerId && retailerId !== "all") {
       whereClauses.favorites.push("f.retailerId = ?");
@@ -528,22 +535,22 @@ router.get(
     }
 
     res.json({
-  success: true,
-  retailer: {
-    id: retailer.id,
-    username: retailer.username,
-    countryId: retailer.customer.countryId,
-    currencyId: retailer.customer.currencyId,
+      success: true,
+      retailer: {
+        id: retailer.id,
+        username: retailer.username,
+        countryId: retailer.customer.countryId,
+        currencyId: retailer.customer.currencyId,
 
-    // CUSTOMER FIELDS
-    name: retailer.customer.name,
-    storeName: retailer.customer.storeName,
+        // CUSTOMER FIELDS
+        name: retailer.customer.name,
+        storeName: retailer.customer.storeName,
         storeAddress: retailer.customer.storeAddress,   // <-- ADD HERE
 
-    email: retailer.customer.email,
-    phoneNumber: retailer.customer.phoneNumber, // FIXED
-  }
-});
+        email: retailer.customer.email,
+        phoneNumber: retailer.customer.phoneNumber, // FIXED
+      }
+    });
 
   })
 );
@@ -629,9 +636,9 @@ router.get(
       address: item.address,
       currency: item.currency
         ? {
-            code: item.currency.code,
-            symbol: item.currency.symbol,
-          }
+          code: item.currency.code,
+          symbol: item.currency.symbol,
+        }
         : null,
     }));
 

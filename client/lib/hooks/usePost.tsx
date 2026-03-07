@@ -33,11 +33,10 @@ function useHttp<T = any>(
       setError(null);
 
       const headers: HeadersInit = {
-  ...(authorization && {
-    Authorization: `Bearer ${getCookie("token") || localStorage.getItem("token")}`,
-  }),
-};
-
+        ...(authorization && {
+          Authorization: `Bearer ${getCookie("token") || localStorage.getItem("token")}`,
+        }),
+      };
 
       const url = config?.url || defaultUrl;
       // let fullUrl = `${API_URL}${url}`;
@@ -68,18 +67,18 @@ function useHttp<T = any>(
 
       const responseJson = await response.json();
 
-     if (!response.ok || !responseJson.success) {
-  const msg = responseJson.message || responseJson.error || "Request failed";
+      if (!response.ok || !responseJson.success) {
+        const msg = responseJson.message || responseJson.error || "Request failed";
 
-  // Tell the UI about the error (toast)
-  errorCallback?.(new Error(msg));
+        // Tell the UI about the error (toast)
+        errorCallback?.(new Error(msg));
 
-  // Do NOT crash React — reject instead
-  return Promise.reject({
-    success: false,
-    message: msg,
-  });
-}
+        // Do NOT crash React — reject instead
+        return Promise.reject({
+          success: false,
+          message: msg,
+        });
+      }
 
 
       return responseJson as T;
