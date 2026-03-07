@@ -85,9 +85,13 @@ const formSchema = z.object({
       lining: z.string().min(1, {
         message: "Lining Color is required",
       }),
-      liningColor: z.string().min(1, {
-        message: "Lining Color is required",
-      }),
+      // liningColor: z.string().min(1, {
+      //   message: "Lining Color is required",
+      // }),
+      liningColor: z.preprocess(
+  (val) => (val === null || val === undefined ? "" : val),
+  z.string()
+),
       addLining: z.boolean().optional(),
       files: z // Changed from 'file' to 'files' to support multiple files
         .array(
@@ -213,7 +217,9 @@ const ActionButtons = ({
   const watch = form.watch("productDetails");
 
   const action = form.handleSubmit(async (data: any, e: any) => {
+    console.log("✅ action fired");
     e.preventDefault();
+    console.log("📋 Raw form data:", JSON.stringify(data, null, 2));
 
     if (data.lining === "No Lining") {
       data.liningColor = "No Color"
@@ -221,12 +227,11 @@ const ActionButtons = ({
 
     const formData = new FormData();
 
-
-
-    // Append top-level fields
     formData.append("retailerId", retailerId || "");
     formData.append("productId", productDetails.id);
-    // Prepare productDetails without files for JSON
+    console.log("🛒 retailerId:", retailerId);
+    console.log("🆔 productId:", productDetails.id);
+
     const productDetailsWithoutFiles = data.productDetails.map(
       (detail: any) => ({
         size: detail.size,
@@ -241,65 +246,41 @@ const ActionButtons = ({
         addLining: detail.addLining,
       }),
     );
-    formData.append(
-      "productDetails",
-      JSON.stringify(productDetailsWithoutFiles),
-    );
+    console.log("📦 productDetailsWithoutFiles:", JSON.stringify(productDetailsWithoutFiles, null, 2));
+    formData.append("productDetails", JSON.stringify(productDetailsWithoutFiles));
 
-    // Append files separately
     data.productDetails.forEach((detail: any, index: number) => {
       if (detail.files && detail.files.length > 0) {
         detail.files.forEach((file: any, fileIndex: number) => {
+          console.log(`📎 Appending file[${index}][${fileIndex}]:`, file.name, file.size);
           formData.append(`files[${index}][]`, file);
         });
       }
     });
+
+    console.log("📤 Sending FormData to /favourites...");
     const response = await addFavourites(formData, {}, () => {
+      console.error("❌ addFavourites error callback fired");
       toast.error("Add to favourites failed", {
         description: "Something went wrong, please try again later",
       });
     });
 
+    console.log("📥 Response:", JSON.stringify(response, null, 2));
+
     if (response.success) {
       toast.success("Successfully Added to favourites");
+    } else {
+      console.warn("⚠️ Response success=false:", response);
     }
     form.reset();
     setOpen(false);
-
     router.refresh();
+  },
+  (errors) => {
+    console.error("❌ Form validation errors:", JSON.stringify(errors, null, 2));
+    toast.error("Form validation failed", { description: "Check console for field errors" });
   });
-
-  const customerWithOutLog = () => {
-    if (!alreadyFavourite) {
-      // localStorage.setItem(
-      //   "myFavourites",
-      //   JSON.stringify([
-      //     ...JSON.parse(localStorage.getItem("myFavourites") || "[]"),
-      //     productDetails?.productCode,
-      //   ]),
-      // );
-      document.cookie = `favourites=${JSON.stringify([
-        ...favourites,
-        productDetails.productCode,
-      ])}; path=/`;
-    } else {
-      // localStorage.setItem(
-      //   "myFavourites",
-      //   JSON.stringify(
-      //     JSON.parse(
-      //       localStorage.getItem("myFavourites") || "[]",
-      //     ).filter(
-      //       (id: number) => id !== productDetails?.productCode,
-      //     ),
-      //   ),
-      // );
-
-      document.cookie = `favourites=${JSON.stringify(
-        favourites.filter((id: number) => id !== productDetails.productCode),
-      )}; path=/`;
-    }
-    router.refresh();
-  };
 
   const getColourBasedOnId = (id: number) => {
     return colors.find((colour: any) => colour.id === id)?.hexcode;
