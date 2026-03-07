@@ -239,17 +239,16 @@ const config = {
         "float-fast": "float 3s ease-in-out infinite",
         "scroll-line": "scrollLine 2s ease-in-out infinite",
       },
-      fontFamily: {
-        poppins: "var(--font-poppins)",
-        vivaldi: "var(--font-vivaldi)",
-        prata: "var(--font-prata)",
-        mysi: "var(--font-msyi)",
-        adornstoryserif: "var(--font-adornstoryserif)",
-         brandon: ["Brandon Grotesque", "sans-serif"],
-        // Luxury fonts
-        adorned: ['Playfair Display', 'Georgia', 'serif'],
-        elegant: ['Cormorant Garamond', 'Georgia', 'serif'],
-      },
+    fontFamily: {
+  poppins: ["var(--font-poppins)", "sans-serif"],
+  vivaldi: ["var(--font-vivaldi)", "cursive"],
+  prata: ["var(--font-prata)", "serif"],
+  mysi: ["var(--font-msyi)", "serif"],
+  adornstoryserif: ["var(--font-adornstoryserif)", "serif"],
+  brandon: ["brandon", "sans-serif"],
+  adorned: ["Playfair Display", "Georgia", "serif"],
+  elegant: ["Cormorant Garamond", "Georgia", "serif"],
+},
       screens: {
         smd: "1000px",
         "2smd": "1600px",
