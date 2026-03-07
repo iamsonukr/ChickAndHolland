@@ -49,14 +49,14 @@ const Header = async () => {
   const categories = await getCategories();
   console.log("categories received at header.tsx",categories)
 
-  const sortedCategories = categories
-    ?.sort((a: any, b: any) => a.priority - b.priority)
-    .map((category: any) => {
-      category.subCategories = category.subCategories.sort((a: any, b: any) => {
-        return a.priority - b.priority;
-      });
-      return category;
-    });
+  const sortedCategories = [...(categories ?? [])]
+  .sort((a: any, b: any) => a.priority - b.priority)
+  .map((category: any) => ({
+    ...category,
+    subCategories: [...category.subCategories].sort(
+      (a: any, b: any) => a.priority - b.priority
+    ),
+  }));
 
   return (
     <div className="sticky top-0 z-10 h-[90px] max-h-[120px] w-full bg-background shadow-md lg:h-[120px] 2xl:h-[120px] 2xl:max-h-[120px] 3xl:h-[125px] 3xl:max-h-[150px] 4xl:h-[150px] 4xl:max-h-[150px]">
