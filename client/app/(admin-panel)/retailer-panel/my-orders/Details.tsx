@@ -502,7 +502,6 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
                       )}
                     />
                   </div>
-
                   <div className="col-span-3">
                     <FormField
                       control={updateForm.control}
@@ -549,7 +548,6 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
               </form>
             </Form>
           )}
-
         {!pathname?.includes("/admin-panel/order-list") && (
           <p className="text-lg">
             {" "}
@@ -865,7 +863,7 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
                     {/* Show Pay Now button for Retailer Panel if balance exists */}
 {!pathname?.includes("/admin-panel/order-list") && billAmount.balance > 0 && (
   <div className="flex justify-center py-4">
-    <Button
+    {/* <Button
       onClick={async () => {
         try {
           const token = localStorage.getItem("token");
@@ -875,7 +873,7 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
             return;
           }
 
-  const response = await fetch(`http://localhost:5001/api/stripe/checkout`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stripe/checkout`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -900,7 +898,7 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
       }}
     >
       Pay Balance
-    </Button>
+    </Button> */}
   </div>
 )}
                   </TableHeader>

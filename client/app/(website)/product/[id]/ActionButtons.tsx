@@ -41,11 +41,12 @@ import { getProductColours } from "@/lib/data";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CustomizedImage } from "@/components/custom/CustomizedImage";
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const lining = [
@@ -59,20 +60,36 @@ const lining = [
 const formSchema = z.object({
   productDetails: z.array(
     z.object({
-      size: z.string().min(1, { message: "Size is required" }),
-      color: z.string().min(1, { message: "Color is required" }),
+      size: z.string().min(1, {
+        message: "Size is required",
+      }),
+      color: z.string().min(1, {
+        message: "Color is required",
+      }),
       Quantity: z
-        .number({ coerce: true })
+        .number({
+          coerce: true,
+        })
         .min(1, { message: "Quantity is required" })
         .max(24),
-      size_country: z.string().min(1, { message: "Size Country is required" }),
+      size_country: z.string().min(1, {
+        message: "Size Country is required",
+      }),
       customization: z.string().optional(),
-      mesh: z.string().min(1, { message: "Mesh Color is required" }),
-      beading: z.string().min(1, { message: "Beading Color is required" }),
-      lining: z.string().min(1, { message: "Lining is required" }),
-      liningColor: z.string().min(1, { message: "Lining Color is required" }),
+      mesh: z.string().min(1, {
+        message: "Mesh Color is required",
+      }),
+      beading: z.string().min(1, {
+        message: "Beading Color is required",
+      }),
+      lining: z.string().min(1, {
+        message: "Lining Color is required",
+      }),
+      liningColor: z.string().min(1, {
+        message: "Lining Color is required",
+      }),
       addLining: z.boolean().optional(),
-      files: z
+      files: z // Changed from 'file' to 'files' to support multiple files
         .array(
           z
             .instanceof(File)
@@ -89,14 +106,9 @@ const formSchema = z.object({
   ),
 });
 
-const sizeOptions: Record<string, number[]> = {
-  EU: [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60],
-  US: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
-  IT: [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64],
-  UK: [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32],
-};
-
 const ActionButtons = ({
+
+
   productDetails,
   isRetailer,
   isLoggedIn,
@@ -111,17 +123,13 @@ const ActionButtons = ({
   favourites: any[];
   userType: string;
 }) => {
-  const sizeCountryArray = Object.entries(SizeCountry).map(([key, value]) => ({
-    value: key,
-    label: value,
-  })) as { value: keyof typeof SizeCountry; label: string }[];
-
+  const sizeCountryArray = Object.entries(SizeCountry).map(([key, value]) => {
+    return {
+      value: key,
+      label: value,
+    };
+  }) as { value: keyof typeof SizeCountry; label: string }[];
   const [colorChatDialog, setColorChartDialog] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [colors, setColors] = useState<any[]>([]);
-  const [alreadyFavourite, setAlreadyFavourite] = useState(false);
-  const [colorChart, setColorChart] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -144,46 +152,18 @@ const ActionButtons = ({
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "productDetails",
-  });
+  const [open, setOpen] = useState(false);
+  const [colors, setColors] = useState([] as any);
+  const sizeOptions = {
+    EU: [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60],
+    US: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
+    IT: [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64],
+    UK: [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32],
+  };
 
-  const watch = form.watch("productDetails");
+  const [colorChart, setColorChart] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-  // ✅ Fix: separate hook for cart — was incorrectly using addFavourites
-  const { executeAsync: addToCart, loading: addToCartLoading } =
-    useHttp(`/cart/add`);
-
-  const { executeAsync: addFavourites, loading: addFavouritesLoading } =
-    useHttp(`/favourites`);
-
-  const { executeAsync: removeFavourites, loading: removeFavouritesLoading } =
-    useHttp(`/favourites`, "DELETE");
-
-  const router = useRouter();
-
-  // ✅ Fix: fetch colors only once on mount
-  useEffect(() => {
-    const getcolors = async () => {
-      const colours = await getProductColours({});
-      setColors(colours.productColours);
-    };
-    getcolors();
-  }, []);
-
-  // ✅ Fix: separate effect for favourite state — no longer tied to color fetching
-  useEffect(() => {
-    if (isLoggedIn && isRetailer) {
-      setAlreadyFavourite(
-        favourites.map((fv) => fv.product.id).includes(productDetails.id),
-      );
-    } else {
-      setAlreadyFavourite(favourites.includes(productDetails.productCode));
-    }
-  }, [isLoggedIn, isRetailer, favourites, productDetails.id]);
-
-  // Fetch color chart
   useEffect(() => {
     const loadChart = async () => {
       try {
@@ -197,6 +177,22 @@ const ActionButtons = ({
     };
     loadChart();
   }, []);
+
+
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "productDetails",
+  });
+  const [alreadyFavourite, setAlreadyFavourite] = useState(false);
+
+  const { executeAsync: addFavourites, loading: addFavouritesLoading } =
+    useHttp(`/favourites`);
+
+  const { executeAsync: removeFavourites, loading: removeFavouritesLoading } =
+    useHttp(`/favourites`, "DELETE");
+
+  const router = useRouter();
 
   const addColorQuantity = () => {
     append({
@@ -214,59 +210,90 @@ const ActionButtons = ({
     });
   };
 
-  // ✅ Fix: removed e.preventDefault() — react-hook-form handles it
-  // ✅ Fix: lining "No Lining" check now correctly iterates productDetails
-  // ✅ Fix: using addToCart instead of addFavourites
-  const action = form.handleSubmit(async (data) => {
-    // Fix lining color per item
-    const productDetailsWithoutFiles = data.productDetails.map((detail) => ({
-      size: detail.size,
-      color: detail.color,
-      Quantity: detail.Quantity,
-      size_country: detail.size_country,
-      customization: detail.customization,
-      mesh: detail.mesh,
-      beading: detail.beading,
-      lining: detail.lining,
-      liningColor: detail.lining === "No Lining" ? "No Color" : detail.liningColor,
-      addLining: detail.addLining,
-    }));
+  const watch = form.watch("productDetails");
+
+  const action = form.handleSubmit(async (data: any, e: any) => {
+    e.preventDefault();
+
+    if (data.lining === "No Lining") {
+      data.liningColor = "No Color"
+    }
 
     const formData = new FormData();
+
+
+
+    // Append top-level fields
     formData.append("retailerId", retailerId || "");
     formData.append("productId", productDetails.id);
-    formData.append("productDetails", JSON.stringify(productDetailsWithoutFiles));
+    // Prepare productDetails without files for JSON
+    const productDetailsWithoutFiles = data.productDetails.map(
+      (detail: any) => ({
+        size: detail.size,
+        color: detail.color,
+        Quantity: detail.Quantity,
+        size_country: detail.size_country,
+        customization: detail.customization,
+        mesh: detail.mesh,
+        beading: detail.beading,
+        lining: detail.lining,
+        liningColor: detail.liningColor,
+        addLining: detail.addLining,
+      }),
+    );
+    formData.append(
+      "productDetails",
+      JSON.stringify(productDetailsWithoutFiles),
+    );
 
     // Append files separately
-    data.productDetails.forEach((detail, index) => {
+    data.productDetails.forEach((detail: any, index: number) => {
       if (detail.files && detail.files.length > 0) {
-        detail.files.forEach((file) => {
+        detail.files.forEach((file: any, fileIndex: number) => {
           formData.append(`files[${index}][]`, file);
         });
       }
     });
-
-    const response = await addToCart(formData, {}, () => {
-      toast.error("Add to cart failed", {
+    const response = await addFavourites(formData, {}, () => {
+      toast.error("Add to favourites failed", {
         description: "Something went wrong, please try again later",
       });
     });
 
-    if (response?.success) {
-      toast.success("Successfully added to cart");
-      form.reset();
-      setOpen(false);
-      router.refresh();
+    if (response.success) {
+      toast.success("Successfully Added to favourites");
     }
+    form.reset();
+    setOpen(false);
+
+    router.refresh();
   });
 
   const customerWithOutLog = () => {
     if (!alreadyFavourite) {
+      // localStorage.setItem(
+      //   "myFavourites",
+      //   JSON.stringify([
+      //     ...JSON.parse(localStorage.getItem("myFavourites") || "[]"),
+      //     productDetails?.productCode,
+      //   ]),
+      // );
       document.cookie = `favourites=${JSON.stringify([
         ...favourites,
         productDetails.productCode,
       ])}; path=/`;
     } else {
+      // localStorage.setItem(
+      //   "myFavourites",
+      //   JSON.stringify(
+      //     JSON.parse(
+      //       localStorage.getItem("myFavourites") || "[]",
+      //     ).filter(
+      //       (id: number) => id !== productDetails?.productCode,
+      //     ),
+      //   ),
+      // );
+
       document.cookie = `favourites=${JSON.stringify(
         favourites.filter((id: number) => id !== productDetails.productCode),
       )}; path=/`;
@@ -278,9 +305,28 @@ const ActionButtons = ({
     return colors.find((colour: any) => colour.id === id)?.hexcode;
   };
 
-  const getColourBasedOnhex = (hex: string) => {
-    return colors.find((colour: any) => colour.hexcode === hex)?.name;
+  const getColourBasedOnhex = (id: string) => {
+    return colors.find((colour: any) => colour.hexcode === id)?.name;
   };
+
+  const getcolors = async () => {
+    const colours = await getProductColours({});
+
+    setColors(colours.productColours);
+  };
+
+  useEffect(() => {
+    if (isLoggedIn && isRetailer) {
+      setAlreadyFavourite(
+        favourites.map((fv) => fv.product.id).includes(productDetails.id),
+      );
+    } else {
+      setAlreadyFavourite(favourites.includes(productDetails.productCode));
+    }
+    getcolors();
+  }, [isLoggedIn, isRetailer, favourites, productDetails.id, open]);
+
+  // console.log(form.formState.errors, "ERROR");
 
   return (
     <div className="mt-4 flex flex-col gap-2">
@@ -293,7 +339,9 @@ const ActionButtons = ({
           />
           <Button
             className="!p-8 md:!p-0"
-            onClick={customerWithOutLog}
+            onClick={() => {
+              customerWithOutLog();
+            }}
             variant={"default"}
             disabled={addFavouritesLoading || removeFavouritesLoading}
           >
@@ -302,6 +350,8 @@ const ActionButtons = ({
         </>
       )}
 
+      {/* {isRetailer && <PlaceOrder productId={productDetails.id} />} */}
+
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           {isLoggedIn && userType !== "ADMIN" && (
@@ -309,10 +359,9 @@ const ActionButtons = ({
               className="!p-8 md:!p-0"
               onClick={() => form.reset()}
               variant={"default"}
-              // ✅ Fix: disable button while cart request is in flight
-              disabled={addToCartLoading}
+              disabled={addFavouritesLoading}
             >
-              {addToCartLoading ? "Adding..." : "Add to my Cart"}
+              Add to my Cart
             </Button>
           )}
         </SheetTrigger>
@@ -323,12 +372,11 @@ const ActionButtons = ({
               <div className="flex justify-between">
                 <div className="text-sm text-muted-foreground space-y-1">
                   <span>
-                    After Size 48:{" "}
-                    <b>49-52 - 20%, 53-56 - 40%, 57-60 - 60%</b> price
-                    increasing will be there respectively.
+                    After Size 48: <b>49-52 - 20%, 53-56 - 40%, 57-60 - 60%</b> price increasing will be there respectively.
                   </span>
                   <span>SAS: Same as sample</span>
                 </div>
+
                 <button
                   type="button"
                   className="cursor-pointer text-base font-semibold text-blue-500 underline"
@@ -338,14 +386,17 @@ const ActionButtons = ({
                 </button>
               </div>
             </SheetDescription>
-          </SheetHeader>
 
+
+          </SheetHeader>
           <Form {...form}>
             <form
               className="mx-auto space-y-2 py-10"
-              onSubmit={action}
+              onSubmit={(e) => {
+                action(e);
+              }}
             >
-              {fields.map((item, index) => (
+              {fields.map((item, index: number) => (
                 <div
                   className="rounded-md border border-gray-200 p-2"
                   key={item.id}
@@ -357,7 +408,8 @@ const ActionButtons = ({
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
-                    {/* SIZE COUNTRY */}
+
+
                     <FormField
                       control={form.control}
                       name={`productDetails.${index}.size_country`}
@@ -367,7 +419,7 @@ const ActionButtons = ({
                           <Select
                             onValueChange={(val) => {
                               field.onChange(val);
-                              form.setValue(`productDetails.${index}.size`, "");
+                              form.setValue(`productDetails.${index}.size`, ""); // Reset size
                             }}
                             defaultValue={field.value}
                           >
@@ -389,18 +441,23 @@ const ActionButtons = ({
                       )}
                     />
 
-                    {/* SIZE */}
                     <FormField
                       control={form.control}
                       name={`productDetails.${index}.size`}
                       render={({ field }) => {
-                        // ✅ Fix: typed key lookup
                         const country = form.getValues(`productDetails.${index}.size_country`);
-                        const options = sizeOptions[country as keyof typeof sizeOptions] || [];
+                        const options = sizeOptions[country] || [];
+
                         return (
+
+
+
                           <FormItem>
                             <FormLabel>Select Size</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select Size" />
@@ -420,14 +477,17 @@ const ActionButtons = ({
                       }}
                     />
 
-                    {/* COLOR */}
+
                     <FormField
                       control={form.control}
                       name={`productDetails.${index}.color`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Select Color</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormLabel>Select Color </FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Color" />
@@ -441,11 +501,15 @@ const ActionButtons = ({
                                     <p
                                       className="mx-1 h-4 w-4 rounded-full"
                                       style={{
-                                        backgroundColor: productDetails.mesh_color,
+                                        backgroundColor:
+                                          productDetails.mesh_color,
+
                                         border: "1px solid #000",
                                       }}
-                                    />
-                                    {getColourBasedOnhex(productDetails.mesh_color)}
+                                    ></p>{" "}
+                                    {getColourBasedOnhex(
+                                      productDetails.mesh_color,
+                                    )}
                                   </div>
                                   )
                                 </div>
@@ -453,22 +517,24 @@ const ActionButtons = ({
                               <SelectItem value={"custom"}>Custom</SelectItem>
                             </SelectContent>
                           </Select>
+
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    {/* CUSTOM COLOR OPTIONS */}
-                    {watch[index]?.color === "custom" && (
+                    {watch[index].color == "custom" && (
                       <>
-                        {/* MESH COLOR */}
                         <FormField
                           control={form.control}
                           name={`productDetails.${index}.mesh`}
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Mesh Color</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select Mesh Color" />
@@ -482,31 +548,46 @@ const ActionButtons = ({
                                         <p
                                           className="mx-1 h-4 w-4 rounded-full"
                                           style={{
-                                            backgroundColor: productDetails.mesh_color,
+                                            backgroundColor:
+                                              productDetails.mesh_color,
+
                                             border: "1px solid #000",
                                           }}
-                                        />
-                                        {getColourBasedOnhex(productDetails.mesh_color)}
+                                        ></p>{" "}
+                                        {getColourBasedOnhex(
+                                          productDetails.mesh_color,
+                                        )}
                                       </div>
                                       )
                                     </div>
                                   </SelectItem>
                                   {colors
-                                    .filter((i: any) => i.hexcode !== productDetails.mesh_color)
-                                    .map((colour: any) => (
-                                      <SelectItem key={colour.id} value={getColourBasedOnId(colour.id)}>
-                                        <div className="flex items-center">
-                                          <div
-                                            className="h-4 w-4 rounded-full"
-                                            style={{
-                                              backgroundColor: getColourBasedOnId(colour.id),
-                                              border: "1px solid #000",
-                                            }}
-                                          />
-                                          <span className="ml-2">{colour.name}</span>
-                                        </div>
-                                      </SelectItem>
-                                    ))}
+                                    .filter(
+                                      (i: any) =>
+                                        i.hexcode != productDetails.mesh_color,
+                                    )
+                                    .map((colour: any) => {
+                                      return (
+                                        <SelectItem
+                                          key={colour.id}
+                                          value={getColourBasedOnId(colour.id)}
+                                        >
+                                          <div className="flex items-center">
+                                            <div
+                                              className="h-4 w-4 rounded-full"
+                                              style={{
+                                                backgroundColor:
+                                                  getColourBasedOnId(colour.id),
+                                                border: "1px solid #000",
+                                              }}
+                                            />
+                                            <span className="ml-2">
+                                              {colour.name}
+                                            </span>
+                                          </div>
+                                        </SelectItem>
+                                      );
+                                    })}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -514,61 +595,80 @@ const ActionButtons = ({
                           )}
                         />
 
-                        {/* BEADING COLOR */}
                         <FormField
                           control={form.control}
                           name={`productDetails.${index}.beading`}
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Beading Color</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select Beading Color" />
+                                    <SelectValue placeholder="Select Lining Color" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value={productDetails.beading_color}>
+                                  <SelectItem
+                                    value={productDetails.beading_color}
+                                  >
                                     <div className="flex gap-1">
                                       SAS (
                                       <div className="flex items-center">
                                         <p
                                           className="mx-1 h-4 w-4 rounded-full"
                                           style={{
-                                            backgroundColor: productDetails.beading_color,
+                                            backgroundColor:
+                                              productDetails.beading_color,
+
                                             border: "1px solid #000",
                                           }}
-                                        />
-                                        {getColourBasedOnhex(productDetails.beading_color)}
+                                        ></p>{" "}
+                                        {getColourBasedOnhex(
+                                          productDetails.beading_color,
+                                        )}
                                       </div>
                                       )
                                     </div>
                                   </SelectItem>
                                   {colors
-                                    .filter((i: any) => i.hexcode !== productDetails.beading_color)
+                                    .filter(
+                                      (i: any) =>
+                                        i.hexcode !=
+                                        productDetails.beading_color,
+                                    )
                                     .map((colour: any) => (
-                                      <SelectItem key={colour.id} value={getColourBasedOnId(colour.id)}>
+                                      <SelectItem
+                                        key={colour.id}
+                                        value={getColourBasedOnId(colour.id)}
+                                      >
                                         <div className="flex items-center">
                                           <div
                                             className="h-4 w-4 rounded-full"
                                             style={{
-                                              backgroundColor: getColourBasedOnId(colour.id),
+                                              backgroundColor:
+                                                getColourBasedOnId(colour.id),
                                               border: "1px solid #000",
                                             }}
                                           />
-                                          <span className="ml-2">{colour.name}</span>
+                                          <span className="ml-2">
+                                            {colour.name}
+                                          </span>
                                         </div>
                                       </SelectItem>
                                     ))}
                                 </SelectContent>
                               </Select>
+
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-
-                        {/* ADD LINING CHECKBOX */}
-                        <div className={`flex ${watch[index]?.addLining ? "items-end" : "items-center"}`}>
+                        <div
+                          className={`flex grid-cols-5 ${watch[index].addLining ? "items-end" : "items-center"}`}
+                        >
                           <FormField
                             control={form.control}
                             name={`productDetails.${index}.addLining`}
@@ -588,8 +688,123 @@ const ActionButtons = ({
                           />
                         </div>
 
-                        {/* LINING OPTIONS */}
-                        {watch[index]?.addLining && (
+                        {/* {watch[index].addLining && (
+                          <>
+                            <FormField
+                              control={form.control}
+                              name={`productDetails.${index}.lining`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Lining</FormLabel>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select Lining" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value={productDetails.lining}>
+                                        SAS ({productDetails.lining})
+                                      </SelectItem>
+                                      {lining
+                                        .filter(
+                                          (i) => i !== productDetails.lining,
+                                        )
+                                        .map((item) => (
+                                          <SelectItem value={item}>
+                                            {item}
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name={`productDetails.${index}.liningColor`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Lining Color </FormLabel>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select Lining Color" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem
+                                        value={productDetails.lining_color}
+                                      >
+                                        <div className="flex gap-1">
+                                          SAS (
+                                          <div className="flex items-center">
+                                            <p
+                                              className="mx-1 h-4 w-4 rounded-full"
+                                              style={{
+                                                backgroundColor:
+                                                  productDetails.lining_color,
+
+                                                border: "1px solid #000",
+                                              }}
+                                            ></p>{" "}
+                                            {getColourBasedOnhex(
+                                              productDetails.lining_color,
+                                            )}
+                                          </div>
+                                          )
+                                        </div>
+                                      </SelectItem>
+                                      {colors
+                                        .filter(
+                                          (i: any) =>
+                                            i.hexcode !=
+                                            productDetails.lining_color,
+                                        )
+                                        .map((colour: any) => (
+                                          <SelectItem
+                                            key={colour.id}
+                                            value={getColourBasedOnId(
+                                              colour.id,
+                                            )}
+                                          >
+                                            <div className="flex items-center">
+                                              <div
+                                                className="h-4 w-4 rounded-full"
+                                                style={{
+                                                  backgroundColor:
+                                                    getColourBasedOnId(
+                                                      colour.id,
+                                                    ),
+                                                  border: "1px solid #000",
+                                                }}
+                                              />
+                                              <span className="ml-2">
+                                                {colour.name}
+                                              </span>
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </>
+                        )}  */}
+
+                        {watch[index].addLining && (
                           <>
                             <FormField
                               control={form.control}
@@ -600,8 +815,12 @@ const ActionButtons = ({
                                   <Select
                                     onValueChange={(val) => {
                                       field.onChange(val);
+
                                       if (val === "No Lining") {
-                                        form.setValue(`productDetails.${index}.liningColor`, "No Color");
+                                        form.setValue(
+                                          `productDetails.${index}.liningColor`,
+                                          "No Color",
+                                        );
                                       }
                                     }}
                                     defaultValue={field.value}
@@ -616,67 +835,96 @@ const ActionButtons = ({
                                         SAS ({productDetails.lining})
                                       </SelectItem>
                                       {lining
-                                        .filter((i) => i !== productDetails.lining)
+                                        .filter(
+                                          (i) => i !== productDetails.lining,
+                                        )
                                         .map((item) => (
-                                          <SelectItem key={item} value={item}>
+                                          <SelectItem value={item}>
                                             {item}
                                           </SelectItem>
                                         ))}
                                     </SelectContent>
                                   </Select>
+
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
 
-                            {watch[index]?.lining !== "No Lining" && (
+                            {watch[index].lining == "No Lining" ? (
+                              ""
+                            ) : (
                               <FormField
                                 control={form.control}
                                 name={`productDetails.${index}.liningColor`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Lining Color</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormLabel>Lining Color </FormLabel>
+                                    <Select
+                                      onValueChange={field.onChange}
+                                      defaultValue={field.value}
+                                    >
                                       <FormControl>
                                         <SelectTrigger>
                                           <SelectValue placeholder="Select Lining Color" />
                                         </SelectTrigger>
                                       </FormControl>
                                       <SelectContent>
-                                        <SelectItem value={productDetails.lining_color}>
+                                        <SelectItem
+                                          value={productDetails.lining_color}
+                                        >
                                           <div className="flex gap-1">
                                             SAS (
                                             <div className="flex items-center">
                                               <p
                                                 className="mx-1 h-4 w-4 rounded-full"
                                                 style={{
-                                                  backgroundColor: productDetails.lining_color,
+                                                  backgroundColor:
+                                                    productDetails.lining_color,
+
                                                   border: "1px solid #000",
                                                 }}
-                                              />
-                                              {getColourBasedOnhex(productDetails.lining_color)}
+                                              ></p>{" "}
+                                              {getColourBasedOnhex(
+                                                productDetails.lining_color,
+                                              )}
                                             </div>
                                             )
                                           </div>
                                         </SelectItem>
                                         {colors
-                                          .filter((i: any) => i.hexcode !== productDetails.lining_color)
+                                          .filter(
+                                            (i: any) =>
+                                              i.hexcode !=
+                                              productDetails.lining_color,
+                                          )
                                           .map((colour: any) => (
-                                            <SelectItem key={colour.id} value={getColourBasedOnId(colour.id)}>
+                                            <SelectItem
+                                              key={colour.id}
+                                              value={getColourBasedOnId(
+                                                colour.id,
+                                              )}
+                                            >
                                               <div className="flex items-center">
                                                 <div
                                                   className="h-4 w-4 rounded-full"
                                                   style={{
-                                                    backgroundColor: getColourBasedOnId(colour.id),
+                                                    backgroundColor:
+                                                      getColourBasedOnId(
+                                                        colour.id,
+                                                      ),
                                                     border: "1px solid #000",
                                                   }}
                                                 />
-                                                <span className="ml-2">{colour.name}</span>
+                                                <span className="ml-2">
+                                                  {colour.name}
+                                                </span>
                                               </div>
                                             </SelectItem>
                                           ))}
                                       </SelectContent>
                                     </Select>
+
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -684,10 +932,10 @@ const ActionButtons = ({
                             )}
                           </>
                         )}
+
                       </>
                     )}
 
-                    {/* QUANTITY */}
                     <FormField
                       control={form.control}
                       name={`productDetails.${index}.Quantity`}
@@ -695,14 +943,20 @@ const ActionButtons = ({
                         <FormItem>
                           <FormLabel>Quantity</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="1" {...field} />
+                            <Input
+                              placeholder="shadcn"
+                              type="number"
+                              {...field}
+                            />
                           </FormControl>
+
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    {/* CUSTOMIZATION */}
+
+
                     <FormField
                       control={form.control}
                       name={`productDetails.${index}.customization`}
@@ -716,12 +970,12 @@ const ActionButtons = ({
                               {...field}
                             />
                           </FormControl>
+
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    {/* REFERENCE IMAGES */}
                     <FormField
                       control={form.control}
                       name={`productDetails.${index}.files`}
@@ -731,32 +985,43 @@ const ActionButtons = ({
                           <FormControl>
                             <Input
                               type="file"
-                              multiple
+                              multiple={true}
                               onChange={(e) => {
-                                const files = e.target.files;
-                                if (files) onChange(Array.from(files));
+                                const files = e.target.files; // Get the FileList
+                                if (files) {
+                                  const fileArray = Array.from(files);
+                                  onChange(fileArray);
+                                }
                               }}
                               accept="image/*"
                               {...field}
                             />
                           </FormControl>
+
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-
                   <div className="mt-2 flex gap-4">
                     {fields.length < 20 && (
-                      <Button onClick={addColorQuantity} type="button">
+                      <Button
+                        onClick={() => {
+                          addColorQuantity();
+                        }}
+                        type="button"
+                      >
                         Add
                       </Button>
                     )}
+
                     {index > 0 && (
                       <Button
                         variant={"destructive"}
                         type="button"
-                        onClick={() => remove(index)}
+                        onClick={() => {
+                          remove(index);
+                        }}
                       >
                         Remove
                       </Button>
@@ -764,20 +1029,21 @@ const ActionButtons = ({
                   </div>
                 </div>
               ))}
-
-              <Button type="submit" className="w-full" disabled={addToCartLoading}>
-                {addToCartLoading ? "Submitting..." : "Submit"}
+              <Button type="submit" className="w-full">
+                Submit
               </Button>
             </form>
           </Form>
-
           <SheetFooter>
-            <SheetClose asChild />
+            <SheetClose asChild>
+              {/* <Button type="submit" onClick={action}>
+                  Save changes
+                </Button> */}
+            </SheetClose>
           </SheetFooter>
         </SheetContent>
       </Sheet>
 
-      {/* COLOR CHART DIALOG */}
       <Dialog open={colorChatDialog} onOpenChange={setColorChartDialog}>
         <DialogContent className="w-full min-w-[70%]">
           <DialogHeader>
@@ -786,14 +1052,23 @@ const ActionButtons = ({
           <div className="space-y-4 text-center">
             {lastUpdated && (
               <div className="flex items-center justify-center gap-4 mt-[-10px] mb-10">
-                <span className="h-[1px] bg-gray-300 flex-1 max-w-[120px] mb-1" />
-                <span className="text-2xl font-extrabold text-gray-800 tracking-wide">
-                  {new Date(lastUpdated).getFullYear()}
-                </span>
+                <span className="h-[1px] bg-gray-300 flex-1 max-w-[120px]  mb-1" />
+
+                {(() => {
+                  const year = new Date(lastUpdated).getFullYear();
+                  return (
+                    <span className="text-2xl font-extrabold text-gray-800 tracking-wide">
+                      {year}
+                    </span>
+                  );
+                })()}
+
                 <span className="h-[1px] bg-gray-300 flex-1 max-w-[120px]" />
               </div>
             )}
-            <div className="rounded-xl overflow-hidden shadow-lg border border-gray-200">
+
+
+            <div className="rounded-xl overflow-hidden shadow-lg border border-gray-200 ">
               <CustomizedImage
                 src={colorChart}
                 alt="Color Chart"

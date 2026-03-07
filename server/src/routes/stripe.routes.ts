@@ -6,6 +6,37 @@
 
 // const router = Router();
 
+// // ✅ Single source of truth for currency
+// const CURRENCY = "eur";
+
+// // ✅ Named constant instead of magic number
+// const ORDER_STATUS_PENDING = 0;
+
+// // ✅ Shared helper to avoid duplicate payment logic
+// async function markOrderAsPaid(
+//   orderId: string,
+//   amount: number
+// ): Promise<void> {
+//   const order = await RetailerOrder.findOne({
+//     where: { id: Number(orderId) },
+//   });
+
+//   if (!order || order.payment_status === "PAID") return;
+
+//   await RetailerOrdersPayment.create({
+//     order,
+//     amount,
+//     paymentMethod: "Stripe",
+//   }).save();
+
+//   order.payment_status = "PAID";
+//   // ℹ️ paymentMode not in model — tracked via paymentMethod in RetailerOrdersPayment record
+//   order.isApproved = false; // still pending admin approval
+//   await order.save();
+
+//   console.log(`✅ Order ${order.id} marked as PAID`);
+// }
+
 // /**
 //  * ======================================
 //  * 1️⃣ CREATE PAYMENT INTENT (PAY NOW)
@@ -17,7 +48,7 @@
 //     const { orderId } = req.params;
 
 //     const order = await RetailerOrder.findOne({
-//       where: { id: Number(orderId), status: 0 },
+//       where: { id: Number(orderId), status: ORDER_STATUS_PENDING },
 //     });
 
 //     if (!order) {
@@ -27,10 +58,9 @@
 //       });
 //     }
 
-//     // 🔥 CREATE STRIPE INTENT
 //     const paymentIntent = await stripe.paymentIntents.create({
-//       amount: Math.round(order.purchaseAmount * 100), // cents
-//       currency: "inr",
+//       amount: Math.round(order.purchaseAmount * 100), // in cents
+//       currency: CURRENCY, // ✅ consistent currency
 //       metadata: {
 //         orderId: order.id.toString(),
 //       },
@@ -51,7 +81,6 @@
 //  * 2️⃣ STRIPE WEBHOOK (FINAL AUTHORITY)
 //  * ======================================
 //  */
-
 // router.post(
 //   "/webhook",
 //   raw({ type: "application/json" }),
@@ -72,71 +101,29 @@
 //     }
 
 //     try {
-//       // ==================================================
-//       // ✅ CHECKOUT SESSION (MAIN – YOU ARE USING THIS)
-//       // ==================================================
 //       if (event.type === "checkout.session.completed") {
 //         const session = event.data.object as any;
-
 //         const orderId = session.metadata?.orderId;
-//         if (!orderId) {
-//           return res.json({ received: true });
-//         }
 
-//         const order = await RetailerOrder.findOne({
-//           where: { id: Number(orderId) },
-//         });
+//         if (!orderId) return res.json({ received: true });
 
-//         if (order && order.paymentStatus !== "PAID") {
-//           // ✅ Save payment record
-//           await RetailerOrdersPayment.create({
-//             order,
-//             amount: session.amount_total / 100,
-//             paymentMethod: "Stripe",
-//           }).save();
-
-//           // ✅ Update order
-//           order.paymentStatus = "PAID";
-//           order.paymentMode = "PAY_NOW";
-//           order.isApproved = false; // still pending admin approval
-//           await order.save();
-
-//           console.log(`✅ Order ${order.id} marked as PAID`);
-//         }
+//         // ✅ Use shared helper — no duplicate logic
+//         await markOrderAsPaid(orderId, session.amount_total / 100);
 //       }
 
-//       // ==================================================
-//       // ✅ PAYMENT INTENT (OPTIONAL / FUTURE SAFE)
-//       // ==================================================
+//       // ✅ payment_intent.succeeded only runs if metadata has orderId
+//       // (i.e. created via /create-intent, not /checkout — avoids double-processing)
 //       if (event.type === "payment_intent.succeeded") {
 //         const intent = event.data.object as any;
 //         const orderId = intent.metadata?.orderId;
 
 //         if (orderId) {
-//           const order = await RetailerOrder.findOne({
-//             where: { id: Number(orderId) },
-//           });
-
-//           if (order && order.paymentStatus !== "PAID") {
-//             await RetailerOrdersPayment.create({
-//               order,
-//               amount: intent.amount / 100,
-//               paymentMethod: "Stripe",
-//             }).save();
-
-//             order.paymentStatus = "PAID";
-//             order.paymentMode = "PAY_NOW";
-//             order.isApproved = false;
-//             await order.save();
-//           }
+//           await markOrderAsPaid(orderId, intent.amount / 100);
 //         }
 //       }
 
-//       // ==================================================
-//       // ❌ PAYMENT FAILED
-//       // ==================================================
 //       if (event.type === "payment_intent.payment_failed") {
-//         console.log("❌ Stripe payment failed");
+//         console.error("❌ Stripe payment failed:", event.data.object);
 //       }
 
 //       res.json({ received: true });
@@ -147,7 +134,11 @@
 //   }
 // );
 
-
+// /**
+//  * ======================================
+//  * 3️⃣ CHECKOUT SESSION
+//  * ======================================
+//  */
 // router.post(
 //   "/checkout",
 //   asyncHandler(async (req: Request, res: Response) => {
@@ -160,8 +151,9 @@
 //       });
 //     }
 
+//     // ✅ Consistent status filter with /create-intent
 //     const order = await RetailerOrder.findOne({
-//       where: { id: Number(orderId) },
+//       where: { id: Number(orderId), status: ORDER_STATUS_PENDING },
 //     });
 
 //     if (!order) {
@@ -177,16 +169,16 @@
 //       line_items: [
 //         {
 //           price_data: {
-//             currency: "EUR", // 🔒 fixed from backend
+//             currency: CURRENCY, // ✅ consistent currency
 //             product_data: {
 //               name: `Order #${order.purchaeOrderNo}`,
 //             },
-//             unit_amount: Math.round(order.purchaseAmount * 100), // 🔥 SAFE
+//             unit_amount: Math.round(order.purchaseAmount * 100),
 //           },
 //           quantity: 1,
 //         },
 //       ],
-// success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+//       success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
 //       cancel_url: `${process.env.CLIENT_URL}/payment/cancel`,
 //       metadata: {
 //         orderId: order.id.toString(),
@@ -200,6 +192,11 @@
 //   })
 // );
 
+// /**
+//  * ======================================
+//  * 4️⃣ PAYMENT STATUS
+//  * ======================================
+//  */
 // router.get(
 //   "/payment-status/:sessionId",
 //   asyncHandler(async (req: Request, res: Response) => {
@@ -214,7 +211,5 @@
 //     });
 //   })
 // );
-
-
 
 // export default router;

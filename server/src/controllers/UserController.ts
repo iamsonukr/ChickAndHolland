@@ -273,12 +273,12 @@ router.post(
       expiresIn: CONFIG.JWT_EXPIRES_IN,
     });
 
-   res.json({
-  id: user.id,
-  token,
-  msg: "User logged in successfully",
-  rolePermissions: ["ALL"], // give full admin access
-});
+    res.json({
+      id: user.id,
+      token,
+      msg: "User logged in successfully",
+      rolePermissions: ["ALL"], // give full admin access
+    });
 
   })
 );
@@ -372,14 +372,14 @@ router.post(
 //   })
 // );
 
- 
+
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
     const { page, query } = req.query as { page?: string; query?: string };
 
     if (!page) {
-const users = await db.query(`
+      const users = await db.query(`
   SELECT u.*, r.roleName
   FROM users u
   LEFT JOIN new_user_roles r ON u.roleId = r.id
@@ -423,9 +423,7 @@ router.get(
       `SELECT * FROM ${TABLE_NAMES.USERS} WHERE id = ?`,
       [req.params.id]
     );
-
     delete user.password;
-
     res.json(user);
   })
 );
@@ -480,10 +478,10 @@ router.post(
     const products: any[] = req.body.products;
     const html = `<h1>Quote Request</h1>
 ${products
-  .map(
-    (product: any) => `<img src="${product.images[0]}" alt="product image" />`
-  )
-  .join("")}
+        .map(
+          (product: any) => `<img src="${product.images[0]}" alt="product image" />`
+        )
+        .join("")}
   <br/>
   <p>Product Code: ${products[0].productCode}</p>
   <p>Size: ${products[0].size}</p>
