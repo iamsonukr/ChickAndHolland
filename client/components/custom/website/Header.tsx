@@ -58,7 +58,6 @@ const Header = async () => {
       ),
     }
     )
-
     );
   console.log("These are sorted categories", sortedCategories)
 
@@ -72,15 +71,14 @@ const Header = async () => {
               <MenubarTrigger className="bg-black px-0 py-0">
                 <Menu className="bg-black font-bold text-[#C9A39A]" />
               </MenubarTrigger>
-              <MenubarContent className="mt-8 !w-screen border-none bg-black">
-                <MenubarItem className="!w-full" asChild>
-                  <Link
-                    href={"/"}
-                    className="font-brandon w-full text-xl  text-[#C9A39A]"
-                  >
-                    HOME
-                  </Link>
-                </MenubarItem>
+              <MenubarContent className="mt-6 !w-screen border-none bg-black max-h-[80vh] overflow-y-auto">                <MenubarItem className="!w-full" asChild>
+                <Link
+                  href={"/"}
+                  className="font-brandon w-full text-xl  text-[#C9A39A]"
+                >
+                  HOME
+                </Link>
+              </MenubarItem>
                 <MenubarItem className="!w-full" asChild>
                   <Link
                     href={"/brand"}

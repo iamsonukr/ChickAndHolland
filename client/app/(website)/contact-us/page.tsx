@@ -74,7 +74,7 @@ const ContactUs = () => {
         if (entry.isIntersecting) {
           setIsVisible(true);
           if (videoRef.current) {
-            videoRef.current.play().catch(() => {});
+            videoRef.current.play().catch(() => { });
           }
         }
       },
@@ -89,7 +89,7 @@ const ContactUs = () => {
   }, []);
 
   return (
-    <div 
+    <div
       ref={sectionRef}
       className="luxury-contact-page min-h-screen bg-black py-16"
     >
@@ -103,9 +103,8 @@ const ContactUs = () => {
 
       <div className="container mx-auto px-4">
         {/* Enhanced Header */}
-        <div className={`text-center mb-16 transition-all duration-1000 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-        }`}>
+        <div className={`text-center mb-16 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          }`}>
           <h1 className="font-adornstoryserif text-5xl md:text-7xl text-white mb-6 luxury-title">
             Contact Us
           </h1>
@@ -113,9 +112,8 @@ const ContactUs = () => {
         </div>
 
         {/* Contact Information Cards */}
-        <div className={`grid md:grid-cols-2 gap-8 mb-20 transition-all duration-1000 delay-300 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-        }`}>
+        <div className={`grid md:grid-cols-2 gap-8 mb-20 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          }`}>
           {/* Phone Card */}
           <div className="luxury-contact-card group">
             <div className="card-inner">
@@ -160,26 +158,25 @@ const ContactUs = () => {
         </div>
 
         {/* Main Content Section */}
-<div className={`flex flex-col-reverse gap-12 lg:gap-20 lg:flex-row lg:items-stretch transition-all duration-1000 delay-500 ${
-  isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-}`}>
-  {/* Video Section */}
-  <div className="luxury-video-section w-full lg:flex-1">
-    <div className="relative w-full h-[60vh] sm:h-[70vh] lg:h-full">
-      <video
-        ref={videoRef}
-        src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/new-collection-videos/COUTURE/Sequence 01_6.mp4"
-        autoPlay={true}
-        muted={true}
-        loop={true}
-        playsInline={true}
-        controlsList="nodownload"
-        className="w-full h-full object-cover"
-      />
-      <div className="video-overlay"></div>
-      <div className="video-frame"></div>
-    </div>
-  </div>
+        <div className={`flex flex-col-reverse gap-12 lg:gap-20 lg:flex-row lg:items-stretch transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          }`}>
+          {/* Video Section */}
+          <div className="luxury-video-section w-full lg:flex-1">
+            <div className="relative w-full h-[60vh] sm:h-[70vh] lg:h-full">
+              <video
+                ref={videoRef}
+                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/new-collection-videos/COUTURE/Sequence 01_6.mp4"
+                autoPlay={true}
+                muted={true}
+                loop={true}
+                playsInline={true}
+                controlsList="nodownload"
+                className="w-full h-full object-cover"
+              />
+              <div className="video-overlay"></div>
+              <div className="video-frame"></div>
+            </div>
+          </div>
 
           {/* Form Section */}
           <div className="luxury-form-section flex-1">
