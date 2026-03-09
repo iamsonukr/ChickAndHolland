@@ -28,7 +28,6 @@ export default function TableScrollWrapper({ children }: { children: React.React
 
   return (
     <div className="w-full">
-
       {/* ----- TOP SCROLLBAR ----- */}
       <div className="pointer-events-none overflow-hidden h-4 mb-1">
         <div
