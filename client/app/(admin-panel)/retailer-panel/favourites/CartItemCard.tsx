@@ -32,23 +32,34 @@ const CartItemCard = ({ item, selected, toggleSelect, retailerId }) => {
 
   return (
     <div
-      className={`relative border rounded-lg shadow hover:shadow-lg p-2 ${
-        selected ? "ring-2 ring-blue-500" : ""
+      className={`relative border rounded-lg shadow hover:shadow-lg p-2 transition-all ${
+        selected ? "ring-2 ring-blue-500 bg-blue-50/30" : ""
       }`}
     >
-      <div className="cursor-pointer" onClick={toggleSelect}>
+      {/* Tap anywhere on image area to select */}
+      <div
+        className="cursor-pointer relative"
+        onClick={toggleSelect}
+      >
         {selected && (
-          <CheckCircle className="absolute z-20 top-3 right-3 h-6 w-6 text-blue-500" />
+          <CheckCircle className="absolute z-20 top-2 right-2 h-7 w-7 text-blue-500 drop-shadow" />
+        )}
+
+        {/* Select indicator for mobile — tap hint */}
+        {!selected && (
+          <div className="absolute z-20 top-2 right-2 h-7 w-7 rounded-full border-2 border-gray-300 bg-white/70" />
         )}
       </div>
 
       <ProductCard product={item.product} isLoggedIn />
 
-      <div className="mt-2">
+      {/* Actions */}
+      <div className="mt-3 flex flex-col gap-2">
         <PlaceOrder stockId={item.id} quantity={item.quantity} />
         <Button
           variant="destructive"
-          className="w-full mt-2"
+          size="sm"
+          className="w-full"
           onClick={removeItem}
           disabled={loading}
         >

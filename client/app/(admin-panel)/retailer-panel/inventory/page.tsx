@@ -4,13 +4,6 @@ import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import { cookies } from "next/headers";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-} from "@/components/ui/table";
-
 import StyleNoImage from "@/app/(admin-panel)/admin-panel/stock/StyleNoImage";
 import TableActions from "../../admin-panel/stock/TableActions";
 import SizeSelector from "./SizeSelector";
@@ -33,7 +26,6 @@ export default async function Inventory({ searchParams }: InventoryProps) {
   const currentPage = cPage ? Number(cPage) : 1;
   const query = q || "";
 
-  // ✅ Fix: await cookies() for Next.js 15
   const cookieStore = await cookies();
   const currencyId = cookieStore.get("currencyId")?.value;
 
@@ -53,7 +45,7 @@ export default async function Inventory({ searchParams }: InventoryProps) {
     <ContentLayout title="Inventory">
       <div className="space-y-3">
 
-        {/* SIZE DROPDOWN (CLIENT COMPONENT) — handles conversion via DOM manipulation */}
+        {/* SIZE DROPDOWN */}
         <SizeSelector />
 
         <CustomSearchBar query={query} />
@@ -73,15 +65,15 @@ export default async function Inventory({ searchParams }: InventoryProps) {
                   <StyleNoImage details={item} />
                 </div>
 
-                <div className="flex flex-col p-2 text-sm">
+                <div className="flex flex-col p-1 sm:p-2 text-xs sm:text-sm">
 
                   {/* Qty + Price */}
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="max-w-[45%] truncate bg-gray-100 px-2 py-1 rounded-md">
+                  <div className="mb-2 flex flex-col gap-1">
+                    <span className="bg-gray-100 px-2 py-1 rounded-md w-fit">
                       Qty: {item.quantity}
                     </span>
 
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-baseline gap-1 flex-wrap">
                       <span
                         className={
                           item.price !== item.discountedPrice
@@ -89,14 +81,12 @@ export default async function Inventory({ searchParams }: InventoryProps) {
                             : ""
                         }
                       >
-                        {item.currencySymbol || "€"}
-                        {item.price}
+                        {item.currencySymbol || "€"}{item.price}
                       </span>
 
                       {item.price !== item.discountedPrice && (
                         <span className="text-green-600 font-semibold">
-                          {item.currencySymbol || "€"}
-                          {item.discountedPrice}
+                          {item.currencySymbol || "€"}{item.discountedPrice}
                           <span className="text-xs ml-1">
                             (-{item.discount}%)
                           </span>
@@ -107,37 +97,37 @@ export default async function Inventory({ searchParams }: InventoryProps) {
 
                   {/* SIZE + COLOR */}
                   <div className="mt-1 border-t pt-2 text-gray-700">
-                    <Table>
-                      <TableBody>
-                        {/* SIZE — data attributes used by SizeSelector for client-side conversion */}
-                        <TableRow>
-                          <TableCell className="font-medium">Size</TableCell>
-                          <TableCell
-                            className="size-convert"
-                            data-eu={item.size}
-                            data-from={item.size_country}
-                          >
-                            {item.size} ({item.size_country})
-                          </TableCell>
-                        </TableRow>
+                    <div className="flex flex-col gap-1">
 
-                        {/* COLOR */}
-                        <TableRow>
-                          <TableCell className="font-medium">Color</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="h-5 w-5 rounded-full"
-                                style={{ backgroundColor: item.mesh_color }}
-                              />
-                              {item.mesh_color === item.product.mesh_color
-                                ? `SAS(${getColourName(item.product.mesh_color)})`
-                                : getColourName(item.mesh_color)}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                      {/* SIZE */}
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-medium shrink-0">Size</span>
+                        <span
+                          className="size-convert truncate text-right"
+                          data-eu={item.size}
+                          data-from={item.size_country}
+                        >
+                          {item.size} ({item.size_country})
+                        </span>
+                      </div>
+
+                      {/* COLOR */}
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-medium shrink-0">Color</span>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span
+                            className="h-4 w-4 shrink-0 rounded-full border"
+                            style={{ backgroundColor: item.mesh_color }}
+                          />
+                          <span className="truncate max-w-[70px] sm:max-w-[90px]">
+                            {item.mesh_color === item.product.mesh_color
+                              ? `SAS(${getColourName(item.product.mesh_color)})`
+                              : getColourName(item.mesh_color)}
+                          </span>
+                        </div>
+                      </div>
+
+                    </div>
                   </div>
                 </div>
 

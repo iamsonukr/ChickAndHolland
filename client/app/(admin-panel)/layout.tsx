@@ -161,7 +161,6 @@ const unreadCount = await unreadEnquiryCount();
             freshCount={myFreshOrders.favoritesOrders?.length || 0}
             stockCount={myStockOrders.stockOrders?.length || 0}
               unreadEnquiryCount={unreadCount}
-
           >
             {children}
           </AdminPanelLayout>
