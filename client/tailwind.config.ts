@@ -245,8 +245,7 @@ const config = {
   prata: ["var(--font-prata)", "serif"],
   mysi: ["var(--font-msyi)", "serif"],
   adornstoryserif: ["var(--font-adornstoryserif)", "serif"],
-  brandon: ["brandon", "sans-serif"],
-  adorned: ["Playfair Display", "Georgia", "serif"],
+brandon: ["var(--font-brandon)", "sans-serif"],  adorned: ["Playfair Display", "Georgia", "serif"],
   elegant: ["Cormorant Garamond", "Georgia", "serif"],
 },
       screens: {
