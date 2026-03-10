@@ -32,7 +32,7 @@ export default function TableScrollWrapper({ children }: { children: React.React
       <div className="pointer-events-none overflow-hidden h-4 mb-1">
         <div
           ref={topRef}
-          className="pointer-events-auto overflow-x-auto h-4"
+          className="pointer-events-auto hidden overflow-x-auto h-4"
           onScroll={handleTopScroll}
         >
           <div style={{ width: contentWidth }} className="h-1"></div>

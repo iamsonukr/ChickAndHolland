@@ -88,12 +88,10 @@ import {
 } from "@/lib/data";
 import { API_URL } from "@/lib/constants";
 
-
 const inter = Inter({ subsets: ["latin"] });
 
 export async function generateMetadata(): Promise<Metadata> {
   const userType = (await cookies()).get("userType")?.value;
-
   return {
     title:
       userType === "RETAILER"
