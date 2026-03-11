@@ -62,8 +62,10 @@ const BecomeARetailer = () => {
                 muted
                 loop
                 playsInline
+                webkit-playsinline="true"  // ← Add this
                 controlsList="nodownload"
                 className="luxury-retailer-video"
+                
               />
               <div className="video-overlay"></div>
             </div>

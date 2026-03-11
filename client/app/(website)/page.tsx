@@ -76,6 +76,7 @@ function FullscreenVideoSection({
           autoPlay muted loop playsInline preload="auto"
           controlsList="nodownload"
           className="m-0 h-full w-full object-cover p-0"
+          webkit-playsinline="true"  // ← Add this
         />
       </div>
       <Link

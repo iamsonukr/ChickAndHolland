@@ -79,8 +79,7 @@ function useHttp<T = any>(
           message: msg,
         });
       }
-
-
+      
       return responseJson as T;
     } catch (err) {
       console.error(err);
