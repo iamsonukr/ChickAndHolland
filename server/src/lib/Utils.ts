@@ -1,32 +1,86 @@
 /**
- * @description - generates a random password of length given as parameter
+ * Utility Functions
  */
 
 import nodemailer from "nodemailer";
 import CONFIG from "../config";
 import Mail from "nodemailer/lib/mailer";
-export const generatePassword = async (lengthOfPassword = 8) => {
-  return Promise.resolve(Math.random().toString(36).slice(-lengthOfPassword));
+
+/**
+ * Generate random password
+ */
+export const generatePassword = async (length: number = 8): Promise<string> => {
+  return Math.random().toString(36).slice(-length);
 };
 
 /**
- * @description - generates a random invoice number for the order
- * @param lengthOfInvoiceNumber - length of the invoice number to be generated
+ * Generate random invoice number
  */
-export const generateInvoiceNumber = async (lengthOfInvoiceNumber = 8) => {
-  return Promise.resolve(
-    Math.random().toString(36).slice(lengthOfInvoiceNumber).toUpperCase()
-  );
+export const generateInvoiceNumber = async (
+  length: number = 8
+): Promise<string> => {
+  return Math.random().toString(36).substring(2, 2 + length).toUpperCase();
 };
 
-export async function mail({ ...config }: Mail.Options) {
-  const transporter = nodemailer.createTransport(CONFIG.SMTP_URL, {});
-  await transporter.sendMail({
-    from: "info@chicandholland.com",
-    // to,
-    // subject,
-    // html,
-    // text,
-    ...config,
-  });
-}
+/**
+ * Mail transporter (created once)
+ */
+
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.ethereal.email",
+  port: 587,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false, // Required for Ethereal's self-signed cert
+  },
+});
+/**
+ * Verify SMTP connection on startup
+ */
+transporter.verify((error) => {
+  if (error) {
+    console.error("❌ SMTP connection failed:", error.message);
+  } else {
+    console.log("✅ SMTP server is ready to send emails");
+  }
+});
+
+/**
+ * Send email
+ */
+export const mail = async (config: Mail.Options): Promise<void> => {
+  try {
+    const info = await transporter.sendMail({
+      from: `"Chic & Holland" <${process.env.SMTP_USER}>`,
+      ...config,
+    });
+
+    console.log("✅ Email sent:", info.messageId);
+  } catch (error: any) {
+    console.error("❌ Failed to send email:", error.message);
+
+    // Map common SMTP errors to readable messages
+    if (error.code === "ECONNREFUSED") {
+      throw new Error("Mail server connection refused. Check your SMTP host and port.");
+    }
+
+    if (error.code === "EAUTH") {
+      throw new Error("SMTP authentication failed. Check your email and app password.");
+    }
+
+    if (error.code === "ETIMEDOUT") {
+      throw new Error("Mail server connection timed out.");
+    }
+
+    if (error.responseCode === 550) {
+      throw new Error("Recipient email address rejected by the server.");
+    }
+
+    // Generic fallback
+    throw new Error(`Email sending failed: ${error.message}`);
+  }
+};

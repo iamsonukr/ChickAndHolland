@@ -172,6 +172,7 @@ const ContactUs = () => {
                 playsInline={true}
                 controlsList="nodownload"
                 className="w-full h-full object-cover"
+                webkit-playsinline="true"  // ← Add this
               />
               <div className="video-overlay"></div>
               <div className="video-frame"></div>

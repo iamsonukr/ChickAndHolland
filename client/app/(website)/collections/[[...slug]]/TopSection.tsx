@@ -45,6 +45,7 @@ const TopSection = ({
               playsInline
               preload="none"
               controlsList="nodownload"
+              webkit-playsinline="true"  // ← Add this
             />
           ))}
         </div>
@@ -58,6 +59,7 @@ const TopSection = ({
           playsInline
           preload="metadata"
           controlsList="nodownload"
+          webkit-playsinline="true"  // ← Add this
         />
       )}
 
