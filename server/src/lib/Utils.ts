@@ -9,6 +9,7 @@ import Mail from "nodemailer/lib/mailer";
 /**
  * Generate random password
  */
+
 export const generatePassword = async (length: number = 8): Promise<string> => {
   return Math.random().toString(36).slice(-length);
 };
