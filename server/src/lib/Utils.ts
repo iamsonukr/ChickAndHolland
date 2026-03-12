@@ -26,21 +26,12 @@ export const generateInvoiceNumber = async (
  * Mail transporter (created once)
  */
 
+const transporter = nodemailer.createTransport(process.env.SMTP_URL);
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.ethereal.email",
-  port: 587,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false, // Required for Ethereal's self-signed cert
-  },
-});
 /**
  * Verify SMTP connection on startup
  */
+
 transporter.verify((error) => {
   if (error) {
     console.error("❌ SMTP connection failed:", error.message);
