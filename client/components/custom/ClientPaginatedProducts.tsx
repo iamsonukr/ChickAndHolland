@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 import ProductCard from "./ProductCard";
 import LazyVideo from "./LazyVideo";
-import { cn } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -14,7 +13,6 @@ export default function ClientPaginatedProducts({
   initialLoadedWithoutVideo,
   isLoggedIn,
 }) {
-  // Track which additional products to show (beyond the server-rendered ones)
   const [additionalGroups, setAdditionalGroups] = useState([]);
   const [additionalProductsWithoutVideo, setAdditionalProductsWithoutVideo] =
     useState([]);
@@ -25,27 +23,22 @@ export default function ClientPaginatedProducts({
     rootMargin: "200px",
   });
 
-  // Function to load more products
   const loadMoreProducts = () => {
     const nextPage = currentPage + 1;
 
-    // Calculate which additional products to show next
     const allGroups = allProductData.products || [];
     const allProductsNoVideo = allProductData.productsWithoutVideo || [];
 
-    // Start from where server rendering left off
     let newGroups = [];
     let startGroupIndex = initialLoadedGroups + additionalGroups.length;
     let itemsToLoad = ITEMS_PER_PAGE;
 
-    // Add more product groups
     while (itemsToLoad > 0 && startGroupIndex < allGroups.length) {
       newGroups.push(allGroups[startGroupIndex]);
       itemsToLoad -= allGroups[startGroupIndex].products.length;
       startGroupIndex++;
     }
 
-    // Add more products without video if needed
     let newProductsWithoutVideo = [];
     if (itemsToLoad > 0) {
       const startIndex =
@@ -54,11 +47,9 @@ export default function ClientPaginatedProducts({
         startIndex + itemsToLoad,
         allProductsNoVideo.length,
       );
-
       newProductsWithoutVideo = allProductsNoVideo.slice(startIndex, endIndex);
     }
 
-    // Update state with new products
     setAdditionalGroups([...additionalGroups, ...newGroups]);
     setAdditionalProductsWithoutVideo([
       ...additionalProductsWithoutVideo,
@@ -67,21 +58,18 @@ export default function ClientPaginatedProducts({
     setCurrentPage(nextPage);
   };
 
-  // Load more when scrolling to bottom
   useEffect(() => {
     if (inView) {
       loadMoreProducts();
     }
   }, [inView]);
 
-  // Check if we have more data to show
   const hasMore =
     initialLoadedGroups + additionalGroups.length <
-    (allProductData.products || []).length ||
+      (allProductData.products || []).length ||
     initialLoadedWithoutVideo + additionalProductsWithoutVideo.length <
-    (allProductData.productsWithoutVideo || []).length;
+      (allProductData.productsWithoutVideo || []).length;
 
-  // If no additional products to load, don't render anything
   if (
     !hasMore &&
     additionalGroups.length === 0 &&
@@ -94,37 +82,30 @@ export default function ClientPaginatedProducts({
     <>
       {/* Additional products with videos (client-rendered) */}
       {additionalGroups.map((group, i) => (
-        <div
-          key={`client-group-${i}`}
-          className={cn(
-            "grid grid-cols-1 gap-2",
-            group.video
-              ? "lg:grid-cols-3 lg:grid-rows-2"
-              : "lg:grid-cols-4 lg:grid-rows-1",
-          )}
-        >
+        <div key={`client-group-${i}`} className="flex flex-col gap-2">
           {group.video && (
             <LazyVideo
               src={group.video}
-              className="h-full w-full lg:col-span-1 lg:row-span-2"
+              className="h-full w-full"
             />
           )}
-          {group.products.map((product) => (
-            <ProductCard
-              key={`client-product-${product.id}`}
-              product={product}
-              className="lg:col-span-1 lg:row-span-1"
-              priority={false}
-              isLoggedIn={isLoggedIn}
-              outerPrice={isLoggedIn}
-            />
-          ))}
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            {group.products.map((product) => (
+              <ProductCard
+                key={`client-product-${product.id}`}
+                product={product}
+                priority={false}
+                isLoggedIn={isLoggedIn}
+                outerPrice={isLoggedIn}
+              />
+            ))}
+          </div>
         </div>
       ))}
 
       {/* Additional products without videos (client-rendered) */}
       {additionalProductsWithoutVideo.length > 0 && (
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           {additionalProductsWithoutVideo.map((product) => (
             <ProductCard
               key={`client-product-no-video-${product.id}`}
@@ -137,7 +118,7 @@ export default function ClientPaginatedProducts({
         </div>
       )}
 
-      {/* Loading indicator - only shown if there's more to load */}
+      {/* Loading indicator */}
       {hasMore && (
         <div ref={ref} className="flex h-20 w-full items-center justify-center">
           <div className="flex animate-pulse space-x-4">

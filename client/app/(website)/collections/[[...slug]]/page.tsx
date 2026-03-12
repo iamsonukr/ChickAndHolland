@@ -74,33 +74,26 @@ export default async function CollectionProducts(props: {
 
         {/* Server-rendered groups with videos */}
         {initialGroups.map((group, i) => (
-          <div
-            key={`server-group-${i}`}
-            className={cn(
-              "grid grid-cols-2 gap-2",
-              group.video
-                ? "lg:grid-cols-3 lg:grid-rows-2"
-                : "lg:grid-cols-4 lg:grid-rows-1",
-            )}
-          >
+          <div key={`server-group-${i}`} className="flex flex-col gap-2">
             {group.video && (
               <LazyVideo
                 src={group.video}
-                className="col-span-2 h-full w-full lg:col-span-1 lg:row-span-2"
+                className="h-full w-full"
               />
             )}
-            {group.products.map((product, index) => (
-              <ProductCard
-                key={`server-product-${product.id}`}
-                product={product}
-                className="lg:col-span-1 lg:row-span-1"
-                // ✅ Only prioritize first 2 images — reduces LCP blocking
-                priority={i === 0 && index < 2}
-                isLoggedIn={isLoggedIn}
-                outerPrice={isLoggedIn}
-                hiddenButtons={true}
-              />
-            ))}
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              {group.products.map((product, index) => (
+                <ProductCard
+                  key={`server-product-${product.id}`}
+                  product={product}
+                  // ✅ Only prioritize first 2 images — reduces LCP blocking
+                  priority={i === 0 && index < 2}
+                  isLoggedIn={isLoggedIn}
+                  outerPrice={isLoggedIn}
+                  hiddenButtons={true}
+                />
+              ))}
+            </div>
           </div>
         ))}
 
