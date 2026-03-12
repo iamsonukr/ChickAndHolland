@@ -36,10 +36,9 @@ const BecomeARetailer = () => {
           />
           <div className="hero-overlay"></div>
         </div>
-        
-        <div className={`hero-content text-center transition-all duration-700 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-        }`}>
+
+        <div className={`hero-content text-center transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}>
           <h1 className="font-adornstoryserif text-5xl md:text-6xl text-white mb-4">
             Become a Retailer
           </h1>
@@ -50,26 +49,23 @@ const BecomeARetailer = () => {
       {/* Main Content */}
       <div className="container mx-auto px-25 py-16">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-          
+
           {/* Left Side - Video */}
-          <div className={`luxury-video-section transition-all duration-700 delay-300 ${
-            isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'
-          }`}>
+          <div className={`luxury-video-section transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'
+            }`}>
             <div className="video-container">
               <video
-                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/new-collection-videos/COUTURE/Sequence 04_1.mp4"
+                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/IOS_Converted/Sequence_04_1_ios.mp4"
                 autoPlay
                 muted
                 loop
                 playsInline
-                webkit-playsinline="true"  // ← Add this
+                webkit-playsinline="true"
                 controlsList="nodownload"
                 className="luxury-retailer-video"
-                
               />
               <div className="video-overlay"></div>
             </div>
-            
             {/* Quick Info */}
             {/* <div className="retailer-benefits mt-8">
               <div className="benefits-card">
@@ -97,10 +93,8 @@ const BecomeARetailer = () => {
           </div>
 
           {/* Right Side - Content & Form */}
-          <div className={`luxury-content-section transition-all duration-700 delay-500 ${
-            isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'
-          }`}>
-            
+          <div className={`luxury-content-section transition-all duration-700 delay-500 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
+
             {/* Welcome Text */}
             <div className="content-card">
               <div className="content-header">
@@ -109,24 +103,25 @@ const BecomeARetailer = () => {
                 </h2>
                 <div className="title-underline"></div>
               </div>
-              
-             <div className="font-mysi text-2xl">
-  <p className="leading-relaxed">
-    We appreciate your interest in joining the Chic & Holland retailer network! 
-    We are overjoyed to hear that you find our brand appealing and would like 
-    to carry the brand. To start the process of becoming a Chic & Holland retailer, 
-    please send an email to{" "}
-    <a 
-      href="mailto:info@chicandholland.com" 
-      className="luxury-email-link underline hover:text-gray-600 transition-colors"
-    >
-      info@chicandholland.com
-    </a>.
-  </p>
-</div>
+
+              <div className="font-mysi text-2xl">
+                <p className="leading-relaxed">
+                  We appreciate your interest in joining the Chic & Holland retailer network!
+                  We are overjoyed to hear that you find our brand appealing and would like
+                  to carry the brand. To start the process of becoming a Chic & Holland retailer,
+                  please send an email to{" "}
+                  <a
+                    href="mailto:info@chicandholland.com"
+                    className="luxury-email-link underline hover:text-gray-600 transition-colors"
+                  >
+                    info@chicandholland.com
+                  </a>
+                </p>
+              </div>
 
               {/* Application Form */}
               <div className="retailer-form-section">
+                
                 <div className="form-header">
                   <h2 className="form-title">
                     Retailer Application Form
@@ -135,7 +130,7 @@ const BecomeARetailer = () => {
                     Complete the form below to begin your journey with Chic & Holland
                   </p>
                 </div>
-                
+
                 <div className="form-container">
                   <ContactForm />
                 </div>
@@ -143,7 +138,6 @@ const BecomeARetailer = () => {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

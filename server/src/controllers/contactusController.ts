@@ -40,7 +40,7 @@ router.post(
 
     await mail({
       html: htmlContent,
-      to: "ravindrsaw3@gmail.com",
+      to: "info@chicandholland",
       replyTo: email,
       inReplyTo: email,
       subject: `Contact Us form submission - ${subject}`,
