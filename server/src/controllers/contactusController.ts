@@ -38,15 +38,20 @@ router.post(
       country,
     });
 
-    await mail({
-      html: htmlContent,
-      to: "info@chicandholland",
-      replyTo: email,
-      inReplyTo: email,
-      subject: `Contact Us form submission - ${subject}`,
-    });
+    // ✅ Don't let email failure crash the response
+    try {
+      await mail({
+        html: htmlContent,
+        to: "info@chicandholland.com",   // ✅ fixed .com
+        replyTo: email,
+        inReplyTo: email,
+        subject: `Contact Us form submission - ${subject}`,
+      });
+    } catch (emailError: any) {
+      console.error("❌ Email failed but contact was saved:", emailError.message);
+      // Don't rethrow — contact is saved, just notify in logs
+    }
 
-  
     res.json({
       success: true,
       message: "Your message has been sent successfully",

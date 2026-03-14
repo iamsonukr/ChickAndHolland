@@ -27,8 +27,25 @@ export const generateInvoiceNumber = async (
 /**
  * Mail transporter (created once)
  */
+import * as net from "net";
 
-const transporter = nodemailer.createTransport(process.env.SMTP_URL);
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  requireTLS: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+  // ✅ Force IPv4 via socket options
+  socketOptions: {
+    family: 4,
+  },
+} as any); // 👈 cast to any to avoid TS overload error
 
 /**
  * Verify SMTP connection on startup
