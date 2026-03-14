@@ -47,7 +47,7 @@ const Header = async () => {
   }
 
   const categories = await getCategories();
-  console.log("categories received at header.tsx", categories)
+  // console.log("categories received at header.tsx", categories)
 
   const sortedCategories = [...(categories ?? [])]
     .sort((a: any, b: any) => a.priority - b.priority)
