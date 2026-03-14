@@ -25,118 +25,88 @@ const BecomeARetailer = () => {
   }, []);
 
   return (
-    <div ref={sectionRef} className="luxury-retailer-page min-h-screen bg-white">
+    <div ref={sectionRef} className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="luxury-hero-section relative flex h-[60vh] items-center justify-center overflow-hidden">
-        <div className="hero-image-container">
-          <img
-            src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/latest-content/0C4A9275%20copy.jpg"
-            alt="Chic & Holland Boutique"
-            className="hero-background-image"
-          />
-          <div className="hero-overlay"></div>
-        </div>
+      <section className="relative flex h-[45vh] sm:h-[55vh] md:h-[60vh] items-center justify-center overflow-hidden">
+        <img
+          src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/latest-content/0C4A9275%20copy.jpg"
+          alt="Chic & Holland Boutique"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-black/40" />
 
-        <div className={`hero-content text-center transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-          }`}>
-          <h1 className="font-adornstoryserif text-5xl md:text-6xl text-white mb-4">
+        <div
+          className={`relative z-10 text-center px-4 transition-all duration-700 ${
+            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+        >
+          <h1 className="font-adornstoryserif text-4xl sm:text-5xl md:text-6xl text-white mb-4">
             Become a Retailer
           </h1>
-          {/* <div className="w-20 h-0.5 bg-white mx-auto"></div> */}
         </div>
       </section>
 
       {/* Main Content */}
-      <div className="container mx-auto px-25 py-16">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+      <div className="mx-auto max-w-6xl px-4 sm:px-8 md:px-12 lg:px-16 py-10 sm:py-14 md:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
 
           {/* Left Side - Video */}
-          <div className={`luxury-video-section transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'
-            }`}>
-            <div className="video-container">
+          <div
+            className={`transition-all duration-700 delay-300 ${
+              isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-8"
+            }`}
+          >
+            <div className="relative overflow-hidden rounded-sm aspect-[3/4] sm:aspect-[4/5] lg:aspect-auto lg:h-full min-h-[300px]">
               <video
                 src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/IOS_Converted/Sequence_04_1_ios.mp4"
                 autoPlay
                 muted
                 loop
                 playsInline
-                webkit-playsinline="true"
-                controlsList="nodownload"
-                className="luxury-retailer-video"
+                className="h-full w-full object-cover"
               />
-              <div className="video-overlay"></div>
             </div>
-            {/* Quick Info */}
-            {/* <div className="retailer-benefits mt-8">
-              <div className="benefits-card">
-                <h3 className="benefits-title">Why Partner With Us</h3>
-                <ul className="benefits-list">
-                  <li className="benefit-item">
-                    <span className="benefit-bullet"></span>
-                    Exclusive collections & premium designs
-                  </li>
-                  <li className="benefit-item">
-                    <span className="benefit-bullet"></span>
-                    Global network of 150+ retailers
-                  </li>
-                  <li className="benefit-item">
-                    <span className="benefit-bullet"></span>
-                    Comprehensive brand support
-                  </li>
-                  <li className="benefit-item">
-                    <span className="benefit-bullet"></span>
-                    Handcrafted quality assurance
-                  </li>
-                </ul>
-              </div>
-            </div> */}
           </div>
 
           {/* Right Side - Content & Form */}
-          <div className={`luxury-content-section transition-all duration-700 delay-500 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
-
+          <div
+            className={`transition-all duration-700 delay-500 ${
+              isVisible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8"
+            }`}
+          >
             {/* Welcome Text */}
-            <div className="content-card">
-              <div className="content-header">
-                <h2 className="content-main-title font-adornstoryserif">
-                  THANK YOU FOR YOUR INTEREST IN BECOMING A CHIC & HOLLAND RETAILER!
-                </h2>
-                <div className="title-underline"></div>
-              </div>
+            <div className="mb-6 sm:mb-8">
+              <h2 className="font-adornstoryserif text-xl sm:text-2xl md:text-3xl text-black leading-snug mb-3">
+                THANK YOU FOR YOUR INTEREST IN BECOMING A CHIC &amp; HOLLAND RETAILER!
+              </h2>
+              <div className="w-12 h-0.5 bg-black mb-5" />
 
-              <div className="font-mysi text-2xl">
-                <p className="leading-relaxed">
-                  We appreciate your interest in joining the Chic & Holland retailer network!
-                  We are overjoyed to hear that you find our brand appealing and would like
-                  to carry the brand. To start the process of becoming a Chic & Holland retailer,
-                  please send an email to{" "}
-                  <a
-                    href="mailto:info@chicandholland.com"
-                    className="luxury-email-link underline hover:text-gray-600 transition-colors"
-                  >
-                    info@chicandholland.com
-                  </a>
-                </p>
-              </div>
+              <p className="font-mysi text-lg sm:text-xl md:text-2xl leading-relaxed text-gray-700">
+                We appreciate your interest in joining the Chic &amp; Holland retailer network!
+                We are overjoyed to hear that you find our brand appealing and would like
+                to carry the brand. To start the process of becoming a Chic &amp; Holland retailer,
+                please send an email to{" "}
+                <a
+                  href="mailto:info@chicandholland.com"
+                  className="underline hover:text-gray-500 transition-colors"
+                >
+                  info@chicandholland.com
+                </a>
+              </p>
+            </div>
 
-              {/* Application Form */}
-              <div className="retailer-form-section">
-                
-                <div className="form-header">
-                  <h2 className="form-title">
-                    Retailer Application Form
-                  </h2>
-                  <p className="form-subtitle">
-                    Complete the form below to begin your journey with Chic & Holland
-                  </p>
-                </div>
-
-                <div className="form-container">
-                  <ContactForm />
-                </div>
-              </div>
+            {/* Application Form */}
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold tracking-wide text-black mb-1">
+                Retailer Application Form
+              </h2>
+              <p className="text-sm text-gray-500 mb-6">
+                Complete the form below to begin your journey with Chic &amp; Holland
+              </p>
+              <ContactForm />
             </div>
           </div>
+
         </div>
       </div>
     </div>
