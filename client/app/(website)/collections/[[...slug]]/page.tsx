@@ -6,49 +6,35 @@ import LazyVideo from "@/components/custom/LazyVideo";
 import TopSection from "./TopSection";
 import { cookies } from "next/headers";
 import ClientPaginatedProducts from "@/components/custom/ClientPaginatedProducts";
-import { cache } from "react";
 
 const ITEMS_PER_PAGE = 12;
-
-// ✅ Deduplicate identical fetch calls across the same render
-// (generateMetadata + page both call getProducts — this ensures only ONE network request)
-const getCachedProducts = cache(
-  async (categoryId: number, subCategoryId: number, currencyId?: number) => {
-    return getProducts({
-      categoryId,
-      subCategoryId,
-      ...(currencyId ? { currencyId } : {}),
-    });
-  }
-);
 
 export default async function CollectionProducts(props: {
   params: Promise<{ slug: string[] }>;
 }) {
   const params = await props.params;
-
-  if (params?.slug?.length !== 2) return notFound();
-
-  // ✅ Read cookies once
-  const cookieStore = await cookies();
-  const isLoggedIn = !!cookieStore.get("token")?.value;
-  const currencyId = cookieStore.get("currencyId")?.value;
+  // Validate slug length
+  if (params?.slug?.length !== 2) {
+    return notFound();
+  }
+  const isLoggedIn = (await cookies()).get("token")?.value ? true : false;
+  const currencyId = (await cookies()).get("currencyId")?.value;
 
   const categoryId = parseInt(params.slug[0], 10);
   const subCategoryId = parseInt(params.slug[1], 10);
 
-  const allProductData = await getCachedProducts(
+  // Fetch ALL product data at once
+  const allProductData = await getProducts({
     categoryId,
     subCategoryId,
-    currencyId ? parseInt(currencyId) : undefined,
-  );
+    ...(currencyId ? { currencyId: parseInt(currencyId) } : {}),
+  });
 
-  // ✅ Early return for empty data
-  const hasProducts =
-    allProductData?.products?.length ||
-    allProductData?.productsWithoutVideo?.length;
-
-  if (!hasProducts) {
+  // Error handling for empty data
+  if (
+    !allProductData?.products?.length &&
+    !allProductData?.productsWithoutVideo?.length
+  ) {
     return (
       <div className="flex h-screen items-center justify-center">
         <p className="text-lg text-gray-500">No products found</p>
@@ -56,50 +42,78 @@ export default async function CollectionProducts(props: {
     );
   }
 
-  // ✅ Compute initial groups once via extracted helper
-  const { initialGroups, initialProductsWithoutVideo, loadedGroupCount } =
-    computeInitialGroups(allProductData);
+  // Determine which products to show initially (server-rendered)
+  const initialGroups = [];
+  let remainingCount = ITEMS_PER_PAGE;
+  let groupIndex = 0;
 
+  // Add product groups first
+  while (remainingCount > 0 && groupIndex < allProductData.products.length) {
+    initialGroups.push(allProductData.products[groupIndex]);
+    remainingCount -= allProductData.products[groupIndex].products.length;
+    groupIndex++;
+  }
+
+  // Add products without video if needed
+  let initialProductsWithoutVideo = [];
+  if (remainingCount > 0) {
+    initialProductsWithoutVideo = allProductData.productsWithoutVideo.slice(
+      0,
+      remainingCount,
+    );
+  }
+
+  // Get the category name for the heading
   const categoryName = allProductData.categoryDetails?.name || "";
 
   return (
     <div>
-      <TopSection name={categoryName} subCategoryId={subCategoryId} />
+      {/* Hero section */}
+      <TopSection
+        name={categoryName}
+        subCategoryId={subCategoryId}
+      />
 
+      {/* Heading placed on the page as requested */}
       <h1 className="z-[2] text-center mt-3 mb-1 font-adornstoryserif text-3xl font-bold tracking-wide text-black">
         {categoryName}
       </h1>
 
-      <div className="mx-4 sm:mx-8 mb-8 mt-8 flex flex-col gap-2">
-
-        {/* Server-rendered groups with videos */}
+      <div className="mx-8 mb-8 mt-8 flex flex-col gap-2">
+        {/* Server-rendered initial products with videos */}
         {initialGroups.map((group, i) => (
-          <div key={`server-group-${i}`} className="flex flex-col gap-2">
+          <div
+            key={`server-group-${i}`}
+            className={cn(
+              "grid grid-cols-1 gap-2",
+              group.video
+                ? "lg:grid-cols-3 lg:grid-rows-2"
+                : "lg:grid-cols-4 lg:grid-rows-1",
+            )}
+          >
             {group.video && (
               <LazyVideo
                 src={group.video}
-                className="h-full w-full"
+                className="h-full w-full lg:col-span-1 lg:row-span-2"
               />
             )}
-            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-              {group.products.map((product, index) => (
-                <ProductCard
-                  key={`server-product-${product.id}`}
-                  product={product}
-                  // ✅ Only prioritize first 2 images — reduces LCP blocking
-                  priority={i === 0 && index < 2}
-                  isLoggedIn={isLoggedIn}
-                  outerPrice={isLoggedIn}
-                  hiddenButtons={true}
-                />
-              ))}
-            </div>
+            {group.products.map((product, index) => (
+              <ProductCard
+                key={`server-product-${product.id}`}
+                product={product}
+                className="lg:col-span-1 lg:row-span-1"
+                priority={i === 0 && index < 4}
+                isLoggedIn={isLoggedIn}
+                outerPrice={isLoggedIn}
+                hiddenButtons={true}
+              />
+            ))}
           </div>
         ))}
 
-        {/* Server-rendered products without videos */}
+        {/* Server-rendered initial products without videos */}
         {initialProductsWithoutVideo.length > 0 && (
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-4">
             {initialProductsWithoutVideo.map((product: any) => (
               <ProductCard
                 key={`server-product-no-video-${product.id}`}
@@ -113,10 +127,10 @@ export default async function CollectionProducts(props: {
           </div>
         )}
 
-        {/* Client component for remaining products */}
+        {/* Client-side component for loading more products */}
         <ClientPaginatedProducts
           allProductData={allProductData}
-          initialLoadedGroups={loadedGroupCount}
+          initialLoadedGroups={initialGroups.length}
           initialLoadedWithoutVideo={initialProductsWithoutVideo.length}
           isLoggedIn={isLoggedIn}
         />
@@ -125,47 +139,34 @@ export default async function CollectionProducts(props: {
   );
 }
 
-// ✅ Extracted helper — keeps component clean, avoids inline recomputation
-function computeInitialGroups(allProductData: any) {
-  const initialGroups = [];
-  let remainingCount = ITEMS_PER_PAGE;
-  let groupIndex = 0;
-
-  while (remainingCount > 0 && groupIndex < allProductData.products.length) {
-    initialGroups.push(allProductData.products[groupIndex]);
-    remainingCount -= allProductData.products[groupIndex].products.length;
-    groupIndex++;
-  }
-
-  const initialProductsWithoutVideo =
-    remainingCount > 0
-      ? allProductData.productsWithoutVideo.slice(0, remainingCount)
-      : [];
-
-  return {
-    initialGroups,
-    initialProductsWithoutVideo,
-    loadedGroupCount: groupIndex,
-  };
-}
-
-// ✅ generateMetadata reuses the same cached fetch — zero extra network call
 export async function generateMetadata(props: {
   params: Promise<{ slug: string[] }>;
 }) {
   const params = await props.params;
-  if (params?.slug?.length !== 2) return notFound();
+  if (params?.slug?.length !== 2) {
+    return notFound();
+  }
 
   const categoryId = parseInt(params.slug[0], 10);
   const subCategoryId = parseInt(params.slug[1], 10);
 
-  const productsData = await getCachedProducts(categoryId, subCategoryId);
+  const productsData = await getProducts({
+    categoryId,
+    subCategoryId,
+  });
+
   const categoryName = productsData.categoryDetails.name || "Collection";
 
   return {
     title: `${categoryName} | Chic & Holland`,
     description: `Check out our latest collection of ${categoryName} on Chic & Holland.`,
-    keywords: [categoryName, "fashion", "clothing", "Chic & Holland", "online shopping"],
+    keywords: [
+      `${categoryName}`,
+      "fashion",
+      "clothing",
+      "Chic & Holland",
+      "online shopping",
+    ],
     openGraph: {
       title: `${categoryName} | Chic & Holland`,
       description: `Check out our latest collection of ${categoryName} on Chic & Holland.`,
@@ -183,6 +184,4 @@ export async function generateMetadata(props: {
   };
 }
 
-// ✅ Revalidate every 60s instead of force-dynamic on every request
-// Adjust up/down based on how often your collections change
-export const revalidate = 60;
+export const dynamic = "force-dynamic";

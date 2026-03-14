@@ -1,133 +1,158 @@
 "use client";
-// components/custom/ClientPaginatedProducts.jsx
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useInView } from "react-intersection-observer";
 import ProductCard from "./ProductCard";
 import LazyVideo from "./LazyVideo";
+import { cn } from "@/lib/utils";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const ITEMS_PER_PAGE = 12;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Product {
+  id: string | number;
+  [key: string]: unknown;
+}
+
+interface ProductGroup {
+  video?: string;
+  products: Product[];
+}
+
+interface AllProductData {
+  products: ProductGroup[];
+  productsWithoutVideo: Product[];
+}
+
+interface Props {
+  allProductData: AllProductData;
+  initialLoadedGroups: number;
+  initialLoadedWithoutVideo: number;
+  isLoggedIn: boolean;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ClientPaginatedProducts({
   allProductData,
   initialLoadedGroups,
   initialLoadedWithoutVideo,
   isLoggedIn,
-}) {
-  const [additionalGroups, setAdditionalGroups] = useState([]);
-  const [additionalProductsWithoutVideo, setAdditionalProductsWithoutVideo] =
-    useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
+}: Props) {
+  const allGroups = allProductData.products ?? [];
+  const allNoVideo = allProductData.productsWithoutVideo ?? [];
 
-  const { ref, inView } = useInView({
-    threshold: 0,
-    rootMargin: "200px",
-  });
+  const [loadedGroupCount, setLoadedGroupCount] = useState(initialLoadedGroups);
+  const [loadedNoVideoCount, setLoadedNoVideoCount] = useState(initialLoadedWithoutVideo);
 
-  const loadMoreProducts = () => {
-    const nextPage = currentPage + 1;
+  // Slices of items actually rendered by this client component
+  const [clientGroups, setClientGroups] = useState<ProductGroup[]>([]);
+  const [clientNoVideo, setClientNoVideo] = useState<Product[]>([]);
 
-    const allGroups = allProductData.products || [];
-    const allProductsNoVideo = allProductData.productsWithoutVideo || [];
-
-    let newGroups = [];
-    let startGroupIndex = initialLoadedGroups + additionalGroups.length;
-    let itemsToLoad = ITEMS_PER_PAGE;
-
-    while (itemsToLoad > 0 && startGroupIndex < allGroups.length) {
-      newGroups.push(allGroups[startGroupIndex]);
-      itemsToLoad -= allGroups[startGroupIndex].products.length;
-      startGroupIndex++;
-    }
-
-    let newProductsWithoutVideo = [];
-    if (itemsToLoad > 0) {
-      const startIndex =
-        initialLoadedWithoutVideo + additionalProductsWithoutVideo.length;
-      const endIndex = Math.min(
-        startIndex + itemsToLoad,
-        allProductsNoVideo.length,
-      );
-      newProductsWithoutVideo = allProductsNoVideo.slice(startIndex, endIndex);
-    }
-
-    setAdditionalGroups([...additionalGroups, ...newGroups]);
-    setAdditionalProductsWithoutVideo([
-      ...additionalProductsWithoutVideo,
-      ...newProductsWithoutVideo,
-    ]);
-    setCurrentPage(nextPage);
-  };
-
-  useEffect(() => {
-    if (inView) {
-      loadMoreProducts();
-    }
-  }, [inView]);
+  const isLoadingRef = useRef(false);
 
   const hasMore =
-    initialLoadedGroups + additionalGroups.length <
-      (allProductData.products || []).length ||
-    initialLoadedWithoutVideo + additionalProductsWithoutVideo.length <
-      (allProductData.productsWithoutVideo || []).length;
+    loadedGroupCount < allGroups.length ||
+    loadedNoVideoCount < allNoVideo.length;
 
-  if (
-    !hasMore &&
-    additionalGroups.length === 0 &&
-    additionalProductsWithoutVideo.length === 0
-  ) {
+  const { ref, inView } = useInView({ threshold: 0, rootMargin: "200px" });
+
+  const loadMore = useCallback(() => {
+    if (isLoadingRef.current || !hasMore) return;
+    isLoadingRef.current = true;
+
+    let remaining = ITEMS_PER_PAGE;
+    const newGroups: ProductGroup[] = [];
+    let gi = loadedGroupCount;
+
+    while (remaining > 0 && gi < allGroups.length) {
+      newGroups.push(allGroups[gi]);
+      remaining -= allGroups[gi].products.length;
+      gi++;
+    }
+
+    const newNoVideo: Product[] =
+      remaining > 0
+        ? allNoVideo.slice(loadedNoVideoCount, loadedNoVideoCount + remaining)
+        : [];
+
+    setClientGroups((prev) => [...prev, ...newGroups]);
+    setClientNoVideo((prev) => [...prev, ...newNoVideo]);
+    setLoadedGroupCount(gi);
+    setLoadedNoVideoCount((prev) => prev + newNoVideo.length);
+
+    isLoadingRef.current = false;
+  }, [allGroups, allNoVideo, loadedGroupCount, loadedNoVideoCount, hasMore]);
+
+  useEffect(() => {
+    if (inView) loadMore();
+  }, [inView, loadMore]);
+
+  // Nothing rendered until the first batch loads
+  if (!hasMore && clientGroups.length === 0 && clientNoVideo.length === 0) {
     return null;
   }
 
   return (
     <>
-      {/* Additional products with videos (client-rendered) */}
-      {additionalGroups.map((group, i) => (
-        <div key={`client-group-${i}`} className="flex flex-col gap-2">
+      {/* Groups with (optional) video */}
+      {clientGroups.map((group, i) => (
+        <div
+          key={`client-group-${i}`}
+          className={cn(
+            "grid grid-cols-1 gap-2",
+            group.video
+              ? "lg:grid-cols-3 lg:grid-rows-2"
+              : "lg:grid-cols-4 lg:grid-rows-1",
+          )}
+        >
           {group.video && (
             <LazyVideo
               src={group.video}
-              className="h-full w-full"
+              className="h-full w-full lg:col-span-1 lg:row-span-2"
             />
           )}
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-            {group.products.map((product) => (
-              <ProductCard
-                key={`client-product-${product.id}`}
-                product={product}
-                priority={false}
-                isLoggedIn={isLoggedIn}
-                outerPrice={isLoggedIn}
-              />
-            ))}
-          </div>
+          {group.products.map((product) => (
+            <ProductCard
+              key={`client-product-${product.id}`}
+              product={product}
+              className="lg:col-span-1 lg:row-span-1"
+              priority={false}
+              isLoggedIn={isLoggedIn}
+              outerPrice={isLoggedIn}
+              hiddenButtons
+            />
+          ))}
         </div>
       ))}
 
-      {/* Additional products without videos (client-rendered) */}
-      {additionalProductsWithoutVideo.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-          {additionalProductsWithoutVideo.map((product) => (
+      {/* Products without video */}
+      {clientNoVideo.length > 0 && (
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-4">
+          {clientNoVideo.map((product) => (
             <ProductCard
               key={`client-product-no-video-${product.id}`}
               product={product}
               isLoggedIn={isLoggedIn}
               priority={false}
               outerPrice={isLoggedIn}
+              hiddenButtons
             />
           ))}
         </div>
       )}
 
-      {/* Loading indicator */}
+      {/* Sentinel + spinner */}
       {hasMore && (
-        <div ref={ref} className="flex h-20 w-full items-center justify-center">
-          <div className="flex animate-pulse space-x-4">
-            <div className="h-10 w-10 rounded-full bg-gray-200"></div>
-            <div className="flex-1 space-y-2 py-1">
-              <div className="h-2 rounded bg-gray-200"></div>
-              <div className="h-2 w-5/6 rounded bg-gray-200"></div>
-            </div>
-          </div>
+        <div
+          ref={ref}
+          className="flex h-20 w-full items-center justify-center"
+          aria-label="Loading more products"
+        >
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700" />
         </div>
       )}
     </>
