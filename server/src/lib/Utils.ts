@@ -10,7 +10,6 @@ import Mail from "nodemailer/lib/mailer";
  * Generate random password
  */
 
-
 export const generatePassword = async (length: number = 8): Promise<string> => {
   return Math.random().toString(36).slice(-length);
 };
@@ -31,7 +30,7 @@ import * as net from "net";
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,,
+  port: 465,
   secure: false,
   requireTLS: true,
   auth: {
