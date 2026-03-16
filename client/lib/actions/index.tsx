@@ -41,7 +41,7 @@ export const submitEnquiryForm = actionClient
   .schema(enquireNowFormSchema)
   .action(async ({ parsedInput: values }) => {
     try {
-      const res = await fetch(`${API_URL}products/enquiry-email`, {
+      const res = await fetch(`${API_URL}/products/enquiry-email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
