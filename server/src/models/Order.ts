@@ -41,16 +41,14 @@ export default class Order extends BaseModel {
 
   // @Column("enum", { enum: OrderType, default: OrderType.Store })
   // orderType: OrderType;
-   @Column("varchar", { length: 255 })
-orderType: string;
+  @Column("varchar", { length: 255 })
+  orderType: string;
 
   @Column("text", { nullable: true })
-ppt_path: string;
+  ppt_path: string;
 
-@Column({ nullable: true, unique: true })
-barcode: string;
-
-
+  @Column({ nullable: true, unique: true })
+  barcode: string;
 
   @Column("datetime", { nullable: false, default: () => "CURRENT_TIMESTAMP" })
   orderReceivedDate: Date;
@@ -58,7 +56,7 @@ barcode: string;
   @Column("datetime", { nullable: true })
   orderCancellationDate: Date;
 
-  // 🔹 Status Tracking Dates
+  // Status Tracking Dates
   @Column("datetime", { nullable: true, default: () => "CURRENT_TIMESTAMP" })
   pattern: Date | null;
 
@@ -78,7 +76,7 @@ barcode: string;
   stitching: Date;
 
   @Column({ type: "timestamp", nullable: true })
-balance_pending?: Date;
+  balance_pending?: Date;
 
   @Column("datetime", { nullable: true })
   ready_to_delivery: Date;

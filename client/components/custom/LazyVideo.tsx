@@ -54,6 +54,7 @@ const LazyVideo = ({ src, className }: { src: string; className?: string }) => {
           controlsList="nodownload"
           preload="metadata"
           onLoadedData={() => setIsLoaded(true)}
+          webkit-playsinline="true"  // ← Add this
         >
           <source src={src} type="video/mp4" />
         </video>

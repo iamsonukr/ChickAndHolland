@@ -1,63 +1,3 @@
-// import ContactForm from "./Form";
-
-// const ContactUs = () => {
-//   return (
-//     <div className="my-8 flex flex-col gap-8">
-//       <h1 className="text-center text-3xl font-adornstoryserif">Contact us</h1>
-
-//       <div className="bg-muted py-6 text-primary">
-//         <div className="container space-y-6">
-//           <div>
-//             <p className="font-bold">Call Our Headquarters</p>
-//             <p className="font-bold">+31621422813, +33758609484</p>
-//           </div>
-//           <div>
-//             <p className="font-bold">
-//               General Enquiries:{" "}
-//               <a
-//                 href="mailto:info@chicandholland.com"
-//                 className="text-blue-500"
-//               >
-//                 info@chicandholland.com
-//               </a>
-//             </p>
-//             <p className="font-bold">
-//               Sales Enquiries:{" "}
-//               <a
-//                 href="mailto:sales@chicandholland.com"
-//                 className="text-blue-500"
-//               >
-//                 sales@chicandholland.com
-//               </a>
-//             </p>
-//           </div>
-//         </div>
-//       </div>
-
-//       <div className="flex flex-col-reverse gap-8 px-8 md:flex-row">
-//         <div className="h-[800px] flex-1">
-//           <video
-//             src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/new-collection-videos/COUTURE/Sequence 01_6.mp4"
-//             autoPlay={true}
-//             muted={true}
-//             loop={true}
-//             playsInline={true}
-//             controlsList="nodownload"
-//             className="m-0 h-full w-full object-cover object-center p-0"
-//           ></video>
-//         </div>
-//         <div className="flex flex-1 flex-col justify-center gap-4">
-//           <h2 className="text-2xl">GET IN TOUCH WITH OUR TEAM</h2>
-
-//           <ContactForm />
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default ContactUs;
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -74,7 +14,7 @@ const ContactUs = () => {
         if (entry.isIntersecting) {
           setIsVisible(true);
           if (videoRef.current) {
-            videoRef.current.play().catch(() => {});
+            videoRef.current.play().catch(() => { });
           }
         }
       },
@@ -89,7 +29,7 @@ const ContactUs = () => {
   }, []);
 
   return (
-    <div 
+    <div
       ref={sectionRef}
       className="luxury-contact-page min-h-screen bg-black py-16"
     >
@@ -103,9 +43,8 @@ const ContactUs = () => {
 
       <div className="container mx-auto px-4">
         {/* Enhanced Header */}
-        <div className={`text-center mb-16 transition-all duration-1000 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-        }`}>
+        <div className={`text-center mb-16 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          }`}>
           <h1 className="font-adornstoryserif text-5xl md:text-7xl text-white mb-6 luxury-title">
             Contact Us
           </h1>
@@ -113,9 +52,8 @@ const ContactUs = () => {
         </div>
 
         {/* Contact Information Cards */}
-        <div className={`grid md:grid-cols-2 gap-8 mb-20 transition-all duration-1000 delay-300 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-        }`}>
+        <div className={`grid md:grid-cols-2 gap-8 mb-20 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          }`}>
           {/* Phone Card */}
           <div className="luxury-contact-card group">
             <div className="card-inner">
@@ -160,21 +98,21 @@ const ContactUs = () => {
         </div>
 
         {/* Main Content Section */}
-        <div className={`flex flex-col-reverse gap-12 lg:gap-20 lg:flex-row items-center transition-all duration-1000 delay-500 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-        }`}>
+        <div className={`flex flex-col-reverse gap-12 lg:gap-20 lg:flex-row lg:items-stretch transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          }`}>
           {/* Video Section */}
-          <div className="luxury-video-section flex-1 w-full">
-            <div className="video-container">
+          <div className="luxury-video-section w-full lg:flex-1">
+            <div className="relative w-full h-[60vh] sm:h-[70vh] lg:h-full">
               <video
                 ref={videoRef}
-                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/new-collection-videos/COUTURE/Sequence 01_6.mp4"
+                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/IOS_Converted/Sequence_01_6_ios.mp4"
                 autoPlay={true}
                 muted={true}
                 loop={true}
                 playsInline={true}
                 controlsList="nodownload"
-                className="luxury-contact-video"
+                className="w-full h-full object-cover"
+                webkit-playsinline="true"  // ← Add this
               />
               <div className="video-overlay"></div>
               <div className="video-frame"></div>
@@ -201,5 +139,6 @@ const ContactUs = () => {
     </div>
   );
 };
+
 
 export default ContactUs;

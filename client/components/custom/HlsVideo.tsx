@@ -173,6 +173,7 @@ export default function HlsVideo({
         controlsList={controlsList}
         style={style}
         src={fallbackSrc}
+        webkit-playsinline="true"  // ← Add this
       />
     );
   }
@@ -194,6 +195,7 @@ export default function HlsVideo({
       preload={preload}
       controlsList={controlsList}
       style={style}
+      webkit-playsinline="true"  // ← Add this
     />
   );
 }

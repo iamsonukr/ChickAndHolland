@@ -3,53 +3,21 @@ import Mail from "nodemailer/lib/mailer";
 
 // Recommended configuration for proxy connection - for production
 const transporter = nodemailer.createTransport({
-  host: "139.59.83.183",
-  port: 2587,
-  secure: false, // false for STARTTLS
+  host: "mail.chicandholland.com", // use hostname, not IP
+  port: 587,
+  secure: false,       // false = STARTTLS on port 587
+  requireTLS: true,    // enforce the TLS upgrade
   auth: {
-    user: "info@chicandholland.com",
-    pass: "yktwlbuwklsawauv", // Your app password
+    user: process.env.SMTP_USER,   // "info@chicandholland.com"
+    pass: process.env.SMTP_PASS,   // your app password
   },
   tls: {
-    rejectUnauthorized: false, // Ignore SSL certificate mismatch
-    ciphers: "SSLv3",
+    rejectUnauthorized: true,      // keep this true in production
   },
-  requireTLS: true,
-  debug: true,
-  logger: true,
+  debug: process.env.NODE_ENV !== "production",
+  logger: process.env.NODE_ENV !== "production",
 });
 
-////////////////////////////////////////////////////////////////
-
-// For SSL (port 2465), use this configuration instead:
-/*
-const transporter = nodemailer.createTransporter({
-  host: "139.59.83.183",
-  port: 2465,
-  secure: true, // SSL
-  auth: {
-    user: "info@chicandholland.com",
-    pass: "yktwlbuwklsawauv",
-  },
-  tls: {
-    rejectUnauthorized: false,
-    ciphers: 'SSLv3'
-  },
-  debug: true,
-  logger: true,
-});
-*/
-
-//test local
-// export const transporter = nodemailer.createTransport({
-//   host: "mail.ymtsindia.com",
-//   port: 465,
-//   secure: true,
-//   auth: {
-//     user: "no-relpycrm@ymtsindia.org",
-//     pass: "Takeoff@123TK",
-//   },
-// });
 
 export const sendMail = async (mailOptions: Mail.Options) => {
   return await transporter.sendMail({

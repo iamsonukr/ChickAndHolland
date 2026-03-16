@@ -18,7 +18,7 @@ export async function ContentLayout({ title, children }: ContentLayoutProps) {
   return (
     <div>
       <Navbar title={title} userDetails={userDetails} />
-      <div className="px-4 pb-8 pt-2 sm:px-8">{children}</div>
+      <div className="md:px-4 pb-8 pt-2 sm:px-8 overflow-auto ">{children}</div>
     </div>
   );
 }

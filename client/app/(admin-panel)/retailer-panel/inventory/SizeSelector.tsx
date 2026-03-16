@@ -27,10 +27,10 @@ const sizeChart = [
   { EU: 60, IT: 64, US: 28, UK: 32 },
 ];
 
-const convert = (euSize, from, to) => {
-  const row = sizeChart.find((r) => r[from] === euSize || r.EU === euSize);
+const convert = (euSize: number, from: string, to: string) => {
+  const row = sizeChart.find((r) => r[from as keyof typeof r] === euSize || r.EU === euSize);
   if (!row) return euSize;
-  return row[to];
+  return row[to as keyof typeof row];
 };
 
 export default function SizeSelector() {
@@ -41,7 +41,7 @@ export default function SizeSelector() {
 
     all.forEach((td) => {
       const eu = Number(td.getAttribute("data-eu"));
-      const from = td.getAttribute("data-from");
+      const from = td.getAttribute("data-from") || "EU";
 
       const newSize = convert(eu, from, type);
       td.innerHTML = `${newSize} (${type})`;
@@ -49,23 +49,14 @@ export default function SizeSelector() {
   }, [type]);
 
   return (
-    <div className="flex justify-end items-center gap-3">
+    <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-2 sm:gap-3">
 
-      <p
-        className="
-          text-md font-semibold
-          text-neutral-900 dark:text-neutral-100
-          bg-neutral-100 dark:bg-neutral-800
-          px-3 py-1.5 rounded-md
-          border border-neutral-300 dark:border-neutral-700
-          shadow-sm whitespace-nowrap
-        "
-      >
+      <p className="text-xs sm:text-sm font-semibold text-neutral-900 dark:text-neutral-100 bg-neutral-100 dark:bg-neutral-800 px-3 py-1.5 rounded-md border border-neutral-300 dark:border-neutral-700 shadow-sm">
         🌍 Please select the country based on your size
       </p>
 
       <Select value={type} onValueChange={(v) => setType(v)}>
-        <SelectTrigger className="w-[220px] bg-white dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-600 text-neutral-900 dark:text-neutral-100">
+        <SelectTrigger className="w-full sm:w-[200px] bg-white dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-600 text-neutral-900 dark:text-neutral-100">
           <SelectValue placeholder="Select size system" />
         </SelectTrigger>
 

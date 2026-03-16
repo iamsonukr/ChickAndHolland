@@ -7,7 +7,6 @@
  */
 import { BaseEntity } from "typeorm";
 import ColorChartController from "./controllers/ColorChartController";
-
 import { initializeData } from "./seeder/initializeData";
 import "reflect-metadata";
 import express from "express";
@@ -19,7 +18,6 @@ import cors from "cors";
 import path from "path";
 import CONFIG from "./config";
 import StockEmailRoute from "./routes/StockEmailRoute";
-
 
 // -----------------------
 // Import Controllers
@@ -56,6 +54,7 @@ import PageActions from "./controllers/PageActions";
 import { CacheController } from "./controllers/CacheController";
 import WorkerController from "./controllers/WorkerController";
 
+// import StripeRouter from './routes/stripe.routes'
 // Middleware
 import {
   itemsPerPageHandler,
@@ -78,7 +77,6 @@ import stripeWebhookHandler from "./routes/webhook";
 
 const router = Router();
 
-
 // --------------------
 // Create static folders
 const publicFolder = path.join(process.cwd(), FOLDER_NAMES.STATIC);
@@ -88,15 +86,12 @@ const foldersToCreate = [
   FOLDER_NAMES.EMPLOYEES,
   FOLDER_NAMES.ORDERS,
   FOLDER_NAMES.SETTINGS, // ⬅️ Added for Color Chart uploads
-  
 ];
 
 // -----------------
 // Express App Setup
 const port = CONFIG.PORT;
 const app = express();
-
-
 
 app.post(
   "/api/payment/webhook",
@@ -122,8 +117,6 @@ app.use(
     methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
   })  
 );  
-
-
 
 app.use(cookieParser());
 app.use(morgan("dev"));
@@ -211,15 +204,12 @@ app.use("/api/retailer-scan", retailerScanRoute);
 app.use("/api/stock-scan", stockScanRoute);
 
 
-
-
 // --------------------
 // 🔒 Protected Routes (require Authorization)
 app.use(memberAuthHandler);
 app.use("/api/orders", OrderRouter);
 // app.use("/api/retailer-orders", RetailerOrders);
 app.use("/api", StockEmailRoute);
-
 app.use("/api/customers", CustomerRouter);
 app.use("/api/categories", CategoryRouter);
 app.use("/api/subcategories", SubCategoryRouter);
@@ -230,6 +220,8 @@ app.use("/api/payers", PayerRouter);
 app.use("/api/expensetypes", ExpenseTypeRouter);
 app.use("/api/expenses", ExpenseRouter);
 app.use("/api/inventory", InventoryRouter);
+
+// app.use("/api/stripe", StripeRouter);
 
 app.use("/api/reports", ReportRouter);
 app.use("/api/analytics", AnalyticsRouter);
@@ -243,7 +235,6 @@ app.use("/api/sponsors", Sponsor);
 app.use("/api/retailer-bank", RetailerBank);
 app.use("/api/admin-bank", AdminBank);
 app.use("/api/page-actions", PageActions);
-
 
 // --------------------
 // Cache API

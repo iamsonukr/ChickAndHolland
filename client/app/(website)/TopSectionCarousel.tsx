@@ -42,6 +42,7 @@ const TopSectionCarousel = () => {
               playsInline={true}
               controlsList="nodownload"
               className="m-0 h-dvh w-full object-fill p-0"
+              webkit-playsinline="true"  // ← Add this
             ></video>
           </CarouselItem>
           <CarouselItem>

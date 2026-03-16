@@ -7,6 +7,22 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "Adorn Story Serif";
+  src: url("/fonts/AdornStorySerif.woff2") format("woff2"),
+    url("/fonts/AdornStorySerif.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Brandon Grotesque";
+  /* Apne file path ke hisaab se niche change karein */
+  src: url("/fonts/brandon-grotesque-light.otf") format("opentype");
+  font-weight: 100; /* Light font hai isliye 300 */
+  font-style: normal;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -625,6 +641,20 @@ html {
   height: 100%;
   object-fit: contain;
   background-color: black; /* for letterbox */
+}
+
+.luxury-contact-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;  /* ← changed from contain to cover for full size */
+  background-color: black;
+}
+
+.video-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
 .video-container:hover .luxury-contact-video {

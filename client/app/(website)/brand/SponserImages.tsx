@@ -14,6 +14,7 @@ const SponserImages = ({ sponsor }: any) => {
       <Carousel
         opts={{
           loop: true,
+          align: "start",
         }}
         plugins={[
           AutoPlay({
@@ -21,28 +22,30 @@ const SponserImages = ({ sponsor }: any) => {
             stopOnInteraction: false,
           }),
         ]}
-        className="w-full"
+        className="w-full overflow-hidden"
       >
-        <CarouselContent className="-ml-2 md:-ml-4">
+        <CarouselContent className="ml-0 ">
           {sponsor &&
             sponsor.map((item: any, index: number) => (
               <CarouselItem
-                className="pl-2 md:pl-4 basis-full sm:basis-1/2 lg:basis-1/3"
+                className="pl-0 basis-full sm:basis-1/3 lg:basis-1/3"
                 key={index}
               >
-                <div className="flex h-full font-adornstoryserif flex-col items-center gap-2">
-                  <div className="w-full h-[220px] sm:h-[280px] md:h-[448px] lg:h-[512px] relative">
+                <div className="flex flex-col items-center gap-2 p-2">
+                  <div className="relative w-full aspect-[3/4]">
                     <CustomizedImage
                       src={item.image_url}
                       alt="sponsor image"
                       unoptimized
                       fill
-                      className="object-contain"
+                      className="object-cover rounded-xl"
                     />
                   </div>
-                  <p className="text-center text-sm sm:text-base font-mysi md:text-xl 2xl:text-2xl 3xl:text-3xl 4xl:text-3xl">
-                    {item.description && item.description}
-                  </p>
+                  {item.description && (
+                    <p className="text-center font-mysi text-sm sm:text-base md:text-lg lg:text-xl 2xl:text-2xl px-2">
+                      {item.description}
+                    </p>
+                  )}
                 </div>
               </CarouselItem>
             ))}

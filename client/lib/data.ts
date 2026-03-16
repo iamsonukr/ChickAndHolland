@@ -1,5 +1,4 @@
 "use server";
-
 import {
   eternalSunshine,
   paparazzi,
@@ -7,14 +6,12 @@ import {
 } from "@/app/(website)/collections/[[...slug]]/videos";
 import { API_URL } from "./constants";
 import { cookies } from "next/headers";
-import { unstable_cache } from "next/cache";
 
 export const fetchWrapper = async (
   endpoint: string,
   options: RequestInit = {},
 ) => {
   const token = (await cookies()).get("token")?.value;
-
 
   const headers = {
     "Content-Type": "application/json",
@@ -31,13 +28,12 @@ export const fetchWrapper = async (
 };
 
  
-
 export const getCategories = async () => {
   try {
     const response = await fetch(`${API_URL}/categories`, { cache: "no-store" });
     const data = await response.json();
 
-    console.log("this is data ", data)
+    console.log("Categories received at data.ts ", data)
 
     // 🧠 Handle different API shapes gracefully
     if (Array.isArray(data)) {

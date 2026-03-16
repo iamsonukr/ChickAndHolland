@@ -7,10 +7,12 @@ import LoadingPlaceholder from "@/components/custom/LoadingPlaceHolder";
 
 type CustomizedImageProps = {
   className?: string;
+  wrapperClassName?: string;
 } & ImageProps;
 
 const CustomizedImage = ({
   className,
+  wrapperClassName,
   fill,
   width,
   height,
@@ -19,25 +21,24 @@ const CustomizedImage = ({
   const [isLoaded, setIsLoaded] = useState(false);
 
   return (
-    <div className={cn("relative h-full w-full", className)}>
+    <div className={cn("relative h-full w-full", wrapperClassName)}>
       {!isLoaded && <LoadingPlaceholder />}
 
       {fill ? (
-        // ✅ FILL MODE (NO width / height)
         <Image
           {...props}
           fill
           src={props.src || "/placeholder.png"}
           alt={props.alt || "Image"}
           className={cn(
-            "h-full w-full object-cover transition-opacity duration-300",
-            !isLoaded && "opacity-0"
+            "object-cover transition-opacity duration-300",
+            !isLoaded && "opacity-0",
+            className  // ← now className overrides image styles, not wrapper
           )}
           onLoad={() => setIsLoaded(true)}
           priority={false}
         />
       ) : (
-        // ✅ NORMAL MODE (width / height only)
         <Image
           {...props}
           width={width ?? 500}
@@ -46,7 +47,8 @@ const CustomizedImage = ({
           alt={props.alt || "Image"}
           className={cn(
             "h-full w-full max-w-full object-cover transition-opacity duration-300",
-            !isLoaded && "opacity-0"
+            !isLoaded && "opacity-0",
+            className  // ← same here
           )}
           onLoad={() => setIsLoaded(true)}
           priority={false}

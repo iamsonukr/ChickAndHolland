@@ -11,6 +11,7 @@ import {ColorChart} from "./models/ColorChart";
 import Contactus from "./models/contactus";
 import Countries from "./models/Countries";
 import Country from "./models/Country";
+
 import Currency from "./models/Currency";
 import Customer from "./models/Customer";
 import Employee from "./models/Employee";
@@ -83,9 +84,7 @@ export default db;
 // import CONFIG from "./config";
 // import Category from "./models/Category";
 // import User from "./models/User";
-
 // let modelsPath = "";
-
 // /**
 //  * Path handling for entities
 //  * CONFIG.PRODUCTION ke base par correct directory select karega
@@ -111,8 +110,6 @@ export default db;
 //     // Optimized entities path
 //     entities: [modelsPath],
 //         // entities: [Category, User], // 👈 list them directly
-
-    
 //     poolSize: CONFIG.DB_POOL_SIZE,
 
 //     // Development mein queries print hongi, production mein nahi

@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import { useStore } from "@/lib/hooks/useStore";
 import { Sidebar } from "@/components/custom/admin-panel/sidebar";
 import { useSidebarToggle } from "@/lib/hooks/useSidebarToggle";
-import NotificationsBell from "@/components/NotificationsBell";
 
 export default function AdminPanelLayout({
   children,
