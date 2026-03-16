@@ -62,12 +62,18 @@ const EnquireProducts = ({
 
     enquireNowForm.reset();
     setEnquireModelOpen(false);
-
+    console.log(res);
+    if(res?.data?.success) {
     toast("Enquiry submitted successfully", {
       description:
         "We have received your enquiry and will get back to you soon.",
     });
-
+    } else {
+      toast("Failed to submit enquiry", {
+        description:
+          "There was an error submitting your enquiry. Please try again later.",
+      });
+    }
     callback?.();
   };
 

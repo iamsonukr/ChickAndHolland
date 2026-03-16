@@ -42,9 +42,8 @@ router.post(
     try {
       await mail({
         html: htmlContent,
-        to: "info@chicandholland.com",   // ✅ fixed .com
+        to: "info@chicandholland.com",
         replyTo: email,
-        inReplyTo: email,
         subject: `Contact Us form submission - ${subject}`,
       });
     } catch (emailError: any) {
@@ -58,6 +57,7 @@ router.post(
     });
   })
 );
+
 
 /**
  * GET ALL CONTACT ENTRIES

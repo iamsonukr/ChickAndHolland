@@ -87,7 +87,7 @@ export const contactUsEmailTemplate = ({
                           <td align="center" style="font-size:0px;padding:8px 0;word-break:break-word;">
                             <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
                               <tbody><tr><td style="width:150px;">
-                                <img height="auto" src="https://chicandholland.com/LOGO.png"
+                                <img height="auto" src="https://chicandholland.com/brand-logo.png"
                                   style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;"
                                   width="150" />
                               </td></tr></tbody>

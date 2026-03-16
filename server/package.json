@@ -72,6 +72,7 @@
     "pptxgenjs": "^4.0.1",
     "react": "^19.2.3",
     "reflect-metadata": "^0.1.13",
+    "resend": "^6.9.3",
     "sharp": "^0.34.5",
     "stripe": "^20.0.0",
     "typeorm": "^0.3.15",
