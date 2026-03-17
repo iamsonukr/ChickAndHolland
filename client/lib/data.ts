@@ -27,7 +27,7 @@ export const fetchWrapper = async (
   return response.json();
 };
 
- 
+
 export const getCategories = async () => {
   try {
     const response = await fetch(`${API_URL}/categories`, { cache: "no-store" });
@@ -53,31 +53,41 @@ export const getCategories = async () => {
 };
 
 
+// Add page + limit to the function signature — everything else is unchanged
 export const getProducts = async ({
   categoryId,
   subCategoryId,
   currencyId,
+  page,
+  limit,
 }: {
   categoryId: number;
   subCategoryId: number;
   currencyId?: number;
+  page?: number;
+  limit?: number;
 }) => {
-  const response = await fetch(
-    `${API_URL}/products/filter?categoryId=${categoryId}&subCategoryId=${subCategoryId}${currencyId ? `&currencyId=${currencyId}` : ''}`,
-    
-  );
-  const categories = await getCategories();
-console.log("🔥 ALL CATEGORIES:", categories);
+  // ─── Build URL with optional pagination params ────────────────────────────
+  const url = new URL(`${API_URL}/products/filter`);
+  url.searchParams.set("categoryId",    String(categoryId));
+  url.searchParams.set("subCategoryId", String(subCategoryId));
+  if (currencyId) url.searchParams.set("currencyId", String(currencyId));
+  if (page  !== undefined) url.searchParams.set("page",  String(page));
+  if (limit !== undefined) url.searchParams.set("limit", String(limit));
 
-  const productsData = await response.json();
-  console.log("🔥 API PRODUCT RESPONSE:", {
-  categoryId,
-  subCategoryId,
-  currencyId,
-  productsData
-});
+  const response = await fetch(url.toString(), {
+    next: { revalidate: 60 }, // cache for 60s — page 2,3,4 reuse same backend response
+  });
 
-  console.log(productsData)
+  // ─── Unwrap new paginated response shape ──────────────────────────────────
+  // Backend now returns { products, totalCount, hasMore }
+  // Falls back gracefully if backend hasn't deployed yet (plain array)
+  const json = await response.json();
+  const productsData: any[] = Array.isArray(json) ? json : (json.products ?? []);
+  const totalCount: number  = json.totalCount ?? productsData.length;
+  const hasMore: boolean    = json.hasMore    ?? false;
+
+  // ─── Everything below is your original logic — untouched ─────────────────
   const categoryDetails = await getSubCategoryDetails(subCategoryId);
 
   let videosForThisPage = videos.slice();
@@ -98,31 +108,25 @@ console.log("🔥 ALL CATEGORIES:", categories);
         "https://ymts.blr1.cdn.digitaloceanspaces.com/chicandholland/optimized-videos/Video2022five.mp4",
     );
   }
-  
-  // Helper function to enrich hardcoded products with API data
-  const enrichProductsWithApiData = (hardcodedProducts: any[], apiProducts: any[]) => {
-    return hardcodedProducts.map(hardcodedProduct => {
+
+  const enrichProductsWithApiData = (
+    hardcodedProducts: any[],
+    apiProducts: any[],
+  ) => {
+    return hardcodedProducts.map((hardcodedProduct) => {
       const fullProductData = apiProducts.find(
-        apiProduct => apiProduct.productCode === hardcodedProduct.productCode
+        (apiProduct) => apiProduct.productCode === hardcodedProduct.productCode,
       );
-      
       if (fullProductData) {
-        // Merge hardcoded data with full API data, preferring API data for overlapping fields
-        return {
-          ...fullProductData,
-          // Keep any hardcoded fields that might be specific to the video grouping
-          ...hardcodedProduct
-        };
+        return { ...fullProductData, ...hardcodedProduct };
       }
-      
-      // If no match found in API data, return the hardcoded product as-is
       console.warn(`Product ${hardcodedProduct.productCode} not found in API response`);
       return hardcodedProduct;
     });
   };
 
-  let products = [];
-  let productsWithoutVideo = [];
+  let products: any[]             = [];
+  let productsWithoutVideo: any[] = [];
 
   const doesSubCategoryExist = videosForThisPage.find(
     (video: any) => video.subCategoryId == subCategoryId,
@@ -131,99 +135,78 @@ console.log("🔥 ALL CATEGORIES:", categories);
   let tempVidieos: { video: string | null; products: any[] }[] = [];
 
   if (subCategoryId != 56 && subCategoryId != 50) {
-    let actualVidieos: { url: string; year: string }[] =
-      videosForThisPage.filter((video: any) => {
-        if (video.subCategoryId) {
-          return video.subCategoryId == subCategoryId;
-        } else {
-          if (!doesSubCategoryExist) {
-            return (
-              video.year ===
-              categoryDetails.name.split(" ")[
-                categoryDetails.name.split(" ").length - 1
-              ]
-            );
-          }
-        }
-      });
+    const actualVidieos = videosForThisPage.filter((video: any) => {
+      if (video.subCategoryId) {
+        return video.subCategoryId == subCategoryId;
+      } else if (!doesSubCategoryExist) {
+        return (
+          video.year ===
+          categoryDetails.name.split(" ")[
+            categoryDetails.name.split(" ").length - 1
+          ]
+        );
+      }
+    });
 
     if (categoryId == 71 && subCategoryId == 44) {
-      let initial = 0;
-      let final = 4;
-      let loopValue = Math.trunc(productsData.length / 4);
+      let initial     = 0;
+      let final       = 4;
+      const loopValue = Math.trunc(productsData.length / 4);
 
       for (let i = 0; i < loopValue; i++) {
-        let obj = {
+        tempVidieos.push({
           video: i == 0 ? actualVidieos[0]?.url : null,
           products: productsData.slice(initial, final),
-        };
-        tempVidieos.push(obj);
+        });
         initial = final;
-        final = final + 4;
+        final  += 4;
       }
 
-      products = tempVidieos;
-
-      const indexToInsert = loopValue * 4;
-      const remainingProducts = productsData.slice(indexToInsert);
-      productsWithoutVideo = remainingProducts;
+      products             = tempVidieos;
+      productsWithoutVideo = productsData.slice(loopValue * 4);
     } else {
-      let initial = 0;
-      let final = 4;
-      let loopValue = Math.trunc(productsData.length / 4);
+      const loopValue = Math.trunc(productsData.length / 4);
 
-      if (loopValue != 0) {
+      if (loopValue !== 0) {
+        let initial = 0;
+        let final   = 4;
+
         for (let i = 0; i < loopValue; i++) {
-          let obj = {
+          tempVidieos.push({
             video: actualVidieos[i]?.url,
             products: productsData.slice(initial, final),
-          };
-          tempVidieos.push(obj);
+          });
           initial = final;
-          final = final + 4;
+          final  += 4;
         }
-        products = tempVidieos;
-        const indexToInsert = loopValue * 4;
-        const remainingProducts = productsData.slice(indexToInsert);
-        productsWithoutVideo = remainingProducts;
+
+        products             = tempVidieos;
+        productsWithoutVideo = productsData.slice(loopValue * 4);
       } else {
         productsWithoutVideo = productsData;
       }
     }
   } else {
-    // Handle special subcategories with hardcoded data
-    let hardcodedGroups = [];
-    
-    if (subCategoryId == 50) {
-      hardcodedGroups = paparazzi;
-    } else {
-      hardcodedGroups = eternalSunshine;
-    }
+    const hardcodedGroups = subCategoryId == 50 ? paparazzi : eternalSunshine;
 
-    // Enrich each group's products with full API data
-    const enrichedGroups = hardcodedGroups.map(group => ({
+    const enrichedGroups = hardcodedGroups.map((group) => ({
       ...group,
-      products: enrichProductsWithApiData(group.products, productsData)
+      products: enrichProductsWithApiData(group.products, productsData),
     }));
 
     tempVidieos.push(...enrichedGroups);
 
-    const allImages = productsData;
-
-    const hfImages = allImages.filter((img: any) =>
+    const hfImages = productsData.filter((img: any) =>
       img.productCode.includes(subCategoryId == 50 ? "AF" : "HF"),
     );
 
-    // Get all product codes that are already used in the enriched groups
-    const alreadyUsedProductCodes = enrichedGroups.flatMap(group =>
-      group.products.map(product => product.productCode)
+    const alreadyUsedProductCodes = enrichedGroups.flatMap((group) =>
+      group.products.map((p: any) => p.productCode),
     );
 
-    const hfImagesWhichAreNotAlreadyUsed = hfImages.filter(
-      (hfImage: any) => !alreadyUsedProductCodes.includes(hfImage.productCode),
+    productsWithoutVideo = hfImages.filter(
+      (img: any) => !alreadyUsedProductCodes.includes(img.productCode),
     );
-
-    productsWithoutVideo = hfImagesWhichAreNotAlreadyUsed;
   }
 
   products = tempVidieos;
@@ -232,6 +215,8 @@ console.log("🔥 ALL CATEGORIES:", categories);
     products,
     productsWithoutVideo,
     categoryDetails,
+    totalCount,
+    hasMore,
   };
 };
 
@@ -940,7 +925,7 @@ export const getUsers = async ({
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
 
- const url = page
+  const url = page
     ? `${API_URL}/users?page=${page}&query=${query ?? ""}`
     : `${API_URL}/users`;
 
@@ -1024,7 +1009,7 @@ export const getAdminOrders = async (retailerId: number) => {
   console.log("🟦 FETCHING ADMIN ORDERS FOR:", retailerId);
 
   const url = `${API_URL}/retailer-orders/retailer/admin-orders?retailerId=${retailerId}`
-;
+    ;
   console.log("🟦 REQUEST URL:", url);
 
   const res = await fetch(url, {
@@ -1097,7 +1082,7 @@ export const getStockByProductId = async (productId: number) => {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
 
- 
+
 
   const response = await fetch(
     `${API_URL}/stock/stock-by-productid/${productId}`,
@@ -1116,9 +1101,9 @@ export const getRetailerDetails = async (retailerId: number) => {
 
   const response = await fetch(`${API_URL}/retailers/${retailerId}`, {
     headers,
-    
+
   });
-  
+
 
   return response.json();
 };

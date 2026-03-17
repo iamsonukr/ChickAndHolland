@@ -4,21 +4,29 @@ import { useState, useEffect, useRef } from "react";
 import ContactForm from "./Form";
 
 const ContactUs = () => {
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(true); // ✅ Start visible, never blank
+  const [hasAnimated, setHasAnimated] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    // ✅ If section is already in viewport on mount, mark animated
+    if (sectionRef.current) {
+      const rect = sectionRef.current.getBoundingClientRect();
+      if (rect.top < window.innerHeight) {
+        setHasAnimated(true);
+        videoRef.current?.play().catch(() => {});
+      }
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          if (videoRef.current) {
-            videoRef.current.play().catch(() => { });
-          }
+        if (entry.isIntersecting && !hasAnimated) {
+          setHasAnimated(true);
+          videoRef.current?.play().catch(() => {});
         }
       },
-      { threshold: 0.3 }
+      { threshold: 0, rootMargin: "-50px" } // ✅ Lower threshold
     );
 
     if (sectionRef.current) {
@@ -28,12 +36,13 @@ const ContactUs = () => {
     return () => observer.disconnect();
   }, []);
 
+  // ✅ Use hasAnimated for the scroll-in animation class
+  const animClass = hasAnimated
+    ? "opacity-100 translate-y-0"
+    : "opacity-0 translate-y-10";
+
   return (
-    <div
-      ref={sectionRef}
-      className="luxury-contact-page min-h-screen bg-black py-16"
-    >
-      {/* Animated Background Elements */}
+    <div ref={sectionRef} className="luxury-contact-page min-h-screen bg-black py-16">
       <div className="luxury-background-elements">
         <div className="floating-orb orb-1"></div>
         <div className="floating-orb orb-2"></div>
@@ -42,18 +51,16 @@ const ContactUs = () => {
       </div>
 
       <div className="container mx-auto px-4">
-        {/* Enhanced Header */}
-        <div className={`text-center mb-16 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-          }`}>
+        {/* Header */}
+        <div className={`text-center mb-16 transition-all duration-1000 ${animClass}`}>
           <h1 className="font-adornstoryserif text-5xl md:text-7xl text-white mb-6 luxury-title">
             Contact Us
           </h1>
           <div className="w-24 h-0.5 bg-primary mx-auto luxury-line"></div>
         </div>
 
-        {/* Contact Information Cards */}
-        <div className={`grid md:grid-cols-2 gap-8 mb-20 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-          }`}>
+        {/* Cards */}
+        <div className={`grid md:grid-cols-2 gap-8 mb-20 transition-all duration-1000 delay-300 ${animClass}`}>
           {/* Phone Card */}
           <div className="luxury-contact-card group">
             <div className="card-inner">
@@ -82,14 +89,10 @@ const ContactUs = () => {
               <div className="card-content">
                 <h3 className="card-title">Email Enquiries</h3>
                 <p className="card-email">
-                  <a href="mailto:info@chicandholland.com" className="email-link">
-                    info@chicandholland.com
-                  </a>
+                  <a href="mailto:info@chicandholland.com" className="email-link">info@chicandholland.com</a>
                 </p>
                 <p className="card-email">
-                  <a href="mailto:sales@chicandholland.com" className="email-link">
-                    sales@chicandholland.com
-                  </a>
+                  <a href="mailto:sales@chicandholland.com" className="email-link">sales@chicandholland.com</a>
                 </p>
               </div>
               <div className="card-shine"></div>
@@ -97,10 +100,9 @@ const ContactUs = () => {
           </div>
         </div>
 
-        {/* Main Content Section */}
-        <div className={`flex flex-col-reverse gap-12 lg:gap-20 lg:flex-row lg:items-stretch transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-          }`}>
-          {/* Video Section */}
+        {/* Main Content */}
+        <div className={`flex flex-col-reverse gap-12 lg:gap-20 lg:flex-row lg:items-stretch transition-all duration-1000 delay-500 ${animClass}`}>
+          {/* Video */}
           <div className="luxury-video-section w-full lg:flex-1">
             <div className="relative w-full h-[60vh] sm:h-[70vh] lg:h-full">
               <video
@@ -112,14 +114,14 @@ const ContactUs = () => {
                 playsInline={true}
                 controlsList="nodownload"
                 className="w-full h-full object-cover"
-                webkit-playsinline="true"  // ← Add this
+                webkit-playsinline="true"
               />
               <div className="video-overlay"></div>
               <div className="video-frame"></div>
             </div>
           </div>
 
-          {/* Form Section */}
+          {/* Form */}
           <div className="luxury-form-section flex-1">
             <div className="form-header mb-8">
               <h2 className="font-adornstoryserif text-3xl md:text-4xl text-white mb-4">
@@ -129,7 +131,6 @@ const ContactUs = () => {
                 Let's create something extraordinary together. Our team is ready to assist you with any inquiries.
               </p>
             </div>
-
             <div className="form-container">
               <ContactForm />
             </div>
@@ -139,6 +140,5 @@ const ContactUs = () => {
     </div>
   );
 };
-
 
 export default ContactUs;

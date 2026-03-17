@@ -132,7 +132,7 @@ const Header = async () => {
                     href={"/shows-and-events"}
                     className="font-brandon text-xl  text-[#C9A39A]"
                   >
-                    SHOW/EVENTS
+                    SHOWS/EVENTS
                   </Link>
                 </MenubarItem>
                 <MenubarItem className="!w-full" asChild>
@@ -251,7 +251,7 @@ const Header = async () => {
 
               <NavigationMenuItem>
                 <NavigationMenuLink href="/shows-and-events" className={`${navigationMenuTriggerStyle()} font-brandon`}>
-                  SHOW/EVENTS
+                  SHOWS/EVENTS
                 </NavigationMenuLink>
               </NavigationMenuItem>
 

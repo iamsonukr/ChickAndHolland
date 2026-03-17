@@ -67,9 +67,9 @@ const ProductDetailsPage = async ({ params }: PageProps) => {
               userType={userType}
             />
             <SizeChartDialog />
-            {productDetails.description && (
+            {/* {productDetails.description && (
               <p className="text-sm">{productDetails.description}</p>
-            )}
+            )} */}
           </div>
         </div>
       </div>
