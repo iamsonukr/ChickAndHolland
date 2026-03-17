@@ -6,6 +6,8 @@ import LazyVideo from "@/components/custom/LazyVideo";
 import TopSection from "./TopSection";
 import { cookies } from "next/headers";
 import ClientPaginatedProducts from "@/components/custom/ClientPaginatedProducts";
+import ScrollToTop from "@/components/custom/ScrollToTop";
+
 
 const ITEMS_PER_PAGE = 12;
 
@@ -69,6 +71,7 @@ export default async function CollectionProducts(props: {
   return (
     <div>
       {/* Hero section */}
+          <ScrollToTop />
       <TopSection
         name={categoryName}
         subCategoryId={subCategoryId}
@@ -79,7 +82,7 @@ export default async function CollectionProducts(props: {
         {categoryName}
       </h1>
 
-      <div className="mx-8 mb-8 mt-8 flex flex-col gap-2">
+      <div className="mx-2 md:mx-8 mb-8 mt-8 flex flex-col gap-2">
         {/* Server-rendered initial products with videos */}
         {initialGroups.map((group, i) => (
           <div
@@ -129,10 +132,12 @@ export default async function CollectionProducts(props: {
 
         {/* Client-side component for loading more products */}
         <ClientPaginatedProducts
-          allProductData={allProductData}
-          initialLoadedGroups={initialGroups.length}
-          initialLoadedWithoutVideo={initialProductsWithoutVideo.length}
+          categoryId={categoryId}
+          subCategoryId={subCategoryId}
+          currencyId={currencyId ? parseInt(currencyId) : undefined}
           isLoggedIn={isLoggedIn}
+          initialPage={2}
+          itemsPerPage={ITEMS_PER_PAGE}
         />
       </div>
     </div>
@@ -172,11 +177,11 @@ export async function generateMetadata(props: {
       description: `Check out our latest collection of ${categoryName} on Chic & Holland.`,
       images: productsData.products
         ? productsData.products.slice(0, 4).map((prdData) => ({
-            url: prdData.products[0].imageName,
-            width: 1200,
-            height: 630,
-            alt: prdData.products[0].productCode,
-          }))
+          url: prdData.products[0].imageName,
+          width: 1200,
+          height: 630,
+          alt: prdData.products[0].productCode,
+        }))
         : [],
       locale: "en_US",
       type: "website",

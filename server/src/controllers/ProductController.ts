@@ -151,18 +151,30 @@ router.get(
     });
   })
 );
-
 router.get(
   "/filter",
   asyncHandler(async (req: Request, res: Response) => {
-    const { categoryId, subCategoryId, currencyId } = req.query as {
+    const {
+      categoryId,
+      subCategoryId,
+      currencyId,
+      page,
+      limit,
+    } = req.query as {
       categoryId: string;
       subCategoryId: string;
-      currencyId: string;
+      currencyId?: string;
+      page?: string;
+      limit?: string;
     };
 
-    let products = [] as any[];
+    // ─── Pagination ──────────────────────────────────────────────────────────
+    const pageNum  = Math.max(1, parseInt(page  ?? "1",  10));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit ?? "100", 10)));
+    // Default limit=100 keeps existing behaviour when called without pagination
+    const offset   = (pageNum - 1) * limitNum;
 
+    // ─── Base SELECT (unchanged) ─────────────────────────────────────────────
     const baseSelect = currencyId
       ? `
         SELECT 
@@ -195,29 +207,53 @@ router.get(
         WHERE p.deletedAt IS NULL
       `;
 
-    const queryParams = currencyId ? [currencyId] : [];
+    const baseParams = currencyId ? [currencyId] : [];
 
-    // Rest of your filtering logic remains the same
+    // ─── WHERE clause (unchanged logic) ─────────────────────────────────────
+    let whereClause = "";
+    let whereParams: any[] = [];
+
     if (categoryId && subCategoryId) {
-      products = await Product.query(
-        baseSelect + ` AND p.categoryId = ? AND p.subCategoryId = ?`,
-        [...queryParams, categoryId, subCategoryId]
-      );
+      whereClause = " AND p.categoryId = ? AND p.subCategoryId = ?";
+      whereParams  = [categoryId, subCategoryId];
     } else if (categoryId) {
-      products = await Product.query(baseSelect + ` AND p.categoryId = ?`, [
-        ...queryParams,
-        categoryId,
-      ]);
+      whereClause = " AND p.categoryId = ?";
+      whereParams  = [categoryId];
     } else if (subCategoryId) {
-      products = await Product.query(
-        baseSelect + ` AND p.subCategoryId = ?`,
-        [...queryParams, subCategoryId]
-      );
-    } else {
-      products = await Product.query(baseSelect, queryParams);
+      whereClause = " AND p.subCategoryId = ?";
+      whereParams  = [subCategoryId];
     }
 
-    res.json(products);
+    // ─── Count query (for hasMore / totalCount) ──────────────────────────────
+    // Wraps the full SELECT in a COUNT so we get totalCount without fetching all rows
+    const countSelect = currencyId
+      ? `
+        SELECT COUNT(*) as total
+        FROM ${TABLE_NAMES.PRODUCTS} p
+        LEFT JOIN ${TABLE_NAMES.PRODUCT_CURRENCY_PRICING} pcp ON p.id = pcp.productId AND pcp.currencyId = ?
+        WHERE p.deletedAt IS NULL
+      `
+      : `
+        SELECT COUNT(*) as total
+        FROM ${TABLE_NAMES.PRODUCTS} p
+        WHERE p.deletedAt IS NULL
+      `;
+
+    const [countResult, products] = await Promise.all([
+      Product.query(
+        countSelect + whereClause,
+        [...baseParams, ...whereParams]
+      ),
+      Product.query(
+        baseSelect + whereClause + " LIMIT ? OFFSET ?",
+        [...baseParams, ...whereParams, limitNum, offset]
+      ),
+    ]);
+
+    const totalCount = Number(countResult[0]?.total ?? 0);
+    const hasMore    = offset + limitNum < totalCount;
+
+    res.json({ products, totalCount, hasMore });
   })
 );
 
@@ -258,15 +294,37 @@ router.delete(
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    const products = await Product.find({
+    const {
+      categoryId,
+      subCategoryId,
+      currencyId,
+      page,
+      limit,
+    } = req.query as {
+      categoryId?: string;
+      subCategoryId?: string;
+      currencyId?: string;
+      page?: string;
+      limit?: string;
+    };
+
+    // ─── Pagination ────────────────────────────────────────────────────────
+    const pageNum  = Math.max(1, parseInt(page  ?? "1",   10));
+    const limitNum = Math.max(1, parseInt(limit ?? "100", 10)); // default 100 = no pagination (backward compat)
+    const skip     = (pageNum - 1) * limitNum;
+
+    // ─── WHERE clause ──────────────────────────────────────────────────────
+    const where: Record<string, any> = {};
+    if (categoryId)    where.categoryId    = parseInt(categoryId,    10);
+    if (subCategoryId) where.subCategoryId = parseInt(subCategoryId, 10);
+
+    // ─── Fetch page + total in parallel ───────────────────────────────────
+    const [products, totalCount] = await Product.findAndCount({
+      where,
       select: [
         "id",
         "color",
         "productCode",
-        "color",
-        // "unitProduct",
-        // "unitSale",
-
         "price",
         "description",
         "stockAlert",
@@ -278,9 +336,50 @@ router.get(
         "minSaleQuantity",
       ],
       relations: ["images", "category", "subCategory"],
+      skip,
+      take: limitNum,
     });
 
-    res.json(products);
+    // ─── Optionally attach currency pricing ───────────────────────────────
+    // If currencyId is provided, fetch pricing for the returned product IDs
+    // and merge it in — avoids a JOIN on the full table before pagination.
+    let enrichedProducts = products as any[];
+
+    if (currencyId && products.length > 0) {
+      const ids = products.map((p: any) => p.id);
+
+      // Raw query only on the already-paginated IDs — stays fast
+      const pricingRows = await Product.query(
+        `SELECT pcp.productId, pcp.price as regionPrice,
+                c.name as currencyName, c.code as currencyCode, c.symbol as currencySymbol
+         FROM product_currency_pricing pcp
+         LEFT JOIN currencies c ON pcp.currencyId = c.id
+         WHERE pcp.currencyId = ? AND pcp.productId IN (${ids.map(() => "?").join(",")})`,
+        [currencyId, ...ids],
+      );
+
+      const pricingMap = new Map(
+        pricingRows.map((r: any) => [r.productId, r]),
+      );
+
+      enrichedProducts = products.map((p: any) => ({
+        ...p,
+        ...(pricingMap.get(p.id) ?? {
+          regionPrice:    null,
+          currencyName:   null,
+          currencyCode:   null,
+          currencySymbol: null,
+        }),
+      }));
+    }
+
+    const hasMore = skip + limitNum < totalCount;
+
+    res.json({
+      products:   enrichedProducts,
+      totalCount,
+      hasMore,
+    });
   })
 );
 

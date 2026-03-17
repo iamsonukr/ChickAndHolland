@@ -5,12 +5,9 @@ import { useInView } from "react-intersection-observer";
 import ProductCard from "./ProductCard";
 import LazyVideo from "./LazyVideo";
 import { cn } from "@/lib/utils";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+import { API_URL } from "@/lib/constants";
 
 const ITEMS_PER_PAGE = 12;
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Product {
   id: string | number;
@@ -22,138 +19,200 @@ interface ProductGroup {
   products: Product[];
 }
 
-interface AllProductData {
-  products: ProductGroup[];
-  productsWithoutVideo: Product[];
+// Backend /filter returns flat products, totalCount, hasMore
+interface BackendResponse {
+  products: Product[];       // flat array — NOT grouped
+  totalCount: number;
+  hasMore: boolean;
+}
+
+// What we store after normalizing
+interface PageData {
+  groups: ProductGroup[];    // grouped (with video) — empty for paginated pages
+  soloProducts: Product[];   // flat products to render in grid
+  hasMore: boolean;
 }
 
 interface Props {
-  allProductData: AllProductData;
-  initialLoadedGroups: number;
-  initialLoadedWithoutVideo: number;
+  categoryId: number;
+  subCategoryId: number;
+  currencyId?: number;
   isLoggedIn: boolean;
+  initialPage: number;
+  itemsPerPage?: number;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function soloGridClass(count: number): string {
+  const desktopCols = Math.min(count, 4);
+  const colMap: Record<number, string> = {
+    1: "lg:grid-cols-1",
+    2: "lg:grid-cols-2",
+    3: "lg:grid-cols-3",
+    4: "lg:grid-cols-4",
+  };
+  return cn("grid grid-cols-1 gap-2", colMap[desktopCols] ?? "lg:grid-cols-4");
+}
 
 export default function ClientPaginatedProducts({
-  allProductData,
-  initialLoadedGroups,
-  initialLoadedWithoutVideo,
+  categoryId,
+  subCategoryId,
+  currencyId,
   isLoggedIn,
+  initialPage,
+  itemsPerPage = ITEMS_PER_PAGE,
 }: Props) {
-  const allGroups = allProductData.products ?? [];
-  const allNoVideo = allProductData.productsWithoutVideo ?? [];
+  const [pages, setPages] = useState<PageData[]>([]);
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [loadedGroupCount, setLoadedGroupCount] = useState(initialLoadedGroups);
-  const [loadedNoVideoCount, setLoadedNoVideoCount] = useState(initialLoadedWithoutVideo);
-
-  // Slices of items actually rendered by this client component
-  const [clientGroups, setClientGroups] = useState<ProductGroup[]>([]);
-  const [clientNoVideo, setClientNoVideo] = useState<Product[]>([]);
-
-  const isLoadingRef = useRef(false);
-
-  const hasMore =
-    loadedGroupCount < allGroups.length ||
-    loadedNoVideoCount < allNoVideo.length;
+  const isFetchingRef = useRef(false);
 
   const { ref, inView } = useInView({ threshold: 0, rootMargin: "200px" });
 
-  const loadMore = useCallback(() => {
-    if (isLoadingRef.current || !hasMore) return;
-    isLoadingRef.current = true;
+  const fetchNextPage = useCallback(async () => {
+    if (isFetchingRef.current || !hasMore) return;
+    isFetchingRef.current = true;
+    setIsLoading(true);
+    setError(null);
 
-    let remaining = ITEMS_PER_PAGE;
-    const newGroups: ProductGroup[] = [];
-    let gi = loadedGroupCount;
+    try {
+      const params = new URLSearchParams({
+        categoryId: String(categoryId),
+        subCategoryId: String(subCategoryId),
+        page: String(currentPage),
+        limit: String(itemsPerPage),
+        ...(currencyId !== undefined ? { currencyId: String(currencyId) } : {}),
+      });
 
-    while (remaining > 0 && gi < allGroups.length) {
-      newGroups.push(allGroups[gi]);
-      remaining -= allGroups[gi].products.length;
-      gi++;
+      const res = await fetch(`${API_URL}/products/filter?${params}`);
+
+      if (!res.ok) {
+        const body = await res.text();
+        console.error(`[ClientPaginatedProducts] HTTP ${res.status}:`, body);
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data: BackendResponse = await res.json();
+
+      // Backend returns flat products array — treat all as solo products
+      // Video grouping only happens server-side via getProducts()
+      const flatProducts = Array.isArray(data.products) ? data.products : [];
+
+      if (!flatProducts.length) {
+        setHasMore(false);
+        return;
+      }
+
+      const normalized: PageData = {
+        groups: [],               // no video grouping for paginated pages
+        soloProducts: flatProducts,
+        hasMore: data.hasMore ?? false,
+      };
+
+      setPages((prev) => [...prev, normalized]);
+      setCurrentPage((p) => p + 1);
+      setHasMore(data.hasMore ?? false);
+    } catch (err) {
+      console.error("[ClientPaginatedProducts] fetch error:", err);
+      setError("Failed to load more products.");
+    } finally {
+      setIsLoading(false);
+      isFetchingRef.current = false;
     }
-
-    const newNoVideo: Product[] =
-      remaining > 0
-        ? allNoVideo.slice(loadedNoVideoCount, loadedNoVideoCount + remaining)
-        : [];
-
-    setClientGroups((prev) => [...prev, ...newGroups]);
-    setClientNoVideo((prev) => [...prev, ...newNoVideo]);
-    setLoadedGroupCount(gi);
-    setLoadedNoVideoCount((prev) => prev + newNoVideo.length);
-
-    isLoadingRef.current = false;
-  }, [allGroups, allNoVideo, loadedGroupCount, loadedNoVideoCount, hasMore]);
+  }, [categoryId, subCategoryId, currencyId, currentPage, itemsPerPage, hasMore]);
 
   useEffect(() => {
-    if (inView) loadMore();
-  }, [inView, loadMore]);
+    if (inView) fetchNextPage();
+  }, [inView, fetchNextPage]);
 
-  // Nothing rendered until the first batch loads
-  if (!hasMore && clientGroups.length === 0 && clientNoVideo.length === 0) {
-    return null;
-  }
+  if (pages.length === 0 && !isLoading && !hasMore) return null;
 
   return (
     <>
-      {/* Groups with (optional) video */}
-      {clientGroups.map((group, i) => (
-        <div
-          key={`client-group-${i}`}
-          className={cn(
-            "grid grid-cols-1 gap-2",
-            group.video
-              ? "lg:grid-cols-3 lg:grid-rows-2"
-              : "lg:grid-cols-4 lg:grid-rows-1",
-          )}
-        >
-          {group.video && (
-            <LazyVideo
-              src={group.video}
-              className="h-full w-full lg:col-span-1 lg:row-span-2"
-            />
-          )}
-          {group.products.map((product) => (
-            <ProductCard
-              key={`client-product-${product.id}`}
-              product={product}
-              className="lg:col-span-1 lg:row-span-1"
-              priority={false}
-              isLoggedIn={isLoggedIn}
-              outerPrice={isLoggedIn}
-              hiddenButtons
-            />
+      {pages.map((page, pageIndex) => (
+        <div key={`lazy-page-${pageIndex}`} className="flex flex-col gap-2">
+
+          {/* Video groups — empty for paginated pages but kept for future use */}
+          {page.groups?.map((group, groupIndex) => (
+            <div
+              key={`lazy-group-${pageIndex}-${groupIndex}`}
+              className={cn(
+                "grid grid-cols-1 gap-2",
+                group.video ? "lg:grid-cols-3" : "lg:grid-cols-4",
+              )}
+            >
+              {group.video && (
+                <LazyVideo
+                  src={group.video}
+                  className="h-full w-full lg:col-span-1 lg:row-span-2"
+                />
+              )}
+              {group.products?.map((product) => (
+                <ProductCard
+                  key={`lazy-product-${product.id}`}
+                  product={product}
+                  className="lg:col-span-1"
+                  priority={false}
+                  isLoggedIn={isLoggedIn}
+                  outerPrice={isLoggedIn}
+                  hiddenButtons
+                />
+              ))}
+            </div>
           ))}
+
+          {/* Flat products from backend */}
+          {page.soloProducts?.length > 0 && (
+            <div className={soloGridClass(page.soloProducts.length)}>
+              {page.soloProducts.map((product) => (
+                <ProductCard
+                  key={`lazy-solo-${product.id}`}
+                  product={product}
+                  isLoggedIn={isLoggedIn}
+                  priority={false}
+                  outerPrice={isLoggedIn}
+                  hiddenButtons
+                />
+              ))}
+            </div>
+          )}
         </div>
       ))}
 
-      {/* Products without video */}
-      {clientNoVideo.length > 0 && (
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-4">
-          {clientNoVideo.map((product) => (
-            <ProductCard
-              key={`client-product-no-video-${product.id}`}
-              product={product}
-              isLoggedIn={isLoggedIn}
-              priority={false}
-              outerPrice={isLoggedIn}
-              hiddenButtons
-            />
+      {/* Error + retry */}
+      {error && (
+        <div className="flex flex-col items-center gap-3 py-8">
+          <p className="text-sm text-red-500">{error}</p>
+          <button
+            onClick={() => { isFetchingRef.current = false; fetchNextPage(); }}
+            className="px-4 py-2 text-sm border border-black hover:bg-black hover:text-white transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Skeleton — only between pages */}
+      {isLoading && pages.length > 0 && (
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-4 animate-pulse">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-[300px] bg-gray-200 rounded" />
           ))}
         </div>
       )}
 
-      {/* Sentinel + spinner */}
-      {hasMore && (
-        <div
-          ref={ref}
-          className="flex h-20 w-full items-center justify-center"
-          aria-label="Loading more products"
-        >
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700" />
-        </div>
+      {/* End of catalogue */}
+      {!hasMore && pages.length > 0 && (
+        <p className="py-8 text-center text-sm tracking-widest text-gray-400 uppercase">
+          End of collection
+        </p>
+      )}
+
+      {/* Sentinel */}
+      {hasMore && !error && (
+        <div ref={ref} className="h-1 w-full" aria-hidden="true" />
       )}
     </>
   );

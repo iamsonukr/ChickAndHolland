@@ -165,6 +165,7 @@ app.listen(port, () => {
 // Default Route
 app.get("/", (req, res) => {
   res.json({
+    success: true,
     status: "OK",
     health: "Good",
     msg: "Welcome to the API of CHIC AND HOLLAND",
@@ -190,7 +191,6 @@ app.use("/api/upload-ppt", uploadPptRoute);
 // PUBLIC Store APIs
 app.use("/api/orders", PublicStoreRoutes);
 app.use("/api/retailer-orders", RetailerOrders);
-
 app.use("/api/worker", WorkerController);
 
 
