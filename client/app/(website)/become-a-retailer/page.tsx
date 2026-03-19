@@ -48,7 +48,7 @@ const BecomeARetailer = () => {
 
       {/* Main Content */}
       <div className="mx-auto max-w-6xl px-4 sm:px-8 md:px-12 lg:px-16 py-10 sm:py-14 md:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-stretch">
 
           {/* Left Side - Video */}
           <div
@@ -56,14 +56,15 @@ const BecomeARetailer = () => {
               isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-8"
             }`}
           >
-            <div className="relative overflow-hidden rounded-sm aspect-[3/4] sm:aspect-[4/5] lg:aspect-auto lg:h-full min-h-[300px]">
+            {/* Mobile/tablet: use aspect ratio. Desktop (lg+): stretch to full height */}
+            <div className="relative overflow-hidden rounded-sm aspect-[3/4] sm:aspect-[4/5] lg:aspect-auto lg:h-full">
               <video
                 src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/IOS_Converted/Sequence_04_1_ios.mp4"
                 autoPlay
                 muted
                 loop
                 playsInline
-                className="h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
           </div>
