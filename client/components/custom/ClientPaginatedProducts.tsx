@@ -42,15 +42,19 @@ interface Props {
   itemsPerPage?: number;
 }
 
-function soloGridClass(count: number): string {
-  const desktopCols = Math.min(count, 4);
-  const colMap: Record<number, string> = {
-    1: "lg:grid-cols-1",
-    2: "lg:grid-cols-2",
-    3: "lg:grid-cols-3",
-    4: "lg:grid-cols-4",
-  };
-  return cn("grid grid-cols-1 gap-2", colMap[desktopCols] ?? "lg:grid-cols-4");
+// function soloGridClass(count: number): string {
+//   const desktopCols = Math.min(count, 4);
+//   const colMap: Record<number, string> = {
+//     1: "lg:grid-cols-1",
+//     2: "lg:grid-cols-2",
+//     3: "lg:grid-cols-3",
+//     4: "lg:grid-cols-4",
+//   };
+//   return cn("grid grid-cols-1 gap-2", colMap[desktopCols] ?? "lg:grid-cols-4");
+// }
+
+function soloGridClass(): string {
+  return "grid grid-cols-1 gap-2 lg:grid-cols-4";
 }
 
 export default function ClientPaginatedProducts({
@@ -165,18 +169,19 @@ export default function ClientPaginatedProducts({
 
           {/* Flat products from backend */}
           {page.soloProducts?.length > 0 && (
-            <div className={soloGridClass(page.soloProducts.length)}>
-              {page.soloProducts.map((product) => (
-                <ProductCard
-                  key={`lazy-solo-${product.id}`}
-                  product={product}
-                  isLoggedIn={isLoggedIn}
-                  priority={false}
-                  outerPrice={isLoggedIn}
-                  hiddenButtons
-                />
-              ))}
-            </div>
+            <div className={soloGridClass()}>
+  {page.soloProducts.map((product) => (
+    <ProductCard
+      key={`lazy-solo-${product.id}`}
+      product={product}
+      isLoggedIn={isLoggedIn}
+      priority={false}
+      outerPrice={isLoggedIn}
+      hiddenButtons
+      className="lg:col-span-1"
+    />
+  ))}
+</div>
           )}
         </div>
       ))}
