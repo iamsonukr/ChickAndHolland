@@ -16,7 +16,7 @@ import { getRepository, In, MoreThan } from "typeorm";
 import Order from "../models/Order";
 import { convertToUSSize } from "../lib/sizeConversion";
 import { generateUniquePO } from "../utils/generatePO";
-import RetailerOrderStyles from "../models/RetailerOrderStyles";  
+import RetailerOrderStyles from "../models/RetailerOrderStyles";
 import StockOrderStyles from "../models/StockOrderStyles";
 import express from "express";
 import StyleProgress from "../models/StyleProgress";
@@ -67,10 +67,10 @@ router.post(
           favorite.is_order_placed = 1;
           favorite.customization = favourateData[index].customization;
           // 🔥 Add this here
-   favorite.admin_us_size = convertToUSSize(
-      favorite.product_size,
-      favorite.size_country
-   );
+          favorite.admin_us_size = convertToUSSize(
+            favorite.product_size,
+            favorite.size_country
+          );
           await favorite.save();
         }
       }
@@ -179,9 +179,9 @@ router.post(
     }
     const stock_orders = new RetailerStockOrders();
     stock_orders.admin_us_size = convertToUSSize(
-   stock.size,
-   stock.size_country
-);
+      stock.size,
+      stock.size_country
+    );
 
 
     stock_orders.retailer = retailer;
@@ -284,7 +284,7 @@ router.get(
         // Add currency information for frontend display
         const enhancedFavourite = {
           ...favourites,
-            admin_us_size: favourites.admin_us_size, // 🔥 Add this line
+          admin_us_size: favourites.admin_us_size, // 🔥 Add this line
 
           displayPrice: Math.round(displayPrice * favourites.quantity),
           unitPrice: displayPrice,
@@ -594,7 +594,7 @@ router.get(
 
     console.log(id, status);
 
-   let query = `
+    let query = `
   SELECT 
   DATE_FORMAT(rf.createdAt, '%Y-%m-%d') AS received,
   rf.id as id,
@@ -827,16 +827,16 @@ router.post(
     order.address = data.address;
     order.phoneNumber = data.phoneNumber || retailer.customer.phoneNumber;
 
-// 🔥 AUTO GENERATE UNIQUE PO
-const customerPrefix = retailer.customer.name
-  .split(" ")[0]
-  .replace(/[^A-Za-z]/g, "")
-  .toUpperCase();
+    // 🔥 AUTO GENERATE UNIQUE PO
+    const customerPrefix = retailer.customer.name
+      .split(" ")[0]
+      .replace(/[^A-Za-z]/g, "")
+      .toUpperCase();
 
-const prefix = `PO#${customerPrefix}`;
-const uniquePO = await generateUniquePO(prefix);
+    const prefix = `PO#${customerPrefix}`;
+    const uniquePO = await generateUniquePO(prefix);
 
-order.purchaeOrderNo = uniquePO;
+    order.purchaeOrderNo = uniquePO;
     order.hasId = data.color;
     order.purchaseAmount = data.total_amount;
     order.is_stock_order = true;
@@ -954,7 +954,7 @@ router.post(
       // 🔹 Approve favourite order
       // -------------------------------
       const favOrders = await RetailerFavouritesOrders.findOne({
-where: { id: orderData.rfo_id }
+        where: { id: orderData.rfo_id }
       });
 
       if (!favOrders) {
@@ -994,10 +994,10 @@ where: { id: orderData.rfo_id }
       // -------------------------------
       // ⭐⭐ MOST IMPORTANT FIX ⭐⭐
       // -------------------------------
-order.isApproved = true;
+      order.isApproved = true;
       order.status_id = 0;             // 👈 approved state
       order.status = 0;                // 👈 active (not deleted)
-order.orderStatus = OrderStatus.Pattern;
+      order.orderStatus = OrderStatus.Pattern;
 
       await order.save();
 
@@ -1185,11 +1185,10 @@ router.get(
     const countSql = `
       SELECT COUNT(*) AS total
       FROM retailer_orders AS ro
-     ${
-       whereClauses.length > 0
-         ? "WHERE " + "ro.status = 0 AND" + " " + whereClauses.join(" AND ")
-         : " WHERE ro.status = 0 "
-     }
+     ${whereClauses.length > 0
+        ? "WHERE " + "ro.status = 0 AND" + " " + whereClauses.join(" AND ")
+        : " WHERE ro.status = 0 "
+      }
     `;
 
     // Execute queries
@@ -1406,11 +1405,11 @@ router.get(
       },
       color: firstRow.color_id
         ? {
-            id: firstRow.color_id,
-            createdAt: firstRow.color_createdAt,
-            name: firstRow.color_name,
-            hexcode: firstRow.color_hexcode,
-          }
+          id: firstRow.color_id,
+          createdAt: firstRow.color_createdAt,
+          name: firstRow.color_name,
+          hexcode: firstRow.color_hexcode,
+        }
         : null,
     };
 
@@ -1523,10 +1522,9 @@ router.get(
       SELECT COUNT(*) AS total
       FROM retailer_orders AS ro
       LEFT JOIN customers c ON c.id = ro.retailerId
-      ${
-        whereClauses.length > 0
-          ? "WHERE " + "ro.status = 0 AND" + " " + whereClauses.join(" AND ")
-          : " WHERE ro.status = 0 "
+      ${whereClauses.length > 0
+        ? "WHERE " + "ro.status = 0 AND" + " " + whereClauses.join(" AND ")
+        : " WHERE ro.status = 0 "
       }
     `;
 
@@ -1652,31 +1650,31 @@ router.post(
     //   });
     // }
 
-   
+
 
     /* ------------------------------------------
        ⭐ LOWEST STAGE VALIDATION (manual cannot jump)
     ------------------------------------------ */
-  
+
 
     /* ------------------------------------------
        🔥 NOW UPDATE ORDER STATUS
     ------------------------------------------ */
     /* NOW UPDATE ORDER STATUS */
-const now = new Date();
+    const now = new Date();
 
-// Convert frontend value to DB ENUM format
-let finalStatus = status;
+    // Convert frontend value to DB ENUM format
+    let finalStatus = status;
 
-// Replace underscores
-finalStatus = finalStatus.replace(/_/g, " ");
+    // Replace underscores
+    finalStatus = finalStatus?.replace(/_/g, " ");
 
-// Split camelCase or PascalCase into words (IssueBeading → Issue Beading)
-finalStatus = finalStatus.replace(/([a-z])([A-Z])/g, "$1 $2");
+    // Split camelCase or PascalCase into words (IssueBeading → Issue Beading)
+    finalStatus = finalStatus?.replace(/([a-z])([A-Z])/g, "$1 $2");
 
-console.log("Converted finalStatus:", finalStatus);
+    console.log("Converted finalStatus:", finalStatus);
 
-order.orderStatus = finalStatus as OrderStatus;
+    order.orderStatus = finalStatus as OrderStatus;
 
 
     switch (status) {
@@ -1732,7 +1730,7 @@ order.orderStatus = finalStatus as OrderStatus;
     for (const s of styles) {
       const progress = new StyleProgress();
       progress.barcode = s.barcode;
-progress.stage = finalStatus as any;
+      progress.stage = finalStatus as any;
       progress.qty = 1;
       await progress.save();
     }
@@ -1806,7 +1804,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
-const qa = `SELECT 
+    const qa = `SELECT 
   pattern,
   khaka,
   issue_beading,
@@ -2150,75 +2148,73 @@ router.put(
       });
     }
 
-  const workflow = [
-  OrderStatus.Pattern,
-  OrderStatus.Khaka,
-  OrderStatus.Issue_Beading,
-  OrderStatus.Beading,
-  OrderStatus.Zarkan,
-  OrderStatus.Stitching,
-  OrderStatus.Balance_Pending,
-];
+    const workflow = [
+      OrderStatus.Pattern,
+      OrderStatus.Khaka,
+      OrderStatus.Issue_Beading,
+      OrderStatus.Beading,
+      OrderStatus.Zarkan,
+      OrderStatus.Stitching,
+      OrderStatus.Balance_Pending,
+    ];
 
-const currentStatus: OrderStatus = order.orderStatus as OrderStatus;
+    const currentStatus: OrderStatus = order.orderStatus as OrderStatus;
 
     const currentIndex = workflow.indexOf(order.orderStatus);
     const now = new Date();
-// ⛔ QR STOP — Balance Pending
-if (currentStatus === OrderStatus.Balance_Pending) {
-  return res.json({
-    success: false,
-    code: "WAIT_ADMIN",
-    message:
-      "Order Balance Pending hai. Admin ne Ready To Delivery nahi kiya.",
-    nextAction: "WAIT_ADMIN_READY",
-  });
-}
+    // ⛔ QR STOP — Balance Pending
+    if (currentStatus === OrderStatus.Balance_Pending) {
+      return res.json({
+        success: false,
+        code: "WAIT_ADMIN",
+        message:
+          "Order Balance Pending hai. Admin ne Ready To Delivery nahi kiya.",
+        nextAction: "WAIT_ADMIN_READY",
+      });
+    }
 
-// 🟡 Admin Ready To Delivery kar chuka hai
-if (currentStatus === OrderStatus.Ready_To_Delivery) {
-  return res.json({
-    success: true,
-    code: "READY_FOR_SHIP",
-    message:
-      "Admin ne Ready To Delivery kar diya hai. Last scan karke Shipped karein.",
-    nextAction: "SHIP",
-  });
-}
+    // 🟡 Admin Ready To Delivery kar chuka hai
+    if (currentStatus === OrderStatus.Ready_To_Delivery) {
+      return res.json({
+        success: true,
+        code: "READY_FOR_SHIP",
+        message:
+          "Admin ne Ready To Delivery kar diya hai. Last scan karke Shipped karein.",
+        nextAction: "SHIP",
+      });
+    }
 
-// ❌ Already shipped
-if (order.orderStatus === OrderStatus.Shipped) {
-  return res.json({
-    success: false,
-    message: "Order already shipped",
-  });
-}
+    // ❌ Already shipped
+    if (order.orderStatus === OrderStatus.Shipped) {
+      return res.json({
+        success: false,
+        message: "Order already shipped",
+      });
+    }
 
-// 🚚 FINAL QR CONFIRM → SHIP ORDER
-if (
-  order.orderStatus === OrderStatus.Ready_To_Delivery &&
-  req.body.confirmShip === true
-) {
-  const now = new Date();
+    // 🚚 FINAL QR CONFIRM → SHIP ORDER
+    if (
+      order.orderStatus === OrderStatus.Ready_To_Delivery &&
+      req.body.confirmShip === true
+    ) {
+      const now = new Date();
 
-  order.orderStatus = OrderStatus.Shipped;
-  order.shipped = now;
-  order.shippingStatus = ShippingStatus.Shipped;
-  order.shippingDate = now;
-  order.status_id = 1;
+      order.orderStatus = OrderStatus.Shipped;
+      order.shipped = now;
+      order.shippingStatus = ShippingStatus.Shipped;
+      order.shippingDate = now;
+      order.status_id = 1;
 
-  await order.save();
+      await order.save();
 
-  return res.json({
-    success: true,
-    code: "SHIPPED",
-    message: "Order shipped successfully",
-    orderStatus: OrderStatus.Shipped,
-    shippedAt: now,
-  });
-}
-
-
+      return res.json({
+        success: true,
+        code: "SHIPPED",
+        message: "Order shipped successfully",
+        orderStatus: OrderStatus.Shipped,
+        shippedAt: now,
+      });
+    }
 
     if (currentIndex < 0) {
       return res.status(400).json({
@@ -2235,7 +2231,7 @@ if (
       });
     }
 
-   const nextStatus = workflow[currentIndex + 1];
+    const nextStatus = workflow[currentIndex + 1];
 
 
     const field = nextStatus.toLowerCase().replace(/\s+/g, "_");
@@ -2323,7 +2319,7 @@ router.post("/create-checkout", async (req, res) => {
   }
 });
 
-router.post("/admin-panel/request", asyncHandler(async (req:Request,res:Response)=> {
+router.post("/admin-panel/request", asyncHandler(async (req: Request, res: Response) => {
   const { orderId } = req.body;
 
   const order = await RetailerOrder.findOne({
@@ -2332,7 +2328,7 @@ router.post("/admin-panel/request", asyncHandler(async (req:Request,res:Response
   });
 
   if (!order) {
-    return res.status(404).json({ success:false });
+    return res.status(404).json({ success: false });
   }
 
   let styles = [];
@@ -2377,7 +2373,7 @@ router.get(
     }
 
     // 2️⃣ FULL DETAILED ADMIN ORDERS QUERY
-   const SQL = `
+    const SQL = `
   SELECT 
     o.id,
     o.purchaeOrderNo AS order_id,

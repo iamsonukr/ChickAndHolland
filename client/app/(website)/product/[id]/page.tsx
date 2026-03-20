@@ -40,7 +40,7 @@ const ProductDetailsPage = async ({ params }: PageProps) => {
       : { favourites: localFavourites };
 
   return (
-    <div className="my-8">
+    <div className="md:my-14 my-4"> 
       {/* Ensures page always starts at the top on navigation */}
       <ScrollToTop />
 
