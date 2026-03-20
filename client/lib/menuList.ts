@@ -298,7 +298,7 @@ export function getMenuList(pathname: string, userType: any): Group[] {
             submenus: [],
           },
           {
-            href: "/collections/6/3",
+            href: "/collections/72/80",
             label: "Latest Collection",
             active: pathname.includes("/home"),
             icon: PartyPopper,

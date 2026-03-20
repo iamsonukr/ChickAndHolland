@@ -24,7 +24,6 @@ export enum OrderStatus {
   Shipped = "Shipped",
 }
 
-
 export enum ShippingStatus {
   NotShipped = "Not Shipped",
   Shipped = "Shipped",

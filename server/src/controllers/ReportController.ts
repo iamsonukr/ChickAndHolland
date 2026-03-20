@@ -88,15 +88,66 @@ router.get(
 router.get(
   "/manufacturer",
   asyncHandler(async (req: Request, res: Response) => {
-    const { startDate, endDate } = req.query as {
-      startDate: string;
-      endDate: string;
-    };
-    const [manufacturers] = await db.query(
-      `CALL ${PRC_NAMES.MANUFACTURER_REPORT}(? ,?)`,
-      [startDate, endDate]
-    );
-    res.json(manufacturers);
+    try {
+      console.log("📥 Incoming Request:", {
+        query: req.query,
+        url: req.originalUrl,
+        method: req.method,
+      });
+
+      const { startDate, endDate } = req.query as {
+        startDate: string;
+        endDate: string;
+      };
+
+      // Validate input
+      if (!startDate || !endDate) {
+        console.warn("⚠️ Missing query params:", { startDate, endDate });
+        return res.status(400).json({
+          success: false,
+          message: "startDate and endDate are required",
+        });
+      }
+
+      console.log("📅 Filters:", { startDate, endDate });
+
+      const queryString = `CALL ${PRC_NAMES.MANUFACTURER_REPORT}(?, ?)`;
+      console.log("🛢️ Executing Query:", queryString);
+
+      const [manufacturers] = await db.query(queryString, [
+        startDate,
+        endDate,
+      ]);
+
+      console.log("✅ Query Success. Rows:", 
+        Array.isArray(manufacturers) ? manufacturers.length : manufacturers
+      );
+
+      // Optional: preview first record
+      if (Array.isArray(manufacturers) && manufacturers.length > 0) {
+        console.log("🔍 First Record:", manufacturers[0]);
+      } else {
+        console.warn("⚠️ No data returned from DB");
+      }
+
+      res.json({
+        success: true,
+        data: manufacturers,
+      });
+    } catch (error: any) {
+      console.error("❌ Manufacturer Report Error:", {
+        message: error.message,
+        stack: error.stack,
+        sqlMessage: error.sqlMessage,
+        code: error.code,
+      });
+
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch manufacturer report",
+        error: error.message, // remove in production if needed
+      });
+    }
   })
 );
 

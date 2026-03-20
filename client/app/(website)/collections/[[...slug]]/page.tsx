@@ -69,9 +69,9 @@ export default async function CollectionProducts(props: {
   const categoryName = allProductData.categoryDetails?.name || "";
 
   return (
-    <div>
+    <div className="  flex flex-center flex-col justify-center content-center item-center" >
       {/* Hero section */}
-          <ScrollToTop />
+      <ScrollToTop />
       <TopSection
         name={categoryName}
         subCategoryId={subCategoryId}
@@ -82,7 +82,7 @@ export default async function CollectionProducts(props: {
         {categoryName}
       </h1>
 
-      <div className="mx-2 md:mx-8 mb-8 mt-8 flex flex-col gap-2">
+      <div className="mx-2 md:mx-8 mb-8 mt-8 flex flex-col gap-2 md:p-4 p-2 !mx-auto ">
         {/* Server-rendered initial products with videos */}
         {initialGroups.map((group, i) => (
           <div
@@ -116,7 +116,7 @@ export default async function CollectionProducts(props: {
 
         {/* Server-rendered initial products without videos */}
         {initialProductsWithoutVideo.length > 0 && (
-          <div className="grid grid-cols-1 gap-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-4 ">
             {initialProductsWithoutVideo.map((product: any) => (
               <ProductCard
                 key={`server-product-no-video-${product.id}`}

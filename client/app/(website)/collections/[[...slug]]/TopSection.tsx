@@ -37,8 +37,7 @@ const TopSection = ({
           ].map((src, idx) => (
             <video
               key={idx}
-              className="h-full w-1/4 object-cover will-change-transform"
-              src={src}
+className="h-full w-1/4 object-cover object-top will-change-transform"              src={src}
               autoPlay
               muted
               loop
@@ -51,7 +50,7 @@ const TopSection = ({
         </div>
       ) : (
         <video
-          className="absolute inset-0 z-0 h-full w-full object-cover will-change-transform"
+          className="absolute inset-0 z-0 h-full object-center w-full object-cover will-change-transform"
           src={getVideoSrc()}
           autoPlay
           muted

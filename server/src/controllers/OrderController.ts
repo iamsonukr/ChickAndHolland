@@ -147,7 +147,7 @@ router.post(
         order.customer = customer;
 
         await order.save(); // ⬅ MUST SAVE BEFORE STYLES
-        
+
 
         const latestOrderId = await Order.createQueryBuilder("order")
           .select("MAX(order.id)", "max")
@@ -175,7 +175,7 @@ router.post(
           newStyle.lining = s.lining;
           newStyle.lining_color =
             s.lining === "No Lining" ? null : s.liningColor;
-newStyle.quantity = s.quantity ? Number(s.quantity) : 0;
+          newStyle.quantity = s.quantity ? Number(s.quantity) : 0;
 
           // STEP 1 — SAVE FIRST (GETS ID)
           await newStyle.save();
@@ -375,26 +375,26 @@ async function processOrders(orders: any[]) {
               //     )
               //   : null;
               // 🔥 SAFE FIX FOR photoUrls
-let rawPhotoUrls = [];
+              let rawPhotoUrls = [];
 
-try {
-  rawPhotoUrls = style.photoUrls
-    ? Array.isArray(style.photoUrls)
-      ? style.photoUrls
-      : typeof style.photoUrls === "string"
-        ? JSON.parse(style.photoUrls)
-        : []
-    : [];
-} catch {
-  rawPhotoUrls = [];
-}
+              try {
+                rawPhotoUrls = style.photoUrls
+                  ? Array.isArray(style.photoUrls)
+                    ? style.photoUrls
+                    : typeof style.photoUrls === "string"
+                      ? JSON.parse(style.photoUrls)
+                      : []
+                  : [];
+              } catch {
+                rawPhotoUrls = [];
+              }
 
-const photoUrls = order.isPreview
-  ? rawPhotoUrls
-  : rawPhotoUrls.map(
-      (path: string) =>
-        `https://${CONFIG.S3_BUCKET}.${CONFIG.S3_AWS_ENDPOINT}/${path}`
-    );
+              const photoUrls = order.isPreview
+                ? rawPhotoUrls
+                : rawPhotoUrls.map(
+                  (path: string) =>
+                    `https://${CONFIG.S3_BUCKET}.${CONFIG.S3_AWS_ENDPOINT}/${path}`
+                );
 
 
 
@@ -609,26 +609,26 @@ router.get(
         );
       }
 
-     const styles = detailedOrder?.styles?.map((style: any) => {
-  return {
-    ...style,
+      const styles = detailedOrder?.styles?.map((style: any) => {
+        return {
+          ...style,
 
-    // Fix photoUrls
-    photoUrls: safeArray(style.photoUrls).map(
-      (url: string) =>
-        `https://${CONFIG.S3_BUCKET}.${CONFIG.S3_AWS_ENDPOINT}/${url}`
-    ),
+          // Fix photoUrls
+          photoUrls: safeArray(style.photoUrls).map(
+            (url: string) =>
+              `https://${CONFIG.S3_BUCKET}.${CONFIG.S3_AWS_ENDPOINT}/${url}`
+          ),
 
-    // Fix comments
-    comments: safeArray(style.comments),
+          // Fix comments
+          comments: safeArray(style.comments),
 
-    // Fix custom colors
-    customColor: safeArray(style.customColor),
+          // Fix custom colors
+          customColor: safeArray(style.customColor),
 
-    // Fix custom sizes
-    customSize: safeArray(style.customSize),
-  };
-});
+          // Fix custom sizes
+          customSize: safeArray(style.customSize),
+        };
+      });
 
       const result: any = {
         id: baseOrder.id,
@@ -647,20 +647,20 @@ router.get(
           baseOrder.orderSource === "regular"
             ? detailedOrder?.customer
               ? {
-                  id: detailedOrder.customer.id,
-                  name: detailedOrder.customer.name,
-                  phoneNumber: detailedOrder.customer.phoneNumber,  // <-- ADD THIS
+                id: detailedOrder.customer.id,
+                name: detailedOrder.customer.name,
+                phoneNumber: detailedOrder.customer.phoneNumber,  // <-- ADD THIS
 
-                }
+              }
               : null
             : detailedOrder?.retailer?.customer
-            ? {
+              ? {
                 id: detailedOrder.retailer.customer.id,
                 name: detailedOrder.retailer.customer.name,
                 phoneNumber: detailedOrder.retailer.customer.phoneNumber,  // <-- ADD THIS
 
               }
-            : null,
+              : null,
         styles: styles || [],
         orderSource: baseOrder.orderSource,
       };
@@ -1123,7 +1123,6 @@ router.put(
 
 
 
-
 export default router;
 export const PublicStoreRoutes = Router();
 
@@ -1160,32 +1159,32 @@ PublicStoreRoutes.get(
     const photoUrls = Array.isArray(style.photoUrls)
       ? style.photoUrls
       : typeof style.photoUrls === "string"
-      ? JSON.parse(style.photoUrls)
-      : [];
+        ? JSON.parse(style.photoUrls)
+        : [];
 
     const comments = Array.isArray(style.comments)
       ? style.comments
       : typeof style.comments === "string"
-      ? JSON.parse(style.comments)
-      : [];
+        ? JSON.parse(style.comments)
+        : [];
 
     const customColor = Array.isArray(style.customColor)
       ? style.customColor
       : typeof style.customColor === "string"
-      ? JSON.parse(style.customColor)
-      : [];
+        ? JSON.parse(style.customColor)
+        : [];
 
     const customSize = Array.isArray(style.customSize)
       ? style.customSize
       : typeof style.customSize === "string"
-      ? JSON.parse(style.customSize)
-      : [];
+        ? JSON.parse(style.customSize)
+        : [];
 
     const customSizesQuantity = Array.isArray(style.customSizesQuantity)
       ? style.customSizesQuantity
       : typeof style.customSizesQuantity === "string"
-      ? JSON.parse(style.customSizesQuantity)
-      : [];
+        ? JSON.parse(style.customSizesQuantity)
+        : [];
 
     res.json({
       success: true,
@@ -1256,10 +1255,10 @@ PublicStoreRoutes.post(
       order: { createdAt: "DESC" },
     });
 
- const currentStage: OrderStatus | null =
-  lastProgress?.status
-    ? (lastProgress.status as OrderStatus)
-    : null;
+    const currentStage: OrderStatus | null =
+      lastProgress?.status
+        ? (lastProgress.status as OrderStatus)
+        : null;
 
 
     const nextStage = getNextStatus(currentStage);
@@ -1306,15 +1305,6 @@ PublicStoreRoutes.post(
     });
   })
 );
-
-
-
-
-
-
-
-
-
 
 
 const STORE_STATUS_FLOW = [
