@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect } from "react";
+import { memo } from "react";
 import { Loader2, RefreshCw, Edit } from "lucide-react";
 import {
   Sheet,
@@ -29,14 +29,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/custom/button";
 
-// import {
-//   EditProductFormProps,
-//   LINING_OPTIONS,
-//   useEditProductSheet,
-// } from "./types-hooks";
-// import { CurrencyPricingSection , ColourSelectField} from "./edit-product-subcomponents";
-import { EditProductFormProps ,LINING_OPTIONS, useEditProductSheet} from "@/components/custom/edit-product/types-hooks";
-import { CurrencyPricingSection,ColourSelectField } from "@/components/custom/edit-product/edit-product-subcomponents";
+import {
+  EditProductFormProps,
+  LINING_OPTIONS,
+  useEditProductSheet,
+} from "./types-hooks";
+import { CurrencyPricingSection , ColourSelectField} from "./edit-product-subcomponents";
 // import {
 //   ColourSelectField,
 //   CurrencyPricingSection,
@@ -77,7 +75,6 @@ const EditProductForm = ({
   const filteredSubCategories = subCategories.filter(
     (s) => s.category?.id && Number(watchedCategoryId) === s.category.id,
   );
-
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>

@@ -782,9 +782,35 @@ export const getAdminStockOrderPreview = async (id: number) => {
   return json;
 };
 
+// export const getProductCollection = async ({
+//   page,
+//   query,
+// }: {
+//   page?: number;
+//   query?: string;
+// }) => {
+//   const headers = {
+//     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
+//   };
 
+//   if (!page) {
+//     const response = await fetch(`${API_URL}/subcategories/new?`, {
+//       headers,
+//     });
 
+//     return response.json();
+//   }
 
+//   const response = await fetch(
+//     `${API_URL}/subcategories/new?page=${page}&query=${query}`,
+//     {
+//       headers,
+//     },
+//   );
+//   return response.json();
+// };
+
+// lib/data.ts
 export const getProductCollection = async ({
   page,
   query,
@@ -796,45 +822,36 @@ export const getProductCollection = async ({
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
 
-  if (!page) {
-    const response = await fetch(`${API_URL}/subcategories/new?`, {
-      headers,
-    });
+  const url = page
+    ? `${API_URL}/subcategories/new?page=${page}&query=${query}`
+    : `${API_URL}/subcategories/new?`;
 
-    return response.json();
-  }
-
-  const response = await fetch(
-    `${API_URL}/subcategories/new?page=${page}&query=${query}`,
-    {
-      headers,
-    },
-  );
-
+  const response = await fetch(url, { headers });
   return response.json();
 };
-
-export const getProductsNew = async ({ page, query }) => {
-  const headers = {
-    Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
-  };
-
-  if (!page) {
-    const response = await fetch(`${API_URL}/products/new?`, {
-      headers,
-      cache: "no-store",
-    });
-    return response.json();
+export const getProductsNew = async ({
+  page = 1,
+  query = "",
+}: {
+  page?: number;
+  query?: string;
+}) => {
+  const token = (await cookies()).get("token")?.value;
+ 
+  const params = new URLSearchParams({
+    page: String(page),
+    query,
+  });
+ 
+  const response = await fetch(`${API_URL}/products/new?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+ 
+  if (!response.ok) {
+    throw new Error(`Failed to fetch products: ${response.statusText}`);
   }
-
-  const response = await fetch(
-    `${API_URL}/products/new?page=${page}&query=${query}`,
-    {
-      headers,
-      cache: "no-store",
-    }
-  );
-
+ 
   return response.json();
 };
 
@@ -1077,6 +1094,8 @@ export const getProductColours = async ({
 
   return response.json();
 };
+
+
 export const getStockByProductId = async (productId: number) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,

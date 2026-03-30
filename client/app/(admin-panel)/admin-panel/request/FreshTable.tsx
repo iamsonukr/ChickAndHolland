@@ -51,6 +51,7 @@ export function FreshTable({ data }: { data: any[] }) {
   useEffect(() => {
     const newSearchParams = new URLSearchParams(search.toString());
     newSearchParams.delete("cPage");
+    console.log("this is data for orders", data);
     router.push(`?${newSearchParams}`);
     router.refresh();
   }, []);
@@ -72,22 +73,21 @@ export function FreshTable({ data }: { data: any[] }) {
             <TableCell className="font-medium">
               {dayjs(invoice.formatted_date).format("DD-MM-YYYY")}
             </TableCell>
-            <TableCell className="text-center">{invoice.name}</TableCell>
-          <TableCell className="max-w-[150px] truncate text-center">
-  {invoice.admin_us_size
-    ? ` ${invoice.admin_us_size
-        .split(",")
-        .filter((v, i, a) => a.indexOf(v) === i)
-        .join(", ")}`
-    : invoice.product_size
-      ? `${invoice.size_country.split(",")[0]} ${
-          invoice.product_size
-            .split(",")
-            .filter((v, i, a) => a.indexOf(v) === i)
-            .join(", ")
-        }`
-      : "N/A"}
-</TableCell>
+            <TableCell className="text-center">{invoice.customer_name}</TableCell>
+            <TableCell className="max-w-[150px] truncate text-center">
+              {invoice.admin_us_size
+                ? ` ${invoice.admin_us_size
+                  .split(",")
+                  .filter((v, i, a) => a.indexOf(v) === i)
+                  .join(", ")}`
+                : invoice.product_size
+                  ? `${invoice.size_country.split(",")[0]} ${invoice.product_size
+                    .split(",")
+                    .filter((v, i, a) => a.indexOf(v) === i)
+                    .join(", ")
+                  }`
+                  : "N/A"}
+            </TableCell>
 
 
             <TableCell className="text-center">

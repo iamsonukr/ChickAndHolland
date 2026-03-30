@@ -84,26 +84,26 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     name: string;
   } | null>(null);
 
- const { executeAsync: mailex } = useHttp(
-  "/stock-email",
-  "POST",
-  true
-);
+  const { executeAsync: mailex } = useHttp(
+    "/stock-email",
+    "POST",
+    true
+  );
 
   const getLatestPurchaseOrder = async () => {
-  const token = localStorage.getItem("token");
-  if (!token) return null; // Prevent 401 crash
+    const token = localStorage.getItem("token");
+    if (!token) return null; // Prevent 401 crash
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/latest-po`, {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/latest-po`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-  if (!res.ok) return null;
-  return await res.json();
-};
+    if (!res.ok) return null;
+    return await res.json();
+  };
 
 
 
@@ -139,161 +139,161 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   };
 
   const form = useForm<CreateStockOrderForm>({
-  resolver: zodResolver(createStockOrderFormSchema),
-  defaultValues: {
+    resolver: zodResolver(createStockOrderFormSchema),
+    defaultValues: {
       orderId: id,   // ⭐ MOST IMPORTANT
 
-    purchaseOrderNo: "",
-    manufacturingEmailAddress: "",
-    estimate: "",
-    invoice: "",
-    orderReceivedDate: null,
-    orderCancellationDate: null,
-    address: "",
-    customerId: "",
-    styleNo: "",
-    size: "",
-    quantity: "0",
-    advance: "0",
-    shipping: 0,
-    beadingColor: "",
-    lining: "",
-    liningColor: "",
-    meshColor: "",
-    total_amount: 0,
-    product_amount: 0
-  },
-});
+      purchaseOrderNo: "",
+      manufacturingEmailAddress: "",
+      estimate: "",
+      invoice: "",
+      orderReceivedDate: null,
+      orderCancellationDate: null,
+      address: "",
+      customerId: "",
+      styleNo: "",
+      size: "",
+      quantity: "0",
+      advance: "0",
+      shipping: 0,
+      beadingColor: "",
+      lining: "",
+      liningColor: "",
+      meshColor: "",
+      total_amount: 0,
+      product_amount: 0
+    },
+  });
 
 
-const onSubmit = async (data: CreateStockOrderForm) => {
-  try {
-    // -----------------------------
-    // 1️⃣ ZOD SAFE DATA
-    // -----------------------------
-    const preData = {
-      email: data.manufacturingEmailAddress,
-      received_date: `${data.orderReceivedDate}`,
-      orderCancellationDate: `${data.orderCancellationDate}`,
-      address: data.address,
-      customerId: data.customerId,
-      styleNo: data.styleNo,
-      size: data.size,
-      quantity: data.quantity,
-      image: customers?.image,
-      color: customers?.color,
-      retailerId: customers?.retailer_id,
-      stock_id: customers?.stock_id,
-      size_country: customers.size_country,
-      id: customers?.id,
-      advance: data.advance,
-      invoice: data.invoice,
-      estimate: data.estimate,
-      shipping: data.shipping,
-      total_amount: data.total_amount,
-    };
+  const onSubmit = async (data: CreateStockOrderForm) => {
+    try {
+      // -----------------------------
+      // 1️⃣ ZOD SAFE DATA
+      // -----------------------------
+      const preData = {
+        email: data.manufacturingEmailAddress,
+        received_date: `${data.orderReceivedDate}`,
+        orderCancellationDate: `${data.orderCancellationDate}`,
+        address: data.address,
+        customerId: data.customerId,
+        styleNo: data.styleNo,
+        size: data.size,
+        quantity: data.quantity,
+        image: customers?.image,
+        color: customers?.color,
+        retailerId: customers?.retailer_id,
+        stock_id: customers?.stock_id,
+        size_country: customers.size_country,
+        id: customers?.id,
+        advance: data.advance,
+        invoice: data.invoice,
+        estimate: data.estimate,
+        shipping: data.shipping,
+        total_amount: data.total_amount,
+      };
 
-    // -----------------------------
-    // 2️⃣ SEND ORDER TO BACKEND
-    // -----------------------------
-    const response = await executeAsync({ data: preData });
+      // -----------------------------
+      // 2️⃣ SEND ORDER TO BACKEND
+      // -----------------------------
+      const response = await executeAsync({ data: preData });
 
-    if (!response.success) {
-      toast.error("Failed to add order");
-      return;
+      if (!response.success) {
+        toast.error("Failed to add order");
+        return;
+      }
+
+      // -----------------------------
+      // 3️⃣ SET BACKEND GENERATED PO
+      // -----------------------------
+      if (response.purchaseOrderNo) {
+        form.setValue("purchaseOrderNo", response.purchaseOrderNo);
+      }
+
+      // -----------------------------
+      // 4️⃣ COLOR SAS LOGIC FIX (DEFINE BEFORE USING)
+      // -----------------------------
+      let str = data.size;
+      let regex = /\((.*?)\)/;
+      let match: any = regex.exec(str);
+      let valueInBraces = match?.[1];
+
+      let SasCheck = await productColorSAS(customers.product_id);
+
+      const meshColorDisplay =
+        customers.mesh_color === SasCheck.mesh_color
+          ? `SAS( ${findColorName(customers.mesh_color)} )`
+          : data.meshColor;
+
+      const beadingColorDisplay =
+        customers.beading_color === SasCheck.beading_color
+          ? `SAS( ${findColorName(customers.beading_color)} )`
+          : data.beadingColor;
+
+      const liningDisplay =
+        customers.lining === SasCheck.lining
+          ? `SAS( ${customers.lining} )`
+          : data.lining;
+
+      const liningColorDisplay =
+        customers.lining_color === SasCheck.lining_color
+          ? `SAS( ${findColorName(customers.lining_color)} )`
+          : data.liningColor;
+
+      // -----------------------------
+      // 5️⃣ NOW SAFE PREVIEW DATA
+      // -----------------------------
+      const preview = {
+        manufacturingEmailAddress: data.manufacturingEmailAddress,
+        orderCancellationDate: data.orderCancellationDate,
+        orderReceivedDate: data.orderReceivedDate,
+        orderType: "Stock",
+        purchaseOrderNo: response.purchaseOrderNo,
+        details: [
+          {
+            quantity: data.quantity,
+            size: `${data.size.split("(")[0].trim()}/${data.quantity}`,
+            styleNo: data.styleNo,
+            color: "Stock",
+            size_country: valueInBraces,
+            image: await convertWebPToJPG(customers.image),
+            meshColor: meshColorDisplay,
+            beadingColor: beadingColorDisplay,
+            lining: liningDisplay,
+            liningColor: liningColorDisplay,
+            comments: "",
+          },
+        ],
+      };
+
+      setPreviewData(preview);
+
+      // -----------------------------
+      // 6️⃣ SEND EMAIL
+      // -----------------------------
+      await StockEmail(preview);
+
+      // -----------------------------
+      // 7️⃣ SUCCESS
+      // -----------------------------
+      toast.success(response.message ?? "Order Added Successfully!");
+
+      form.reset({
+        purchaseOrderNo: response.purchaseOrderNo,
+      });
+
+      setOpen(false);
+      router.refresh();
+
+    } catch (err: any) {
+      toast.error("Failed to add order", {
+        description: err?.message ?? "Something went wrong",
+      });
     }
-
-    // -----------------------------
-    // 3️⃣ SET BACKEND GENERATED PO
-    // -----------------------------
-    if (response.purchaseOrderNo) {
-      form.setValue("purchaseOrderNo", response.purchaseOrderNo);
-    }
-
-    // -----------------------------
-    // 4️⃣ COLOR SAS LOGIC FIX (DEFINE BEFORE USING)
-    // -----------------------------
-    let str = data.size;
-    let regex = /\((.*?)\)/;
-    let match: any = regex.exec(str);
-    let valueInBraces = match?.[1];
-
-    let SasCheck = await productColorSAS(customers.product_id);
-
-    const meshColorDisplay =
-      customers.mesh_color === SasCheck.mesh_color
-        ? `SAS( ${findColorName(customers.mesh_color)} )`
-        : data.meshColor;
-
-    const beadingColorDisplay =
-      customers.beading_color === SasCheck.beading_color
-        ? `SAS( ${findColorName(customers.beading_color)} )`
-        : data.beadingColor;
-
-    const liningDisplay =
-      customers.lining === SasCheck.lining
-        ? `SAS( ${customers.lining} )`
-        : data.lining;
-
-    const liningColorDisplay =
-      customers.lining_color === SasCheck.lining_color
-        ? `SAS( ${findColorName(customers.lining_color)} )`
-        : data.liningColor;
-
-    // -----------------------------
-    // 5️⃣ NOW SAFE PREVIEW DATA
-    // -----------------------------
-    const preview = {
-      manufacturingEmailAddress: data.manufacturingEmailAddress,
-      orderCancellationDate: data.orderCancellationDate,
-      orderReceivedDate: data.orderReceivedDate,
-      orderType: "Stock",
-      purchaseOrderNo: response.purchaseOrderNo,
-      details: [
-        {
-          quantity: data.quantity,
-          size: `${data.size.split("(")[0].trim()}/${data.quantity}`,
-          styleNo: data.styleNo,
-          color: "Stock",
-          size_country: valueInBraces,
-          image: await convertWebPToJPG(customers.image),
-          meshColor: meshColorDisplay,
-          beadingColor: beadingColorDisplay,
-          lining: liningDisplay,
-          liningColor: liningColorDisplay,
-          comments: "",
-        },
-      ],
-    };
-
-    setPreviewData(preview);
-
-    // -----------------------------
-    // 6️⃣ SEND EMAIL
-    // -----------------------------
-    await StockEmail(preview);
-
-    // -----------------------------
-    // 7️⃣ SUCCESS
-    // -----------------------------
-    toast.success(response.message ?? "Order Added Successfully!");
-
-    form.reset({
-      purchaseOrderNo: response.purchaseOrderNo,
-    });
-
-    setOpen(false);
-    router.refresh();
-
-  } catch (err: any) {
-    toast.error("Failed to add order", {
-      description: err?.message ?? "Something went wrong",
-    });
-  }
-};
+  };
 
 
-  
+
 
   const productColorSAS = async (id: number) => {
     const res = await getProductColorsCheck(id);
@@ -371,48 +371,48 @@ const onSubmit = async (data: CreateStockOrderForm) => {
 
 
 
-useEffect(() => {
-  coloursFun();
-  form.reset();
+  useEffect(() => {
+    coloursFun();
+    form.reset();
 
-  if (customers) {
-    const invoice = `INVOICE_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
-    const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
+    if (customers) {
+      const invoice = `INVOICE_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
+      const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
 
-    form.setValue("customerId", customers.name);
-    form.setValue("manufacturingEmailAddress", "rubyinc@hotmail.com");
-    form.setValue("orderReceivedDate", new Date(customers.received));
-    form.setValue("address", customers.storeAddress);
-    form.setValue("styleNo", customers.productCode);
-    form.setValue("size", `${customers.size} (${customers.size_country})`);
-    form.setValue("quantity", customers.quantity);
-    form.setValue("estimate", estimate);
-    form.setValue("invoice", invoice);
-    form.setValue("total_amount", Math.round(customers.total_price));
-    form.setValue("product_amount", Math.round(customers.total_price));
+      form.setValue("customerId", customers.name);
+      form.setValue("manufacturingEmailAddress", "rubyinc@hotmail.com");
+      form.setValue("orderReceivedDate", new Date(customers.received));
+      form.setValue("address", customers.storeAddress);
+      form.setValue("styleNo", customers.productCode);
+      form.setValue("size", `${customers.size} (${customers.size_country})`);
+      form.setValue("quantity", customers.quantity);
+      form.setValue("estimate", estimate);
+      form.setValue("invoice", invoice);
+      form.setValue("total_amount", Math.round(customers.total_price));
+      form.setValue("product_amount", Math.round(customers.total_price));
 
-    form.setValue(
-      "meshColor",
-      colours.find((colour: any) => colour.hexcode === customers.mesh_color)
-        ?.name,
-    );
-    form.setValue(
-      "beadingColor",
-      colours.find((colour: any) => colour.hexcode === customers.beading_color)
-        ?.name,
-    );
-    form.setValue("lining", customers.lining);
-    form.setValue(
-      "liningColor",
-      colours.find((colour: any) => colour.hexcode === customers.lining_color)
-        ?.name,
-    );
+      form.setValue(
+        "meshColor",
+        colours.find((colour: any) => colour.hexcode === customers.mesh_color)
+          ?.name,
+      );
+      form.setValue(
+        "beadingColor",
+        colours.find((colour: any) => colour.hexcode === customers.beading_color)
+          ?.name,
+      );
+      form.setValue("lining", customers.lining);
+      form.setValue(
+        "liningColor",
+        colours.find((colour: any) => colour.hexcode === customers.lining_color)
+          ?.name,
+      );
 
-    // 🚀 Generate PO No AFTER customer details are ready
-  }
+      // 🚀 Generate PO No AFTER customer details are ready
+    }
 
-  setPreviewData(null);
-}, [customers]);
+    setPreviewData(null);
+  }, [customers]);
 
 
   const formChange = () => {
@@ -426,24 +426,24 @@ useEffect(() => {
       form.setValue("total_amount", total);
     }, 200);
   };
-const StockEmail = async (preDatas: any) => {
-  try {
-    console.log("📧 MAIL TO →", preDatas.manufacturingEmailAddress);
+  const StockEmail = async (preDatas: any) => {
+    try {
+      console.log("📧 MAIL TO →", preDatas.manufacturingEmailAddress);
 
-    const res = await mailex({ orderData: preDatas });
+      const res = await mailex({ orderData: preDatas });
 
-    if (res?.success) {
-      toast.success("Email sent successfully");
-    } else {
-      toast.error("Mail API failed");
+      if (res?.success) {
+        toast.success("Email sent successfully");
+      } else {
+        toast.error("Mail API failed");
+      }
+    } catch (err: any) {
+      console.error("❌ MAIL ERROR →", err);
+      toast.error("Mail failed", {
+        description: err?.message || "SMTP / API error",
+      });
     }
-  } catch (err: any) {
-    console.error("❌ MAIL ERROR →", err);
-    toast.error("Mail failed", {
-      description: err?.message || "SMTP / API error",
-    });
-  }
-};
+  };
 
   // console.log(customers)
 
@@ -472,10 +472,7 @@ const StockEmail = async (preDatas: any) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer</FormLabel>
-                <Input className="cursor-not-allowed bg-gray-200" placeholder="Customer Name" {...field} readOnly />
-
-
-
+                    <Input className="cursor-not-allowed bg-gray-200" placeholder="Customer Name" {...field} readOnly />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -487,15 +484,15 @@ const StockEmail = async (preDatas: any) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Purchase Order No</FormLabel>
-                   <FormControl>
-  <Input
-    placeholder="PO#VICTORIA"
-    {...field}
-    value={field.value ?? ""}
-    readOnly
-    className="cursor-not-allowed bg-gray-200"
-  />
-</FormControl>
+                    <FormControl>
+                      <Input
+                        placeholder="PO#VICTORIA"
+                        {...field}
+                        value={field.value ?? ""}
+                        readOnly
+                        className="cursor-not-allowed bg-gray-200"
+                      />
+                    </FormControl>
 
                     <FormMessage />
                   </FormItem>
@@ -508,7 +505,7 @@ const StockEmail = async (preDatas: any) => {
                   <FormItem>
                     <FormLabel>Estimate No</FormLabel>
                     <FormControl>
-<Input placeholder="PO#VICTORIA" {...field} value={field.value ?? ""} />
+                      <Input placeholder="PO#VICTORIA" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -522,7 +519,7 @@ const StockEmail = async (preDatas: any) => {
                   <FormItem>
                     <FormLabel>Invoice No</FormLabel>
                     <FormControl>
-<Input placeholder="PO#VICTORIA" {...field} value={field.value ?? ""} />
+                      <Input placeholder="PO#VICTORIA" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -847,7 +844,7 @@ const StockEmail = async (preDatas: any) => {
                   //   form.handleSubmit(onPreviewSubmit, onErrors);
                   // }}
                   onClick={form.handleSubmit(onPreviewSubmit, onErrors)}
-                  // disabled={previewLoading}
+                // disabled={previewLoading}
                 >
                   {" "}
                   Preview Order{" "}
@@ -861,113 +858,98 @@ const StockEmail = async (preDatas: any) => {
             </form>
           </Form>
 
-        {previewData && (
-<>
-  <div className="bg-white p-4 border rounded-md mb-4">
-    <h2 className="text-lg font-bold mb-3 text-pink-600">
-      Edit Order Before Download
-    </h2>
+          {previewData && (
+            <>
+              <div className="bg-white p-4 border rounded-md mb-4">
+                <h2 className="text-lg font-bold mb-3 text-pink-600">
+                  Edit Order Before Download
+                </h2>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      
-      {/* Customer */}
-      <div>
-        <label className="text-black text-sm">Customer</label>
-        <input
-          className="border w-full p-2 rounded bg-white"
-          value={form.watch("customerId")}
-          onChange={(e) => {
-            form.setValue("customerId", e.target.value);
-            onPreviewSubmit(form.getValues());
-          }}
-        />
-      </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-      {/* PO No */}
-      <div>
-        <label className="text-black text-sm">PO Number</label>
-        <input
-          className="border w-full p-2 rounded bg-white"
-          value={form.watch("purchaseOrderNo")}
-          onChange={(e) => {
-            form.setValue("purchaseOrderNo", e.target.value);
-            onPreviewSubmit(form.getValues());
-          }}
-        />
-      </div>
+                  {/* Customer */}
+                  <div>
+                    <label className="text-black text-sm">Customer</label>
+                    <input
+                      className="border w-full p-2 rounded bg-white"
+                      value={form.watch("customerId")}
+                      onChange={(e) => {
+                        form.setValue("customerId", e.target.value);
+                        onPreviewSubmit(form.getValues());
+                      }}
+                    />
+                  </div>
 
-      {/* Invoice No */}
-      <div>
-        <label className="text-black text-sm">Invoice</label>
-        <input
-          className="border w-full p-2 rounded bg-white"
-          value={form.watch("invoice")}
-          onChange={(e) => {
-            form.setValue("invoice", e.target.value);
-            onPreviewSubmit(form.getValues());
-          }}
-        />
-      </div>
+                  {/* PO No */}
+                  <div>
+                    <label className="text-black text-sm">PO Number</label>
+                    <input
+                      className="border w-full p-2 rounded bg-white"
+                      value={form.watch("purchaseOrderNo")}
+                      onChange={(e) => {
+                        form.setValue("purchaseOrderNo", e.target.value);
+                        onPreviewSubmit(form.getValues());
+                      }}
+                    />
+                  </div>
 
-      {/* Estimate */}
-      <div>
-        <label className="text-black text-sm">Estimate</label>
-        <input
-          className="border w-full p-2 rounded bg-white"
-          value={form.watch("estimate")}
-          onChange={(e) => {
-            form.setValue("estimate", e.target.value);
-            onPreviewSubmit(form.getValues());
-          }}
-        />
-      </div>
+                  {/* Invoice No */}
+                  <div>
+                    <label className="text-black text-sm">Invoice</label>
+                    <input
+                      className="border w-full p-2 rounded bg-white"
+                      value={form.watch("invoice")}
+                      onChange={(e) => {
+                        form.setValue("invoice", e.target.value);
+                        onPreviewSubmit(form.getValues());
+                      }}
+                    />
+                  </div>
 
-      {/* Address */}
-      <div className="md:col-span-2">
-        <label className="text-black text-sm">Address</label>
-        <textarea
-          className="border w-full p-2 rounded bg-white"
-          value={form.watch("address")}
-          onChange={(e) => {
-            form.setValue("address", e.target.value);
-            onPreviewSubmit(form.getValues());
-          }}
-        />
-      </div>
+                  {/* Estimate */}
+                  <div>
+                    <label className="text-black text-sm">Estimate</label>
+                    <input
+                      className="border w-full p-2 rounded bg-white"
+                      value={form.watch("estimate")}
+                      onChange={(e) => {
+                        form.setValue("estimate", e.target.value);
+                        onPreviewSubmit(form.getValues());
+                      }}
+                    />
+                  </div>
 
-     
+                  {/* Address */}
+                  <div className="md:col-span-2">
+                    <label className="text-black text-sm">Address</label>
+                    <textarea
+                      className="border w-full p-2 rounded bg-white"
+                      value={form.watch("address")}
+                      onChange={(e) => {
+                        form.setValue("address", e.target.value);
+                        onPreviewSubmit(form.getValues());
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end py-3">
+                <PDFDownloadLink
+                  document={<FreshOrderPdf orderData={previewData} />}
+                  fileName={`${previewData.purchaseOrderNo}.pdf`}
+                >
+                  <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
+                    Download PDF
+                  </button>
+                </PDFDownloadLink>
+              </div>
 
-     
+              <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
+                <FreshOrderPdf orderData={previewData} />
+              </PDFViewer>
 
-      
-
-
-
-
-      
-      
-    </div>
-  </div>
-
-
-    <div className="flex justify-end py-3">
-     <PDFDownloadLink
-  document={<FreshOrderPdf orderData={previewData} />}
-  fileName={`${previewData.purchaseOrderNo}.pdf`}
->
-
-        <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
-          Download PDF
-        </button>
-      </PDFDownloadLink>
-    </div>
-
-   <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
-  <FreshOrderPdf orderData={previewData} />
-</PDFViewer>
-
-  </>
-)}
+            </>
+          )}
 
         </SheetContent>
       </Sheet>

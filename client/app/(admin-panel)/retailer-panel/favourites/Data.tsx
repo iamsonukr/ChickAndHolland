@@ -1,6 +1,6 @@
 "use client";
 import ProductCard from "@/components/custom/ProductCard";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import ActionButtons from "./ActionButtons";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ShoppingBag } from "lucide-react";
@@ -59,7 +59,6 @@ const Data = ({
       const response = await addFav({
         favourateData: bulkOrder,
       });
-
       if (response.success) {
         toast.success("Successfully place order");
         router.push("/retailer-panel/pending-orders");

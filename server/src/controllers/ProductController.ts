@@ -291,6 +291,100 @@ router.delete(
   })
 );
 
+// router.get(
+//   "/",
+//   asyncHandler(async (req: Request, res: Response) => {
+//     const {
+//       categoryId,
+//       subCategoryId,
+//       currencyId,
+//       page,
+//       limit,
+//     } = req.query as {
+//       categoryId?: string;
+//       subCategoryId?: string;
+//       currencyId?: string;
+//       page?: string;
+//       limit?: string;
+//     };
+
+//     console.log("Filter Products with:", { categoryId, subCategoryId, currencyId, page, limit });
+
+//     // ─── Pagination ────────────────────────────────────────────────────────
+//     const pageNum  = Math.max(1, parseInt(page  ?? "1",   10));
+//     const limitNum = Math.max(1, parseInt(limit ?? "100", 10)); // default 100 = no pagination (backward compat)
+//     const skip     = (pageNum - 1) * limitNum;
+
+//     // ─── WHERE clause ──────────────────────────────────────────────────────
+//     const where: Record<string, any> = {};
+//     if (categoryId)    where.categoryId    = parseInt(categoryId,    10);
+//     if (subCategoryId) where.subCategoryId = parseInt(subCategoryId, 10);
+
+//     // ─── Fetch page + total in parallel ───────────────────────────────────
+//     const [products, totalCount] = await Product.findAndCount({
+//       where,
+//       select: [
+//         "id",
+//         "color",
+//         "productCode",
+//         "price",
+//         "description",
+//         "stockAlert",
+//         "category",
+//         "subCategory",
+//         "hasDiscount",
+//         "hasReturnPolicy",
+//         "images",
+//         "minSaleQuantity",
+//       ],
+//       relations: ["images", "category", "subCategory"],
+//       skip,
+//       take: limitNum,
+//     });
+
+//     // ─── Optionally attach currency pricing ───────────────────────────────
+//     // If currencyId is provided, fetch pricing for the returned product IDs
+//     // and merge it in — avoids a JOIN on the full table before pagination.
+//     let enrichedProducts = products as any[];
+
+//     if (currencyId && products.length > 0) {
+//       const ids = products.map((p: any) => p.id);
+
+//       // Raw query only on the already-paginated IDs — stays fast
+//       const pricingRows = await Product.query(
+//         `SELECT pcp.productId, pcp.price as regionPrice,
+//                 c.name as currencyName, c.code as currencyCode, c.symbol as currencySymbol
+//          FROM product_currency_pricing pcp
+//          LEFT JOIN currencies c ON pcp.currencyId = c.id
+//          WHERE pcp.currencyId = ? AND pcp.productId IN (${ids.map(() => "?").join(",")})`,
+//         [currencyId, ...ids],
+//       );
+
+//       const pricingMap = new Map(
+//         pricingRows.map((r: any) => [r.productId, r]),
+//       );
+
+//       enrichedProducts = products.map((p: any) => ({
+//         ...p,
+//         ...(pricingMap.get(p.id) ?? {
+//           regionPrice:    null,
+//           currencyName:   null,
+//           currencyCode:   null,
+//           currencySymbol: null,
+//         }),
+//       }));
+//     }
+
+//     const hasMore = skip + limitNum < totalCount;
+
+//     res.json({
+//       products:   enrichedProducts,
+//       totalCount,
+//       hasMore,
+//     });
+//   })
+// );
+
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
@@ -309,58 +403,108 @@ router.get(
     };
 
     // ─── Pagination ────────────────────────────────────────────────────────
-    const pageNum  = Math.max(1, parseInt(page  ?? "1",   10));
-    const limitNum = Math.max(1, parseInt(limit ?? "100", 10)); // default 100 = no pagination (backward compat)
+    const pageNum  = Math.max(1, parseInt(page  ?? "1",  10));
+    const limitNum = Math.max(1, parseInt(limit ?? "20", 10)); // ✅ FIX: default 20, not 100
     const skip     = (pageNum - 1) * limitNum;
+
+    console.log("[DEBUG] Pagination:", { 
+      raw: { page, limit },
+      parsed: { pageNum, limitNum, skip },
+      // 🔍 If page/limit are undefined here, the caller isn't sending them
+    });
 
     // ─── WHERE clause ──────────────────────────────────────────────────────
     const where: Record<string, any> = {};
     if (categoryId)    where.categoryId    = parseInt(categoryId,    10);
     if (subCategoryId) where.subCategoryId = parseInt(subCategoryId, 10);
 
+    console.log("[DEBUG] WHERE clause:", where);
+
     // ─── Fetch page + total in parallel ───────────────────────────────────
-    const [products, totalCount] = await Product.findAndCount({
-      where,
-      select: [
-        "id",
-        "color",
-        "productCode",
-        "price",
-        "description",
-        "stockAlert",
-        "category",
-        "subCategory",
-        "hasDiscount",
-        "hasReturnPolicy",
-        "images",
-        "minSaleQuantity",
-      ],
-      relations: ["images", "category", "subCategory"],
-      skip,
-      take: limitNum,
-    });
+    let products: any[], totalCount: number;
+    try {
+      [products, totalCount] = await Product.findAndCount({
+        where,
+        // ✅ FIX: Remove "category", "subCategory", "images" from select —
+        // TypeORM ignores relation fields in select[] and it causes
+        // unpredictable behaviour. Let relations handle those.
+        select: [
+          "id",
+          "color",
+          "productCode",
+          "price",
+          "description",
+          "stockAlert",
+          "hasDiscount",
+          "hasReturnPolicy",
+          "minSaleQuantity",
+        ],
+        relations: ["images", "category", "subCategory"],
+        skip,
+        take: limitNum,
+        order: { id: "ASC" }, // ✅ FIX: Always define order for stable pagination
+      });
+
+      console.log("[DEBUG] findAndCount result:", {
+        fetchedRows: products.length,
+        totalCount,
+        skip,
+        take: limitNum,
+        // 🔍 If fetchedRows === totalCount, skip/take isn't being applied —
+        // means TypeORM query is ignoring pagination (relation bug or missing order)
+      });
+
+      if (products.length === totalCount) {
+        console.warn(
+          "[DEBUG] ⚠️ fetchedRows === totalCount — pagination likely not applied.",
+          "Confirm skip:", skip, "take:", limitNum,
+          "If skip=0 and take=totalCount, caller is not sending page/limit params."
+        );
+      }
+
+    } catch (err: any) {
+      console.error("[DEBUG] findAndCount failed:", {
+        message: err.message,
+        stack: err.stack,
+      });
+      throw err;
+    }
 
     // ─── Optionally attach currency pricing ───────────────────────────────
-    // If currencyId is provided, fetch pricing for the returned product IDs
-    // and merge it in — avoids a JOIN on the full table before pagination.
     let enrichedProducts = products as any[];
 
     if (currencyId && products.length > 0) {
       const ids = products.map((p: any) => p.id);
 
-      // Raw query only on the already-paginated IDs — stays fast
-      const pricingRows = await Product.query(
-        `SELECT pcp.productId, pcp.price as regionPrice,
-                c.name as currencyName, c.code as currencyCode, c.symbol as currencySymbol
-         FROM product_currency_pricing pcp
-         LEFT JOIN currencies c ON pcp.currencyId = c.id
-         WHERE pcp.currencyId = ? AND pcp.productId IN (${ids.map(() => "?").join(",")})`,
-        [currencyId, ...ids],
-      );
+      console.log("[DEBUG] Fetching currency pricing for:", { currencyId, productIds: ids });
+
+      let pricingRows: any[];
+      try {
+        pricingRows = await Product.query(
+          `SELECT pcp.productId, pcp.price as regionPrice,
+                  c.name as currencyName, c.code as currencyCode, c.symbol as currencySymbol
+           FROM product_currency_pricing pcp
+           LEFT JOIN currencies c ON pcp.currencyId = c.id
+           WHERE pcp.currencyId = ? AND pcp.productId IN (${ids.map(() => "?").join(",")})`,
+          [currencyId, ...ids],
+        );
+        console.log("[DEBUG] Pricing rows fetched:", pricingRows.length, "| Sample:", pricingRows[0] ?? "none");
+      } catch (pricingErr: any) {
+        console.error("[DEBUG] Currency pricing query failed:", {
+          message: pricingErr.message,
+          sqlMessage: pricingErr.sqlMessage,
+        });
+        throw pricingErr;
+      }
 
       const pricingMap = new Map(
         pricingRows.map((r: any) => [r.productId, r]),
       );
+
+      // 🔍 Check how many products got pricing matched vs missed
+      const matched  = products.filter((p: any) =>  pricingMap.has(p.id)).length;
+      const unmatched = products.filter((p: any) => !pricingMap.has(p.id)).length;
+      console.log("[DEBUG] Pricing map coverage:", { matched, unmatched });
 
       enrichedProducts = products.map((p: any) => ({
         ...p,
@@ -375,13 +519,26 @@ router.get(
 
     const hasMore = skip + limitNum < totalCount;
 
+    console.log("[DEBUG] Response summary:", {
+      returning: enrichedProducts.length,
+      totalCount,
+      pageNum,
+      limitNum,
+      hasMore,
+      // 🔍 If hasMore is always false and returning === totalCount, no pagination
+    });
+
     res.json({
       products:   enrichedProducts,
       totalCount,
       hasMore,
+      // ✅ Add these to response so the frontend can render pagination controls
+      page:  pageNum,
+      limit: limitNum,
     });
   })
 );
+
 
 router.get(
   "/dropdown",
@@ -1508,85 +1665,124 @@ router.post(
   })
 );
 
+// router.get(
+//   "/new",
+//   asyncHandler(async (req: Request, res: Response) => {
+//     const {
+//       page,
+//       query,
+//     }: {
+//       page?: string;
+//       query?: string;
+//     } = req.query;
+
+//     if (!page) {
+//       const products = await Product.find({
+//         where: { deletedAt: IsNull() },
+//         relations: [
+//           "images",
+//           "category",
+//           "subCategory",
+//           "currencyPricing",
+//           "currencyPricing.currency",
+//         ],
+//       });
+//       const totalCount = await Product.count({ where: { deletedAt: IsNull() } });
+
+//       return res.json({
+//         products,
+//         totalCount,
+//       });
+//     } else {
+//       const skip = (page ? Number(page) - 1 : 0) * 20;
+
+//       const likeQuery = `%${query?.toLowerCase()}%`;
+
+//       const whereConditions = [
+//         {
+//           productCode: Like(likeQuery),
+//           deletedAt: IsNull(),
+//         },
+//         {
+//           category: {
+//             name: Like(likeQuery),
+//           },
+//           deletedAt: IsNull(),
+//         },
+//         {
+//           subCategory: {
+//             name: Like(likeQuery),
+//           },
+//           deletedAt: IsNull(),
+//         },
+//       ];
+
+//       const products = await Product.find({
+//         where: whereConditions,
+//         relations: [
+//           "images",
+//           "category",
+//           "subCategory",
+//           "currencyPricing",
+//           "currencyPricing.currency",
+//         ],
+//         take: 100,
+//         skip,
+//         order: {
+//           id: "DESC",
+//         },
+//       });
+
+//       const totalCount = await Product.count({
+//         where: whereConditions,
+//       });
+
+//       return res.json({
+//         products,
+//         totalCount,
+//       });
+//     }
+//   })
+// );
+
+let PAGE_SIZE = 50;
 router.get(
   "/new",
   asyncHandler(async (req: Request, res: Response) => {
-    const {
-      page,
-      query,
-    }: {
-      page?: string;
-      query?: string;
-    } = req.query;
-
-    if (!page) {
-      const products = await Product.find({
-        where: { deletedAt: IsNull() },
-        relations: [
-          "images",
-          "category",
-          "subCategory",
-          "currencyPricing",
-          "currencyPricing.currency",
-        ],
-      });
-      const totalCount = await Product.count({ where: { deletedAt: IsNull() } });
-
-      return res.json({
-        products,
-        totalCount,
-      });
-    } else {
-      const skip = (page ? Number(page) - 1 : 0) * 100;
-
-      const likeQuery = `%${query?.toLowerCase()}%`;
-
-      const whereConditions = [
-        {
-          productCode: Like(likeQuery),
-          deletedAt: IsNull(),
-        },
-        {
-          category: {
-            name: Like(likeQuery),
-          },
-          deletedAt: IsNull(),
-        },
-        {
-          subCategory: {
-            name: Like(likeQuery),
-          },
-          deletedAt: IsNull(),
-        },
-      ];
-
-      const products = await Product.find({
-        where: whereConditions,
-        relations: [
-          "images",
-          "category",
-          "subCategory",
-          "currencyPricing",
-          "currencyPricing.currency",
-        ],
-        take: 100,
-        skip,
-        order: {
-          id: "DESC",
-        },
-      });
-
-      const totalCount = await Product.count({
-        where: whereConditions,
-      });
-
-      return res.json({
-        products,
-        totalCount,
-      });
-    }
+    const { page = "1", query = "" }: { page?: string; query?: string } =
+      req.query;
+ 
+    const pageNumber = Math.max(1, Number(page));
+    const skip = (pageNumber - 1) * PAGE_SIZE;
+    const likeQuery = `%${query}%`;
+ 
+    const whereConditions = query
+      ? [
+          { productCode: Like(likeQuery), deletedAt: IsNull() },
+          { category: { name: Like(likeQuery) }, deletedAt: IsNull() },
+          { subCategory: { name: Like(likeQuery) }, deletedAt: IsNull() },
+        ]
+      : { deletedAt: IsNull() };
+ 
+    // Single query instead of separate find() + count()
+    const [products, totalCount] = await Product.findAndCount({
+      where: whereConditions,
+      relations: [
+        "images",
+        "category",
+        "subCategory",
+        "currencyPricing",
+        "currencyPricing.currency",
+      ],
+      take: PAGE_SIZE || 20,
+      skip,
+      order: { id: "DESC" },
+    });
+ 
+    return res.json({ products, totalCount });
   })
 );
+
 
 router.delete(
   "/:id",
