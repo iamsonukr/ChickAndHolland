@@ -586,13 +586,28 @@ router.get(
   })
 );
 
-
 router.get(
   "/admin/stock-order/form/:id/:status",
   asyncHandler(async (req: Request, res: Response) => {
     const { id, status } = req.params;
 
-    console.log(id, status);
+    console.log("[DEBUG] Route hit /admin/stock-order/form/:id/:status", {
+      params: { id, status },
+      rawUrl: req.originalUrl,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Validate params early
+    if (!id || isNaN(Number(id))) {
+      console.error("[DEBUG] Invalid or missing 'id' param:", id);
+      return res.status(400).json({ success: false, error: "Invalid id param" });
+    }
+    if (status === undefined || status === null) {
+      console.error("[DEBUG] Missing 'status' param");
+      return res.status(400).json({ success: false, error: "Missing status param" });
+    }
+
+    console.log("[DEBUG] Params validated | id:", id, "| status:", status, "| status coerced:", Number(status));
 
     let query = `
   SELECT 
@@ -617,17 +632,13 @@ router.get(
   COALESCE(curr.symbol, '€') as currencySymbol,
   COALESCE(curr.name, 'Euro') as currencyName,
   s.styleNo as product_id,
-
-  -- ⭐ Correct barcode source
   sos.barcode AS barcode
 
 FROM retailer_stock_orders rf
 
--- 🔥 Correct join: retailer_orders
 LEFT JOIN retailer_orders ro 
   ON ro.stockOrderId = rf.id
 
--- 🔥 Correct join: stock_order_styles
 LEFT JOIN stock_order_styles sos 
   ON sos.retailerOrderId = ro.id
 
@@ -646,15 +657,107 @@ WHERE rf.id = ?
 GROUP BY rf.id, sos.barcode;
 `;
 
+    console.log("[DEBUG] Executing query with bindings:", { id, status });
 
-    const dd = await db.query(query, [id, status]);
+    let dd;
+    try {
+      dd = await db.query(query, [id, status]);
+      console.log("[DEBUG] Query succeeded | Row count:", Array.isArray(dd) ? dd.length : "N/A");
 
+      if (!dd || (Array.isArray(dd) && dd.length === 0)) {
+        console.warn("[DEBUG] Query returned no rows — check if rf.id =", id, "exists and is_approved =", status, "matches");
+      } else {
+        // Log first row only to inspect shape without flooding logs
+        console.log("[DEBUG] First row sample:", JSON.stringify(dd[0], null, 2));
+      }
+    } catch (queryErr: any) {
+      console.error("[DEBUG] Query FAILED:", {
+        message: queryErr.message,
+        sqlMessage: queryErr.sqlMessage,   // MySQL-specific: shows exact SQL error
+        sqlState: queryErr.sqlState,       // MySQL-specific: e.g. '42S22' = unknown column
+        errno: queryErr.errno,
+        sql: queryErr.sql,                 // The actual query that ran
+        bindings: [id, status],
+      });
+      throw queryErr;
+    }
+
+    console.log("[DEBUG] Sending response");
     res.json({
       success: true,
       details: dd,
     });
   })
 );
+
+// router.get(
+//   "/admin/stock-order/form/:id/:status",
+//   asyncHandler(async (req: Request, res: Response) => {
+//     const { id, status } = req.params;
+
+//     console.log(id, status);
+
+//     let query = `
+//   SELECT 
+//   DATE_FORMAT(rf.createdAt, '%Y-%m-%d') AS received,
+//   rf.id as id,
+//   s.id as stock_id,
+//   r.name,
+//   r.email as email,
+//   p.productCode,
+//   rf.quantity,
+//   s.size as size,
+//   rf.retailerId as retailer_id,
+//   COALESCE(scp.discountedPrice, s.discountedPrice) * rf.quantity as total_price,
+//   r.storeAddress,
+//   r.email,
+//   s.size_country,
+//   pm.name as image,
+//   rf.mesh_color,
+//   rf.beading_color,
+//   rf.lining,
+//   rf.lining_color,
+//   COALESCE(curr.symbol, '€') as currencySymbol,
+//   COALESCE(curr.name, 'Euro') as currencyName,
+//   s.styleNo as product_id,
+
+//   -- ⭐ Correct barcode source
+//   sos.barcode AS barcode
+
+// FROM retailer_stock_orders rf
+
+// -- 🔥 Correct join: retailer_orders
+// LEFT JOIN retailer_orders ro 
+//   ON ro.stockOrderId = rf.id
+
+// -- 🔥 Correct join: stock_order_styles
+// LEFT JOIN stock_order_styles sos 
+//   ON sos.retailerOrderId = ro.id
+
+// INNER JOIN stock s ON s.id = rf.stockId
+// INNER JOIN products p ON p.id = s.styleNo
+// INNER JOIN retailers ret ON ret.id = rf.retailerId
+// INNER JOIN customers r ON r.id = ret.customerId
+// INNER JOIN productimages pm ON pm.productId = s.styleNo
+// LEFT JOIN currencies curr ON curr.id = rf.currencyId
+// LEFT JOIN stock_currency_pricing scp 
+//   ON scp.stockId = s.id AND scp.currencyId = rf.currencyId
+
+// WHERE rf.id = ? 
+//   AND rf.is_approved = ?
+
+// GROUP BY rf.id, sos.barcode;
+// `;
+
+
+//     const dd = await db.query(query, [id, status]);
+
+//     res.json({
+//       success: true,
+//       details: dd,
+//     });
+//   })
+// );
 
 router.get(
   "/admin/favorites-order/details/:id/:status",
@@ -2319,38 +2422,96 @@ router.post("/create-checkout", async (req, res) => {
   }
 });
 
+// router.post("/admin-panel/request", asyncHandler(async (req: Request, res: Response) => {
+//   const { orderId } = req.body;
+
+//   const order = await RetailerOrder.findOne({
+//     where: { id: Number(orderId) },
+//     relations: ["favourite_order", "Stock_order"]
+//   });
+
+//   if (!order) {
+//     return res.status(404).json({ success: false });
+//   }
+
+//   let styles = [];
+
+//   if (order.is_stock_order) {
+//     styles = await StockOrderStyles.find({
+//       where: { retailerOrder: { id: order.id } }
+//     });
+//   } else {
+//     styles = await RetailerOrderStyles.find({
+//       where: { retailerOrder: { id: order.id } }
+//     });
+//   }
+
+//   return res.json({
+//     success: true,
+//     data: { ...order, styles }
+//   });
+// }));
+
+
 router.post("/admin-panel/request", asyncHandler(async (req: Request, res: Response) => {
+  console.log("[DEBUG] /admin-panel/request hit", {
+    body: req.body,
+    headers: req.headers["content-type"],
+    timestamp: new Date().toISOString()
+  });
+
   const { orderId } = req.body;
 
-  const order = await RetailerOrder.findOne({
-    where: { id: Number(orderId) },
-    relations: ["favourite_order", "Stock_order"]
-  });
+  console.log("[DEBUG] Parsed orderId:", orderId, "| Type:", typeof orderId);
+
+  if (orderId === undefined || orderId === null) {
+    console.error("[DEBUG] orderId is missing from request body");
+    return res.status(400).json({ success: false, error: "orderId is required" });
+  }
+
+  let order;
+  try {
+    order = await RetailerOrder.findOne({
+      where: { id: Number(orderId) },
+      relations: ["favourite_order", "Stock_order"]
+    });
+    console.log("[DEBUG] RetailerOrder.findOne result:", order ? `Found (id=${order.id})` : "Not found");
+  } catch (dbErr) {
+    console.error("[DEBUG] DB error on RetailerOrder.findOne:", dbErr);
+    throw dbErr;
+  }
 
   if (!order) {
     return res.status(404).json({ success: false });
   }
 
-  let styles = [];
+  console.log("[DEBUG] order.is_stock_order:", order.is_stock_order);
 
-  if (order.is_stock_order) {
-    styles = await StockOrderStyles.find({
-      where: { retailerOrder: { id: order.id } }
-    });
-  } else {
-    styles = await RetailerOrderStyles.find({
-      where: { retailerOrder: { id: order.id } }
-    });
+  let styles = [];
+  try {
+    if (order.is_stock_order) {
+      console.log("[DEBUG] Fetching StockOrderStyles for orderId:", order.id);
+      styles = await StockOrderStyles.find({
+        where: { retailerOrder: { id: order.id } }
+      });
+    } else {
+      console.log("[DEBUG] Fetching RetailerOrderStyles for orderId:", order.id);
+      styles = await RetailerOrderStyles.find({
+        where: { retailerOrder: { id: order.id } }
+      });
+    }
+    console.log("[DEBUG] Styles fetched, count:", styles.length);
+  } catch (stylesErr) {
+    console.error("[DEBUG] DB error fetching styles:", stylesErr);
+    throw stylesErr;
   }
 
+  console.log("[DEBUG] Sending success response");
   return res.json({
     success: true,
     data: { ...order, styles }
   });
 }));
-
-
-
 
 
 router.get(

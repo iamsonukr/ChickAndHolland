@@ -351,10 +351,17 @@ const ActionButtons = ({
               <div className="flex justify-between">
                 <div className="text-sm text-muted-foreground space-y-1">
                   <span>
-                    After Size 48: <b>49-52 - 20%, 53-56 - 40%, 57-60 - 60%</b> price increasing will be there respectively.
+                    For sizes above 48 a gradate price adjustment will apply as follows: <b>50-52 - 20%, 54-56 - 40%, 58-60 - 60%. </b> price increasing will be there respectively.
                   </span>
                   <span>SAS: Same as sample</span>
                 </div>
+
+                {/* <div className="text-sm text-muted-foreground space-y-1">
+                  <span>
+                    After Size 48: <b>49-52 - 20%, 53-56 - 40%, 57-60 - 60%</b> price increasing will be there respectively.
+                  </span>
+                  <span>SAS: Same as sample</span>
+                </div> */}
 
                 <button
                   type="button"

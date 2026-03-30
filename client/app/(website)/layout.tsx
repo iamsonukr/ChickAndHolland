@@ -53,10 +53,14 @@ const brandon = localFont({                                // ✅ added missing 
 });
 
 export const metadata: Metadata = {
-  title: "Chic & Holland",
+  title: "Chic & Holland | Designer Couture Dresses & Evening Gowns",
   description:
-    "We are focused on designing and creating high-end, handmade dresses for every special occasion in a woman's life.",
+    "Discover Chic & Holland, a luxury couture fashion brand creating handcrafted evening gowns and designer dresses. Explore elegant, high-end styles for every special occasion.",
+  alternates: {
+    canonical: "https://chicandholland.com/",
+  },
 };
+
 
 export default function RootLayout({
   children,

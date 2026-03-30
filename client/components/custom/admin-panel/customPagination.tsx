@@ -10,7 +10,6 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
 
 const CustomPagination = ({
   totalLength,
@@ -22,18 +21,17 @@ const CustomPagination = ({
   resetOtherFields?: boolean;
 }) => {
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   if (totalLength === undefined || totalLength <= 0) {
     return null;
   }
 
-  const itemsPerPage = 100;
+  const itemsPerPage = 50;
   const totalPages = Math.ceil(totalLength / itemsPerPage);
 
   const generatePageNumbers = () => {
-    const pagesToShow = 5; // Number of page links to show (excluding ellipsis).
-    const pageNumbers = [];
+    const pagesToShow = 5;
+    const pageNumbers: number[] = [];
 
     for (
       let i = Math.max(1, currentPage - Math.floor(pagesToShow / 2));
@@ -46,25 +44,18 @@ const CustomPagination = ({
     return pageNumbers;
   };
 
-  // Function to generate the new query string based on the current state
   const generateQuery = (page: number) => {
     const newSearchParams = new URLSearchParams(searchParams?.toString());
-
-    // if (resetOtherFields) {
-    //   newSearchParams.forEach((value, key) => {
-    //     if (key !== "cPage") {
-    //       newSearchParams.delete(key); // Remove all other params except `cPage`
-    //     }
-    //   });
-    // }
-
     newSearchParams.set("cPage", page.toString());
     return newSearchParams.toString();
   };
 
+  const pageNumbers = generatePageNumbers();
+
   return (
     <Pagination className="border p-2">
       <PaginationContent>
+        {/* Previous */}
         <PaginationItem>
           <PaginationPrevious
             href={`?${generateQuery(currentPage - 1)}`}
@@ -72,19 +63,19 @@ const CustomPagination = ({
           />
         </PaginationItem>
 
-        {currentPage > 1 && (
-          <PaginationItem>
-            <PaginationLink href={`?${generateQuery(1)}`}>1</PaginationLink>
-          </PaginationItem>
+        {!pageNumbers.includes(1) && (
+          <>
+            <PaginationItem>
+              <PaginationLink href={`?${generateQuery(1)}`}>1</PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationEllipsis />
+            </PaginationItem>
+          </>
         )}
 
-        {currentPage > 1 && (
-          <PaginationItem>
-            <PaginationEllipsis />
-          </PaginationItem>
-        )}
-
-        {generatePageNumbers().map((pageNumber) => (
+        {/* Page number window */}
+        {pageNumbers.map((pageNumber) => (
           <PaginationItem key={pageNumber}>
             <PaginationLink
               href={`?${generateQuery(pageNumber)}`}
@@ -95,20 +86,21 @@ const CustomPagination = ({
           </PaginationItem>
         ))}
 
-        {currentPage < totalPages - 1 && (
-          <PaginationItem>
-            <PaginationEllipsis />
-          </PaginationItem>
+        {/* Last page — only show if not already in the generated range */}
+        {!pageNumbers.includes(totalPages) && (
+          <>
+            <PaginationItem>
+              <PaginationEllipsis />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink href={`?${generateQuery(totalPages)}`}>
+                {totalPages}
+              </PaginationLink>
+            </PaginationItem>
+          </>
         )}
 
-        {currentPage < totalPages && (
-          <PaginationItem>
-            <PaginationLink href={`?${generateQuery(totalPages)}`}>
-              {totalPages}
-            </PaginationLink>
-          </PaginationItem>
-        )}
-
+        {/* Next */}
         <PaginationItem>
           <PaginationNext
             href={`?${generateQuery(currentPage + 1)}`}

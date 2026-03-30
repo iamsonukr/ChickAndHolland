@@ -1,7 +1,7 @@
+import React from "react";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -10,6 +10,20 @@ import {
 import ActionButtons from "../pending-orders/ActionButtons";
 import { fresh } from "@/lib/utils";
 import dayjs from "dayjs";
+
+/**
+ * Shared column widths for the Rejected view.
+ * We use slightly wider columns here since there are fewer of them,
+ * but keeping the 'Date' and 'Type' widths similar to other tabs for visual harmony.
+ */
+const COL_WIDTHS = {
+  date: "w-[150px]",
+  type: "w-[180px]",
+  quantity: "w-[120px]",
+  amount: "w-[160px]",
+  actions: "w-[180px]",
+};
+
 const RejectedOrders = ({
   data,
   retailerId,
@@ -18,57 +32,65 @@ const RejectedOrders = ({
   retailerId: number;
 }) => {
   return (
-    <div>
-      <Table>
-        <TableHeader>
+    <div className="border rounded-md overflow-hidden">
+      <Table className="table-fixed w-full">
+        <TableHeader className="bg-muted/50">
           <TableRow>
-            <TableHead className="">Date</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Quantity</TableHead>
-            <TableHead>Total Amount</TableHead>
-            <TableHead className="text-right">Details</TableHead>
+            <TableHead className={`${COL_WIDTHS.date} text-center`}>Date</TableHead>
+            <TableHead className={`${COL_WIDTHS.type} text-center`}>Type</TableHead>
+            <TableHead className={`${COL_WIDTHS.quantity} text-center`}>Quantity</TableHead>
+            <TableHead className={`${COL_WIDTHS.amount} text-center`}>Total Amount</TableHead>
+            <TableHead className={`${COL_WIDTHS.actions} text-center`}>Details</TableHead>
           </TableRow>
         </TableHeader>
-       <TableBody>
-  {Array.isArray(data) && data.length > 0 ? (
-    data.map((item: any) => (
-      <TableRow key={item.id}>
-        <TableCell className="font-medium">
-          {dayjs(item.formatted_date).format("DD-MM-YYYY")}
-        </TableCell>
 
-        <TableCell>
-          {item.order_type === "Fresh" ? fresh : item.order_type}
-        </TableCell>
+        <TableBody>
+          {Array.isArray(data) && data.length > 0 ? (
+            data.map((item: any) => (
+              <TableRow 
+                key={item.id} 
+                className="text-center hover:bg-muted/20 transition-colors"
+              >
+                <TableCell className="font-medium">
+                  {dayjs(item.formatted_date).format("DD-MM-YYYY")}
+                </TableCell>
 
-        <TableCell>{item.Total}</TableCell>
+                <TableCell>
+                  {item.order_type === "Fresh" ? fresh : item.order_type}
+                </TableCell>
 
-        <TableCell>
-          {item.currencySymbol
-            ? `${item.currencySymbol} ${parseFloat(item.total_price).toFixed(0)}`
-            : `€ ${parseFloat(item.total_price).toFixed(0)}`}
-        </TableCell>
+                <TableCell className="font-semibold">
+                  {item.Total || 0}
+                </TableCell>
 
-        <TableCell className="text-right">
-          <ActionButtons
-            id={item.id}
-            retailerId={retailerId}
-            is_approved={item.is_approved}
-            type={item.order_type}
-            comments={item.rejected_comments}
-          />
-        </TableCell>
-      </TableRow>
-    ))
-  ) : (
-    <TableRow>
-      <TableCell colSpan={5} className="text-center py-6">
-        No rejected orders found.
-      </TableCell>
-    </TableRow>
-  )}
-</TableBody>
+                <TableCell>
+                  <span className="font-medium text-destructive">
+                    {item.currencySymbol || "€"}{" "}
+                    {parseFloat(item.total_price || 0).toFixed(0)}
+                  </span>
+                </TableCell>
 
+                <TableCell>
+                  <div className="flex justify-center">
+                    <ActionButtons
+                      id={item.id}
+                      retailerId={retailerId}
+                      is_approved={item.is_approved}
+                      type={item.order_type}
+                      comments={item.rejected_comments}
+                    />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                No rejected orders found.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
       </Table>
     </div>
   );
