@@ -86,6 +86,7 @@ export default function RootLayout({
           name="viewport"
           content="width=device-width, initial-scale=0.75, maximum-scale=0.75, minimum-scale=0.75, user-scalable=no"
         />
+        <meta name="google-site-verification" content="RxJM7QQ7Hb_iMp7MI0R8cyBrGBMCrb2MlYc6gu5eUhQ" />
       </head>
       <body className="bg-background font-poppins antialiased">
         <Loaders />
