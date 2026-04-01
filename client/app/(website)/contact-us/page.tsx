@@ -98,6 +98,24 @@ const ContactUs = () => {
               <div className="card-shine"></div>
             </div>
           </div>
+
+          {/* Address Card */}
+          <div className="luxury-contact-card group">
+            <div className="card-inner">
+              <div className="card-icon">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 11c1.656 0 3-1.346 3-3S13.656 5 12 5 9 6.346 9 8s1.344 3 3 3z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 20h-6.343A6.002 6.002 0 009 14V9a1 1 0 011-1h4a1 1 0 011 1v5a6.002 6.002 0 00-5.657 6H3" />
+                </svg>
+              </div>
+              <div className="card-content">
+                <h3 className="card-title">Office Address</h3>
+                <p className="card-text">Jonkheer Carel Sternplein 33</p>
+                <p className="card-text">2273 WZ Voorburg, Netherlands</p>
+              </div>
+              <div className="card-shine"></div>
+            </div>
+          </div>
         </div>
 
         {/* Main Content */}
