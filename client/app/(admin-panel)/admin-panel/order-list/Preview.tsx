@@ -59,8 +59,12 @@ const Preview = ({
     try {
       const colourRes = await getProductColours({});
       const colors = colourRes.productColours;
-      const getColorName = (hex: string) =>
-        colors.find((c: any) => c.hexcode === hex)?.name || hex;
+      const getColorName = (hex?: string | null) =>
+        hex && hex !== "SAS"
+          ? colors.find((c: any) => c.hexcode === hex)?.name || hex
+          : "SAS";
+      const formatSasColor = (name?: string | null) =>
+        name && name !== "SAS" ? `SAS(${name})` : "SAS";
 
       if (type === "Fresh") {
         const fresh = await getRetailerAdminFreshOrderDetails(id, 1);
@@ -88,16 +92,16 @@ barcode: item.barcode,
                 : [],
               meshColor:
                 item.mesh_color === std.mesh_color
-                  ? `SAS(${getColorName(std.mesh_color)})`
+                  ? formatSasColor(getColorName(std.mesh_color))
                   : getColorName(item.mesh_color),
               beadingColor:
                 item.beading_color === std.beading_color
-                  ? `SAS(${getColorName(std.beading_color)})`
+                  ? formatSasColor(getColorName(std.beading_color))
                   : getColorName(item.beading_color),
               lining: item.lining,
               liningColor:
                 item.lining_color === std.lining_color
-                  ? `SAS(${getColorName(std.lining_color)})`
+                  ? formatSasColor(getColorName(std.lining_color))
                   : getColorName(item.lining_color),
             };
           })

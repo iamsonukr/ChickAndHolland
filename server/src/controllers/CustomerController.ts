@@ -37,7 +37,7 @@ router.get(
     } else {
       const skip = (page ? Number(page) - 1 : 0) * 100;
 
-const likeQuery = query ? `%${query.toLowerCase()}%` : "%%";
+      const likeQuery = query ? `%${query.toLowerCase()}%` : "%%";
 
       const whereConditions = [
         { name: Like(likeQuery), isDeleted: false },
@@ -109,14 +109,14 @@ router.post(
         customer.currencyId = defaultCurrency.id.toString();
       }
     }
-const newClient = Clients.create({
-  name: req.body.storeName,
-  address: req.body.address,
-  proximity: req.body.proximity || 1,
-  latitude: req.body.coordinates?.latitude || "0",
-  longitude: req.body.coordinates?.longitude || "0",
-  city_name: req.body.city_name || "",
-});
+    const newClient = Clients.create({
+      name: req.body.storeName,
+      address: req.body.address,
+      proximity: req.body.proximity || 1,
+      latitude: req.body.coordinates?.latitude || "0",
+      longitude: req.body.coordinates?.longitude || "0",
+      city_name: req.body.city_name || "",
+    });
 
     customer.client = newClient;
 
@@ -187,32 +187,31 @@ router.put(
 
     // Handle currency updates with validation for existing orders and favourites
     if (req.body.currency_id && req.body.currency_id != customer.currencyId) {
-      // Check if customer has retailer and existing orders
       if (customer.retailer) {
         const existingOrders = await RetailerOrder.count({
           where: { retailer: { id: customer.retailer.id } },
         });
 
-        if (existingOrders > 0) {
-          return res.status(400).json({
-            success: false,
-            message:
-              "Cannot change currency for customer with existing orders. This would make pricing inconsistent.",
-          });
-        }
+        // if (existingOrders > 0) {
+        //   return res.status(400).json({
+        //     success: false,
+        //     message:
+        //       "Cannot change currency for customer with existing orders. This would make pricing inconsistent.",
+        //   });
+        // }
 
         // Check if customer has items in their favourites (cart)
         const existingFavourites = await Favourites.count({
           where: { retailer: { id: customer.retailer.id } },
         });
 
-        if (existingFavourites > 0) {
-          return res.status(400).json({
-            success: false,
-            message:
-              "Cannot change currency for customer with items in cart. Please remove all cart items before changing currency.",
-          });
-        }
+        // if (existingFavourites > 0) {
+        //   return res.status(400).json({
+        //     success: false,
+        //     message:
+        //       "Cannot change currency for customer with items in cart. Please remove all cart items before changing currency.",
+        //   });
+        // }
       }
 
       // Validate currency exists
@@ -231,33 +230,33 @@ router.put(
 
     let clientError = null;
 
-   // ✅ ALWAYS handle client (manual + quickbooks)
-try {
-  let client = customer.client
-    ? await Clients.findOne({ where: { id: customer.client.id } })
-    : null;
+    // ✅ ALWAYS handle client (manual + quickbooks)
+    try {
+      let client = customer.client
+        ? await Clients.findOne({ where: { id: customer.client.id } })
+        : null;
 
-  if (!client) {
-    client = Clients.create({});
-  }
+      if (!client) {
+        client = Clients.create({});
+      }
 
-  client.name = req.body.storeName;
-  client.address = req.body.address || client.address || "";
-  client.proximity = req.body.proximity || client.proximity || 1;
-  client.latitude =
-    req.body.coordinates?.latitude || client.latitude || "0";
-  client.longitude =
-    req.body.coordinates?.longitude || client.longitude || "0";
-  client.city_name = req.body.city_name || client.city_name || "";
+      client.name = req.body.storeName;
+      client.address = req.body.address || client.address || "";
+      client.proximity = req.body.proximity || client.proximity || 1;
+      client.latitude =
+        req.body.coordinates?.latitude || client.latitude || "0";
+      client.longitude =
+        req.body.coordinates?.longitude || client.longitude || "0";
+      client.city_name = req.body.city_name || client.city_name || "";
 
-  await client.save();
-  customer.client = client;
-} catch (error: any) {
-  clientError = {
-    message: "Failed to update/create client",
-    details: error.message,
-  };
-}
+      await client.save();
+      customer.client = client;
+    } catch (error: any) {
+      clientError = {
+        message: "Failed to update/create client",
+        details: error.message,
+      };
+    }
 
 
     await customer.save();

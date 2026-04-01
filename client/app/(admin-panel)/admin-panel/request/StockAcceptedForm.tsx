@@ -237,7 +237,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
 
       const liningColorDisplay =
         customers.lining_color === SasCheck.lining_color
-          ? `SAS( ${findColorName(customers.lining_color)} )`
+          ? formatSasColor(findColorName(customers.lining_color))
           : data.liningColor;
 
       // -----------------------------
@@ -302,6 +302,9 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   const findColorName = (hex: string) => {
     return colours.find((i: any) => i.hexcode == hex)?.name;
   };
+  const formatSasColor = (name?: string | null) => {
+    return name && name !== "SAS" ? `SAS( ${name} )` : "SAS";
+  };
 
   const onPreviewSubmit = async (data: CreateStockOrderForm) => {
     let str = data.size;
@@ -327,7 +330,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
 
     const liningColorDisplay =
       customers.lining_color === SasCheck.lining_color
-        ? ` SAS( ${findColorName(customers.lining_color)} )`
+        ? formatSasColor(findColorName(customers.lining_color))
         : data.liningColor;
 
     const preData = {
