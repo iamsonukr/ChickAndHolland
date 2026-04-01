@@ -341,7 +341,7 @@ styleNo: it.productCode ?? it.styleNo ?? "",      customColor: it.color,
               colors.find(
                 (colour: any) => colour.hexcode == standardColors.lining_color,
               )?.name
-                ? ` SAS( ${current.liningColor} )`
+                ? formatSasValue(current.liningColor)
                 : current.liningColor;
 
             // Get current reference images
@@ -619,6 +619,9 @@ color: current.meshColor || current.customColor,
     const res = await getProductColorsCheck(id);
     return res.data; // Returns the standard colors for a specific product ID
   };
+  const formatSasValue = (value?: string | null) => {
+    return value && value !== "SAS" ? `SAS(${value})` : "SAS";
+  };
 
 
 const onPreviewSubmit = async (data: CreateFreshOrderForm) => {
@@ -686,7 +689,7 @@ const orderRes = await getRetailerOrderWithBarcode(Number(form.getValues("orderI
           colors.find(
             (c: any) => c.hexcode === standardColors.lining_color
           )?.name
-            ? `SAS(${current.liningColor})`
+            ? formatSasValue(current.liningColor)
             : current.liningColor;
 
         // Reference images

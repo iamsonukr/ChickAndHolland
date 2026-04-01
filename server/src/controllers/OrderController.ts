@@ -148,14 +148,13 @@ router.post(
 
         await order.save(); // ⬅ MUST SAVE BEFORE STYLES
 
-
         const latestOrderId = await Order.createQueryBuilder("order")
           .select("MAX(order.id)", "max")
           .getRawOne();
         const orderID = latestOrderId.max;
 
         // ================================
-        // PROCESS ALL STYLES
+        // PROCESS ALL STYLES (EACH GETS UNIQUE BARCODE)
         // ================================
         for (let i = 0; i < styles.length; i++) {
           const s = styles[i];
@@ -180,7 +179,7 @@ router.post(
           // STEP 1 — SAVE FIRST (GETS ID)
           await newStyle.save();
 
-          // STEP 2 — CREATE FINAL BARCODE USING ID
+          // STEP 2 — CREATE UNIQUE BARCODE FOR EACH STYLE
           newStyle.barcode = `${order.purchaeOrderNo}-${newStyle.styleNo}-${newStyle.id}`;
           await newStyle.save();
 
@@ -879,10 +878,11 @@ router.post(
                 photoUrls: imageUrls
                   .filter((url) => url !== null)
                   .map((url) => url?.fileName),
-                mesh: style.mesh,
-                beading: style.beading,
-                liningColor: style.liningColor,
-                lining: style.lining,
+                color: style.colorType || "",
+                meshColor: style.mesh || "SAS",
+                beadingColor: style.beading || "SAS",
+                liningColor: style.liningColor || "SAS",
+                lining: style.lining || "SAS",
               };
             })
           ),
@@ -1205,10 +1205,10 @@ PublicStoreRoutes.get(
         customSize,
         customSizesQuantity,
 
-        mesh_color: style.mesh_color,
-        beading_color: style.beading_color,
-        lining: style.lining,
-        lining_color: style.lining_color,
+        mesh_color: style.mesh_color || "SAS",
+        beading_color: style.beading_color || "SAS",
+        lining: style.lining || "SAS",
+        lining_color: style.lining_color || "SAS",
 
         comments,
         photoUrls,

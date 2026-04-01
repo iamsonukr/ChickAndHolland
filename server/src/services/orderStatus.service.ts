@@ -44,21 +44,43 @@ export async function updateOrderByBarcode(
   progress.qty = qty;
   await progress.save();
 
-  // 2️⃣ ORDER STATUS
-  order.orderStatus = nextStatus;
+  // 2️⃣ CHECK IF ALL STYLES IN ORDER HAVE REACHED NEXT STATUS
+  const allStyles = await Style.find({
+    where: { order: { id: order.id } },
+  });
 
-  // 3️⃣ 🔥 ALWAYS SET DATE
-  const field = STATUS_FIELD_MAP[nextStatus];
-  if (field) {
-    (order[field] as any) = now;
+  const allStylesProgress = await Promise.all(
+    allStyles.map(async (style) => {
+      const latestProgress = await StoreStyleProgress.findOne({
+        where: { barcode: style.barcode },
+        order: { createdAt: "DESC" },
+      });
+      return latestProgress;
+    })
+  );
+
+  // Check if all styles have the next status (or are at starting status if no progress)
+  const allStylesAtNextStatus = allStylesProgress.every(
+    (progress) => (progress?.status || OrderStatus.Pattern) === nextStatus
+  );
+
+  // 3️⃣ UPDATE ORDER STATUS ONLY IF ALL STYLES ARE AT NEXT STATUS
+  if (allStylesAtNextStatus) {
+    order.orderStatus = nextStatus;
+
+    // 4️⃣ 🔥 ALWAYS SET DATE
+    const field = STATUS_FIELD_MAP[nextStatus];
+    if (field) {
+      (order[field] as any) = now;
+    }
+
+    // 5️⃣ SHIPPING INFO
+    if (nextStatus === OrderStatus.Shipped) {
+      order.shippingStatus = ShippingStatus.Shipped;
+      order.shippingDate = now;
+    }
+
+    await order.save();
   }
-
-  // 4️⃣ SHIPPING INFO
-  if (nextStatus === OrderStatus.Shipped) {
-    order.shippingStatus = ShippingStatus.Shipped;
-    order.shippingDate = now;
-  }
-
-  await order.save();
 }
 

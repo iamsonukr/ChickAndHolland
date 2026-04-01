@@ -66,11 +66,11 @@ export default function OrderStatusPage({ params }: any) {
         <h1 className="text-2xl font-bold">Order Status Report</h1>
 
         {/* QR SCAN BUTTON */}
-        <Link href="/admin-panel/orders/qr-scan">
+        {/* <Link href="/admin-panel/orders/qr-scan">
           <Button variant="outline" className="text-sm">
             📷 QR Scan
           </Button>
-        </Link>
+        </Link> */}
       </div>
 
       {/* ================================================= */}
