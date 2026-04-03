@@ -106,7 +106,7 @@ export default function OrderStatusPage({ params }: any) {
                 </div>
 
                 <div className="flex flex-col items-center gap-2">
-                  <StatusLabelBox item={item} />
+                  <StatusLabelBox item={item} orderType="RETAILER" />
                   <PDFDownloadLink
                     document={<LabelPdf item={item} />}
                     fileName={`${item.styleNo}-label.pdf`}
@@ -157,7 +157,7 @@ export default function OrderStatusPage({ params }: any) {
                 </div>
 
                 <div className="flex flex-col items-center gap-2">
-                  <StatusLabelBox1 item={item} />
+                  <StatusLabelBox1 item={item} orderType="STORE" />
                   <PDFDownloadLink
                     document={<LabelPdf1 item={item} />}
                     fileName={`${item.styleNo}-label.pdf`}
@@ -208,7 +208,7 @@ export default function OrderStatusPage({ params }: any) {
                 </div>
 
                 <div className="flex flex-col items-center gap-2">
-                  <StatusLabelBox item={item} />
+                  <StatusLabelBox item={item} orderType="STOCK" />
                   <PDFDownloadLink
                     document={<LabelPdf item={item} />}
                     fileName={`${item.styleNo}-label.pdf`}

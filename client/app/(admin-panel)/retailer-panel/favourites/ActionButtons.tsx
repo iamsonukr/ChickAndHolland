@@ -30,7 +30,7 @@ const ActionButtons = ({
   price: any;
 }) => {
   const { executeAsync: removeFavorite, loading: removeLoading } = useHttp(
-    `favourites`,
+    `/favourites`,
     "DELETE",
   );
   const { executeAsync: addFav, loading: removeLoadings } = useHttp(

@@ -472,9 +472,12 @@ export const getFavourites = async (customerId: number) => {
     return { favourites: [] };
   }
 
-  return responseJson;
-};
+  const sortedFavourites = [...responseJson.favourites].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 
+  return { ...responseJson, favourites: sortedFavourites };
+};
 
 export const getRetailersOrders = async ({
   retailerId,
@@ -725,6 +728,8 @@ export const getRetailerStockOrderDetails = async (
       headers,
     },
   );
+
+  console.log("RETAILER STOCK ORDER DETAILS RESPONSE:", response);
 
   const responseJson = await response.json();
 

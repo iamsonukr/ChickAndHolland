@@ -16,29 +16,31 @@ import {
 } from "@/components/ui/table";
 import UpdateOrderStatus from "@/app/(admin-panel)/admin-panel/orders/UpdateOrderStatus";
 import OrderTypeFilter from "@/app/(admin-panel)/admin-panel/orders/OrderTypeFilter";
-import UpdateShippingStatus from "./UpdateShippingStatus";
 import UpdateTrackingId from "./UpdateTrackingId";
 import UpdateRetailerOrderStatus from "./UpdateRetailerOrderStatus";
 import UpdateRetailerTrackingId from "./UpdateRetailerTrackingId";
-import UpdatingRetailerShippingStatus from "./UpdatingRetailerShippingStatus";
 import AddressCard from "./AddressCard";
 import Delete, { DeleteButton, ItemsProvider } from "./Delete";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import OrderDetailsSheet from "./OrderDetails";
 import TableScrollWrapper from "@/components/TableScrollWrapper";
 
-// ✅ STATUS → DB FIELD MAPPING
 const statusToDbField: Record<string, string | null> = {
-  "Pattern": "pattern",
-  "Khaka": "khaka",
-  "Issue Beading": "issue_beading",
-  "Beading": "beading",
-  "Zarkan": "zarkan",
-  "Stitching": "stitching",
+  "Pattern":           "pattern",
+  "Khaka":             "khaka",
+  "Issue Beading":     "issue_beading",
+  "Beading":           "beading",
+  "Zarkan":            "zarkan",
+  "Stitching":         "stitching",
   "Ready to Delivery": "ready_to_delivery",
-  "Shipped": "shipped",
-  "Balance Pending": null,
+  "Shipped":           "shipped",
+  "Balance Pending":   null,
+};
+
+const getRowClassName = (difference: number, orderStatus: string) => {
+  if (orderStatus === "Shipped")  return "bg-green-500 text-black hover:bg-green-600";
+  if (difference < 7)             return "bg-red-600 text-white hover:bg-red-500";
+  if (difference < 14)            return "bg-yellow-400 text-black hover:bg-yellow-500";
+  return "";
 };
 
 const OrdersPage = async (props: {
@@ -46,8 +48,8 @@ const OrdersPage = async (props: {
 }) => {
   const searchParams = await props.searchParams;
   const currentPage = searchParams["cPage"] ? Number(searchParams["cPage"]) : 1;
-  const query = searchParams["q"] ? searchParams["q"] : "";
-  const orderType = searchParams["orderType"] ? searchParams["orderType"] : "";
+  const query       = searchParams["q"]         ?? "";
+  const orderType   = searchParams["orderType"] ?? "";
 
   const orders = await getOrders({
     page: currentPage,
@@ -57,41 +59,21 @@ const OrdersPage = async (props: {
 
   const orderStatusData = async (status: string, id: number) => {
     const res = await getDates(id);
-
-    const data = res.data;
-
-    if (status == "Pattern/Khaka") {
-      if (res.data.pattern != "") {
-        return dayjs(res.data.pattern).format("MMM D, YYYY");
-      } else {
-        return "";
-      }
+    if (status === "Pattern/Khaka") {
+      return res.data.pattern ? dayjs(res.data.pattern).format("MMM D, YYYY") : "";
     }
-
     return dayjs(res.data[status]).format("MMM D, YYYY");
   };
+
   const orderStatusDataTwo = async (status: string, id: number) => {
     const res = await getOrderDates(id);
-    const data = res.data;
-
-    if (!data) return "";
-
+    if (!res.data) return "";
     const dbField = statusToDbField[status];
-
-    // Balance Pending ya unknown status
     if (!dbField) return "";
-
-    // Agar date present hai
-    if (data[dbField]) {
-      return dayjs(data[dbField]).format("MMM D, YYYY");
-    }
-
-    return "";
+    return res.data[dbField] ? dayjs(res.data[dbField]).format("MMM D, YYYY") : "";
   };
 
-
   const customers = await getCustomers({});
-
   const arr_ = orders?.orders?.[0]?.purchaeOrderNo.split(" ");
   const latestOrderPurchaseOrderNo =
     Number(arr_?.[arr_?.length - 1]) || orders?.totalCount;
@@ -104,20 +86,13 @@ const OrdersPage = async (props: {
   return (
     <ContentLayout title="Orders Page">
       <ItemsProvider>
-        <div className="flex flex-col gap-8">
-          <div className="flex flex-row items-center justify-between">
-            <h1 className="text-xl md:text-2xl">All Orders</h1>
-            <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-4">
 
-              {/* QR Scan Button */}
-              {/* <Link href="/admin-panel/orders/qr-scan">
-      <Button variant="outline" className="text-sm">
-        📷 QR Scan
-      </Button>
-    </Link> */}
-
+          {/* Page Header */}
+          <div className="flex items-center justify-between">
+            <h1 className="text-lg md:text-xl font-semibold">All Orders</h1>
+            <div className="flex items-center gap-2">
               <DeleteButton />
-
               <CreateOrder
                 customers={customers.customers}
                 ordersTotalCount={latestOrderPurchaseOrderNo}
@@ -126,210 +101,167 @@ const OrdersPage = async (props: {
           </div>
 
           <div className="space-y-2">
-            <div className={"flex items-center gap-2"}>
+
+            {/* Search + Filter */}
+            <div className="flex items-center gap-2">
               <CustomSearchBar query={query} />
               <OrderTypeFilter />
             </div>
-            <TableScrollWrapper>
 
-              <Table className="">
-                <TableHeader>
-                  <TableRow className="text-nowrap text-lg">
-                    <TableHead>
+            {/* Legend */}
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                Due in &lt; 7 days
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-yellow-400" />
+                Due in &lt; 14 days
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                Shipped
+              </span>
+            </div>
+
+            {/* Table */}
+            <div className="w-full overflow-x-auto rounded-lg border border-border">
+              <Table className="w-full min-w-[1200px] text-xs">
+                <TableHeader className="bg-muted/50">
+                  <TableRow className="whitespace-nowrap">
+                    <TableHead className="w-8 px-2 py-1.5 text-center">
                       <Delete bulk={bulkData} type="bulk" />
                     </TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>PO#</TableHead>
-                    <TableHead>Order Type</TableHead>
-                    <TableHead>Order Date</TableHead>
-                    <TableHead>Shipping Date</TableHead>
-                    <TableHead>Order Status</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Phone</TableHead>
-
-                    {/* <TableHead>Shipping Status</TableHead> */}
-                    <TableHead>Tracking ID</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="px-2 py-1.5">Customer</TableHead>
+                    <TableHead className="px-2 py-1.5">PO#</TableHead>
+                    <TableHead className="px-2 py-1.5">Order Type</TableHead>
+                    <TableHead className="px-2 py-1.5">Order Date</TableHead>
+                    <TableHead className="px-2 py-1.5">Ship Date</TableHead>
+                    <TableHead className="px-2 py-1.5">Order Status</TableHead>
+                    <TableHead className="px-2 py-1.5">Address</TableHead>
+                    <TableHead className="px-2 py-1.5">Phone</TableHead>
+                    <TableHead className="px-2 py-1.5">Tracking ID</TableHead>
+                    <TableHead className="px-2 py-1.5 text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
-                  {orders?.orders?.map((order: any) => {
-                    const difference = dayjs(order?.orderCancellationDate).diff(
-                      dayjs(),
-                      "days",
-                    );
+                  {orders?.orders?.length > 0 ? (
+                    orders.orders.map((order: any) => {
+                      const difference = dayjs(order?.orderCancellationDate).diff(dayjs(), "days");
+                      const rowClass   = getRowClassName(difference, order.orderStatus);
 
-                    const formattedshippingDate = order.shippingDate
-                      ? dayjs(order.shippingDate).format("DD MMM YYYY HH:mm A")
-                      : null;
+                      return (
+                        <TableRow
+                          key={`${order.id}-${order.purchaeOrderNo}-${order.orderType}`}
+                          className={cn("whitespace-nowrap align-middle", rowClass)}
+                        >
+                          {/* Delete */}
+                          <TableCell className="px-2 py-1 text-center">
+                            <Delete id={order.id} orderType={order.orderType} type="single" />
+                          </TableCell>
 
-                    return (
-                      //                     <TableRow
-                      // key={`${order.id}-${order.purchaeOrderNo}-${order.orderType}`}
-                      //                       className={`${cn(
-                      //                         difference < 7 && order.orderStatus !== "shipped"
-                      //                           ? "bg-red-600 text-white hover:bg-red-500"
-                      //                           : difference < 14 && order.orderStatus !== "shipped"
-                      //                             ? "bg-yellow-400 text-black hover:bg-yellow-500"
-                      //                             : "",
-                      //                       )} ${order.orderStatus == "Shipped" && "bg-green-500 text-black hover:bg-green-600"} text-nowrap text-lg`}
-                      //                     >
-                      <TableRow
-                        key={`${order.id}-${order.purchaeOrderNo}-${order.orderType}`}
-                        className={`${cn(
-                          // RED: less than 7 days & NOT shipped
-                          difference < 7 && order.orderStatus !== "Shipped"
-                            ? "bg-red-600 text-white hover:bg-red-500"
-                            :
-                            // YELLOW: between 7–14 days & NOT shipped
-                            difference < 14 && order.orderStatus !== "Shipped"
-                              ? "bg-yellow-400 text-black hover:bg-yellow-500"
-                              : "",
-                        )} 
-  ${
-                          // GREEN: shipped
-                          order.orderStatus === "Shipped"
-                            ? "bg-green-500 text-black hover:bg-green-600"
-                            : ""
-                          } 
-  text-nowrap text-lg`}
-                      >
+                          {/* Customer */}
+                          <TableCell className="px-2 py-1">
+                            <span className="font-medium">{order.customer?.name}</span>
+                            <span className="ml-1 opacity-50">#{order.id}</span>
+                          </TableCell>
 
-                        <TableCell className="">
-                          <Delete
-                            id={order.id}
-                            orderType={order.orderType}
-                            type="single"
-                          />
-                        </TableCell>
-                        <TableCell className="">
-                          {order.customer?.name} {order.id}
-                        </TableCell>
-                        <TableCell>{order.purchaeOrderNo}</TableCell>
-                        <TableCell>
-                          {order.orderType == "Fresh" ? fresh : order.orderType}{" "}
-                        </TableCell>
-                        <TableCell>
-                          {dayjs(order.orderReceivedDate).format("DD MMM YYYY")}
-                        </TableCell>
-                        <TableCell>
-                          {dayjs(order.orderCancellationDate).format(
-                            "DD MMM YYYY",
-                          )}
-                        </TableCell>
+                          {/* PO# */}
+                          <TableCell className="px-2 py-1 font-mono">
+                            {order.purchaeOrderNo}
+                          </TableCell>
 
-                        <TableCell className="cursor-pointer">
-                          <div className="flex w-full flex-col">
-                            <div className="flex w-full justify-between gap-2">
-                              {/* {order.orderSource} */}
+                          {/* Order Type */}
+                          <TableCell className="px-2 py-1">
+                            {order.orderType === "Fresh" ? fresh : order.orderType}
+                          </TableCell>
 
-                              <div className="!text-black">
-                                {order.orderSource == "retailer" ? (
+                          {/* Order Date */}
+                          <TableCell className="px-2 py-1">
+                            {dayjs(order.orderReceivedDate).format("DD MMM YYYY")}
+                          </TableCell>
+
+                          {/* Ship Date */}
+                          <TableCell className="px-2 py-1">
+                            {dayjs(order.orderCancellationDate).format("DD MMM YYYY")}
+                          </TableCell>
+
+                          {/* Order Status */}
+                          <TableCell className="px-2 py-1">
+                            <div className="flex flex-col gap-0.5">
+                              <div className="text-black">
+                                {order.orderSource === "retailer" ? (
                                   <UpdateRetailerOrderStatus orderData={order} />
                                 ) : (
                                   <UpdateOrderStatus orderData={order} />
                                 )}
                               </div>
+                              <p className="text-[10px] opacity-60">
+                                {order.orderSource === "retailer"
+                                  ? orderStatusData(order.orderStatus.toString(), order.id)
+                                  : orderStatusDataTwo(order.orderStatus.toString(), order.id)}
+                              </p>
                             </div>
-                            <p>
-                              {order.orderSource == "retailer"
-                                ? orderStatusData(
-                                  order.orderStatus.toString(),
-                                  order.id,
-                                )
-                                : orderStatusDataTwo(
-                                  order.orderStatus.toString(),
-                                  order.id,
-                                )}
-                            </p>
-                          </div>
-                        </TableCell>
+                          </TableCell>
 
-                        <TableCell className="w-[100px] cursor-pointer truncate">
-                          <div className="w-[100px] truncate">
-                            <AddressCard ad={order.address} />
+                          {/* Address */}
+                          <TableCell className="px-2 py-1">
+                            <div className="max-w-[90px] truncate">
+                              <AddressCard ad={order.address} />
+                            </div>
+                          </TableCell>
 
-                          </div>
-                        </TableCell>
-                        <TableCell className="cursor-pointer">
-                          {order.customer?.phoneNumber || "N/A"}
-                        </TableCell>
+                          {/* Phone */}
+                          <TableCell className="px-2 py-1">
+                            {order.customer?.phoneNumber || "N/A"}
+                          </TableCell>
 
-
-                        {/* shipping status */}
-
-                        {/* <TableCell>
-                        {order.orderSource == "retailer" ? (
-                          <UpdatingRetailerShippingStatus
-                            orderData={{
-                              ...order,
-                              formattedshippingDate,
-                            }}
-                          />
-                        ) : (
-                          <UpdateShippingStatus
-                            orderData={order.shippingStatus}
-                            id={order.id}
-                            orderStatus={order.className}
-                            formattedshippingDate={formattedshippingDate}
-                          />
-                        )}
-                      </TableCell> */}
-
-                        {/* <TableCell>
-                        {order.orderSource == "retailer" ? (
-                          <div className="flex w-full justify-between">
-                            {order.trackingNo
-                              ? order.trackingNo
-                              : "Add Tracking ID"}
+                          {/* Tracking ID */}
+                          <TableCell className="px-2 py-1">
                             <div className="text-black">
-                              <UpdateRetailerTrackingId orderData={order} />
+                              {order.orderSource === "retailer" ? (
+                                <UpdateRetailerTrackingId orderData={order} />
+                              ) : (
+                                <UpdateTrackingId trackingId={order.trackingNo} id={order.id} />
+                              )}
                             </div>
-                          </div>
-                        ) : (
-                          <div className="flex w-full justify-between">
-                            {order.trackingNo
-                              ? order.trackingNo
-                              : "Add Tracking ID"}
-                            <div className="text-black">
-                              <UpdateTrackingId
-                                trackingId={order.trackingNo}
-                                id={order.id}
-                              />
+                          </TableCell>
+
+                          {/* Actions */}
+                          <TableCell className="px-2 py-1">
+                            <div className="flex items-center justify-center gap-1">
+                              <OrderDetailsSheet orderDetails={order} />
+                              <TableActions data={order} />
                             </div>
-                          </div>
-                        )}
-                      </TableCell> */}
+                          </TableCell>
 
-                        <TableCell className="cursor-pointer">
-                          <div className="text-black">
-                            {order.orderSource == "retailer" ? (
-                              <UpdateRetailerTrackingId orderData={order} />
-                            ) : (
-                              <UpdateTrackingId
-                                trackingId={order.trackingNo}
-                                id={order.id}
-                              />
-                            )}
-                          </div>
-                        </TableCell>
-
-                        <TableCell className="flex gap-2 items-center">
-                          <OrderDetailsSheet orderDetails={order} />
-                          <TableActions data={order} />
-                        </TableCell>
-
-                      </TableRow>
-                    );
-                  })}
+                        </TableRow>
+                      );
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={11} className="py-12 text-center text-muted-foreground">
+                        <div className="flex flex-col items-center gap-1">
+                          <p className="font-medium">No orders found</p>
+                          <p className="text-xs">Try adjusting your search or filters.</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
-            </TableScrollWrapper>
+            </div>
 
-            <CustomPagination
-              currentPage={currentPage}
-              totalLength={orders?.totalCount}
-            />
+            {/* Pagination */}
+            {orders?.totalCount > 0 && (
+              <div className="flex justify-end">
+                <CustomPagination
+                  currentPage={currentPage}
+                  totalLength={orders.totalCount}
+                />
+              </div>
+            )}
           </div>
         </div>
       </ItemsProvider>
@@ -338,4 +270,3 @@ const OrdersPage = async (props: {
 };
 
 export default OrdersPage;
-
