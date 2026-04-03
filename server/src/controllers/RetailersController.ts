@@ -304,10 +304,9 @@ router.get(
         rf.is_approved,
         SUM(f.quantity) AS Total,
         SUM(CASE 
-          WHEN f.product_size >= 60 THEN COALESCE(pcp.price, p.price) * 1.60 * f.quantity
-          WHEN f.product_size >= 56 THEN COALESCE(pcp.price, p.price) * 1.40 * f.quantity
-          WHEN f.product_size >= 52 THEN COALESCE(pcp.price, p.price) * 1.40 * f.quantity
-          WHEN f.product_size >= 48 THEN COALESCE(pcp.price, p.price) * 1.20 * f.quantity
+          WHEN CAST(f.product_size AS SIGNED) >= 58 THEN COALESCE(pcp.price, p.price) * 1.60 * f.quantity
+          WHEN CAST(f.product_size AS SIGNED) >= 54 THEN COALESCE(pcp.price, p.price) * 1.40 * f.quantity
+          WHEN CAST(f.product_size AS SIGNED) >= 50 THEN COALESCE(pcp.price, p.price) * 1.20 * f.quantity
           ELSE COALESCE(pcp.price, p.price) * f.quantity 
         END) AS total_price,
         rf.id as id,
@@ -334,10 +333,9 @@ router.get(
         nrf.is_approved,
         SUM(nrf.quantity) AS Total,
         SUM(CASE 
-          WHEN s.size >= 60 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.60 * nrf.quantity
-          WHEN s.size >= 56 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.40 * nrf.quantity
-          WHEN s.size >= 52 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.40 * nrf.quantity
-          WHEN s.size >= 48 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.20 * nrf.quantity
+          WHEN CAST(s.size AS SIGNED) >= 58 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.60 * nrf.quantity
+          WHEN CAST(s.size AS SIGNED) >= 54 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.40 * nrf.quantity
+          WHEN CAST(s.size AS SIGNED) >= 50 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.20 * nrf.quantity
           ELSE COALESCE(scp.discountedPrice, s.discountedPrice) * nrf.quantity
         END) AS total_price,
         nrf.id as id,

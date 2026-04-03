@@ -83,7 +83,7 @@ const resolveColor = (color?: string) => {
 
 /* ================= LABEL COMPONENT ================= */
 
-export default function StatusLabelBox({ item }: { item: any }) {
+export default function StatusLabelBox({ item, orderType }: { item: any; orderType?: string }) {
 
 
   return (
@@ -94,6 +94,11 @@ export default function StatusLabelBox({ item }: { item: any }) {
         <div className="text-sm font-bold tracking-wide">
           {item.styleNo}
         </div>
+        {orderType && (
+          <div className="text-xs font-medium mt-1 opacity-90">
+            {orderType} ORDER
+          </div>
+        )}
       </div>
 
       {/* BODY */}

@@ -797,13 +797,11 @@ router.get(
 
       const size = Number(favourite.product_size);
       let markup = 1;
-      if (size >= 60) {
+      if (size >= 58) {
         markup = 1.6;
-      } else if (size >= 56) {
+      } else if (size >= 54) {
         markup = 1.4;
-      } else if (size >= 52) {
-        markup = 1.4;
-      } else if (size >= 48) {
+      } else if (size >= 50) {
         markup = 1.2;
       }
       displayPrice = displayPrice * markup;

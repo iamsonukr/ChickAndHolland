@@ -85,7 +85,7 @@ const formSchema = z.object({
       lining: z.string().min(1, {
         message: "Lining Color is required",
       }),
-      // liningColor: z.string().min(1, {
+      // liningColor: z.string().min(1.60, {
       //   message: "Lining Color is required",
       // }),
       liningColor: z.preprocess(
@@ -351,9 +351,9 @@ const ActionButtons = ({
               <div className="flex justify-between">
                 <div className="text-sm text-muted-foreground space-y-1">
                   <span>
-                    For sizes above 48 a gradate price adjustment will apply as follows: <b>50-52 - 20%, 54-56 - 40%, 58-60 - 60%. </b> price increasing will be there respectively.
+                    For sizes above 48 a gradate price adjustment will apply as follows: <b>50-52 - 20%, 54-56 - 40%, 58-60 - 60%. </b>
                   </span>
-                  <span>SAS: Same as sample</span>
+                  {/* <span>SAS: Same as sample</span> */}
                 </div>
 
                 {/* <div className="text-sm text-muted-foreground space-y-1">
@@ -674,121 +674,6 @@ const ActionButtons = ({
                           />
                         </div>
 
-                        {/* {watch[index].addLining && (
-                          <>
-                            <FormField
-                              control={form.control}
-                              name={`productDetails.${index}.lining`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Lining</FormLabel>
-                                  <Select
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select Lining" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value={productDetails.lining}>
-                                        SAS ({productDetails.lining})
-                                      </SelectItem>
-                                      {lining
-                                        .filter(
-                                          (i) => i !== productDetails.lining,
-                                        )
-                                        .map((item) => (
-                                          <SelectItem value={item}>
-                                            {item}
-                                          </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                  </Select>
-
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`productDetails.${index}.liningColor`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Lining Color </FormLabel>
-                                  <Select
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select Lining Color" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem
-                                        value={productDetails.lining_color}
-                                      >
-                                        <div className="flex gap-1">
-                                          SAS (
-                                          <div className="flex items-center">
-                                            <p
-                                              className="mx-1 h-4 w-4 rounded-full"
-                                              style={{
-                                                backgroundColor:
-                                                  productDetails.lining_color,
-
-                                                border: "1px solid #000",
-                                              }}
-                                            ></p>{" "}
-                                            {getColourBasedOnhex(
-                                              productDetails.lining_color,
-                                            )}
-                                          </div>
-                                          )
-                                        </div>
-                                      </SelectItem>
-                                      {colors
-                                        .filter(
-                                          (i: any) =>
-                                            i.hexcode !=
-                                            productDetails.lining_color,
-                                        )
-                                        .map((colour: any) => (
-                                          <SelectItem
-                                            key={colour.id}
-                                            value={getColourBasedOnId(
-                                              colour.id,
-                                            )}
-                                          >
-                                            <div className="flex items-center">
-                                              <div
-                                                className="h-4 w-4 rounded-full"
-                                                style={{
-                                                  backgroundColor:
-                                                    getColourBasedOnId(
-                                                      colour.id,
-                                                    ),
-                                                  border: "1px solid #000",
-                                                }}
-                                              />
-                                              <span className="ml-2">
-                                                {colour.name}
-                                              </span>
-                                            </div>
-                                          </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                  </Select>
-
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </>
-                        )}  */}
 
                         {watch[index].addLining && (
                           <>
@@ -1070,3 +955,120 @@ const ActionButtons = ({
 };
 
 export default ActionButtons;
+
+
+                        {/* {watch[index].addLining && (
+                          <>
+                            <FormField
+                              control={form.control}
+                              name={`productDetails.${index}.lining`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Lining</FormLabel>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select Lining" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value={productDetails.lining}>
+                                        SAS ({productDetails.lining})
+                                      </SelectItem>
+                                      {lining
+                                        .filter(
+                                          (i) => i !== productDetails.lining,
+                                        )
+                                        .map((item) => (
+                                          <SelectItem value={item}>
+                                            {item}
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name={`productDetails.${index}.liningColor`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Lining Color </FormLabel>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select Lining Color" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem
+                                        value={productDetails.lining_color}
+                                      >
+                                        <div className="flex gap-1">
+                                          SAS (
+                                          <div className="flex items-center">
+                                            <p
+                                              className="mx-1 h-4 w-4 rounded-full"
+                                              style={{
+                                                backgroundColor:
+                                                  productDetails.lining_color,
+
+                                                border: "1px solid #000",
+                                              }}
+                                            ></p>{" "}
+                                            {getColourBasedOnhex(
+                                              productDetails.lining_color,
+                                            )}
+                                          </div>
+                                          )
+                                        </div>
+                                      </SelectItem>
+                                      {colors
+                                        .filter(
+                                          (i: any) =>
+                                            i.hexcode !=
+                                            productDetails.lining_color,
+                                        )
+                                        .map((colour: any) => (
+                                          <SelectItem
+                                            key={colour.id}
+                                            value={getColourBasedOnId(
+                                              colour.id,
+                                            )}
+                                          >
+                                            <div className="flex items-center">
+                                              <div
+                                                className="h-4 w-4 rounded-full"
+                                                style={{
+                                                  backgroundColor:
+                                                    getColourBasedOnId(
+                                                      colour.id,
+                                                    ),
+                                                  border: "1px solid #000",
+                                                }}
+                                              />
+                                              <span className="ml-2">
+                                                {colour.name}
+                                              </span>
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </>
+                        )}  */}

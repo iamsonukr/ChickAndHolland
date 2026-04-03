@@ -273,13 +273,17 @@ router.get(
           }
         }
 
-        // Apply size-based tiered markup
+        // Apply size-based graduated markup (matches CASE logic)
         const size = Number(favourites.product_size);
-        if (size >= 48) {
-          const tier = Math.floor((size - 48) / 4);
-          const markup = 1 + (tier + 1) * 0.2;
-          displayPrice = displayPrice * markup;
+        let markup = 1.0; // Default no markup
+        if (size >= 58) {
+          markup = 1.6; // 60% markup for sizes 58+
+        } else if (size >= 54) {
+          markup = 1.4; // 40% markup for sizes 54-57
+        } else if (size >= 50) {
+          markup = 1.2; // 20% markup for sizes 50-52
         }
+        displayPrice = displayPrice * markup;
 
         // Add currency information for frontend display
         const enhancedFavourite = {
@@ -317,11 +321,10 @@ router.get(
           rf.createdAt,
           rf.quantity as buy_quantity,
           s.*,
-          CASE 
-            WHEN s.size >= 60 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.60
-            WHEN s.size >= 56 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.40
-            WHEN s.size >= 52 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.40
-            WHEN s.size >= 48 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.20
+          CASE
+            WHEN CAST(s.size AS SIGNED) >= 58 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.60
+            WHEN CAST(s.size AS SIGNED) >= 54 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.40
+            WHEN CAST(s.size AS SIGNED) >= 50 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.20
             ELSE COALESCE(scp.discountedPrice, s.discountedPrice)
           END AS unitPrice,
           p.id AS product_id,
@@ -399,10 +402,9 @@ router.get(
         s.size as size,
         s.size_country,
         CASE 
-          WHEN s.size >= 60 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.60 * rf.quantity
-          WHEN s.size >= 56 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.40 * rf.quantity
-          WHEN s.size >= 52 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.40 * rf.quantity
-          WHEN s.size >= 48 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.20 * rf.quantity
+          WHEN CAST(s.size AS SIGNED) >= 58 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.60 * rf.quantity
+          WHEN CAST(s.size AS SIGNED) >= 54 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.40 * rf.quantity
+          WHEN CAST(s.size AS SIGNED) >= 50 THEN COALESCE(scp.discountedPrice, s.discountedPrice) * 1.20 * rf.quantity
           ELSE COALESCE(scp.discountedPrice, s.discountedPrice) * rf.quantity
         END AS total_price,
         COALESCE(curr.symbol, '€') as currencySymbol,
@@ -494,11 +496,10 @@ router.get(
 
         -- Total amount with markup
         SUM(
-          CASE 
-            WHEN f.product_size >= 60 THEN COALESCE(pcp.price, p.price) * 1.60 * f.quantity
-            WHEN f.product_size >= 56 THEN COALESCE(pcp.price, p.price) * 1.40 * f.quantity
-            WHEN f.product_size >= 52 THEN COALESCE(pcp.price, p.price) * 1.40 * f.quantity
-            WHEN f.product_size >= 48 THEN COALESCE(pcp.price, p.price) * 1.20 * f.quantity
+          CASE
+            WHEN CAST(f.product_size AS SIGNED) >= 58 THEN COALESCE(pcp.price, p.price) * 1.60 * f.quantity
+            WHEN CAST(f.product_size AS SIGNED) >= 54 THEN COALESCE(pcp.price, p.price) * 1.40 * f.quantity
+            WHEN CAST(f.product_size AS SIGNED) >= 50 THEN COALESCE(pcp.price, p.price) * 1.20 * f.quantity
             ELSE COALESCE(pcp.price, p.price) * f.quantity
           END
         ) AS total_amount,
@@ -759,6 +760,8 @@ GROUP BY rf.id, sos.barcode;
 //   })
 // );
 
+
+// Api to fetch price based on size and currency for a specific favourite order (used in approval form)
 router.get(
   "/admin/favorites-order/details/:id/:status",
   asyncHandler(async (req: Request, res: Response) => {
@@ -781,8 +784,8 @@ router.get(
         -- 🔥 BARCODE (FINAL)
         ros.barcode AS barcode,
 
-f.admin_us_size AS size,
-f.product_size AS original_size,
+        f.admin_us_size AS size,
+        f.product_size AS original_size,
         c.name AS customer_name,
         c.email AS manufacturingEmailAddress,
         c.phoneNumber AS phoneNumber,
@@ -801,18 +804,16 @@ f.product_size AS original_size,
         f.size_country,
 
         CASE 
-            WHEN f.product_size >= 60 THEN COALESCE(pcp.price, p.price) * 1.60 * f.quantity
-            WHEN f.product_size >= 56 THEN COALESCE(pcp.price, p.price) * 1.40 * f.quantity
-            WHEN f.product_size >= 52 THEN COALESCE(pcp.price, p.price) * 1.40 * f.quantity
-            WHEN f.product_size >= 48 THEN COALESCE(pcp.price, p.price) * 1.20 * f.quantity
-            ELSE COALESCE(pcp.price, p.price) * f.quantity 
+            WHEN CAST(f.product_size AS SIGNED) >= 58 THEN COALESCE(pcp.price, p.price) * 1.60 * f.quantity
+            WHEN CAST(f.product_size AS SIGNED) >= 54 THEN COALESCE(pcp.price, p.price) * 1.40 * f.quantity
+            WHEN CAST(f.product_size AS SIGNED) >= 50 THEN COALESCE(pcp.price, p.price) * 1.20 * f.quantity
+            ELSE COALESCE(pcp.price, p.price) * f.quantity
         END AS total_amount,
 
-        CASE 
-            WHEN f.product_size >= 60 THEN COALESCE(pcp.price, p.price) * 1.60
-            WHEN f.product_size >= 56 THEN COALESCE(pcp.price, p.price) * 1.40
-            WHEN f.product_size >= 52 THEN COALESCE(pcp.price, p.price) * 1.40
-            WHEN f.product_size >= 48 THEN COALESCE(pcp.price, p.price) * 1.20
+        CASE
+            WHEN CAST(f.product_size AS SIGNED) >= 58 THEN COALESCE(pcp.price, p.price) * 1.60
+            WHEN CAST(f.product_size AS SIGNED) >= 54 THEN COALESCE(pcp.price, p.price) * 1.40
+            WHEN CAST(f.product_size AS SIGNED) >= 50 THEN COALESCE(pcp.price, p.price) * 1.20
             ELSE COALESCE(pcp.price, p.price)
         END AS price,
 
