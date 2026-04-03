@@ -42,6 +42,20 @@ export function buildSharedFormData(data: CreateOrderForm): FormData {
   return fd;
 }
 
+function appendDateField(
+  fd: FormData,
+  fieldName: string,
+  value: Date | null | undefined,
+  serializer: "string" | "iso" = "string",
+) {
+  if (!value || Number.isNaN(value.getTime())) return;
+
+  fd.append(
+    fieldName,
+    serializer === "iso" ? value.toISOString() : value.toString(),
+  );
+}
+
 export function appendStylesFormData(
   fd: FormData,
   styles: CreateOrderForm["styles"],
@@ -49,8 +63,8 @@ export function appendStylesFormData(
 ) {
   styles.forEach((style, index) => {
     const productDetails = detailsMap.get(style.styleNo?.[0]?.value ?? "");
-    const sas = (val: string, fallback: string | undefined) =>
-      val === "SAS" ? (fallback ?? "") : val;
+    const sas = (val: string | undefined, fallback: string | undefined) =>
+      val === "SAS" ? (fallback ?? "") : (val ?? "");
 
     fd.append(`styles[${index}].styleNo`, style.styleNo?.[0]?.value ?? "");
     fd.append(`styles[${index}].colorType`, style.colorType);
@@ -107,7 +121,7 @@ export function buildPreviewData(
     customerId: data.customerId,
     manufacturingEmailAddress: data.manufacturingEmailAddress,
     orderCancellationDate: data.orderCancellationDate,
-    orderReceivedDate: data.orderReceivedDate,
+    orderReceivedDate: data.orderReceivedDate ?? new Date(),
     orderType: data.orderType,
     purchaseOrderNo: data.purchaseOrderNo,
     details: loop,
@@ -209,7 +223,7 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
       purchaseOrderNo: `PO#${ordersTotalCount + 1}`,
       manufacturingEmailAddress: "rubyinc@hotmail.com",
       orderType: orderTypeArrayState[0].value,
-      orderReceivedDate: undefined,
+      orderReceivedDate: new Date(),
       orderCancellationDate: undefined,
       address: "",
       customerId: [],
@@ -345,8 +359,8 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
   const onSubmit = async (data: CreateOrderForm) => {
     const detailsMap = await ensureProductDetailsLoaded(data.styles);
     const fd = buildSharedFormData(data);
-    fd.append("orderReceivedDate", data.orderReceivedDate?.toString() ?? "");
-    fd.append("orderCancellationDate", data.orderCancellationDate?.toString() ?? "");
+    appendDateField(fd, "orderReceivedDate", data.orderReceivedDate);
+    appendDateField(fd, "orderCancellationDate", data.orderCancellationDate);
     appendStylesFormData(fd, data.styles, detailsMap);
 
     // If the user supplied their own file, attach it so the backend can store
@@ -383,8 +397,13 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
   const onPreviewSubmit = async (data: CreateOrderForm) => {
     const detailsMap = await ensureProductDetailsLoaded(data.styles);
     const fd = buildSharedFormData(data);
-    fd.append("orderReceivedDate", data.orderReceivedDate?.toISOString() ?? "");
-    fd.append("orderCancellationDate", data.orderCancellationDate?.toISOString() ?? "");
+    appendDateField(fd, "orderReceivedDate", data.orderReceivedDate, "iso");
+    appendDateField(
+      fd,
+      "orderCancellationDate",
+      data.orderCancellationDate,
+      "iso",
+    );
     appendStylesFormData(fd, data.styles, detailsMap);
 
     try {

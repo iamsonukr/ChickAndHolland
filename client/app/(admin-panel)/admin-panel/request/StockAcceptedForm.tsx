@@ -26,6 +26,8 @@ import {
   Delete,
   Plus,
   X,
+  Download,
+  Presentation,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
@@ -74,6 +76,8 @@ import Link from "next/link";
 import StockOrdersPdf from "./StockOrdersPdf";
 import FreshOrderPdf from "./FreshOrderPdf";
 import RetailerPdf from "./RetailerPdf";
+import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
+import { UploadedFileType } from "@/hooks/useCreateOrder";
 
 const StockAcceptedForm = ({ id }: { id: number }) => {
   const [open, setOpen] = useState(false);
@@ -83,6 +87,20 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     symbol: string;
     name: string;
   } | null>(null);
+  const [uploadedFile, setUploadedFileRaw] = useState<File | null>(null);
+  const [uploadedFileType, setUploadedFileType] = useState<UploadedFileType>(null);
+  const [uploadedFileObjectUrl, setUploadedFileObjectUrl] = useState<string | null>(null);
+
+  const setUploadedFile = (file: File | null) => {
+    if (uploadedFileObjectUrl) {
+      URL.revokeObjectURL(uploadedFileObjectUrl);
+    }
+    setUploadedFileObjectUrl(file ? URL.createObjectURL(file) : null);
+    setUploadedFileRaw(file);
+    setUploadedFileType(file ? (file.name.endsWith(".pdf") ? "pdf" : "ppt") : null);
+  };
+
+  const clearUploadedFile = () => setUploadedFile(null);
 
   const { executeAsync: mailex } = useHttp(
     "/stock-email",
@@ -168,9 +186,30 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
 
   const onSubmit = async (data: CreateStockOrderForm) => {
     try {
-      // -----------------------------
+      // If user uploaded a file, send it directly
+      if (uploadedFile) {
+        const formData = new FormData();
+        formData.append("orderId", String(data.orderId));
+        formData.append("uploadedOrderFile", uploadedFile);
+        formData.append("uploadedOrderFileType", uploadedFileType ?? "");
+
+        const response = await executeAsync(formData);
+
+        if (!response.success) {
+          toast.error("Failed to add order");
+          return;
+        }
+
+        toast.success(response.message ?? "Order Added Successfully!");
+        setOpen(false);
+        router.refresh();
+        return;
+      }
+
+      // Original flow for auto-generated PDF
+      // --------------------
       // 1️⃣ ZOD SAFE DATA
-      // -----------------------------
+      // --------------------
       const preData = {
         email: data.manufacturingEmailAddress,
         received_date: `${data.orderReceivedDate}`,
@@ -193,9 +232,9 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
         total_amount: data.total_amount,
       };
 
-      // -----------------------------
+      // --------------------
       // 2️⃣ SEND ORDER TO BACKEND
-      // -----------------------------
+      // --------------------
       const response = await executeAsync({ data: preData });
 
       if (!response.success) {
@@ -416,6 +455,12 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
 
     setPreviewData(null);
   }, [customers]);
+
+  useEffect(() => {
+    if (!open) {
+      clearUploadedFile();
+    }
+  }, [open]);
 
 
   const formChange = () => {
@@ -739,11 +784,9 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Mesh Color</FormLabel>
-
                     <FormControl>
                       <Input placeholder="100" {...field} readOnly />
                     </FormControl>
-
                     <FormMessage />
                   </FormItem>
                 )}
@@ -828,30 +871,36 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                 )}
               />
 
+              {/* Upload Order File */}
+              <div className="md:col-span-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <div>
+                    <Label>Upload order document</Label>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Optional — replaces the auto-generated PDF / PPT in the preview and on
+                      submit.
+                    </p>
+                  </div>
+                </div>
+                <UploadOrderFile
+                  uploadedFile={uploadedFile}
+                  uploadedFileType={uploadedFileType}
+                  onFileSelect={setUploadedFile}
+                />
+              </div>
+
               <div className={"mt-4 flex items-center gap-2 md:col-span-3"}>
-                <Button
-                  type={"button"}
-                  className={"flex-1"}
-                  variant={"outline"}
-                  //         onClick={async () => {
-                  //   // console.log(form.getValues());
-                  //   // if (form.formState.isValid) {
-                  //   //   // executePreviewAsync(form.getValues());
-                  //   //   await onPreviewSubmit(form.getValues());
-                  //   // } else {
-                  //   //   console.log(form.formState.errors);
-                  //   //   toast.error("Failed to add order", {
-                  //   //     description: "Make sure all fields are filled correctly"
-                  //   //   });
-                  //   // }
-                  //   form.handleSubmit(onPreviewSubmit, onErrors);
-                  // }}
-                  onClick={form.handleSubmit(onPreviewSubmit, onErrors)}
-                // disabled={previewLoading}
-                >
-                  {" "}
-                  Preview Order{" "}
-                </Button>
+                {!uploadedFile && (
+                  <Button
+                    type={"button"}
+                    className={"flex-1"}
+                    variant={"outline"}
+                    onClick={form.handleSubmit(onPreviewSubmit, onErrors)}
+                  >
+                    {" "}
+                    Preview Order{" "}
+                  </Button>
+                )}
                 <Button type="submit" className="flex-1" disabled={loading}>
                   {loading ? "Loading..." : "Accept Order"} (
                   {currencyInfo?.symbol || "€"}{" "}
@@ -861,99 +910,143 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
             </form>
           </Form>
 
-          {previewData && (
-            <>
-              <div className="bg-white p-4 border rounded-md mb-4">
-                <h2 className="text-lg font-bold mb-3 text-pink-600">
-                  Edit Order Before Download
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-
-                  {/* Customer */}
-                  <div>
-                    <label className="text-black text-sm">Customer</label>
-                    <input
-                      className="border w-full p-2 rounded bg-white"
-                      value={form.watch("customerId")}
-                      onChange={(e) => {
-                        form.setValue("customerId", e.target.value);
-                        onPreviewSubmit(form.getValues());
-                      }}
-                    />
-                  </div>
-
-                  {/* PO No */}
-                  <div>
-                    <label className="text-black text-sm">PO Number</label>
-                    <input
-                      className="border w-full p-2 rounded bg-white"
-                      value={form.watch("purchaseOrderNo")}
-                      onChange={(e) => {
-                        form.setValue("purchaseOrderNo", e.target.value);
-                        onPreviewSubmit(form.getValues());
-                      }}
-                    />
-                  </div>
-
-                  {/* Invoice No */}
-                  <div>
-                    <label className="text-black text-sm">Invoice</label>
-                    <input
-                      className="border w-full p-2 rounded bg-white"
-                      value={form.watch("invoice")}
-                      onChange={(e) => {
-                        form.setValue("invoice", e.target.value);
-                        onPreviewSubmit(form.getValues());
-                      }}
-                    />
-                  </div>
-
-                  {/* Estimate */}
-                  <div>
-                    <label className="text-black text-sm">Estimate</label>
-                    <input
-                      className="border w-full p-2 rounded bg-white"
-                      value={form.watch("estimate")}
-                      onChange={(e) => {
-                        form.setValue("estimate", e.target.value);
-                        onPreviewSubmit(form.getValues());
-                      }}
-                    />
-                  </div>
-
-                  {/* Address */}
-                  <div className="md:col-span-2">
-                    <label className="text-black text-sm">Address</label>
-                    <textarea
-                      className="border w-full p-2 rounded bg-white"
-                      value={form.watch("address")}
-                      onChange={(e) => {
-                        form.setValue("address", e.target.value);
-                        onPreviewSubmit(form.getValues());
-                      }}
-                    />
+          {/* ── Preview panel — uploaded file ── */}
+          {uploadedFile && (
+            <div className="mt-4 flex w-full gap-4">
+              <div className="flex-1 rounded-lg border p-2">
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="font-semibold">Preview</h2>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={uploadedFileObjectUrl ?? "#"}
+                      download={uploadedFile?.name ?? "order-document"}
+                      className="inline-flex"
+                    >
+                      <Button variant="outline" size="sm" className="gap-1.5">
+                        <Download className="h-3.5 w-3.5" />
+                        Download {uploadedFileType?.toUpperCase()}
+                      </Button>
+                    </a>
                   </div>
                 </div>
-              </div>
-              <div className="flex justify-end py-3">
-                <PDFDownloadLink
-                  document={<FreshOrderPdf orderData={previewData} />}
-                  fileName={`${previewData.purchaseOrderNo}.pdf`}
-                >
-                  <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
-                    Download PDF
-                  </button>
-                </PDFDownloadLink>
-              </div>
 
-              <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
-                <FreshOrderPdf orderData={previewData} />
-              </PDFViewer>
+                {/* PDF — render inline */}
+                {uploadedFileType === "pdf" && uploadedFileObjectUrl && (
+                  <iframe
+                    src={uploadedFileObjectUrl}
+                    className="h-[75vh] w-full rounded border-0"
+                    title="Uploaded PDF preview"
+                  />
+                )}
 
-            </>
+                {/* PPT — browsers can't render .pptx inline; show a placeholder */}
+                {uploadedFileType === "ppt" && (
+                  <div className="flex h-[75vh] flex-col items-center justify-center gap-3 rounded border border-dashed bg-muted/30 text-center">
+                    <Presentation className="h-10 w-10 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">{uploadedFile?.name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        PowerPoint files cannot be previewed in the browser.
+                        <br />
+                        Use the download button above to open it locally.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
+          {/* ── Preview panel — auto-generated PDF ── */}
+          <>
+            <div className="bg-white p-4 border rounded-md mb-4">
+              <h2 className="text-lg font-bold mb-3 text-pink-600">
+                Edit Order Before Download
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+                {/* Customer */}
+                <div>
+                  <label className="text-black text-sm">Customer</label>
+                  <input
+                    className="border w-full p-2 rounded bg-white"
+                    value={form.watch("customerId")}
+                    onChange={(e) => {
+                      form.setValue("customerId", e.target.value);
+                      onPreviewSubmit(form.getValues());
+                    }}
+                  />
+                </div>
+
+                {/* PO No */}
+                <div>
+                  <label className="text-black text-sm">PO Number</label>
+                  <input
+                    className="border w-full p-2 rounded bg-white"
+                    value={form.watch("purchaseOrderNo")}
+                    onChange={(e) => {
+                      form.setValue("purchaseOrderNo", e.target.value);
+                      onPreviewSubmit(form.getValues());
+                    }}
+                  />
+                </div>
+
+                {/* Invoice No */}
+                <div>
+                  <label className="text-black text-sm">Invoice</label>
+                  <input
+                    className="border w-full p-2 rounded bg-white"
+                    value={form.watch("invoice")}
+                    onChange={(e) => {
+                      form.setValue("invoice", e.target.value);
+                      onPreviewSubmit(form.getValues());
+                    }}
+                  />
+                </div>
+
+                {/* Estimate */}
+                <div>
+                  <label className="text-black text-sm">Estimate</label>
+                  <input
+                    className="border w-full p-2 rounded bg-white"
+                    value={form.watch("estimate")}
+                    onChange={(e) => {
+                      form.setValue("estimate", e.target.value);
+                      onPreviewSubmit(form.getValues());
+                    }}
+                  />
+                </div>
+
+                {/* Address */}
+                <div className="md:col-span-2">
+                  <label className="text-black text-sm">Address</label>
+                  <textarea
+                    className="border w-full p-2 rounded bg-white"
+                    value={form.watch("address")}
+                    onChange={(e) => {
+                      form.setValue("address", e.target.value);
+                      onPreviewSubmit(form.getValues());
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end py-3">
+              <PDFDownloadLink
+                document={<FreshOrderPdf orderData={previewData} />}
+                fileName={`${previewData?.purchaseOrderNo}.pdf`}
+              >
+                <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
+                  Download PDF
+                </button>
+              </PDFDownloadLink>
+            </div>
+
+            <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
+              <FreshOrderPdf orderData={previewData} />
+            </PDFViewer>
+          </>
         </SheetContent>
       </Sheet>
     </div>

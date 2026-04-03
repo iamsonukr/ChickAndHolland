@@ -146,11 +146,11 @@ const resetToDefault = useCallback(() => {
     productPrice: Math.floor(data.price) || 0,
     categoryId: data.category?.id?.toString() ?? "",
     subCategoryId: data.subCategory?.id?.toString() ?? "",
-    lining: data.lining ? LINING_OPTIONS.find((i) => i === data.lining) : undefined,
+    lining: data.lining ? LINING_OPTIONS.find((i) => i === data.lining) : "No Lining",
     description: data.description ?? "",
-    mesh: data.mesh_color, // Set these immediately
-    beading: data.beading_color,
-    liningColor: data.lining_color,
+    mesh: data.mesh_color || "SAS",
+    beading: data.beading_color || "SAS",
+    liningColor: data.lining_color || "No Color",
     currencyBasedPricing: data.currencyPricing?.map((p) => ({
       currencyId: p.currency?.id?.toString() ?? "",
       price: Math.floor(p.price),
@@ -197,11 +197,11 @@ const initializeForm = useCallback(
         subCategoryId: data.subCategory?.id?.toString() ?? "",
         lining: data.lining
           ? LINING_OPTIONS.find((i) => i === data.lining)
-          : undefined,
+          : "No Lining",
         description: data.description ?? "",
-        mesh: data.mesh_color,
-        beading: data.beading_color,
-        liningColor: data.lining_color,
+        mesh: data.mesh_color || "SAS",
+        beading: data.beading_color || "SAS",
+        liningColor: data.lining_color || "No Color",
         currencyBasedPricing:
           data.currencyPricing?.map((p) => ({
             currencyId: p.currency?.id?.toString() ?? "",

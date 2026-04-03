@@ -75,7 +75,7 @@ const StockOrdersPdf = ({ orderData }: { orderData: any }) => {
             {item.barcode && (
               <View style={styles.barcodeContainer}>
                 <Text style={styles.barcodeTitle}>Barcode</Text>
-
+                
                 <Image
                   src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${item.barcode}&scale=3&height=10&includetext=false`}
                   style={styles.barcodeImage}
