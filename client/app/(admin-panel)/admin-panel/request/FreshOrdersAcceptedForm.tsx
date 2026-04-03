@@ -28,6 +28,8 @@ import {
   ChevronDown,
   Delete,
   Plus,
+  Download,
+  Presentation,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { memo, useEffect, useRef, useState } from "react";
@@ -70,6 +72,9 @@ import Link from "next/link";
 import FreshOrderPdf from "./FreshOrderPdf";
 import { convertWebPToJPG } from "./StockAcceptedForm";
 import RetailerPdf from "./RetailerPdf";
+import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
+import { UploadedFileType } from "@/hooks/useCreateOrder";
+
 const FreshOrdersAcceptedForm = ({
   customers,
   id,
@@ -86,12 +91,26 @@ const FreshOrdersAcceptedForm = ({
   const [open, setOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [total_state, setTotalState] = useState(0);
+  const [uploadedFile, setUploadedFileRaw] = useState<File | null>(null);
+  const [uploadedFileType, setUploadedFileType] = useState<UploadedFileType>(null);
+  const [uploadedFileObjectUrl, setUploadedFileObjectUrl] = useState<string | null>(null);
 
-const { executeAsync: mailex } = useHttp(
-  "/stock-email",
-  "POST",
-  true
-);
+  const setUploadedFile = (file: File | null) => {
+    if (uploadedFileObjectUrl) {
+      URL.revokeObjectURL(uploadedFileObjectUrl);
+    }
+    setUploadedFileObjectUrl(file ? URL.createObjectURL(file) : null);
+    setUploadedFileRaw(file);
+    setUploadedFileType(file ? (file.name.endsWith(".pdf") ? "pdf" : "ppt") : null);
+  };
+
+  const clearUploadedFile = () => setUploadedFile(null);
+
+  const { executeAsync: mailex } = useHttp(
+    "/stock-email",
+    "POST",
+    true
+  );
 
   const { loading, error, executeAsync } = useHttp(
     "/retailer-orders/admin/accepted/favorites-order",
@@ -144,131 +163,158 @@ const { executeAsync: mailex } = useHttp(
 
   const watch = form.watch();
 
- const fetchData = async () => {
-  try {
-    const res = await getRetailerAdminFreshOrderDetails(id, 0);
-    let data = res.data;
+  const fetchData = async () => {
+    try {
+      const res = await getRetailerAdminFreshOrderDetails(id, 0);
+      let data = res.data;
 
-        form.setValue("orderId", id);
-        console.log("ORDER ID →", form.getValues("orderId"));
-
-
-    const colours = await getProductColours({});
-    let colors = colours.productColours;
-
-    // 🔹 Fetch latest Fresh PO #
-   // 1️⃣ Get Customer Prefix
-// 1️⃣ Get Customer Prefix
-const customerPrefix = data[0].customer_name
-  .split(" ")[0]
-  .replace(/[^A-Za-z0-9]/g, "")   // allow numbers too
-  .toUpperCase();
-
-// 2️⃣ Fetch last PO from backend
-const latestPO = await getLatestFreshPO();
-
-let newPO = "";
-
-if (latestPO.success && latestPO.latestPO) {
-  const last = latestPO.latestPO;
-
-  // Extract prefix safely (keeps letters + numbers)
-  const backendPrefix = last.match(/PO#([A-Z0-9]+)(\d+)/i)?.[1] || "";
-
-  // Extract numeric part
-  const numericPart = last.match(/(\d+)$/)?.[1] || "0";
-
-  if (backendPrefix === customerPrefix) {
-    const nextNum = String(Number(numericPart) + 1).padStart(5, "0");
-    newPO = `PO#${customerPrefix}${nextNum}`;
-  } else {
-    // customer changed → reset PO
-    newPO = `PO#${customerPrefix}00001`;
-  }
-} else {
-  newPO = `PO#${customerPrefix}00001`;
-}
-
-// 3️⃣ Set PO in form
-form.setValue("purchaseOrderNo", newPO);
+      form.setValue("orderId", id);
+      console.log("ORDER ID →", form.getValues("orderId"));
 
 
+      const colours = await getProductColours({});
+      let colors = colours.productColours;
+
+      // 🔹 Fetch latest Fresh PO #
+      // 1️⃣ Get Customer Prefix
+      // 1️⃣ Get Customer Prefix
+      const customerPrefix = data[0].customer_name
+        .split(" ")[0]
+        .replace(/[^A-Za-z0-9]/g, "")   // allow numbers too
+        .toUpperCase();
+
+      // 2️⃣ Fetch last PO from backend
+      const latestPO = await getLatestFreshPO();
+
+      let newPO = "";
+
+      if (latestPO.success && latestPO.latestPO) {
+        const last = latestPO.latestPO;
+
+        // Extract prefix safely (keeps letters + numbers)
+        const backendPrefix = last.match(/PO#([A-Z0-9]+)(\d+)/i)?.[1] || "";
+
+        // Extract numeric part
+        const numericPart = last.match(/(\d+)$/)?.[1] || "0";
+
+        if (backendPrefix === customerPrefix) {
+          const nextNum = String(Number(numericPart) + 1).padStart(5, "0");
+          newPO = `PO#${customerPrefix}${nextNum}`;
+        } else {
+          // customer changed → reset PO
+          newPO = `PO#${customerPrefix}00001`;
+        }
+      } else {
+        newPO = `PO#${customerPrefix}00001`;
+      }
+
+      // 3️⃣ Set PO in form
+      form.setValue("purchaseOrderNo", newPO);
 
 
-    const invoice = `IN_${uuidv4().replace(/-/g, "").substring(0, 6)}`;
-    const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 6)}`;
-
-    // form.setValue("purchaseOrderNo", newPO);
-    form.setValue("customerId", data[0].customer_name);
-    form.setValue("manufacturingEmailAddress", "rubyinc@hotmail.com");
-    form.setValue("orderReceivedDate", new Date(data[0].orderReceivedDate));
-    form.setValue("address", data[0].address);
-form.setValue("phoneNumber", data[0].phoneNumber);
 
 
-    const arrayData = data.map((it: any) => ({
-styleNo: it.productCode ?? it.styleNo ?? "",      customColor: it.color,
-      size: it.admin_us_size
-        ? `${it.admin_us_size}`
-        : `${it.size} (${it.size_country})`,
-      quantity: it.quantity,
-      comments: it.comments,
-      amount: Number(it.price),
-      fav_id: it.fav_id,
-      customization_p: 0,
-      meshColor:
-        it.mesh_color !== "SAS"
-          ? colors.find((colour: any) => colour.hexcode === it.mesh_color)
+      const invoice = `IN_${uuidv4().replace(/-/g, "").substring(0, 6)}`;
+      const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 6)}`;
+
+      // form.setValue("purchaseOrderNo", newPO);
+      form.setValue("customerId", data[0].customer_name);
+      form.setValue("manufacturingEmailAddress", "rubyinc@hotmail.com");
+      form.setValue("orderReceivedDate", new Date(data[0].orderReceivedDate));
+      form.setValue("address", data[0].address);
+      form.setValue("phoneNumber", data[0].phoneNumber);
+
+
+      const arrayData = data.map((it: any) => ({
+        styleNo: it.productCode ?? it.styleNo ?? "", customColor: it.color,
+        size: it.admin_us_size
+          ? `${it.admin_us_size}`
+          : `${it.size} (${it.size_country})`,
+        quantity: it.quantity,
+        comments: it.comments,
+        amount: Number(it.price),
+        fav_id: it.fav_id,
+        customization_p: 0,
+        meshColor:
+          it.mesh_color !== "SAS"
+            ? colors.find((colour: any) => colour.hexcode === it.mesh_color)
               ?.name
-          : "SAS",
-      beadingColor:
-        it.beading_color !== "SAS"
-          ? colors.find(
+            : "SAS",
+        beadingColor:
+          it.beading_color !== "SAS"
+            ? colors.find(
               (colour: any) => colour.hexcode === it.beading_color,
             )?.name
-          : "SAS",
-      lining: it.lining,
-      liningColor:
-        it.lining_color !== "SAS"
-          ? colors.find((colour: any) => colour.hexcode === it.lining_color)
+            : "SAS",
+        lining: it.lining,
+        liningColor:
+          it.lining_color !== "SAS"
+            ? colors.find((colour: any) => colour.hexcode === it.lining_color)
               ?.name
-          : "SAS",
-    }));
+            : "SAS",
+      }));
 
-    form.setValue("styles", arrayData);
+      form.setValue("styles", arrayData);
 
-    let total = data.reduce(
-      (sum: any, item: any) => sum + Number(item.total_amount),
-      0
-    );
+      let total = data.reduce(
+        (sum: any, item: any) => sum + Number(item.total_amount),
+        0
+      );
 
-    form.setValue("product_amount", total);
-    form.setValue("total_amount", total);
-    form.setValue("estimate", estimate);
-    form.setValue("invoice", invoice);
-    setTotalState(total);
+      form.setValue("product_amount", total);
+      form.setValue("total_amount", total);
+      form.setValue("estimate", estimate);
+      form.setValue("invoice", invoice);
+      setTotalState(total);
 
-    if (data.length > 0 && data[0].currencySymbol) {
-      setCurrencyInfo({
-        symbol: data[0].currencySymbol,
-        name: data[0].currencyName,
-      });
+      if (data.length > 0 && data[0].currencySymbol) {
+        setCurrencyInfo({
+          symbol: data[0].currencySymbol,
+          name: data[0].currencyName,
+        });
+      }
+
+      setDetails(data);
+    } catch (error) {
+      console.log(error);
     }
-
-    setDetails(data);
-  } catch (error) {
-    console.log(error);
-  }
-};
+  };
 
 
   const onSubmitFun = async (data: CreateFreshOrderForm) => {
+    // If user uploaded a file, send it directly
+    if (uploadedFile) {
+      const formData = new FormData();
+      formData.append("rfo_id", String(id));
+      formData.append("uploadedOrderFile", uploadedFile);
+      formData.append("uploadedOrderFileType", uploadedFileType ?? "");
+
+      try {
+        const response = await executeAsync(formData);
+
+        if (!response.success) {
+          toast.error("Failed to add order");
+          return;
+        }
+
+        toast.success(response.message ?? "Order Added Successfully!");
+        setOpen(false);
+        router.refresh();
+        return;
+      } catch (err: any) {
+        toast.error("Failed to add order", {
+          description: err?.message ?? "Something went wrong",
+        });
+      }
+    }
+
+    // Original flow for auto-generated PDF
     // convert this formData
 
     let finalData = details[0] as any;
 
     const dataSend = {
-  rfo_id: id,
+      rfo_id: id,
       retailerId: finalData.retailerId,
       address: data.address,
       purchaseOrderNo: data.purchaseOrderNo,
@@ -288,9 +334,9 @@ styleNo: it.productCode ?? it.styleNo ?? "",      customColor: it.color,
       invoice: data.invoice,
       phoneNumber: data.phoneNumber,
 
-      
-      
-      
+
+
+
 
     };
     try {
@@ -317,17 +363,17 @@ styleNo: it.productCode ?? it.styleNo ?? "",      customColor: it.color,
             // Compare each color with standard and mark as SAS if matching
             const meshColorDisplay =
               current.meshColor ===
-              colors.find(
-                (colour: any) => colour.hexcode == standardColors.mesh_color,
-              )?.name
+                colors.find(
+                  (colour: any) => colour.hexcode == standardColors.mesh_color,
+                )?.name
                 ? `SAS( ${current.meshColor} )`
                 : current.meshColor;
 
             const beadingColorDisplay =
               current.beadingColor ===
-              colors.find(
-                (colour: any) => colour.hexcode == standardColors.beading_color,
-              )?.name
+                colors.find(
+                  (colour: any) => colour.hexcode == standardColors.beading_color,
+                )?.name
                 ? `SAS( ${current.beadingColor} )`
                 : current.beadingColor;
 
@@ -338,17 +384,17 @@ styleNo: it.productCode ?? it.styleNo ?? "",      customColor: it.color,
 
             const liningColorDisplay =
               current.liningColor ==
-              colors.find(
-                (colour: any) => colour.hexcode == standardColors.lining_color,
-              )?.name
+                colors.find(
+                  (colour: any) => colour.hexcode == standardColors.lining_color,
+                )?.name
                 ? formatSasValue(current.liningColor)
                 : current.liningColor;
 
             // Get current reference images
             const currentRefImages = details[index].reference_image
               ? JSON.parse(details[index].reference_image).map((item: any) =>
-                  convertWebPToJPG(item),
-                )
+                convertWebPToJPG(item),
+              )
               : [];
 
             // Create comparison key including all properties that should match
@@ -368,7 +414,7 @@ styleNo: it.productCode ?? it.styleNo ?? "",      customColor: it.color,
               styleNo: current.styleNo,
               comments: current.comments || "", // Ensure comments is always defined
               price: details[index].total_amount,
-color: current.meshColor || current.customColor,
+              color: current.meshColor || current.customColor,
               image: await convertWebPToJPG(details[index].image),
               refImg: currentRefImages,
               meshColor: meshColorDisplay,
@@ -444,177 +490,6 @@ color: current.meshColor || current.customColor,
     }
   };
 
-// const onSubmitFun = async (data: CreateFreshOrderForm) => {
-//   try {
-//     let finalData = details[0];
-
-//     // -----------------------------------------------------
-//     // STEP 1: MERGE STYLES (same logic as preview)
-//     // -----------------------------------------------------
-//     const combinedStyles = await Promise.all(
-//       data.styles.map(async (current, index) => {
-//         const colours = await getProductColours({});
-//         let colors = colours.productColours;
-
-//         const styleNo = parseInt(details[index].product_id);
-//         const standardColors = await productColorSAS(styleNo);
-
-//         const cleanSize = current.size
-//           .split("")
-//           .map((item) => (item.trim() ? item : ""))
-//           .join("");
-
-//         const meshColorDisplay =
-//           current.meshColor ===
-//           colors.find((c: any) => c.hexcode == standardColors.mesh_color)?.name
-//             ? `SAS( ${current.meshColor} )`
-//             : current.meshColor;
-
-//         const beadingColorDisplay =
-//           current.beadingColor ===
-//           colors.find((c: any) => c.hexcode == standardColors.beading_color)
-//             ?.name
-//             ? `SAS( ${current.beadingColor} )`
-//             : current.beadingColor;
-
-//         const liningDisplay =
-//           current.lining === standardColors.lining
-//             ? `SAS( ${current.lining} )`
-//             : current.lining;
-
-//         const liningColorDisplay =
-//           current.liningColor ===
-//           colors.find((c: any) => c.hexcode == standardColors.lining_color)
-//             ?.name
-//             ? `SAS( ${current.liningColor} )`
-//             : current.liningColor;
-
-//         const currentRefImages = details[index].reference_image
-//           ? JSON.parse(details[index].reference_image).map((img: any) =>
-//               convertWebPToJPG(img)
-//             )
-//           : [];
-
-//         const comparisonKey = `${current.styleNo}-${current.meshColor}-${current.beadingColor}-${current.lining}-${current.liningColor}-${current.customColor}-${current.comments}`;
-
-//         let regex = /\((.*?)\)/;
-//         let match: any = regex.exec(cleanSize);
-//         let sizeCountry = match ? match[1] : "";
-
-//         return {
-//           key: comparisonKey,
-//           quantity: current.quantity,
-//           size: `${cleanSize.split("(")[0]}/${current.quantity}`,
-//           size_country: sizeCountry,
-//           styleNo: current.styleNo,
-//           comments: current.comments || "",
-//           price: details[index].total_amount,
-//           color: current.customColor,
-//           image: await convertWebPToJPG(details[index].image),
-//           refImg: currentRefImages,
-//           meshColor: meshColorDisplay,
-//           beadingColor: beadingColorDisplay,
-//           lining: liningDisplay,
-//           liningColor: liningColorDisplay,
-//         };
-//       })
-//     );
-
-//     // -----------------------------------------------------
-//     // STEP 2: MERGE DUPLICATES
-//     // -----------------------------------------------------
-//     const reduced = combinedStyles.reduce((acc: any[], item) => {
-//       const existingIndex = acc.findIndex((e) => e.key === item.key);
-
-//       if (existingIndex !== -1) {
-//         const existing = acc[existingIndex];
-
-//         existing.quantity =
-//           Number(existing.quantity) + Number(item.quantity);
-
-//         existing.size = `${existing.size}, ${item.size}`;
-
-//         existing.price =
-//           Number(existing.price) + Number(item.price);
-
-//         existing.refImg = [
-//           ...new Set([...existing.refImg, ...item.refImg]),
-//         ];
-
-//         existing.image = item.image;
-//       } else {
-//         acc.push(item);
-//       }
-
-//       return acc;
-//     }, []);
-
-//     const finalStyles = reduced.map(({ key, ...rest }) => rest);
-
-//     // -----------------------------------------------------
-//     // STEP 3: SEND MERGED STYLES TO BACKEND  🔥 FIX APPLIED
-//     // -----------------------------------------------------
-//     const dataSend = {
-//       rfo_id: id,
-//       retailerId: finalData.retailerId,
-//       address: data.address,
-//       purchaseOrderNo: data.purchaseOrderNo,
-//       hasId: data.styles.map((i: any) => i.colorType).join(","),
-//       manufacturingEmailAddress: data.manufacturingEmailAddress,
-//       orderCancellationDate: data.orderCancellationDate,
-//       orderReceivedDate: data.orderReceivedDate,
-//       Size: data.styles.map((i: any) => i.size).join(","),
-//       size_country: details.map((i) => i.size_country).join(","),
-//       StyleNo: data.styles.map((i: any) => i.styleNo).join(","),
-//       quantity: data.styles.map((i: any) => i.quantity).join(","),
-//       total_amount: form.getValues("total_amount"),
-//       advance: data.advance,
-
-//       // 🔥 FINAL FIX → backend ko merged styles bhejo
-//       styles: finalStyles,
-
-//       shipping: data.shipping,
-//       estimate: data.estimate,
-//       invoice: data.invoice,
-//     };
-
-//     const response = await executeAsync({ orderData: dataSend });
-
-//     if (!response.success) {
-//       toast.error("Failed to add order");
-//       return;
-//     }
-
-//     // -----------------------------------------------------
-//     // STEP 4: SEND MERGED DATA TO EMAIL + PDF 🔥
-//     // -----------------------------------------------------
-//     const preData = {
-//       customerId: data.customerId,
-//       manufacturingEmailAddress: data.manufacturingEmailAddress,
-//       orderCancellationDate: data.orderCancellationDate,
-//       orderReceivedDate: data.orderReceivedDate,
-//       orderType: "Fresh",
-//       purchaseOrderNo: data.purchaseOrderNo,
-//       details: finalStyles, // merged styles
-//       total: total_state,
-//     };
-
-//     FreshEmail(preData);
-
-//     // OPTIONAL – preview bhi same merged data show kare
-//     setPreviewData(preData);
-
-//     toast.success(response.message ?? "Order added successfully");
-//     form.reset();
-//     setOpen(false);
-//     router.refresh();
-//   } catch (err: any) {
-//     toast.error("Failed to add order", {
-//       description: err?.message ?? "Something went wrong",
-//     });
-//   }
-// };
-
   const productColorSAS = async (id: number) => {
     const res = await getProductColorsCheck(id);
     return res.data; // Returns the standard colors for a specific product ID
@@ -624,165 +499,161 @@ color: current.meshColor || current.customColor,
   };
 
 
-const onPreviewSubmit = async (data: CreateFreshOrderForm) => {
-  try {
-    // =====================================================
-    // 🔥 STEP 1: FETCH BARCODE FROM ACCEPTED ORDER
-    // =====================================================
-const orderRes = await getRetailerOrderWithBarcode(Number(form.getValues("orderId")));
+  const onPreviewSubmit = async (data: CreateFreshOrderForm) => {
+    try {
+      const orderRes = await getRetailerOrderWithBarcode(Number(form.getValues("orderId")));
 
-    if (!orderRes?.success) {
-      throw new Error("Failed to fetch order barcode data");
-    }
-
-    const barcodeStyles = orderRes.data.styles || [];
-
-    // styleNo → barcode map
-    const barcodeMap = new Map(
-      barcodeStyles.map((s: any) => [String(s.styleNo), s.barcode])
-    );
-
-    console.log("🧠 BARCODE MAP →", [...barcodeMap.entries()]);
-
-    // =====================================================
-    // 🔥 STEP 2: BUILD PREVIEW STYLES
-    // =====================================================
-    const combinedStyles = await Promise.all(
-      data.styles.map(async (current, index) => {
-        // Colors
-        const colours = await getProductColours({});
-        const colors = colours.productColours;
-
-        const styleNoId = parseInt(details[index].product_id);
-        const standardColors = await productColorSAS(styleNoId);
-
-        // Clean size
-        const cleanSize = current.size
-          .split("")
-          .map((item) => (item.trim() ? item : ""))
-          .join("");
-
-        // SAS logic
-        const meshColorDisplay =
-          current.meshColor ===
-          colors.find(
-            (c: any) => c.hexcode === standardColors.mesh_color
-          )?.name
-            ? `SAS(${current.meshColor})`
-            : current.meshColor;
-
-        const beadingColorDisplay =
-          current.beadingColor ===
-          colors.find(
-            (c: any) => c.hexcode === standardColors.beading_color
-          )?.name
-            ? `SAS(${current.beadingColor})`
-            : current.beadingColor;
-
-        const liningDisplay =
-          current.lining === standardColors.lining
-            ? `SAS(${current.lining})`
-            : current.lining;
-
-        const liningColorDisplay =
-          current.liningColor ===
-          colors.find(
-            (c: any) => c.hexcode === standardColors.lining_color
-          )?.name
-            ? formatSasValue(current.liningColor)
-            : current.liningColor;
-
-        // Reference images
-        const currentRefImages = details[index].reference_image
-          ? JSON.parse(details[index].reference_image).map((img: any) =>
-              convertWebPToJPG(img)
-            )
-          : [];
-
-        // Comparison key
-        const comparisonKey = `${current.styleNo}-${current.meshColor}-${current.beadingColor}-${current.lining}-${current.liningColor}-${current.customColor}-${current.comments}`;
-
-        // Size country
-        const match = /\((.*?)\)/.exec(cleanSize);
-        const sizeCountry = match ? match[1] : "";
-
-        // 🔥 FINAL BARCODE (ONLY SOURCE)
-        const barcode =
-          barcodeMap.get(String(current.styleNo)) || "N/A";
-
-        console.log("🔍 PREVIEW BARCODE →", current.styleNo, barcode);
-
-        return {
-          key: comparisonKey,
-          quantity: current.quantity,
-          size: `${cleanSize.split("(")[0]}/${current.quantity}`,
-          size_country: sizeCountry,
-          styleNo: current.styleNo,
-          comments: current.comments || "",
-          price: details[index].total_amount,
-color: current.meshColor || current.customColor,
-          image: convertWebPToJPG(details[index].image),
-          refImg: currentRefImages,
-          meshColor: meshColorDisplay,
-          beadingColor: beadingColorDisplay,
-          lining: liningDisplay,
-          liningColor: liningColorDisplay,
-          barcode, // ✅ CORRECT BARCODE
-        };
-      })
-    );
-
-    // =====================================================
-    // 🔥 STEP 3: MERGE SAME ITEMS
-    // =====================================================
-    const reduced = combinedStyles.reduce((acc: any[], item) => {
-      const existingIndex = acc.findIndex(
-        (e) => e.key === item.key
-      );
-
-      if (existingIndex !== -1) {
-        const existing = acc[existingIndex];
-        existing.quantity =
-          Number(existing.quantity) + Number(item.quantity);
-        existing.size = `${existing.size}, ${item.size}`;
-        existing.price =
-          Number(existing.price) + Number(item.price);
-        existing.refImg = [
-          ...new Set([...existing.refImg, ...item.refImg]),
-        ];
-        existing.image = item.image;
-      } else {
-        acc.push(item);
+      if (!orderRes?.success) {
+        throw new Error("Failed to fetch order barcode data");
       }
 
-      return acc;
-    }, []);
+      const barcodeStyles = orderRes.data.styles || [];
 
-    // Remove temp key
-    const finalStyles = reduced.map(({ key, ...rest }) => rest);
+      const barcodeMap = new Map(
+        barcodeStyles.map((s: any) => [String(s.styleNo), s.barcode])
+      );
 
-    // =====================================================
-    // 🔥 STEP 4: SET PREVIEW DATA
-    // =====================================================
-    const preData = {
-      customerId: data.customerId,
-      manufacturingEmailAddress: data.manufacturingEmailAddress,
-      orderCancellationDate: data.orderCancellationDate,
-      orderReceivedDate: data.orderReceivedDate,
-      orderType: "Fresh",
-      purchaseOrderNo: data.purchaseOrderNo,
-      details: finalStyles,
-      total: total_state,
-    };
+      console.log("🧠 BARCODE MAP →", [...barcodeMap.entries()]);
 
-    console.log("✅ FINAL PREVIEW DATA →", preData);
+      // =====================================================
+      // 🔥 STEP 2: BUILD PREVIEW STYLES
+      // =====================================================
+      const combinedStyles = await Promise.all(
+        data.styles.map(async (current, index) => {
+          // Colors
+          const colours = await getProductColours({});
+          const colors = colours.productColours;
 
-    setPreviewData(preData);
-  } catch (err) {
-    console.error("❌ onPreviewSubmit ERROR →", err);
-    toast.error("Failed to generate preview");
-  }
-};
+          const styleNoId = parseInt(details[index].product_id);
+          const standardColors = await productColorSAS(styleNoId);
+
+          // Clean size
+          const cleanSize = current.size
+            .split("")
+            .map((item) => (item.trim() ? item : ""))
+            .join("");
+
+          // SAS logic
+          const meshColorDisplay =
+            current.meshColor ===
+              colors.find(
+                (c: any) => c.hexcode === standardColors.mesh_color
+              )?.name
+              ? `SAS(${current.meshColor})`
+              : current.meshColor;
+
+          const beadingColorDisplay =
+            current.beadingColor ===
+              colors.find(
+                (c: any) => c.hexcode === standardColors.beading_color
+              )?.name
+              ? `SAS(${current.beadingColor})`
+              : current.beadingColor;
+
+          const liningDisplay =
+            current.lining === standardColors.lining
+              ? `SAS(${current.lining})`
+              : current.lining;
+
+          const liningColorDisplay =
+            current.liningColor ===
+              colors.find(
+                (c: any) => c.hexcode === standardColors.lining_color
+              )?.name
+              ? formatSasValue(current.liningColor)
+              : current.liningColor;
+
+          // Reference images
+          const currentRefImages = details[index].reference_image
+            ? JSON.parse(details[index].reference_image).map((img: any) =>
+              convertWebPToJPG(img)
+            )
+            : [];
+
+          // Comparison key
+          const comparisonKey = `${current.styleNo}-${current.meshColor}-${current.beadingColor}-${current.lining}-${current.liningColor}-${current.customColor}-${current.comments}`;
+
+          // Size country
+          const match = /\((.*?)\)/.exec(cleanSize);
+          const sizeCountry = match ? match[1] : "";
+
+          // 🔥 FINAL BARCODE (ONLY SOURCE)
+          const barcode =
+            barcodeMap.get(String(current.styleNo)) || "N/A";
+
+          console.log("🔍 PREVIEW BARCODE →", current.styleNo, barcode);
+
+          return {
+            key: comparisonKey,
+            quantity: current.quantity,
+            size: `${cleanSize.split("(")[0]}/${current.quantity}`,
+            size_country: sizeCountry,
+            styleNo: current.styleNo,
+            comments: current.comments || "",
+            price: details[index].total_amount,
+            color: current.meshColor || current.customColor,
+            image: convertWebPToJPG(details[index].image),
+            refImg: currentRefImages,
+            meshColor: meshColorDisplay,
+            beadingColor: beadingColorDisplay,
+            lining: liningDisplay,
+            liningColor: liningColorDisplay,
+            barcode, // ✅ CORRECT BARCODE
+          };
+        })
+      );
+
+      // =====================================================
+      // 🔥 STEP 3: MERGE SAME ITEMS
+      // =====================================================
+      const reduced = combinedStyles.reduce((acc: any[], item) => {
+        const existingIndex = acc.findIndex(
+          (e) => e.key === item.key
+        );
+
+        if (existingIndex !== -1) {
+          const existing = acc[existingIndex];
+          existing.quantity =
+            Number(existing.quantity) + Number(item.quantity);
+          existing.size = `${existing.size}, ${item.size}`;
+          existing.price =
+            Number(existing.price) + Number(item.price);
+          existing.refImg = [
+            ...new Set([...existing.refImg, ...item.refImg]),
+          ];
+          existing.image = item.image;
+        } else {
+          acc.push(item);
+        }
+
+        return acc;
+      }, []);
+
+      // Remove temp key
+      const finalStyles = reduced.map(({ key, ...rest }) => rest);
+
+      // =====================================================
+      // 🔥 STEP 4: SET PREVIEW DATA
+      // =====================================================
+      const preData = {
+        customerId: data.customerId,
+        manufacturingEmailAddress: data.manufacturingEmailAddress,
+        orderCancellationDate: data.orderCancellationDate,
+        orderReceivedDate: data.orderReceivedDate,
+        orderType: "Fresh",
+        purchaseOrderNo: data.purchaseOrderNo,
+        details: finalStyles,
+        total: total_state,
+      };
+
+      console.log("✅ FINAL PREVIEW DATA →", preData);
+
+      setPreviewData(preData);
+    } catch (err) {
+      console.error("❌ onPreviewSubmit ERROR →", err);
+      toast.error("Failed to generate preview");
+    }
+  };
 
 
   const onErrors = (errors: any) => {
@@ -819,21 +690,26 @@ color: current.meshColor || current.customColor,
     }, 200);
   };
 
-const FreshEmail = async (preData: any) => {
-  try {
-    console.log("📧 MAIL TO →", preData.manufacturingEmailAddress);
+  const FreshEmail = async (preData: any) => {
+    try {
+      console.log("📧 MAIL TO →", preData.manufacturingEmailAddress);
 
-    await mailex({ orderData: preData });
+      await mailex({ orderData: preData });
 
-    toast.success("Manufacturer mail sent");
-  } catch (err: any) {
-    console.error("❌ MAIL ERROR →", err);
-    toast.error("Mail failed", {
-      description: err?.message || "Mail API error",
-    });
-  }
-};
+      toast.success("Manufacturer mail sent");
+    } catch (err: any) {
+      console.error("❌ MAIL ERROR →", err);
+      toast.error("Mail failed", {
+        description: err?.message || "Mail API error",
+      });
+    }
+  };
 
+  useEffect(() => {
+    if (!open) {
+      clearUploadedFile();
+    }
+  }, [open]);
 
   return (
     <div>
@@ -869,12 +745,12 @@ const FreshEmail = async (preData: any) => {
               />
 
               <FormField
-  control={form.control}
-  name="orderId"
-  render={({ field }) => (
-<input type="hidden" {...field} />
-  )}
-/>
+                control={form.control}
+                name="orderId"
+                render={({ field }) => (
+                  <input type="hidden" {...field} />
+                )}
+              />
 
 
               <FormField
@@ -883,13 +759,13 @@ const FreshEmail = async (preData: any) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Purchase Order No</FormLabel>
-                 <FormControl>
-   <Input
-    placeholder="PO#"
-    {...field}
-    readOnly
-  />
-</FormControl>
+                    <FormControl>
+                      <Input
+                        placeholder="PO#"
+                        {...field}
+                        readOnly
+                      />
+                    </FormControl>
 
                     <FormMessage />
                   </FormItem>
@@ -1120,18 +996,18 @@ const FreshEmail = async (preData: any) => {
                 )}
               />
               <FormField
-  control={form.control}
-  name="phoneNumber"
-  render={({ field }) => (
-    <FormItem className={"md:col-span-3"}>
-      <FormLabel>Phone Number</FormLabel>
-      <FormControl>
-        <Input placeholder="+91 9876543210" {...field} />
-      </FormControl>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
+                control={form.control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem className={"md:col-span-3"}>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+91 9876543210" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
 
               <div className="!mt-4 space-y-2 md:col-span-3">
@@ -1313,15 +1189,15 @@ const FreshEmail = async (preData: any) => {
                                 <FormLabel>Size</FormLabel>
 
                                 <FormControl>
-<Input
-  placeholder="Size"
-  readOnly
-  value={
-    details[index]?.admin_us_size
-      ? `US ${details[index].admin_us_size}`
-      : `${details[index].size_country} ${details[index].size}`
-  }
-/>
+                                  <Input
+                                    placeholder="Size"
+                                    readOnly
+                                    value={
+                                      details[index]?.admin_us_size
+                                        ? `US ${details[index].admin_us_size}`
+                                        : `${details[index].size_country} ${details[index].size}`
+                                    }
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1355,7 +1231,7 @@ const FreshEmail = async (preData: any) => {
                                     placeholder="100"
                                     {...field}
                                     type="number"
-value={field.value || 0}
+                                    value={field.value || 0}
                                     onChange={(e: any) => {
                                       const value = e.target.value
                                         ? Number(e.target.value)
@@ -1414,184 +1290,243 @@ value={field.value || 0}
                 })}
               </div>
 
+              {/* Upload Order File */}
+              <div className="md:col-span-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <div>
+                    <Label>Upload order document</Label>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Optional — replaces the auto-generated PDF / PPT in the preview and on
+                      submit.
+                    </p>
+                  </div>
+                </div>
+                <UploadOrderFile
+                  uploadedFile={uploadedFile}
+                  uploadedFileType={uploadedFileType}
+                  onFileSelect={setUploadedFile}
+                />
+              </div>
+
               <div className={"mt-4 flex items-center gap-2 md:col-span-3"}>
+                {!uploadedFile && (
+                  <Button
+                    type={"button"}
+                    className={"flex-1"}
+                    variant={"outline"}
+                    onClick={form.handleSubmit(onPreviewSubmit)}
+                  >
+                    {" "}
+                    Preview Order{" "}
+                  </Button>
+                )}
                 <Button
-                  type={"button"}
-                  className={"flex-1"}
-                  variant={"outline"}
-                  onClick={form.handleSubmit(onPreviewSubmit)}
-                >
-                  {" "}
-                  Preview Order{" "}
-                </Button>
-                {/* <Button
                   type="submit"
                   className="flex-1"
                   disabled={loading}
-                  onClick={FreshEmail}
                 >
                   {loading ? "Loading..." : "Create Order"}
-                </Button> */}
-                <Button
-  type="submit"
-  className="flex-1"
-  disabled={loading}
->
-  {loading ? "Loading..." : "Create Order"}
-</Button>
+                </Button>
 
               </div>
             </form>
           </Form>
 
-         {previewData && (
-  <>
-    {/* 🔹 Editable Fields Before PDF */}
-    <div className="bg-white p-4 border rounded-md mb-4">
-      <h2 className="text-lg font-bold mb-3 text-pink-600">
-        Edit Order Before Download
-      </h2>
+          {/* ── Preview panel — uploaded file ── */}
+          {uploadedFile && (
+            <div className="mt-4 flex w-full gap-4">
+              <div className="flex-1 rounded-lg border p-2">
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="font-semibold">Preview</h2>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={uploadedFileObjectUrl ?? "#"}
+                      download={uploadedFile?.name ?? "order-document"}
+                      className="inline-flex"
+                    >
+                      <Button variant="outline" size="sm" className="gap-1.5">
+                        <Download className="h-3.5 w-3.5" />
+                        Download {uploadedFileType?.toUpperCase()}
+                      </Button>
+                    </a>
+                  </div>
+                </div>
 
-     {form.watch().styles.map((style: any, idx: number) => (
-  <div key={idx} className="border p-4 rounded-md mb-4 bg-gray-50">
+                {/* PDF — render inline */}
+                {uploadedFileType === "pdf" && uploadedFileObjectUrl && (
+                  <iframe
+                    src={uploadedFileObjectUrl}
+                    className="h-[75vh] w-full rounded border-0"
+                    title="Uploaded PDF preview"
+                  />
+                )}
 
-  <h3 className="font-semibold text-pink-600 mb-2">
-    Style #{idx + 1} — {style.styleNo}
-  </h3>
+                {/* PPT — browsers can't render .pptx inline; show a placeholder */}
+                {uploadedFileType === "ppt" && (
+                  <div className="flex h-[75vh] flex-col items-center justify-center gap-3 rounded border border-dashed bg-muted/30 text-center">
+                    <Presentation className="h-10 w-10 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">{uploadedFile?.name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        PowerPoint files cannot be previewed in the browser.
+                        <br />
+                        Use the download button above to open it locally.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-  {/* 🔹 2 Column Grid */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {previewData && (
+            <>
+              {/* 🔹 Editable Fields Before PDF */}
+              <div className="bg-white p-4 border rounded-md mb-4">
+                <h2 className="text-lg font-bold mb-3 text-pink-600">
+                  Edit Order Before Download
+                </h2>
 
-    {/* Color */}
-    <div>
-      <label className="text-black text-sm">Color</label>
-      <input
-        className="border w-full p-2 rounded text-black bg-white"
-        value={style.customColor}
-        onChange={(e) => {
-          form.setValue(`styles.${idx}.customColor`, e.target.value);
-          onPreviewSubmit(form.getValues());
-        }}
-      />
-    </div>
+                {form.watch().styles.map((style: any, idx: number) => (
+                  <div key={idx} className="border p-4 rounded-md mb-4 bg-gray-50">
 
-    {/* Size */}
-    <div>
-      <label className="text-black text-sm">Size</label>
-      <input
-        className="border w-full p-2 rounded text-black bg-white"
-        value={style.size}
-        onChange={(e) => {
-          form.setValue(`styles.${idx}.size`, e.target.value);
-          onPreviewSubmit(form.getValues());
-        }}
-      />
-    </div>
+                    <h3 className="font-semibold text-pink-600 mb-2">
+                      Style #{idx + 1} — {style.styleNo}
+                    </h3>
 
-    {/* Mesh Color */}
-    <div>
-      <label className="text-black text-sm">Mesh Color</label>
-      <input
-        className="border w-full p-2 rounded text-black bg-white"
-        value={style.meshColor}
-        onChange={(e) => {
-          form.setValue(`styles.${idx}.meshColor`, e.target.value);
-          onPreviewSubmit(form.getValues());
-        }}
-      />
-    </div>
+                    {/* 🔹 2 Column Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-    {/* Beading Color */}
-    <div>
-      <label className="text-black text-sm">Beading Color</label>
-      <input
-        className="border w-full p-2 rounded text-black bg-white"
-        value={style.beadingColor}
-        onChange={(e) => {
-          form.setValue(`styles.${idx}.beadingColor`, e.target.value);
-          onPreviewSubmit(form.getValues());
-        }}
-      />
-    </div>
+                      {/* Color */}
+                      <div>
+                        <label className="text-black text-sm">Color</label>
+                        <input
+                          className="border w-full p-2 rounded text-black bg-white"
+                          value={style.customColor}
+                          onChange={(e) => {
+                            form.setValue(`styles.${idx}.customColor`, e.target.value);
+                            onPreviewSubmit(form.getValues());
+                          }}
+                        />
+                      </div>
 
-    {/* Lining */}
-    <div>
-      <label className="text-black text-sm">Lining</label>
-      <input
-        className="border w-full p-2 rounded text-black bg-white"
-        value={style.lining}
-        onChange={(e) => {
-          form.setValue(`styles.${idx}.lining`, e.target.value);
-          onPreviewSubmit(form.getValues());
-        }}
-      />
-    </div>
+                      {/* Size */}
+                      <div>
+                        <label className="text-black text-sm">Size</label>
+                        <input
+                          className="border w-full p-2 rounded text-black bg-white"
+                          value={style.size}
+                          onChange={(e) => {
+                            form.setValue(`styles.${idx}.size`, e.target.value);
+                            onPreviewSubmit(form.getValues());
+                          }}
+                        />
+                      </div>
 
-    {/* Lining Color */}
-    <div>
-      <label className="text-black text-sm">Lining Color</label>
-      <input
-        className="border w-full p-2 rounded text-black bg-white"
-        value={style.liningColor}
-        onChange={(e) => {
-          form.setValue(`styles.${idx}.liningColor`, e.target.value);
-          onPreviewSubmit(form.getValues());
-        }}
-      />
-    </div>
-  </div>
+                      {/* Mesh Color */}
+                      <div>
+                        <label className="text-black text-sm">Mesh Color</label>
+                        <input
+                          className="border w-full p-2 rounded text-black bg-white"
+                          value={style.meshColor}
+                          onChange={(e) => {
+                            form.setValue(`styles.${idx}.meshColor`, e.target.value);
+                            onPreviewSubmit(form.getValues());
+                          }}
+                        />
+                      </div>
 
-  {/* 🔹 Full Width Row */}
-  <div className="mt-3">
-    <label className="text-black text-sm">Comments</label>
-    <textarea
-      className="border w-full p-2 rounded text-black bg-white"
-      value={style.comments}
-      onChange={(e) => {
-        form.setValue(`styles.${idx}.comments`, e.target.value);
-        onPreviewSubmit(form.getValues());
-      }}
-    />
-  </div>
+                      {/* Beading Color */}
+                      <div>
+                        <label className="text-black text-sm">Beading Color</label>
+                        <input
+                          className="border w-full p-2 rounded text-black bg-white"
+                          value={style.beadingColor}
+                          onChange={(e) => {
+                            form.setValue(`styles.${idx}.beadingColor`, e.target.value);
+                            onPreviewSubmit(form.getValues());
+                          }}
+                        />
+                      </div>
 
-  {/* 🔹 Small Input */}
-  <div className="mt-3 w-32">
-    <label className="text-black text-sm">Quantity</label>
-    <input
-      type="number"
-      className="border w-full p-2 rounded text-black bg-white"
-      value={style.quantity}
-      onChange={(e) => {
-        form.setValue(`styles.${idx}.quantity`, e.target.value);
-        formChange();
-        onPreviewSubmit(form.getValues());
-      }}
-    />
-  </div>
-</div>
+                      {/* Lining */}
+                      <div>
+                        <label className="text-black text-sm">Lining</label>
+                        <input
+                          className="border w-full p-2 rounded text-black bg-white"
+                          value={style.lining}
+                          onChange={(e) => {
+                            form.setValue(`styles.${idx}.lining`, e.target.value);
+                            onPreviewSubmit(form.getValues());
+                          }}
+                        />
+                      </div>
 
-))}
+                      {/* Lining Color */}
+                      <div>
+                        <label className="text-black text-sm">Lining Color</label>
+                        <input
+                          className="border w-full p-2 rounded text-black bg-white"
+                          value={style.liningColor}
+                          onChange={(e) => {
+                            form.setValue(`styles.${idx}.liningColor`, e.target.value);
+                            onPreviewSubmit(form.getValues());
+                          }}
+                        />
+                      </div>
+                    </div>
 
-    </div>
+                    {/* 🔹 Full Width Row */}
+                    <div className="mt-3">
+                      <label className="text-black text-sm">Comments</label>
+                      <textarea
+                        className="border w-full p-2 rounded text-black bg-white"
+                        value={style.comments}
+                        onChange={(e) => {
+                          form.setValue(`styles.${idx}.comments`, e.target.value);
+                          onPreviewSubmit(form.getValues());
+                        }}
+                      />
+                    </div>
 
-    {/* 🔹 Download Button */}
-    <div className="flex justify-end py-3">
-      <PDFDownloadLink
-  document={<RetailerPdf orderData={previewData} />}
-  fileName={`${previewData.purchaseOrderNo}.pdf`}
->
-        <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
-          Download PDF
-        </button>
-      </PDFDownloadLink>
-    </div>
+                    {/* 🔹 Small Input */}
+                    <div className="mt-3 w-32">
+                      <label className="text-black text-sm">Quantity</label>
+                      <input
+                        type="number"
+                        className="border w-full p-2 rounded text-black bg-white"
+                        value={style.quantity}
+                        onChange={(e) => {
+                          form.setValue(`styles.${idx}.quantity`, e.target.value);
+                          formChange();
+                          onPreviewSubmit(form.getValues());
+                        }}
+                      />
+                    </div>
+                  </div>
 
-    {/* 🔹 Live Preview */}
-    <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
-      <FreshOrderPdf orderData={previewData} />
-    </PDFViewer>
-  </>
-)}
+                ))}
+
+              </div>
+
+              {/* 🔹 Download Button */}
+              <div className="flex justify-end py-3">
+                <PDFDownloadLink
+                  document={<RetailerPdf orderData={previewData} />}
+                  fileName={`${previewData.purchaseOrderNo}.pdf`}
+                >
+                  <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
+                    Download PDF
+                  </button>
+                </PDFDownloadLink>
+              </div>
+
+              {/* 🔹 Live Preview */}
+              <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
+                <FreshOrderPdf orderData={previewData} />
+              </PDFViewer>
+            </>
+          )}
 
         </SheetContent>
       </Sheet>

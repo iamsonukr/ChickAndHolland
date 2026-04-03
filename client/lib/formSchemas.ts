@@ -445,9 +445,11 @@ export const createOrderFormSchema = z.object({
 
  orderType: z.string().min(1, "Order Type is required"),
 
-
-  // 🔥 Allow optional date
-  orderReceivedDate: z.date().nullable().optional(),
+  // Order dates - receivedDate is required, cancellation date is optional
+  orderReceivedDate: z.date({
+    required_error: "Order Received Date is required",
+    invalid_type_error: "Order Received Date must be a valid date",
+  }),
   orderCancellationDate: z.date().nullable().optional(),
 
   address: z.string().optional(),
