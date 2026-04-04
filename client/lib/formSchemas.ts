@@ -694,6 +694,7 @@ export const createStockOrderFormSchema = z.object({
 
   address: z.string().optional(),
   customerId: z.string().min(1, "Customer is required"),
+  orderId: z.number({ coerce: true }),
 
   styleNo: z.string(),
   colorType: z.string().optional(), // 🔥 fix here

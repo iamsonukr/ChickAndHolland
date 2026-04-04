@@ -19,34 +19,39 @@ const RetailerDashboard = async () => {
   const totalArray = Array.isArray(dashboardData?.total) ? dashboardData.total : [];
 
   const safeRow = dataArray[0] || {};
-  const safeTotal = totalArray[0] || {};
+  const defaultSymbol = safeRow.currencySymbol || "€";
 
-  const currencySymbol = safeRow.currencySymbol || safeTotal.currencySymbol || "€";
-
-  const formatCurrency = (value: any) => {
+  const formatCurrency = (value: any, symbol?: string) => {
     const number = Number(value || 0);
-    return `${currencySymbol} ${number.toLocaleString("en-EU", {
+    const useSymbol = symbol || defaultSymbol;
+    return `${useSymbol} ${number.toLocaleString("en-EU", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
   };
 
-  if (!dataArray.length) {
-    return (
-      <ContentLayout title="Dashboard">
-        <p className="py-4 text-center text-gray-500">No financial data available</p>
-      </ContentLayout>
-    );
-  }
+  const totals = totalArray.map((t: any) => ({
+    symbol: t.currencySymbol || defaultSymbol,
+    name: t.currencyName || "",
+    bill: Number(t.totalBill || 0),
+    paid: Number(t.totalPaid || 0),
+    balance: Number(t.balance || 0),
+  }));
 
-  const grandTotal = totalArray?.[0]?.vv || 0;
-  const isAllPaid = Number(grandTotal) <= 0;
+  const isAllPaid = totals.length
+    ? totals.every((t) => t.balance <= 0)
+    : true;
 
   return (
     <ContentLayout title="Dashboard">
 
       {/* ── MOBILE: card layout ── */}
       <div className="flex flex-col gap-3 sm:hidden">
+        {dataArray.length === 0 && (
+          <div className="rounded-lg border bg-white shadow-sm p-4 text-sm text-gray-500">
+            No yearly data yet.
+          </div>
+        )}
         {dataArray.map((invoice: any, idx: number) => {
           const price = Number(invoice?.price || 0);
           const paid = Number(invoice?.paid || 0);
@@ -65,17 +70,17 @@ const RetailerDashboard = async () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">Total Bill</span>
-                <span className="font-medium">{formatCurrency(price)}</span>
+                <span className="font-medium">{formatCurrency(price, invoice?.currencySymbol)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">Paid</span>
-                <span className="font-medium text-green-600">{formatCurrency(paid)}</span>
+                <span className="font-medium text-green-600">{formatCurrency(paid, invoice?.currencySymbol)}</span>
               </div>
               <div className="flex items-center justify-between border-t pt-2 mt-1">
                 <span className="text-sm font-semibold text-gray-500">Balance</span>
                 <div className="flex items-center gap-1">
                   <span className={isPaid ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
-                    {formatCurrency(balance)}
+                    {formatCurrency(balance, invoice?.currencySymbol)}
                   </span>
                   {isPaid
                     ? <ArrowDown className="h-3 w-3 text-green-600" />
@@ -88,17 +93,27 @@ const RetailerDashboard = async () => {
         })}
 
         {/* Mobile total */}
-        <div className="rounded-lg border bg-gray-50 p-4 flex items-center justify-between">
+        <div className="rounded-lg border bg-gray-50 p-4 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <TrendingUp className="h-4 w-4 text-primary" />
             <span>Total Balance</span>
           </div>
-          <Badge
-            variant="outline"
-            className={`text-base font-bold ${isAllPaid ? "text-green-600" : "text-red-600"}`}
-          >
-            {formatCurrency(grandTotal)}
-          </Badge>
+          <div className="flex flex-wrap gap-2 justify-start">
+            {totals.length === 0 && (
+              <Badge variant="outline" className="text-base font-bold text-gray-500">
+                No balance data yet
+              </Badge>
+            )}
+            {totals.map((t, idx) => (
+              <Badge
+                key={idx}
+                variant="outline"
+                className={`text-base font-bold ${t.balance <= 0 ? "text-green-600" : "text-red-600"}`}
+              >
+                {formatCurrency(t.balance, t.symbol)}
+              </Badge>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -125,12 +140,12 @@ const RetailerDashboard = async () => {
                 <tr key={idx} className="border-b font-medium hover:bg-gray-50">
                   <td className="px-4 py-3">{invoice?.created_year ?? "-"}</td>
                   <td className="px-4 py-3">{invoice?.orders ?? 0}</td>
-                  <td className="px-4 py-3">{formatCurrency(price)}</td>
-                  <td className="px-4 py-3">{formatCurrency(paid)}</td>
+                  <td className="px-4 py-3">{formatCurrency(price, invoice?.currencySymbol)}</td>
+                  <td className="px-4 py-3">{formatCurrency(paid, invoice?.currencySymbol)}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <span className={isPaid ? "text-green-600" : "text-red-600"}>
-                        {formatCurrency(balance)}
+                        {formatCurrency(balance, invoice?.currencySymbol)}
                       </span>
                       {isPaid
                         ? <ArrowDown className="h-3 w-3 text-green-600" />
@@ -145,12 +160,14 @@ const RetailerDashboard = async () => {
           <tfoot>
             <tr>
               <td colSpan={5} className="bg-gray-50 px-4 py-3 text-right font-semibold">
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-3 flex-wrap">
                   <TrendingUp className="h-4 w-4 text-primary" />
                   <span>Total Balance:</span>
-                  <Badge variant="outline" className="text-base font-bold">
-                    {formatCurrency(grandTotal)}
-                  </Badge>
+                  {totals.map((t, idx) => (
+                    <Badge key={idx} variant="outline" className="text-base font-bold">
+                      {formatCurrency(t.balance, t.symbol)}
+                    </Badge>
+                  ))}
                 </div>
               </td>
             </tr>

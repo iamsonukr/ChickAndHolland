@@ -5,7 +5,8 @@ import Order, { OrderType, OrderStatus, ShippingStatus } from "../models/Order";
 import { Equal, In, Like } from "typeorm";
 import Busboy from "busboy";
 import sharp from "sharp";
-import { storeFileInS3 } from "../lib/s3";
+import path from "path";
+import { getFullUrl, storeFileInS3 } from "../lib/s3";
 import Style from "../models/OrderStyle";
 import Customer from "../models/Customer";
 import CONFIG from "../config";
@@ -49,6 +50,28 @@ interface FileData {
   encoding: string;
   mimetype: string;
   buffer: Buffer;
+}
+
+function resolveUploadedOrderDocumentExtension(
+  file: FileData,
+  uploadedOrderFileType?: string
+) {
+  const filename =
+    typeof file.filename === "string" ? file.filename : String(file.filename || "");
+  const ext = path.extname(filename).toLowerCase();
+
+  if (ext) return ext;
+  if (uploadedOrderFileType === "pdf") return ".pdf";
+  if (uploadedOrderFileType === "ppt") return ".pptx";
+  if (file.mimetype === "application/pdf") return ".pdf";
+  if (
+    file.mimetype.includes("presentation") ||
+    file.mimetype.includes("powerpoint")
+  ) {
+    return ".pptx";
+  }
+
+  return "";
 }
 
 
@@ -148,10 +171,31 @@ router.post(
 
         await order.save(); // ⬅ MUST SAVE BEFORE STYLES
 
-        const latestOrderId = await Order.createQueryBuilder("order")
-          .select("MAX(order.id)", "max")
-          .getRawOne();
-        const orderID = latestOrderId.max;
+        const orderID = order.id;
+
+        const uploadedOrderFile = files.find(
+          (file) => file.fieldname === "uploadedOrderFile"
+        );
+        const uploadedOrderFileType = fields["uploadedOrderFileType"];
+
+        if (uploadedOrderFile) {
+          const extension = resolveUploadedOrderDocumentExtension(
+            uploadedOrderFile,
+            uploadedOrderFileType
+          );
+
+          const uploadedDocument = await storeFileInS3(
+            uploadedOrderFile.buffer,
+            `order-documents/${orderID}/${Date.now()}${extension}`
+          );
+
+          if (!uploadedDocument) {
+            throw new Error("Failed to upload order document");
+          }
+
+          order.ppt_path = getFullUrl(uploadedDocument.fileName);
+          await order.save();
+        }
 
         // ================================
         // PROCESS ALL STYLES (EACH GETS UNIQUE BARCODE)
@@ -642,6 +686,7 @@ router.get(
         shippingStatus: baseOrder.shippingStatus,
         shippingDate: baseOrder.shippingDate,
         trackingNo: baseOrder.trackingNo,
+        ppt_path: detailedOrder?.ppt_path || null,
         customer:
           baseOrder.orderSource === "regular"
             ? detailedOrder?.customer

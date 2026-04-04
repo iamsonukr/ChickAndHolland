@@ -7,6 +7,7 @@ import TopSection from "./TopSection";
 import { cookies } from "next/headers";
 import ClientPaginatedProducts from "@/components/custom/ClientPaginatedProducts";
 import ScrollToTop from "@/components/custom/ScrollToTop";
+import { getRetailerDetails } from "@/lib/data";
 
 
 const ITEMS_PER_PAGE = 12;
@@ -19,8 +20,24 @@ export default async function CollectionProducts(props: {
   if (params?.slug?.length !== 2) {
     return notFound();
   }
-  const isLoggedIn = (await cookies()).get("token")?.value ? true : false;
-  const currencyId = (await cookies()).get("currencyId")?.value;
+  const cookieStore = await cookies();
+  const isLoggedIn = cookieStore.get("token")?.value ? true : false;
+
+  let currencyId = cookieStore.get("currencyId")?.value;
+  const retailerId = cookieStore.get("retailerId")?.value;
+
+  // Always prefer the retailer's latest currency from the backend so price views
+  // update immediately after an admin changes currency.
+  if (retailerId) {
+    const latestRetailer = await getRetailerDetails(Number(retailerId));
+    const latestCurrencyId =
+      latestRetailer?.currencyId ||
+      latestRetailer?.retailer?.currencyId ||
+      latestRetailer?.retailer?.customer?.currencyId;
+    if (latestCurrencyId) {
+      currencyId = String(latestCurrencyId);
+    }
+  }
 
   const categoryId = parseInt(params.slug[0], 10);
   const subCategoryId = parseInt(params.slug[1], 10);

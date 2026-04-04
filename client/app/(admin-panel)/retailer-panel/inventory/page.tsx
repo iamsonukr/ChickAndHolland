@@ -3,6 +3,7 @@ import { getProductColours, getStock } from "@/lib/data";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import { cookies } from "next/headers";
+import { getRetailerDetails } from "@/lib/data";
 
 import StyleNoImage from "@/app/(admin-panel)/admin-panel/stock/StyleNoImage";
 import TableActions from "../../admin-panel/stock/TableActions";
@@ -27,7 +28,20 @@ export default async function Inventory({ searchParams }: InventoryProps) {
   const query = q || "";
 
   const cookieStore = await cookies();
-  const currencyId = cookieStore.get("currencyId")?.value;
+  let currencyId = cookieStore.get("currencyId")?.value;
+  const retailerId = cookieStore.get("retailerId")?.value;
+
+  // Pull the latest retailer currency so inventory pricing reacts instantly to changes.
+  if (retailerId) {
+    const latestRetailer = await getRetailerDetails(Number(retailerId));
+    const latestCurrencyId =
+      latestRetailer?.currencyId ||
+      latestRetailer?.retailer?.currencyId ||
+      latestRetailer?.retailer?.customer?.currencyId;
+    if (latestCurrencyId) {
+      currencyId = String(latestCurrencyId);
+    }
+  }
 
   const stock = await getStock({
     page: currentPage,

@@ -16,7 +16,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -46,7 +45,7 @@ import {
 } from "@/lib/formSchemas";
 import { ColorType, OrderType, SizeCountry, sizes } from "@/lib/formSchemas";
 import dayjs from "dayjs";
-import { cn } from "@/lib/utils";
+import { cn, getCookie } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -62,27 +61,20 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import MultipleSelector, { Option } from "@/components/custom/multi-selector";
-import {
-  getLatestRegularOrder,
-  getLatestRetailerOrder,
-  getProductColorsCheck,
-  getProductColours,
-  getRetailerAdminStockOrderDetails,
-  searchStyleNumbers,
-} from "@/lib/data";
 import OrderCustomerPdf from "@/app/(admin-panel)/admin-panel/orders/OrderCustomerPdf";
 import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import Link from "next/link";
 import StockOrdersPdf from "./StockOrdersPdf";
-import FreshOrderPdf from "./FreshOrderPdf";
 import RetailerPdf from "./RetailerPdf";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
 import { UploadedFileType } from "@/hooks/useCreateOrder";
+import { API_URL } from "@/lib/constants";
 
 const StockAcceptedForm = ({ id }: { id: number }) => {
   const [open, setOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [customers, setCustomers] = useState<any>();
+  const [prefillLoading, setPrefillLoading] = useState(false);
   const [currencyInfo, setCurrencyInfo] = useState<{
     symbol: string;
     name: string;
@@ -108,21 +100,6 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     true
   );
 
-  const getLatestPurchaseOrder = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return null; // Prevent 401 crash
-
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/latest-po`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!res.ok) return null;
-    return await res.json();
-  };
-
 
 
   const { loading, error, executeAsync } = useHttp(
@@ -136,24 +113,46 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   const [colours, setColours] = useState([] as any);
   const router = useRouter();
 
-  const fetchData = async () => {
-    try {
-      const res = await getRetailerAdminStockOrderDetails(id, 0);
+  const getAuthorizedHeaders = () => {
+    const token = getCookie("token") || localStorage.getItem("token");
 
-      console.log("stock accept form ", res.details[0]);
-
-      setCustomers(res.details[0]);
-
-      // Set currency information from the response
-      if (res.details[0] && res.details[0].currencySymbol) {
-        setCurrencyInfo({
-          symbol: res.details[0].currencySymbol,
-          name: res.details[0].currencyName,
-        });
-      }
-    } catch (error) {
-      console.log(error);
+    if (!token) {
+      throw new Error("Authentication expired. Please log in again.");
     }
+
+    return {
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
+  const fetchJson = async <T,>(path: string): Promise<T> => {
+    const response = await fetch(`${API_URL}${path}`, {
+      headers: getAuthorizedHeaders(),
+      cache: "no-store",
+    });
+
+    const responseJson = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        responseJson?.message || responseJson?.error || "Request failed",
+      );
+    }
+
+    return responseJson as T;
+  };
+
+  const resolveColourName = (
+    colourValue?: string | null,
+    availableColours: any[] = colours,
+  ) => {
+    if (!colourValue) return "";
+    if (colourValue === "SAS") return "SAS";
+
+    return (
+      availableColours.find((colour: any) => colour.hexcode === colourValue)?.name ||
+      colourValue
+    );
   };
 
   const form = useForm<CreateStockOrderForm>({
@@ -165,8 +164,8 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       manufacturingEmailAddress: "",
       estimate: "",
       invoice: "",
-      orderReceivedDate: null,
-      orderCancellationDate: null,
+      orderReceivedDate: undefined,
+      orderCancellationDate: undefined,
       address: "",
       customerId: "",
       styleNo: "",
@@ -183,22 +182,165 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     },
   });
 
+  const hydrateForm = (customerDetails: any, availableColours: any[]) => {
+    const invoice = `INVOICE_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
+    const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
+    const totalAmount = Math.round(Number(customerDetails?.total_price || 0));
+    const sizeLabel = customerDetails?.size_country
+      ? `${customerDetails?.size ?? ""} (${customerDetails.size_country})`
+      : `${customerDetails?.size ?? ""}`;
+
+    form.reset({
+      orderId: id,
+      purchaseOrderNo: "",
+      manufacturingEmailAddress: "rubyinc@hotmail.com",
+      estimate,
+      invoice,
+      orderReceivedDate: customerDetails?.received
+        ? new Date(customerDetails.received)
+        : undefined,
+      orderCancellationDate: undefined,
+      address: customerDetails?.storeAddress || "",
+      customerId: customerDetails?.name || "",
+      styleNo: customerDetails?.productCode || "",
+      size: sizeLabel.trim(),
+      quantity: String(customerDetails?.quantity ?? 0),
+      advance: "0",
+      shipping: 0,
+      beadingColor: resolveColourName(
+        customerDetails?.beading_color,
+        availableColours,
+      ),
+      lining: customerDetails?.lining || "",
+      liningColor: resolveColourName(
+        customerDetails?.lining_color,
+        availableColours,
+      ),
+      meshColor: resolveColourName(
+        customerDetails?.mesh_color,
+        availableColours,
+      ),
+      total_amount: totalAmount,
+      product_amount: totalAmount,
+    });
+  };
+
+  const fetchData = async () => {
+    setPrefillLoading(true);
+
+    try {
+      const [detailsRes, coloursRes] = await Promise.all([
+        fetchJson<{ success: boolean; details: any[]; message?: string }>(
+          `/retailer-orders/admin/stock-order/form/${id}/0`,
+        ),
+        fetchJson<{ productColours?: any[] }>(`/product-colours`),
+      ]);
+
+      const customerDetails = detailsRes.details?.[0];
+      const availableColours = coloursRes.productColours || [];
+
+      if (!detailsRes.success || !customerDetails) {
+        throw new Error(
+          detailsRes.message || "Stock order details were not found for this purchase.",
+        );
+      }
+
+      setCustomers(customerDetails);
+      setColours(availableColours);
+      setCurrencyInfo(
+        customerDetails.currencySymbol
+          ? {
+              symbol: customerDetails.currencySymbol,
+              name: customerDetails.currencyName,
+            }
+          : null,
+      );
+      setPreviewData(null);
+      hydrateForm(customerDetails, availableColours);
+      setOpen(true);
+    } catch (error: any) {
+      console.error("Failed to load stock order details", error);
+      toast.error("Could not load stock order", {
+        description:
+          error?.message || "The purchase details could not be loaded on this environment.",
+      });
+      setOpen(false);
+    } finally {
+      setPrefillLoading(false);
+    }
+  };
+
+  const buildAcceptedOrderPayload = (data: CreateStockOrderForm) => ({
+    email: data.manufacturingEmailAddress,
+    received_date: `${data.orderReceivedDate}`,
+    orderCancellationDate: `${data.orderCancellationDate}`,
+    address: data.address,
+    customerId: data.customerId,
+    styleNo: data.styleNo,
+    size: data.size,
+    quantity: data.quantity,
+    image: customers?.image,
+    color: customers?.color,
+    retailerId: customers?.retailer_id,
+    stock_id: customers?.stock_id,
+    size_country: customers?.size_country,
+    id: customers?.id,
+    advance: data.advance,
+    invoice: data.invoice,
+    estimate: data.estimate,
+    shipping: data.shipping,
+    total_amount: data.total_amount,
+  });
+
+  const uploadAcceptedOrderDocument = async (
+    orderId: number,
+    file: File,
+    fileType: UploadedFileType,
+  ) => {
+    const formData = new FormData();
+    formData.append("ppt", file);
+    formData.append("orderId", String(orderId));
+    formData.append("uploadedOrderFileType", fileType ?? "");
+
+    const response = await fetch(`${API_URL}/upload-ppt`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const responseJson = await response.json();
+
+    if (!response.ok || !responseJson.success) {
+      throw new Error(
+        responseJson?.message || "Order was created but the uploaded document failed to save.",
+      );
+    }
+
+    return responseJson;
+  };
+
 
   const onSubmit = async (data: CreateStockOrderForm) => {
     try {
-      // If user uploaded a file, send it directly
-      if (uploadedFile) {
-        const formData = new FormData();
-        formData.append("orderId", String(data.orderId));
-        formData.append("uploadedOrderFile", uploadedFile);
-        formData.append("uploadedOrderFileType", uploadedFileType ?? "");
+      const preData = buildAcceptedOrderPayload(data);
 
-        const response = await executeAsync(formData);
+      // If user uploaded a file, create the order first, then attach the uploaded document.
+      if (uploadedFile) {
+        const response = await executeAsync({ data: preData });
 
         if (!response.success) {
           toast.error("Failed to add order");
           return;
         }
+
+        if (!response.orderId) {
+          throw new Error("Order was created but no order ID was returned for the uploaded document.");
+        }
+
+        await uploadAcceptedOrderDocument(
+          Number(response.orderId),
+          uploadedFile,
+          uploadedFileType,
+        );
 
         toast.success(response.message ?? "Order Added Successfully!");
         setOpen(false);
@@ -210,28 +352,6 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       // --------------------
       // 1️⃣ ZOD SAFE DATA
       // --------------------
-      const preData = {
-        email: data.manufacturingEmailAddress,
-        received_date: `${data.orderReceivedDate}`,
-        orderCancellationDate: `${data.orderCancellationDate}`,
-        address: data.address,
-        customerId: data.customerId,
-        styleNo: data.styleNo,
-        size: data.size,
-        quantity: data.quantity,
-        image: customers?.image,
-        color: customers?.color,
-        retailerId: customers?.retailer_id,
-        stock_id: customers?.stock_id,
-        size_country: customers.size_country,
-        id: customers?.id,
-        advance: data.advance,
-        invoice: data.invoice,
-        estimate: data.estimate,
-        shipping: data.shipping,
-        total_amount: data.total_amount,
-      };
-
       // --------------------
       // 2️⃣ SEND ORDER TO BACKEND
       // --------------------
@@ -283,6 +403,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       // 5️⃣ NOW SAFE PREVIEW DATA
       // -----------------------------
       const preview = {
+        customerId: data.customerId,
         manufacturingEmailAddress: data.manufacturingEmailAddress,
         orderCancellationDate: data.orderCancellationDate,
         orderReceivedDate: data.orderReceivedDate,
@@ -325,9 +446,15 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       router.refresh();
 
     } catch (err: any) {
-      toast.error("Failed to add order", {
-        description: err?.message ?? "Something went wrong",
-      });
+      const message = err?.message ?? "Something went wrong";
+      toast.error(
+        message.includes("Order was created")
+          ? "Order created, but document upload failed"
+          : "Failed to add order",
+        {
+          description: message,
+        },
+      );
     }
   };
 
@@ -335,7 +462,14 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
 
 
   const productColorSAS = async (id: number) => {
-    const res = await getProductColorsCheck(id);
+    const res = await fetchJson<{ status: boolean; data: any }>(
+      `/products/product-color/${id}`,
+    );
+
+    if (!res.status) {
+      throw new Error("Unable to load product colour defaults");
+    }
+
     return res.data;
   };
   const findColorName = (hex: string) => {
@@ -349,7 +483,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     let str = data.size;
     let regex = /\((.*?)\)/;
     let match: any = regex.exec(str);
-    let valueInBraces = match[1];
+    let valueInBraces = match?.[1] ?? "";
     let SasCheck = await productColorSAS(customers.product_id);
 
     const meshColorDisplay =
@@ -386,7 +520,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
           styleNo: data.styleNo,
           size_country: valueInBraces,
           color: "Stock",
-          image: convertWebPToJPG(customers?.image),
+          image: await convertWebPToJPG(customers?.image),
           meshColor: meshColorDisplay,
           beadingColor: beadingColorDisplay,
           lining: liningDisplay,
@@ -404,17 +538,12 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     });
   };
 
-  const coloursFun = async () => {
-    const colours = await getProductColours({});
-
-    setColours(colours.productColours);
-  };
 
 
 
 
   useEffect(() => {
-    coloursFun();
+    /*
     form.reset();
 
     if (customers) {
@@ -453,12 +582,13 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       // 🚀 Generate PO No AFTER customer details are ready
     }
 
-    setPreviewData(null);
+    */
   }, [customers]);
 
   useEffect(() => {
     if (!open) {
       clearUploadedFile();
+      setPreviewData(null);
     }
   }, [open]);
 
@@ -498,9 +628,9 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   return (
     <div>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>
-          <Button onClick={fetchData}>Accept</Button>
-        </SheetTrigger>
+        <Button onClick={fetchData} disabled={prefillLoading}>
+          {prefillLoading ? "Loading..." : "Accept"}
+        </Button>
         <SheetContent className="min-w-[100%] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Stock order</SheetTitle>
@@ -1032,20 +1162,24 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                 </div>
               </div>
             </div>
-            <div className="flex justify-end py-3">
-              <PDFDownloadLink
-                document={<FreshOrderPdf orderData={previewData} />}
-                fileName={`${previewData?.purchaseOrderNo}.pdf`}
-              >
-                <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
-                  Download PDF
-                </button>
-              </PDFDownloadLink>
-            </div>
+            {previewData && (
+              <>
+                <div className="flex justify-end py-3">
+                  <PDFDownloadLink
+                    document={<StockOrdersPdf orderData={previewData} />}
+                    fileName={`${previewData?.purchaseOrderNo}.pdf`}
+                  >
+                    <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
+                      Download PDF
+                    </button>
+                  </PDFDownloadLink>
+                </div>
 
-            <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
-              <FreshOrderPdf orderData={previewData} />
-            </PDFViewer>
+                <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
+                  <StockOrdersPdf orderData={previewData} />
+                </PDFViewer>
+              </>
+            )}
           </>
         </SheetContent>
       </Sheet>
@@ -1055,7 +1189,13 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
 
 export default StockAcceptedForm;
 
-export const convertWebPToJPG = async (webpUrl: string): Promise<string> => {
+export const convertWebPToJPG = async (
+  webpUrl?: string | null,
+): Promise<string> => {
+  if (!webpUrl) {
+    return "";
+  }
+
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous"; // Handle CORS if image is from different origin

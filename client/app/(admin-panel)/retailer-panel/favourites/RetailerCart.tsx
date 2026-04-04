@@ -23,9 +23,15 @@ const RetailerCart = ({ favourites, retailerId }) => {
 
   const calcTotal = () =>
     selectedItems.reduce(
-      (sum, item) => sum + Number(item.displayPrice || 0),
+      (sum, item) =>
+        sum + Number(item.displayPrice ?? item.regionPrice ?? 0),
       0
     );
+
+  const currencySymbol =
+    selectedItems[0]?.currencySymbol ||
+    favourites[0]?.currencySymbol ||
+    "€";
 
   const { executeAsync, loading } = useHttp(
     `/retailer-orders/favourites/${retailerId}`,
@@ -85,7 +91,7 @@ const RetailerCart = ({ favourites, retailerId }) => {
 
         {/* Row 2: Total */}
         <p className="text-sm sm:text-lg font-semibold text-green-600">
-          Total: € {calcTotal().toFixed(2)}
+          Total: {currencySymbol} {calcTotal().toFixed(2)}
         </p>
 
         {/* Row 3: Place Order button — full width on mobile */}

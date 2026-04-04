@@ -18,7 +18,11 @@ export const client = new S3Client({
 
 export const storeFileInS3 = async (
   file: PutObjectCommandInput["Body"],
-  key: string
+  key: string,
+  options?: {
+    contentType?: string;
+    contentDisposition?: string;
+  }
 ) => {
   try {
     const fileStorageKey = `chicandholland/${key}`;
@@ -29,6 +33,10 @@ export const storeFileInS3 = async (
         Key: fileStorageKey,
         Body: file,
         ACL: "public-read",
+        ...(options?.contentType && { ContentType: options.contentType }),
+        ...(options?.contentDisposition && {
+          ContentDisposition: options.contentDisposition,
+        }),
       })
     );
 

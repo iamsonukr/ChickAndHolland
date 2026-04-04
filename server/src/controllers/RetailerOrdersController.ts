@@ -625,7 +625,7 @@ router.get(
   r.storeAddress,
   r.email,
   s.size_country,
-  pm.name as image,
+  COALESCE(MIN(pm.name), '') as image,
   rf.mesh_color,
   rf.beading_color,
   rf.lining,
@@ -647,7 +647,7 @@ INNER JOIN stock s ON s.id = rf.stockId
 INNER JOIN products p ON p.id = s.styleNo
 INNER JOIN retailers ret ON ret.id = rf.retailerId
 INNER JOIN customers r ON r.id = ret.customerId
-INNER JOIN productimages pm ON pm.productId = s.styleNo
+LEFT JOIN productimages pm ON pm.productId = s.styleNo
 LEFT JOIN currencies curr ON curr.id = rf.currencyId
 LEFT JOIN stock_currency_pricing scp 
   ON scp.stockId = s.id AND scp.currencyId = rf.currencyId
@@ -1000,6 +1000,9 @@ router.post(
     return res.json({
       success: true,
       msg: "Stock Order Accepted Successfully",
+      message: "Stock Order Accepted Successfully",
+      orderId: order.id,
+      purchaseOrderNo: order.purchaeOrderNo,
       po_number: order.purchaeOrderNo,
       barcode: stockStyle.barcode,
     });
@@ -1246,8 +1249,8 @@ router.get(
         ro.stockOrderId,
         IFNULL(payments.paid_amount, 0) AS paid_amount,
         (ro.purchaseAmount - IFNULL(payments.paid_amount, 0)) AS balance,
-        curr.symbol as currencySymbol,
-        curr.name as currencyName
+        COALESCE(stockCurr.symbol, favCurr.symbol, curr.symbol) as currencySymbol,
+        COALESCE(stockCurr.name, favCurr.name, curr.name) as currencyName
       FROM retailer_orders AS ro
       LEFT JOIN (
         SELECT orderId, SUM(amount) AS paid_amount 
@@ -1257,6 +1260,26 @@ router.get(
       LEFT JOIN retailers r ON r.id = ro.retailerId
       LEFT JOIN customers c ON c.id = r.customerId
       LEFT JOIN currencies curr ON curr.id = c.currencyId
+      /* Fresh orders: currency stored on favourites */
+      LEFT JOIN (
+        SELECT 
+          rfo.id as favouriteOrderId,
+          MAX(curr.symbol) as symbol,
+          MAX(curr.name) as name
+        FROM retailer_favourites_orders rfo
+        JOIN favourites f ON FIND_IN_SET(f.id, rfo.favourite_ids) > 0
+        LEFT JOIN currencies curr ON curr.id = f.currencyId
+        GROUP BY rfo.id
+      ) favCurr ON favCurr.favouriteOrderId = ro.favouriteOrderId
+      /* Stock orders: currency stored on retailer_stock_orders */
+      LEFT JOIN (
+        SELECT 
+          rso.id as stockOrderId,
+          curr.symbol as symbol,
+          curr.name as name
+        FROM retailer_stock_orders rso
+        LEFT JOIN currencies curr ON curr.id = rso.currencyId
+      ) stockCurr ON stockCurr.stockOrderId = ro.stockOrderId
     `;
 
     // Build WHERE clauses

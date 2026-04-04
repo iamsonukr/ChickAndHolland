@@ -2,8 +2,8 @@
 "use client";
 
 import { Button } from "@/components/custom/button";
-import { File, Mail } from "lucide-react";
-import { useEffect, useState } from "react";
+import { File, Mail, Presentation } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import useHttp from "@/lib/hooks/usePost";
 import {
@@ -25,6 +25,24 @@ import {
 } from "@/lib/data";
 import { convertWebPToJPG } from "../request/StockAcceptedForm";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
+
+const resolveUploadedDocumentUrl = (filePath?: string | null) => {
+  if (!filePath) return "";
+  if (/^https?:\/\//i.test(filePath)) return filePath;
+  return `${API_URL.replace("/api", "")}${filePath}`;
+};
+
+const getUploadedDocumentExtension = (filePath?: string | null) => {
+  if (!filePath) return "";
+  const cleanPath = filePath.split("?")[0];
+  const ext = cleanPath.split(".").pop();
+  return ext ? ext.toLowerCase() : "";
+};
+
+const getUploadedDocumentPreviewUrl = (orderId?: number | null) => {
+  if (!orderId) return "";
+  return `${API_URL}/upload-ppt/preview/${orderId}`;
+};
 
 const TableActions = ({ data }: { data: any }) => {
   const [open, setOpen] = useState(false);
@@ -236,7 +254,7 @@ const fetchDetails = async () => {
       console.log("🧩 FINAL PARSED DETAILS →", details);
 
       setPreviewData({
-        id: data.favouriteOrder.id,
+        id: data.id,
         manufacturingEmailAddress: data.manufacturingEmailAddress,
         orderCancellationDate: data.orderCancellationDate,
         orderReceivedDate: data.orderReceivedDate,
@@ -248,7 +266,7 @@ const fetchDetails = async () => {
         ppt_path: data.ppt_path || data.favouriteOrder.ppt_path || "",
       });
 
-      await fetchPPT(data.favouriteOrder.id);
+      await fetchPPT(data.id);
 
       /** 🔥 PREVIEW LOG */
       console.log("📄 FINAL PREVIEW DATA →", {
@@ -277,7 +295,7 @@ const fetchDetails = async () => {
   const d = stock.details[0];
 
   setPreviewData({
-    id: data.Stock_order.id,
+    id: data.id,
     manufacturingEmailAddress: data.manufacturingEmailAddress,
     orderCancellationDate: data.orderCancellationDate,
     orderReceivedDate: data.orderReceivedDate,
@@ -306,7 +324,7 @@ const fetchDetails = async () => {
     ppt_path: d.ppt_path || data.ppt_path || "",
   });
 
-  await fetchPPT(data.Stock_order.id);
+  await fetchPPT(data.id);
 }
 
 
@@ -326,6 +344,15 @@ const fetchDetails = async () => {
       : toast.error("Failed to send email");
   };
 
+  const uploadedDocumentUrl = resolveUploadedDocumentUrl(previewData?.ppt_path);
+  const uploadedDocumentExt = getUploadedDocumentExtension(previewData?.ppt_path);
+  const uploadedDocumentPreviewUrl =
+    getUploadedDocumentPreviewUrl(previewData?.id) || uploadedDocumentUrl;
+  const hasUploadedDocument = Boolean(uploadedDocumentUrl);
+  const isUploadedPdf = uploadedDocumentExt === "pdf";
+  const uploadedDocumentName =
+    uploadedDocumentUrl.split("/").pop()?.split("?")[0] || "order-document";
+
   return (
     <div className="my-2 flex gap-4">
       <Sheet open={open} onOpenChange={setOpen}>
@@ -339,7 +366,7 @@ const fetchDetails = async () => {
 
         <SheetContent className="min-w-full overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Order Details PDF Preview</SheetTitle>
+            <SheetTitle>Order Details Preview</SheetTitle>
             <SheetDescription>
               This is what will be emailed to the customer.
             </SheetDescription>
@@ -351,13 +378,13 @@ const fetchDetails = async () => {
   <>
     
 
-{/* 📌 Upload Custom PPT */}
+{/* 📌 Upload Custom Document */}
 <div className="mt-6 border p-4 rounded-lg bg-gray-50">
-  <h3 className="text-md font-semibold mb-3">Upload Custom PPT</h3>
+  <h3 className="text-md font-semibold mb-3">Upload Custom Document</h3>
 
   <input
     type="file"
-    accept=".pptx"
+    accept=".pdf,.ppt,.pptx"
     className="block w-full text-sm border rounded p-2"
     onChange={(e) => setFile(e.target.files?.[0] || null)}
   />
@@ -390,7 +417,7 @@ const fetchDetails = async () => {
       const rp = await res.json();
 
       if (rp.success) {
-        toast.success("PPT Uploaded Successfully!");
+        toast.success("File uploaded successfully!");
 
         // UI update (no need to open modal)
         setPreviewData((prev: any) => ({
@@ -404,21 +431,21 @@ const fetchDetails = async () => {
       setUploading(false);
     }}
   >
-    {uploading ? "Uploading..." : "Upload PPT"}
+    {uploading ? "Uploading..." : "Upload File"}
   </Button>
 
   {/* 🔥 Always visible section */}
   {previewData?.ppt_path && (
     <div className="mt-4 p-3 rounded-lg bg-green-100 border border-green-600">
-      <p className="text-green-800 font-semibold">Uploaded PPT:</p>
+      <p className="text-green-800 font-semibold">Uploaded Document:</p>
 
       <a
-        href={`${API_URL.replace("/api", "")}${previewData.ppt_path}`}
+        href={isUploadedPdf ? uploadedDocumentPreviewUrl : uploadedDocumentUrl}
         target="_blank"
         rel="noreferrer"
         className="text-blue-700 underline text-sm"
       >
-        {previewData.ppt_path.split("/").pop()}
+        {uploadedDocumentName}
       </a>
     </div>
   )}
@@ -433,28 +460,61 @@ const fetchDetails = async () => {
 </Button>
 
 <div className="flex justify-end gap-3 py-3">
-  {/* PDF Download */}
-  <PDFDownloadLink
-    document={<FreshOrderPdf orderData={previewData} />}
-    fileName={`${previewData.purchaseOrderNo}.pdf`}
-  >
-    <button className="rounded bg-blue-600 px-4 py-2 text-white">
-      Download PDF
-    </button>
-  </PDFDownloadLink>
+  {hasUploadedDocument ? (
+    <a
+      href={uploadedDocumentUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="rounded bg-green-600 px-4 py-2 text-white"
+    >
+      Download Uploaded File
+    </a>
+  ) : (
+    <>
+      <PDFDownloadLink
+        document={<FreshOrderPdf orderData={previewData} />}
+        fileName={`${previewData.purchaseOrderNo}.pdf`}
+      >
+        <button className="rounded bg-blue-600 px-4 py-2 text-white">
+          Download PDF
+        </button>
+      </PDFDownloadLink>
 
-  {/* PPT Download */}
-  <button
-    onClick={() => downloadOrderPPT(previewData)}
-    className="rounded bg-green-600 px-4 py-2 text-white"
-  >
-    Download PPT
-  </button>
+      <button
+        onClick={() => downloadOrderPPT(previewData)}
+        className="rounded bg-green-600 px-4 py-2 text-white"
+      >
+        Download PPT
+      </button>
+    </>
+  )}
 </div>
 
-<PDFViewer className="mt-4 h-[90vh] w-full" showToolbar={false}>
-  <FreshOrderPdf orderData={previewData} />
-</PDFViewer>
+{hasUploadedDocument ? (
+  isUploadedPdf ? (
+    <iframe
+      src={uploadedDocumentPreviewUrl}
+      className="mt-4 h-[90vh] w-full rounded border-0"
+      title="Uploaded order document preview"
+    />
+  ) : (
+    <div className="mt-4 flex h-[50vh] flex-col items-center justify-center gap-3 rounded border border-dashed bg-muted/30 text-center">
+      <Presentation className="h-10 w-10 text-muted-foreground" />
+      <div>
+        <p className="text-sm font-medium">{uploadedDocumentName}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          This order uses the uploaded file instead of a generated PDF.
+          <br />
+          PowerPoint files cannot be previewed inline here.
+        </p>
+      </div>
+    </div>
+  )
+) : (
+  <PDFViewer className="mt-4 h-[90vh] w-full" showToolbar={false}>
+    <FreshOrderPdf orderData={previewData} />
+  </PDFViewer>
+)}
 
   </>
 )}

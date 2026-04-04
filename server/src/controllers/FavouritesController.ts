@@ -421,16 +421,12 @@
 import { Request, Response, Router, json, raw } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
 import Favourites from "../models/Favourites";
-import { Equal, Like } from "typeorm";
 import Retailer from "../models/Retailer";
 import Product from "../models/Product";
 import Stock from "../models/Stock";
-import ProductColour from "../models/ProductColours";
 import Busboy from "busboy";
 import sharp from "sharp";
 import { getFullUrl, storeFileInS3 } from "../lib/s3";
-import ProductCurrencyPricing from "../models/ProductCurrencyPricing";
-import Currency from "../models/Currency";
 import { convertToUSSize } from "../lib/sizeConversion";
 
 const router = Router();

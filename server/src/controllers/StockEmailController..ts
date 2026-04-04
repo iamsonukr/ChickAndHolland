@@ -3,9 +3,27 @@ import { Request, Response } from "express";
 import PPTXGenJS from "pptxgenjs";
 import dayjs from "dayjs";
 import { mail } from "../lib/Utils";
-import { renderToBuffer } from "@react-pdf/renderer";
+import fetch from "node-fetch";
+import path from "path";
 import { generateOrderPdf } from "../pdf/generateOrderPdf";
 
+const buildUploadedDocumentUrl = (req: Request, rawUrl: string) => {
+  if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+  return `${req.protocol}://${req.get("host")}${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}`;
+};
+
+const getAttachmentFilename = (fileUrl: string, fallbackBaseName: string) => {
+  try {
+    const parsed = new URL(fileUrl);
+    const baseName = path.basename(parsed.pathname);
+    if (baseName) return decodeURIComponent(baseName);
+  } catch {
+    // Fall back to using the raw string below.
+  }
+
+  const ext = path.extname(fileUrl) || "";
+  return `${fallbackBaseName}${ext}`;
+};
 
 export const sendStockEmail = async (req: Request, res: Response) => {
   try {
@@ -16,6 +34,78 @@ export const sendStockEmail = async (req: Request, res: Response) => {
         success: false,
         message: "orderData required",
       });
+    }
+
+    const uploadedFileUrlCandidate =
+      orderData.ppt_path ||
+      orderData.uploadedOrderFileUrl ||
+      orderData.uploadedOrderFilePath ||
+      orderData.uploadedDocumentUrl ||
+      null;
+
+    if (uploadedFileUrlCandidate) {
+      try {
+        const uploadedFileUrl = buildUploadedDocumentUrl(req, uploadedFileUrlCandidate);
+        const uploadedFileResponse = await fetch(uploadedFileUrl);
+
+        if (!uploadedFileResponse.ok) {
+          throw new Error(
+            `Failed to fetch uploaded file (${uploadedFileResponse.status})`
+          );
+        }
+
+        const uploadedFileBuffer = Buffer.from(
+          await uploadedFileResponse.arrayBuffer()
+        );
+        const attachmentName = getAttachmentFilename(
+          uploadedFileUrl,
+          orderData.purchaseOrderNo || "order-document"
+        );
+
+        await mail({
+          to: orderData.manufacturingEmailAddress,
+          subject: orderData.purchaseOrderNo,
+          html: `
+    <div style="font-family: Arial, sans-serif; font-size:14px; color:#000;">
+      <p>Hello,</p>
+
+      <p>Please find the order details attached with this email.</p>
+
+      <br/>
+
+      <p>
+        Best Regards,<br/>
+        Chic & Holland Team
+      </p>
+
+      <br/>
+
+      <hr style="border:none;border-top:1px solid #ddd;" />
+
+      <p style="font-size:12px; color:#666;">
+        © 2025 Chic & Holland. All rights reserved.
+      </p>
+    </div>
+  `,
+          attachments: [
+            {
+              filename: attachmentName,
+              content: uploadedFileBuffer,
+            },
+          ],
+        });
+
+        return res.json({
+          success: true,
+          message: "Email sent with uploaded attachment",
+        });
+      } catch (mailErr: any) {
+        console.error("❌ UPLOADED ATTACHMENT MAIL FAILED →", mailErr);
+        return res.status(500).json({
+          success: false,
+          message: mailErr.message || "Failed to send uploaded attachment",
+        });
+      }
     }
 
     const ppt = new PPTXGenJS();
@@ -198,8 +288,8 @@ slide.addImage({
     /* ================= EXPORT PPT FOR EMAIL ================= */
     const base64ppt = (await ppt.write({ outputType: "base64" })) as string;
     const buffer = Buffer.from(base64ppt, "base64");
-// ===== GENERATE PDF (same as frontend FreshOrderPdf) =====
-const pdfBuffer = await generateOrderPdf(orderData);
+    // ===== GENERATE PDF (same as frontend FreshOrderPdf) =====
+    const pdfBuffer = await generateOrderPdf(orderData);
 
 
   try {

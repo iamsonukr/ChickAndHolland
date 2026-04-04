@@ -14,6 +14,7 @@ import {
 import dayjs from "dayjs";
 import Mail from "nodemailer/lib/mailer";
 import RetailerPdf from "@/app/(admin-panel)/admin-panel/request/RetailerPdf";
+import path from "path";
 
 type Response = {
   success: boolean;
@@ -39,6 +40,19 @@ interface FreshOrderPdfProps {
   orderData: FreshOrderData;
 }
 
+const getAttachmentFilename = (fileUrl: string, fallbackBaseName: string) => {
+  try {
+    const parsed = new URL(fileUrl);
+    const baseName = path.basename(parsed.pathname);
+    if (baseName) return decodeURIComponent(baseName);
+  } catch {
+    // Fall back to using the raw string below.
+  }
+
+  const ext = path.extname(fileUrl) || "";
+  return `${fallbackBaseName}${ext}`;
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Response>,
@@ -51,6 +65,65 @@ export default async function handler(
 
   try {
     const { orderData } = req.body;
+
+    const uploadedFileUrlCandidate =
+      orderData?.ppt_path ||
+      orderData?.uploadedOrderFileUrl ||
+      orderData?.uploadedOrderFilePath ||
+      orderData?.uploadedDocumentUrl ||
+      null;
+
+    if (uploadedFileUrlCandidate) {
+      const uploadedFileResponse = await fetch(uploadedFileUrlCandidate);
+
+      if (!uploadedFileResponse.ok) {
+        throw new Error(
+          `Failed to fetch uploaded file (${uploadedFileResponse.status})`,
+        );
+      }
+
+      const uploadedFileBuffer = Buffer.from(
+        await uploadedFileResponse.arrayBuffer(),
+      );
+      const attachmentName = getAttachmentFilename(
+        uploadedFileUrlCandidate,
+        orderData.purchaseOrderNo || "order-document",
+      );
+
+      const uploadedMailOptions: Mail.Options = {
+        to: orderData?.manufacturingEmailAddress,
+        cc: ["info@chicandholland.com", "krishna.web@ymtsindia.org"],
+        subject: "Order Confirmation",
+        html: `
+      <!DOCTYPE html>
+      <html lang="en">
+      <body>
+          <div class="container">
+             <p>Hello ${orderData?.name || ""}</p>
+              <p>Thank you for your order.</p>
+              <p>Please find the order details attached below.</p>
+              <p>Best Regards,<br>Chic & Holland Team</p>
+          </div>
+      </body>
+      </html>
+    `,
+        attachments: [
+          {
+            filename: attachmentName,
+            content: uploadedFileBuffer,
+          },
+        ],
+        replyTo: "support@chicandholland.com",
+      };
+
+      await sendMail(uploadedMailOptions);
+
+      return res.status(200).json({
+        success: true,
+        message: "Order sent successfully",
+      });
+    }
+
     const pdf = await renderToBuffer(<RetailerPdf orderData={orderData} />);
 
     const htmlContent = `

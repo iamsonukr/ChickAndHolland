@@ -6,6 +6,7 @@ import RelatedProducts from "@/components/custom/relatedProducts";
 import { SizeChartDialog } from "@/components/custom/sizeChart";
 import ActionButtons from "./ActionButtons";
 import ScrollToTop from "@/components/custom/ScrollToTop";
+import { getRetailerDetails } from "@/lib/data";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -24,10 +25,23 @@ const ProductDetailsPage = async ({ params }: PageProps) => {
   const userType = cookieStore.get("userType")?.value ?? "";
   const isRetailer = userType === "RETAILER";
   const retailerId = cookieStore.get("retailerId")?.value;
-  const currencyId = cookieStore.get("currencyId")?.value;
+  let currencyId = cookieStore.get("currencyId")?.value;
   const localFavourites = JSON.parse(
     cookieStore.get("favourites")?.value ?? "[]",
   );
+
+  // Re-sync currency with latest retailer profile so browsing reflects currency changes
+  // without waiting for a re-login.
+  if (retailerId) {
+    const latestRetailer = await getRetailerDetails(Number(retailerId));
+    const latestCurrencyId =
+      latestRetailer?.currencyId ||
+      latestRetailer?.retailer?.currencyId ||
+      latestRetailer?.retailer?.customer?.currencyId;
+    if (latestCurrencyId) {
+      currencyId = String(latestCurrencyId);
+    }
+  }
 
   const productDetails = await getProductDetails(
     Number(id),
