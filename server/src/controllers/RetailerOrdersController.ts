@@ -625,7 +625,7 @@ router.get(
   r.storeAddress,
   r.email,
   s.size_country,
-  pm.name as image,
+  COALESCE(MIN(pm.name), '') as image,
   rf.mesh_color,
   rf.beading_color,
   rf.lining,
@@ -647,7 +647,7 @@ INNER JOIN stock s ON s.id = rf.stockId
 INNER JOIN products p ON p.id = s.styleNo
 INNER JOIN retailers ret ON ret.id = rf.retailerId
 INNER JOIN customers r ON r.id = ret.customerId
-INNER JOIN productimages pm ON pm.productId = s.styleNo
+LEFT JOIN productimages pm ON pm.productId = s.styleNo
 LEFT JOIN currencies curr ON curr.id = rf.currencyId
 LEFT JOIN stock_currency_pricing scp 
   ON scp.stockId = s.id AND scp.currencyId = rf.currencyId
@@ -1000,6 +1000,9 @@ router.post(
     return res.json({
       success: true,
       msg: "Stock Order Accepted Successfully",
+      message: "Stock Order Accepted Successfully",
+      orderId: order.id,
+      purchaseOrderNo: order.purchaeOrderNo,
       po_number: order.purchaeOrderNo,
       barcode: stockStyle.barcode,
     });

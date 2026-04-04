@@ -57,6 +57,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Option } from "@/components/custom/multi-selector";
+import { API_URL } from "@/lib/constants";
 import {
   getLatestRegularOrder,
   getLatestRetailerOrder,
@@ -282,36 +283,7 @@ const FreshOrdersAcceptedForm = ({
 
 
   const onSubmitFun = async (data: CreateFreshOrderForm) => {
-    // If user uploaded a file, send it directly
-    if (uploadedFile) {
-      const formData = new FormData();
-      formData.append("rfo_id", String(id));
-      formData.append("uploadedOrderFile", uploadedFile);
-      formData.append("uploadedOrderFileType", uploadedFileType ?? "");
-
-      try {
-        const response = await executeAsync(formData);
-
-        if (!response.success) {
-          toast.error("Failed to add order");
-          return;
-        }
-
-        toast.success(response.message ?? "Order Added Successfully!");
-        setOpen(false);
-        router.refresh();
-        return;
-      } catch (err: any) {
-        toast.error("Failed to add order", {
-          description: err?.message ?? "Something went wrong",
-        });
-      }
-    }
-
-    // Original flow for auto-generated PDF
-    // convert this formData
-
-    let finalData = details[0] as any;
+    const finalData = details[0] as any;
 
     const dataSend = {
       rfo_id: id,
@@ -324,7 +296,7 @@ const FreshOrdersAcceptedForm = ({
       orderReceivedDate: data.orderReceivedDate,
       Size: data.styles.map((i: any) => i.size).join(","),
       size_country: details.map((i) => i.size_country).join(","),
-      StyleNo: data.styles.map((i) => i.styleNo).join(","),
+      StyleNo: data.styles.map((i: any) => i.styleNo).join(","),
       quantity: data.styles.map((i) => i.quantity).join(","),
       total_amount: form.getValues("total_amount"),
       advance: data.advance,
@@ -333,12 +305,61 @@ const FreshOrdersAcceptedForm = ({
       estimate: data.estimate,
       invoice: data.invoice,
       phoneNumber: data.phoneNumber,
-
-
-
-
-
     };
+
+    // If user uploaded a file, create the order first, then attach the uploaded document.
+    if (uploadedFile) {
+      try {
+        const response = await executeAsync({
+          orderData: dataSend,
+        });
+
+        if (!response.success) {
+          toast.error("Failed to add order");
+          return;
+        }
+
+        if (!response.orderId) {
+          throw new Error("Order was created but no order ID was returned for the uploaded document.");
+        }
+
+        const formData = new FormData();
+        formData.append("ppt", uploadedFile);
+        formData.append("orderId", String(response.orderId));
+        formData.append("uploadedOrderFileType", uploadedFileType ?? "");
+
+        const uploadResponse = await fetch(`${API_URL}/upload-ppt`, {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadJson = await uploadResponse.json();
+
+        if (!uploadResponse.ok || !uploadJson.success) {
+          throw new Error(
+            uploadJson?.message || "Order was created but the uploaded document failed to save.",
+          );
+        }
+
+        toast.success(response.message ?? "Order Added Successfully!");
+        setOpen(false);
+        router.refresh();
+        return;
+      } catch (err: any) {
+        const message = err?.message ?? "Something went wrong";
+        toast.error(
+          message.includes("Order was created")
+            ? "Order created, but document upload failed"
+            : "Failed to add order",
+          {
+            description: message,
+          },
+        );
+      }
+    }
+
+    // Original flow for auto-generated PDF
+    // convert this formData
     try {
       const response = await executeAsync({
         orderData: dataSend,
