@@ -23,6 +23,7 @@ import AddressCard from "./AddressCard";
 import Delete, { DeleteButton, ItemsProvider } from "./Delete";
 import OrderDetailsSheet from "./OrderDetails";
 import TableScrollWrapper from "@/components/TableScrollWrapper";
+import AdjustSequenceButton from "./AdjustSequenceButton";
 
 const statusToDbField: Record<string, string | null> = {
   "Pattern":           "pattern",
@@ -94,6 +95,7 @@ const OrdersPage = async (props: {
             <h1 className="text-lg md:text-xl font-semibold">All Orders</h1>
             <div className="flex items-center gap-2">
               <DeleteButton />
+              <AdjustSequenceButton />
               <CreateOrder
                 customers={customers.customers}
                 ordersTotalCount={latestOrderPurchaseOrderNo}
