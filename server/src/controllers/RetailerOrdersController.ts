@@ -15,7 +15,7 @@ import RetailerOrdersPayment from "../models/RetailerPaymentModal";
 import { getRepository, In, MoreThan } from "typeorm";
 import Order from "../models/Order";
 import { convertToUSSize } from "../lib/sizeConversion";
-import { generateUniquePO } from "../utils/generatePO";
+import { generateUniquePO, setGlobalPoSequence } from "../utils/generatePO";
 import RetailerOrderStyles from "../models/RetailerOrderStyles";
 import StockOrderStyles from "../models/StockOrderStyles";
 import express from "express";
@@ -1005,6 +1005,25 @@ router.post(
       purchaseOrderNo: order.purchaeOrderNo,
       po_number: order.purchaeOrderNo,
       barcode: stockStyle.barcode,
+    });
+  })
+);
+
+// Adjust global PO sequence (admin tool)
+router.post(
+  "/sequence",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { nextNumber } = req.body as { nextNumber?: number };
+    if (!nextNumber || isNaN(Number(nextNumber))) {
+      return res.status(400).json({ success: false, msg: "Invalid nextNumber" });
+    }
+
+    const newNext = await setGlobalPoSequence(Number(nextNumber));
+
+    res.json({
+      success: true,
+      nextSequence: newNext,
+      message: `Next PO sequence set to ${newNext}`,
     });
   })
 );

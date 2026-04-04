@@ -54,6 +54,7 @@ import StyleProgress from "./models/StyleProgress";
 import SubCategory from "./models/SubCategory";
 import User from "./models/User";
 import {Worker} from "./models/Worker";
+import OrderSequence from "./models/OrderSequence";
 
 const db = new DataSource({
     type: "mysql",
@@ -72,7 +73,7 @@ const db = new DataSource({
         RetailerOrderStyles, RetailerPaymentModal, RetailerStockOrders,
         Role, Seller, Sponsor, Stock, StockCurrencyPricing,
         StockOrderStyles, StoreOrderStyles, StoreStyleProgress,
-        StyleProgress, SubCategory, User, Worker,
+        StyleProgress, SubCategory, User, Worker, OrderSequence,
     ],
     poolSize: CONFIG.DB_POOL_SIZE,
     logging: !CONFIG.PRODUCTION,
