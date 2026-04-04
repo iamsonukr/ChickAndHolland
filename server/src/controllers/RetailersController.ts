@@ -226,38 +226,70 @@ router.get(
 
     const { retailerId } = req.query;
 
+    // Derive a currency per order (stock order currency > favourites currency > retailer's customer currency)
+    const orderCurrencyMapSql = `
+      SELECT 
+        ro.id AS orderId,
+        COALESCE(rso.currencyId, fav.currencyId, c.currencyId) AS currencyId,
+        YEAR(ro.createdAt) AS created_year
+      FROM retailer_orders ro
+      LEFT JOIN retailer_stock_orders rso ON rso.id = ro.stockOrderId
+      LEFT JOIN retailer_favourites_orders rfo ON rfo.id = ro.favouriteOrderId
+      LEFT JOIN (
+        SELECT 
+          rfo.id AS favOrderId,
+          MAX(f.currencyId) AS currencyId
+        FROM retailer_favourites_orders rfo
+        JOIN favourites f ON FIND_IN_SET(f.id, rfo.favourite_ids) > 0
+        GROUP BY rfo.id
+      ) fav ON fav.favOrderId = rfo.id
+      LEFT JOIN retailers r ON r.id = ro.retailerId
+      LEFT JOIN customers c ON c.id = r.customerId
+      WHERE ro.retailerId = ?
+    `;
+
     const yearReport = await db.query(
-      `SELECT 
-    YEAR(ro.createdAt) AS created_year, 
-    COUNT(ro.id) AS orders,  
-    SUM(ro.purchaseAmount) AS price, 
-    SUM((SELECT SUM(rp.amount) 
-        FROM retailer_order_payments AS rp 
-        WHERE rp.orderId = ro.id)) AS paid,
-    MAX(curr.symbol) as currencySymbol,
-    MAX(curr.name) as currencyName
-FROM retailer_orders AS ro 
-LEFT JOIN retailers r ON r.id = ro.retailerId
-LEFT JOIN customers c ON c.id = r.customerId
-LEFT JOIN currencies curr ON curr.id = c.currencyId
-WHERE ro.retailerId = ?
-GROUP BY created_year
-ORDER BY created_year;
-`,
+      `
+      SELECT 
+        m.created_year,
+        curr.symbol AS currencySymbol,
+        curr.name   AS currencyName,
+        COUNT(ro.id) AS orders,
+        SUM(ro.purchaseAmount) AS price,
+        SUM(COALESCE(pay.amount, 0)) AS paid
+      FROM (${orderCurrencyMapSql}) m
+      JOIN retailer_orders ro ON ro.id = m.orderId
+      LEFT JOIN (
+        SELECT orderId, SUM(amount) AS amount
+        FROM retailer_order_payments
+        GROUP BY orderId
+      ) pay ON pay.orderId = ro.id
+      LEFT JOIN currencies curr ON curr.id = m.currencyId
+      GROUP BY m.created_year, curr.id, curr.symbol, curr.name
+      ORDER BY m.created_year;
+      `,
       [retailerId]
     );
+
     const totalBalance = await db.query(
-      `SELECT 
- SUM(ro.purchaseAmount) - SUM((SELECT SUM(rp.amount) 
-        FROM retailer_order_payments AS rp 
-        WHERE rp.orderId = ro.id)) as vv,
- MAX(curr.symbol) as currencySymbol,
- MAX(curr.name) as currencyName
-FROM retailer_orders AS ro 
-LEFT JOIN retailers r ON r.id = ro.retailerId
-LEFT JOIN customers c ON c.id = r.customerId
-LEFT JOIN currencies curr ON curr.id = c.currencyId
-WHERE ro.retailerId = ?`,
+      `
+      SELECT 
+        cm.currencyId,
+        curr.symbol AS currencySymbol,
+        curr.name   AS currencyName,
+        SUM(ro.purchaseAmount)               AS totalBill,
+        SUM(COALESCE(pay.amount, 0))         AS totalPaid,
+        SUM(ro.purchaseAmount) - SUM(COALESCE(pay.amount, 0)) AS balance
+      FROM (${orderCurrencyMapSql}) cm
+      JOIN retailer_orders ro ON ro.id = cm.orderId
+      LEFT JOIN (
+        SELECT orderId, SUM(amount) AS amount
+        FROM retailer_order_payments
+        GROUP BY orderId
+      ) pay ON pay.orderId = ro.id
+      LEFT JOIN currencies curr ON curr.id = cm.currencyId
+      GROUP BY cm.currencyId, curr.symbol, curr.name
+      `,
       [retailerId]
     );
 

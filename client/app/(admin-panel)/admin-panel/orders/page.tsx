@@ -50,6 +50,7 @@ const OrdersPage = async (props: {
   const currentPage = searchParams["cPage"] ? Number(searchParams["cPage"]) : 1;
   const query       = searchParams["q"]         ?? "";
   const orderType   = searchParams["orderType"] ?? "";
+  const dueFilter   = searchParams["due"]       ?? "";
 
   const orders = await getOrders({
     page: currentPage,
@@ -106,6 +107,41 @@ const OrdersPage = async (props: {
             <div className="flex items-center gap-2">
               <CustomSearchBar query={query} />
               <OrderTypeFilter />
+              <div className="flex items-center gap-1 text-xs">
+                <a
+                  href={`?q=${encodeURIComponent(query)}&orderType=${orderType}&due=lt7`}
+                  className={cn(
+                    "rounded border px-2 py-1 hover:bg-muted",
+                    dueFilter === "lt7" ? "bg-red-100 border-red-300" : ""
+                  )}
+                >
+                  Due &lt; 7 days
+                </a>
+                {/* <a
+                  href={`?q=${encodeURIComponent(query)}&orderType=${orderType}&due=lt14`}
+                  className={cn(
+                    "rounded border px-2 py-1 hover:bg-muted",
+                    dueFilter === "lt14" ? "bg-yellow-100 border-yellow-300" : ""
+                  )}
+                >
+                  Due &lt; 14 days
+                </a> */}
+                <a
+                  href={`?q=${encodeURIComponent(query)}&orderType=${orderType}&due=shipped`}
+                  className={cn(
+                    "rounded border px-2 py-1 hover:bg-muted",
+                    dueFilter === "shipped" ? "bg-green-100 border-green-300" : ""
+                  )}
+                >
+                  Shipped
+                </a>
+                <a
+                  href={`?q=${encodeURIComponent(query)}&orderType=${orderType}`}
+                  className="rounded border px-2 py-1 hover:bg-muted"
+                >
+                  Clear
+                </a>
+              </div>
             </div>
 
             {/* Legend */}
@@ -126,15 +162,15 @@ const OrdersPage = async (props: {
 
             {/* Table */}
             <div className="w-full overflow-x-auto rounded-lg border border-border">
-              <Table className="w-full min-w-[1200px] text-xs">
+              <Table className="w-full min-w-[900px] text-xs">
                 <TableHeader className="bg-muted/50">
                   <TableRow className="whitespace-nowrap">
                     <TableHead className="w-8 px-2 py-1.5 text-center">
                       <Delete bulk={bulkData} type="bulk" />
                     </TableHead>
                     <TableHead className="px-2 py-1.5">Customer</TableHead>
-                    <TableHead className="px-2 py-1.5">PO#</TableHead>
-                    <TableHead className="px-2 py-1.5">Order Type</TableHead>
+                    <TableHead className="px-2 py-1.5 w-[110px] sm:w-[130px]">PO#</TableHead>
+                    <TableHead className="px-2 py-1.5 w-[120px] sm:w-[140px]">Order Type</TableHead>
                     <TableHead className="px-2 py-1.5">Order Date</TableHead>
                     <TableHead className="px-2 py-1.5">Ship Date</TableHead>
                     <TableHead className="px-2 py-1.5">Order Status</TableHead>
@@ -147,8 +183,22 @@ const OrdersPage = async (props: {
 
                 <TableBody>
                   {orders?.orders?.length > 0 ? (
-                    orders.orders.map((order: any) => {
-                      const difference = dayjs(order?.orderCancellationDate).diff(dayjs(), "days");
+                    orders.orders
+                      .filter((order: any) => {
+                        const hasDueDate = !!order?.orderCancellationDate;
+                        const difference = hasDueDate
+                          ? dayjs(order.orderCancellationDate).diff(dayjs(), "days")
+                          : Infinity;
+
+                        if (dueFilter === "lt7") return order.orderStatus !== "Shipped" && hasDueDate && difference < 7;
+                        if (dueFilter === "lt14") return order.orderStatus !== "Shipped" && hasDueDate && difference < 14;
+                        if (dueFilter === "shipped") return order.orderStatus === "Shipped";
+                        return true;
+                      })
+                      .map((order: any) => {
+                      const difference = order?.orderCancellationDate
+                        ? dayjs(order.orderCancellationDate).diff(dayjs(), "days")
+                        : Infinity;
                       const rowClass   = getRowClassName(difference, order.orderStatus);
 
                       return (
@@ -206,8 +256,8 @@ const OrdersPage = async (props: {
                           </TableCell>
 
                           {/* Address */}
-                          <TableCell className="px-2 py-1">
-                            <div className="max-w-[90px] truncate">
+                          <TableCell className="px-2 py-1 whitespace-normal break-words max-w-[180px]">
+                            <div className="truncate">
                               <AddressCard ad={order.address} />
                             </div>
                           </TableCell>

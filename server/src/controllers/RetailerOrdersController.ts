@@ -1249,8 +1249,8 @@ router.get(
         ro.stockOrderId,
         IFNULL(payments.paid_amount, 0) AS paid_amount,
         (ro.purchaseAmount - IFNULL(payments.paid_amount, 0)) AS balance,
-        curr.symbol as currencySymbol,
-        curr.name as currencyName
+        COALESCE(stockCurr.symbol, favCurr.symbol, curr.symbol) as currencySymbol,
+        COALESCE(stockCurr.name, favCurr.name, curr.name) as currencyName
       FROM retailer_orders AS ro
       LEFT JOIN (
         SELECT orderId, SUM(amount) AS paid_amount 
@@ -1260,6 +1260,26 @@ router.get(
       LEFT JOIN retailers r ON r.id = ro.retailerId
       LEFT JOIN customers c ON c.id = r.customerId
       LEFT JOIN currencies curr ON curr.id = c.currencyId
+      /* Fresh orders: currency stored on favourites */
+      LEFT JOIN (
+        SELECT 
+          rfo.id as favouriteOrderId,
+          MAX(curr.symbol) as symbol,
+          MAX(curr.name) as name
+        FROM retailer_favourites_orders rfo
+        JOIN favourites f ON FIND_IN_SET(f.id, rfo.favourite_ids) > 0
+        LEFT JOIN currencies curr ON curr.id = f.currencyId
+        GROUP BY rfo.id
+      ) favCurr ON favCurr.favouriteOrderId = ro.favouriteOrderId
+      /* Stock orders: currency stored on retailer_stock_orders */
+      LEFT JOIN (
+        SELECT 
+          rso.id as stockOrderId,
+          curr.symbol as symbol,
+          curr.name as name
+        FROM retailer_stock_orders rso
+        LEFT JOIN currencies curr ON curr.id = rso.currencyId
+      ) stockCurr ON stockCurr.stockOrderId = ro.stockOrderId
     `;
 
     // Build WHERE clauses
