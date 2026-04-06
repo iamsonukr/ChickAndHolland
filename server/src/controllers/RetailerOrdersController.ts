@@ -24,6 +24,26 @@ import StyleProgress from "../models/StyleProgress";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 const router = Router();
+
+const normalizeAcceptedStyleSize = (
+  rawSize: unknown,
+  fallbackSizeCountry?: string | null,
+) => {
+  const displaySize = String(rawSize ?? "").trim();
+  const countryFromParens =
+    displaySize.match(/\(([^)]+)\)\s*$/)?.[1]?.trim().toUpperCase() || "";
+  const countryFromPrefix =
+    displaySize.match(/^(US|UK|EU|IT)\s+/i)?.[1]?.trim().toUpperCase() || "";
+  const sizeCountry =
+    countryFromParens ||
+    countryFromPrefix ||
+    String(fallbackSizeCountry ?? "").trim().toUpperCase();
+
+  return {
+    displaySize,
+    sizeCountry,
+  };
+};
 // 🔥 Get Latest Purchase Order Number (Fresh Orders Only)
 // Used to auto-generate the next PO number for approval page
 router.get(
@@ -771,7 +791,7 @@ router.get(
     SELECT 
         f.admin_us_size,
         f.id AS fav_id,
-        f.quantity AS quantity,
+        COALESCE(ros.quantity, f.quantity) AS quantity,
         rf.id AS favouriteOrderId,
 
         -- 🔥 ACTUAL RETAILER ORDER ID
@@ -784,7 +804,7 @@ router.get(
         -- 🔥 BARCODE (FINAL)
         ros.barcode AS barcode,
 
-        f.admin_us_size AS size,
+        COALESCE(NULLIF(ros.size, ''), NULLIF(f.admin_us_size, ''), CAST(f.product_size AS CHAR)) AS size,
         f.product_size AS original_size,
         c.name AS customer_name,
         c.email AS manufacturingEmailAddress,
@@ -801,7 +821,7 @@ router.get(
         f.lining_color AS lining_color,
         f.reference_image,
         f.customization AS comments,
-        f.size_country,
+        COALESCE(NULLIF(ros.size_country, ''), f.size_country) AS size_country,
 
         CASE 
             WHEN CAST(f.product_size AS SIGNED) >= 58 THEN COALESCE(pcp.price, p.price) * 1.60 * f.quantity
@@ -1068,20 +1088,79 @@ router.post(
 
       const prefix = `PO#${customerPrefix}`;
       const uniquePO = await generateUniquePO(prefix);
+      const normalizedStyles = Array.isArray(orderData.styles)
+        ? orderData.styles.map((style: any) => {
+            const normalizedSize = normalizeAcceptedStyleSize(
+              style?.size,
+              style?.size_country,
+            );
+
+            return {
+              ...style,
+              normalizedSize: normalizedSize.displaySize,
+              normalizedSizeCountry: normalizedSize.sizeCountry,
+              normalizedQuantity: Number(style?.quantity) || 0,
+            };
+          })
+        : [];
 
       // -------------------------------
       // 🔹 Update favourites (price + customization)
       // -------------------------------
-      for (let i = 0; i < orderData.styles.length; i++) {
-        const favItem = orderData.styles[i];
+      for (let i = 0; i < normalizedStyles.length; i++) {
+        const favItem = normalizedStyles[i];
 
         const fav = await Favourites.findOne({
           where: { id: favItem.fav_id },
         });
 
         if (fav) {
-          fav.product_price = favItem.amount;
-          fav.customization_price = favItem.customization_p || 0;
+          fav.product_price = Number(favItem.amount) || fav.product_price || 0;
+          fav.customization_price = Number(favItem.customization_p) || 0;
+          fav.quantity = favItem.normalizedQuantity || fav.quantity;
+          fav.customization =
+            typeof favItem.comments === "string"
+              ? favItem.comments
+              : fav.customization;
+          fav.color =
+            typeof favItem.customColor === "string" && favItem.customColor.trim()
+              ? favItem.customColor.trim()
+              : fav.color;
+          fav.mesh_color =
+            typeof favItem.meshColor === "string" && favItem.meshColor.trim()
+              ? favItem.meshColor.trim()
+              : fav.mesh_color;
+          fav.beading_color =
+            typeof favItem.beadingColor === "string" && favItem.beadingColor.trim()
+              ? favItem.beadingColor.trim()
+              : fav.beading_color;
+          fav.lining =
+            typeof favItem.lining === "string" && favItem.lining.trim()
+              ? favItem.lining.trim()
+              : fav.lining;
+
+          if (favItem.normalizedSize) {
+            fav.admin_us_size = favItem.normalizedSize;
+          }
+
+          if (favItem.normalizedSizeCountry) {
+            fav.size_country = favItem.normalizedSizeCountry;
+          }
+
+          if (
+            typeof favItem.lining === "string" &&
+            favItem.lining.trim().length > 0
+          ) {
+            fav.add_lining = favItem.lining === "No Lining" ? 0 : 1;
+            fav.lining_color =
+              favItem.lining === "No Lining"
+                ? "No Color"
+                : typeof favItem.liningColor === "string" &&
+                    favItem.liningColor.trim()
+                  ? favItem.liningColor.trim()
+                  : fav.lining_color;
+          }
+
           await fav.save();
         }
       }
@@ -1118,10 +1197,18 @@ router.post(
 
       order.purchaseAmount = orderData.total_amount;
       order.shippingAmount = orderData.shipping;
-      order.Size = orderData.size;
-      order.StyleNo = orderData.styleNo;
-      order.size_country = orderData.size_country;
-      order.quantity = orderData.quantity;
+      order.Size = normalizedStyles
+        .map((style: any) => style.normalizedSize)
+        .join(",");
+      order.StyleNo = normalizedStyles
+        .map((style: any) => style.styleNo)
+        .join(",");
+      order.size_country = normalizedStyles
+        .map((style: any) => style.normalizedSizeCountry)
+        .join(",");
+      order.quantity = normalizedStyles
+        .map((style: any) => String(style.normalizedQuantity))
+        .join(",");
 
       order.is_stock_order = false;
       order.invoiceNo = orderData.invoice;
@@ -1140,16 +1227,16 @@ router.post(
       // -------------------------------
       // 🔹 Insert styles + barcode generation
       // -------------------------------
-      if (orderData.styles && orderData.styles.length > 0) {
-        for (let i = 0; i < orderData.styles.length; i++) {
-          const style = orderData.styles[i];
+      if (normalizedStyles.length > 0) {
+        for (let i = 0; i < normalizedStyles.length; i++) {
+          const style = normalizedStyles[i];
 
           const ros = new RetailerOrderStyles();
           ros.retailerOrder = order;
           ros.styleNo = style.styleNo;
-          ros.quantity = style.quantity;
-          ros.size = style.size;
-          ros.size_country = style.size_country;
+          ros.quantity = style.normalizedQuantity;
+          ros.size = style.normalizedSize;
+          ros.size_country = style.normalizedSizeCountry;
           ros.photoUrls = JSON.stringify([]);
 
           await ros.save(); // generate ID  

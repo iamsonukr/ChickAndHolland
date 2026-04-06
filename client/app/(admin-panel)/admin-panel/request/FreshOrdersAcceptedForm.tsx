@@ -59,12 +59,10 @@ import {
 import { Option } from "@/components/custom/multi-selector";
 import { API_URL } from "@/lib/constants";
 import {
-  getLatestRegularOrder,
   getLatestRetailerOrder,
   getProductColorsCheck,
   getProductColours,
   getRetailerAdminFreshOrderDetails,
-  getLatestFreshPO,
 } from "@/lib/data";
 import OrderCustomerPdf from "@/app/(admin-panel)/admin-panel/orders/OrderCustomerPdf";
 import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
@@ -75,6 +73,11 @@ import { convertWebPToJPG } from "./StockAcceptedForm";
 import RetailerPdf from "./RetailerPdf";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
 import { UploadedFileType } from "@/hooks/useCreateOrder";
+
+const getTrailingPoNumber = (poNumber?: string | null) => {
+  const match = poNumber?.match(/(\d+)\s*$/);
+  return match ? Number(match[1]) : 0;
+};
 
 const FreshOrdersAcceptedForm = ({
   customers,
@@ -128,7 +131,7 @@ const FreshOrdersAcceptedForm = ({
     defaultValues: {
       // purchaseOrderNo: `CH#${String.fromCharCode(65 + (ordersTotalCount % 26))}${ordersTotalCount + 1}`,
       orderId: id,
-      purchaseOrderNo: `PO#3`,
+      purchaseOrderNo: "",
       manufacturingEmailAddress: "",
       orderReceivedDate: undefined,
       orderCancellationDate: undefined,
@@ -184,33 +187,13 @@ const FreshOrdersAcceptedForm = ({
       // 1️⃣ Get Customer Prefix
       const customerPrefix = data[0].customer_name
         .split(" ")[0]
-        .replace(/[^A-Za-z0-9]/g, "")   // allow numbers too
+        .replace(/[^A-Za-z]/g, "")
         .toUpperCase();
 
-      // 2️⃣ Fetch last PO from backend
-      const latestPO = await getLatestFreshPO();
-
-      let newPO = "";
-
-      if (latestPO.success && latestPO.latestPO) {
-        const last = latestPO.latestPO;
-
-        // Extract prefix safely (keeps letters + numbers)
-        const backendPrefix = last.match(/PO#([A-Z0-9]+)(\d+)/i)?.[1] || "";
-
-        // Extract numeric part
-        const numericPart = last.match(/(\d+)$/)?.[1] || "0";
-
-        if (backendPrefix === customerPrefix) {
-          const nextNum = String(Number(numericPart) + 1).padStart(5, "0");
-          newPO = `PO#${customerPrefix}${nextNum}`;
-        } else {
-          // customer changed → reset PO
-          newPO = `PO#${customerPrefix}00001`;
-        }
-      } else {
-        newPO = `PO#${customerPrefix}00001`;
-      }
+      // 2️⃣ Fetch last retailer PO from backend and keep the global sequence
+      const latestPO = await getLatestRetailerOrder();
+      const nextSequence = getTrailingPoNumber(latestPO?.purchaeOrderNo) + 1 || 1;
+      const newPO = `PO#${customerPrefix} ${nextSequence}`;
 
       // 3️⃣ Set PO in form
       form.setValue("purchaseOrderNo", newPO);
@@ -826,7 +809,7 @@ const FreshOrdersAcceptedForm = ({
                     <FormLabel>Customer</FormLabel>
 
                     {/* @ts-ignore */}
-                    <Input placeholder="PO#VICTORIA" {...field} readOnly />
+                    <Input placeholder="PO#RITIK 21" {...field} readOnly />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -849,7 +832,7 @@ const FreshOrdersAcceptedForm = ({
                     <FormLabel>Purchase Order No</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="PO#"
+                        placeholder="PO#RITIK 21"
                         {...field}
                         readOnly
                       />

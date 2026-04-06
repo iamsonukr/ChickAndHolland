@@ -6,14 +6,6 @@ import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import dayjs from "dayjs";
 import TableActions from "./TableActions";
 import { cn, fresh } from "@/lib/utils";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import UpdateOrderStatus from "@/app/(admin-panel)/admin-panel/orders/UpdateOrderStatus";
 import OrderTypeFilter from "@/app/(admin-panel)/admin-panel/orders/OrderTypeFilter";
 import UpdateTrackingId from "./UpdateTrackingId";
@@ -22,7 +14,6 @@ import UpdateRetailerTrackingId from "./UpdateRetailerTrackingId";
 import AddressCard from "./AddressCard";
 import Delete, { DeleteButton, ItemsProvider } from "./Delete";
 import OrderDetailsSheet from "./OrderDetails";
-import TableScrollWrapper from "@/components/TableScrollWrapper";
 import AdjustSequenceButton from "./AdjustSequenceButton";
 
 const statusToDbField: Record<string, string | null> = {
@@ -42,6 +33,34 @@ const getRowClassName = (difference: number, orderStatus: string) => {
   if (difference < 7)             return "bg-red-600 text-white hover:bg-red-500";
   if (difference < 14)            return "bg-yellow-400 text-black hover:bg-yellow-500";
   return "";
+};
+
+const filterButtonClassName =
+  "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted";
+
+const tableHeadClassName =
+  "border border-border px-3 py-2 text-center text-[15px] font-semibold text-foreground align-middle";
+
+const tableCellClassName =
+  "border border-border px-3 py-2 text-sm md:text-[15px] align-middle";
+
+const buildOrdersFilterHref = ({
+  query,
+  orderType,
+  due,
+}: {
+  query: string;
+  orderType: string;
+  due?: string;
+}) => {
+  const params = new URLSearchParams();
+
+  if (query) params.set("q", query);
+  if (orderType) params.set("orderType", orderType);
+  if (due) params.set("due", due);
+
+  const search = params.toString();
+  return search ? `?${search}` : "?";
 };
 
 const OrdersPage = async (props: {
@@ -84,9 +103,30 @@ const OrdersPage = async (props: {
     id: i.id,
     orderType: i.orderType,
   }));
+  const filteredOrders =
+    orders?.orders?.filter((order: any) => {
+      const hasDueDate = !!order?.orderCancellationDate;
+      const difference = hasDueDate
+        ? dayjs(order.orderCancellationDate).diff(dayjs(), "days")
+        : Infinity;
+
+      if (dueFilter === "lt7") {
+        return order.orderStatus !== "Shipped" && hasDueDate && difference < 7;
+      }
+
+      if (dueFilter === "lt14") {
+        return order.orderStatus !== "Shipped" && hasDueDate && difference < 14;
+      }
+
+      if (dueFilter === "shipped") {
+        return order.orderStatus === "Shipped";
+      }
+
+      return true;
+    }) ?? [];
 
   return (
-    <ContentLayout title="Orders Page">
+    <ContentLayout title="All Orders">
       <ItemsProvider>
         <div className="flex flex-col gap-4">
 
@@ -106,142 +146,155 @@ const OrdersPage = async (props: {
           <div className="space-y-2">
 
             {/* Search + Filter */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <CustomSearchBar query={query} />
               <OrderTypeFilter />
-              <div className="flex items-center gap-1 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
                 <a
-                  href={`?q=${encodeURIComponent(query)}&orderType=${orderType}&due=lt7`}
+                  href={buildOrdersFilterHref({
+                    query,
+                    orderType,
+                    due: "lt7",
+                  })}
                   className={cn(
-                    "rounded border px-2 py-1 hover:bg-muted",
+                    filterButtonClassName,
                     dueFilter === "lt7" ? "bg-red-100 border-red-300" : ""
                   )}
                 >
-                  Due &lt; 7 days
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="h-2.5 w-2.5 rounded-full bg-red-500"
+                    />
+                    <span>Due in 7 Days</span>
+                  </span>
                 </a>
-                {/* <a
-                  href={`?q=${encodeURIComponent(query)}&orderType=${orderType}&due=lt14`}
+                <a
+                  href={buildOrdersFilterHref({
+                    query,
+                    orderType,
+                    due: "lt14",
+                  })}
                   className={cn(
-                    "rounded border px-2 py-1 hover:bg-muted",
+                    filterButtonClassName,
                     dueFilter === "lt14" ? "bg-yellow-100 border-yellow-300" : ""
                   )}
                 >
-                  Due &lt; 14 days
-                </a> */}
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="h-2.5 w-2.5 rounded-full bg-yellow-400"
+                    />
+                    <span>Due in 14 Days</span>
+                  </span>
+                </a>
                 <a
-                  href={`?q=${encodeURIComponent(query)}&orderType=${orderType}&due=shipped`}
+                  href={buildOrdersFilterHref({
+                    query,
+                    orderType,
+                    due: "shipped",
+                  })}
                   className={cn(
-                    "rounded border px-2 py-1 hover:bg-muted",
+                    filterButtonClassName,
                     dueFilter === "shipped" ? "bg-green-100 border-green-300" : ""
                   )}
                 >
-                  Shipped
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="h-2.5 w-2.5 rounded-full bg-green-500"
+                    />
+                    <span>Shipped</span>
+                  </span>
                 </a>
                 <a
-                  href={`?q=${encodeURIComponent(query)}&orderType=${orderType}`}
-                  className="rounded border px-2 py-1 hover:bg-muted"
+                  href={buildOrdersFilterHref({
+                    query,
+                    orderType,
+                  })}
+                  className={cn(
+                    filterButtonClassName,
+                    !dueFilter ? "bg-muted" : "",
+                  )}
                 >
-                  Clear
+                  All Orders
                 </a>
               </div>
             </div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                Due in &lt; 7 days
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-yellow-400" />
-                Due in &lt; 14 days
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-green-500" />
-                Shipped
-              </span>
-            </div>
-
             {/* Table */}
             <div className="w-full overflow-x-auto rounded-lg border border-border">
-              <Table className="w-full min-w-[900px] text-xs">
-                <TableHeader className="bg-muted/50">
-                  <TableRow className="whitespace-nowrap">
-                    <TableHead className="w-8 px-2 py-1.5 text-center">
+              <table className="w-full min-w-[1120px] border-collapse text-sm">
+                <thead className="bg-muted/50">
+                  <tr className="whitespace-nowrap [&>th]:align-middle">
+                    <th className={cn(tableHeadClassName, "w-12 text-center")}>
                       <Delete bulk={bulkData} type="bulk" />
-                    </TableHead>
-                    <TableHead className="px-2 py-1.5">Customer</TableHead>
-                    <TableHead className="px-2 py-1.5 w-[110px] sm:w-[130px]">PO#</TableHead>
-                    <TableHead className="px-2 py-1.5 w-[120px] sm:w-[140px]">Order Type</TableHead>
-                    <TableHead className="px-2 py-1.5">Order Date</TableHead>
-                    <TableHead className="px-2 py-1.5">Ship Date</TableHead>
-                    <TableHead className="px-2 py-1.5">Order Status</TableHead>
-                    <TableHead className="px-2 py-1.5">Address</TableHead>
-                    <TableHead className="px-2 py-1.5">Phone</TableHead>
-                    <TableHead className="px-2 py-1.5">Tracking ID</TableHead>
-                    <TableHead className="px-2 py-1.5 text-center">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+                    </th>
+                    <th className={tableHeadClassName}>Customer</th>
+                    <th className={cn(tableHeadClassName, "w-[150px]")}>PO#</th>
+                    <th className={cn(tableHeadClassName, "w-[140px]")}>Order Type</th>
+                    <th className={cn(tableHeadClassName, "w-[130px]")}>Order Date</th>
+                    <th className={cn(tableHeadClassName, "w-[130px]")}>Ship Date</th>
+                    <th className={cn(tableHeadClassName, "w-[170px]")}>Order Status</th>
+                    <th className={cn(tableHeadClassName, "w-[220px]")}>Address</th>
+                    <th className={cn(tableHeadClassName, "w-[140px]")}>Phone</th>
+                    <th className={cn(tableHeadClassName, "w-[170px]")}>Tracking ID</th>
+                    <th className={cn(tableHeadClassName, "w-[170px] text-center")}>Actions</th>
+                  </tr>
+                </thead>
 
-                <TableBody>
-                  {orders?.orders?.length > 0 ? (
-                    orders.orders
-                      .filter((order: any) => {
-                        const hasDueDate = !!order?.orderCancellationDate;
-                        const difference = hasDueDate
-                          ? dayjs(order.orderCancellationDate).diff(dayjs(), "days")
-                          : Infinity;
-
-                        if (dueFilter === "lt7") return order.orderStatus !== "Shipped" && hasDueDate && difference < 7;
-                        if (dueFilter === "lt14") return order.orderStatus !== "Shipped" && hasDueDate && difference < 14;
-                        if (dueFilter === "shipped") return order.orderStatus === "Shipped";
-                        return true;
-                      })
-                      .map((order: any) => {
+                <tbody>
+                  {filteredOrders.length > 0 ? (
+                    filteredOrders.map((order: any) => {
                       const difference = order?.orderCancellationDate
                         ? dayjs(order.orderCancellationDate).diff(dayjs(), "days")
                         : Infinity;
                       const rowClass   = getRowClassName(difference, order.orderStatus);
 
                       return (
-                        <TableRow
+                        <tr
                           key={`${order.id}-${order.purchaeOrderNo}-${order.orderType}`}
-                          className={cn("whitespace-nowrap align-middle", rowClass)}
+                          className={cn(
+                            "whitespace-nowrap align-middle [&>td]:align-middle",
+                            rowClass,
+                          )}
                         >
                           {/* Delete */}
-                          <TableCell className="px-2 py-1 text-center">
+                          <td className={cn(tableCellClassName, "text-center")}>
                             <Delete id={order.id} orderType={order.orderType} type="single" />
-                          </TableCell>
+                          </td>
 
                           {/* Customer */}
-                          <TableCell className="px-2 py-1">
-                            <span className="font-medium">{order.customer?.name}</span>
-                            <span className="ml-1 opacity-50">#{order.id}</span>
-                          </TableCell>
+                          <td className={tableCellClassName}>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold">{order.customer?.name}</span>
+                              <span className="opacity-50">#{order.id}</span>
+                            </div>
+                          </td>
 
                           {/* PO# */}
-                          <TableCell className="px-2 py-1 font-mono">
+                          <td className={cn(tableCellClassName, "font-mono")}>
                             {order.purchaeOrderNo}
-                          </TableCell>
+                          </td>
 
                           {/* Order Type */}
-                          <TableCell className="px-2 py-1">
+                          <td className={tableCellClassName}>
                             {order.orderType === "Fresh" ? fresh : order.orderType}
-                          </TableCell>
+                          </td>
 
                           {/* Order Date */}
-                          <TableCell className="px-2 py-1">
+                          <td className={tableCellClassName}>
                             {dayjs(order.orderReceivedDate).format("DD MMM YYYY")}
-                          </TableCell>
+                          </td>
 
                           {/* Ship Date */}
-                          <TableCell className="px-2 py-1">
+                          <td className={tableCellClassName}>
                             {dayjs(order.orderCancellationDate).format("DD MMM YYYY")}
-                          </TableCell>
+                          </td>
 
                           {/* Order Status */}
-                          <TableCell className="px-2 py-1">
-                            <div className="flex flex-col gap-0.5">
+                          <td className={tableCellClassName}>
+                            <div className="flex flex-col gap-1">
                               <div className="text-black">
                                 {order.orderSource === "retailer" ? (
                                   <UpdateRetailerOrderStatus orderData={order} />
@@ -249,28 +302,28 @@ const OrdersPage = async (props: {
                                   <UpdateOrderStatus orderData={order} />
                                 )}
                               </div>
-                              <p className="text-[10px] opacity-60">
+                              <p className="text-xs opacity-70">
                                 {order.orderSource === "retailer"
                                   ? orderStatusData(order.orderStatus.toString(), order.id)
                                   : orderStatusDataTwo(order.orderStatus.toString(), order.id)}
                               </p>
                             </div>
-                          </TableCell>
+                          </td>
 
                           {/* Address */}
-                          <TableCell className="px-2 py-1 whitespace-normal break-words max-w-[180px]">
+                          <td className={cn(tableCellClassName, "max-w-[220px] whitespace-normal break-words")}>
                             <div className="truncate">
                               <AddressCard ad={order.address} />
                             </div>
-                          </TableCell>
+                          </td>
 
                           {/* Phone */}
-                          <TableCell className="px-2 py-1">
+                          <td className={tableCellClassName}>
                             {order.customer?.phoneNumber || "N/A"}
-                          </TableCell>
+                          </td>
 
                           {/* Tracking ID */}
-                          <TableCell className="px-2 py-1">
+                          <td className={tableCellClassName}>
                             <div className="text-black">
                               {order.orderSource === "retailer" ? (
                                 <UpdateRetailerTrackingId orderData={order} />
@@ -278,31 +331,34 @@ const OrdersPage = async (props: {
                                 <UpdateTrackingId trackingId={order.trackingNo} id={order.id} />
                               )}
                             </div>
-                          </TableCell>
+                          </td>
 
                           {/* Actions */}
-                          <TableCell className="px-2 py-1">
-                            <div className="flex items-center justify-center gap-1">
+                          <td className={cn(tableCellClassName, "text-center")}>
+                            <div className="flex items-center justify-center gap-2">
                               <OrderDetailsSheet orderDetails={order} />
                               <TableActions data={order} />
                             </div>
-                          </TableCell>
+                          </td>
 
-                        </TableRow>
+                        </tr>
                       );
                     })
                   ) : (
-                    <TableRow>
-                      <TableCell colSpan={11} className="py-12 text-center text-muted-foreground">
+                    <tr>
+                      <td
+                        colSpan={11}
+                        className="border border-border py-10 text-center text-base text-muted-foreground"
+                      >
                         <div className="flex flex-col items-center gap-1">
                           <p className="font-medium">No orders found</p>
-                          <p className="text-xs">Try adjusting your search or filters.</p>
+                          <p className="text-sm">Try adjusting your search or filters.</p>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   )}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
 
             {/* Pagination */}
