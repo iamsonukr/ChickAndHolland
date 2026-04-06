@@ -21,41 +21,53 @@ router.get(
     const rows = await db.query(
       `
       SELECT
-  ros.id              AS styleId,
-  ros.styleNo         AS styleNo,
-  ros.barcode         AS barcode,
+        ros.id            AS styleId,
+        ros.styleNo       AS styleNo,
+        ros.barcode       AS barcode,
+        ros.size          AS size,
+        ros.quantity      AS quantity,
+        ro.purchaeOrderNo AS purchaseOrderNo,
+        CONCAT(
+          'SAS(',
+          COALESCE(pc.name, matchedFavourite.mesh_color),
+          ')'
+        ) AS meshColor
 
-  ros.size            AS size,
-  ros.quantity        AS quantity,
+      FROM retailer_order_styles ros
+      INNER JOIN retailer_orders ro
+        ON ro.id = ros.retailerOrderId
 
-  ro.purchaeOrderNo   AS purchaseOrderNo,
-  f.admin_us_size     AS admin_us_size,
+      LEFT JOIN retailer_favourites_orders rfo
+        ON rfo.id = ro.favouriteOrderId
 
-  -- ✅ REAL FIX
-  CONCAT(
-    'SAS(',
-    COALESCE(pc.name, f.mesh_color),
-    ')'
-  ) AS meshColor
+      LEFT JOIN products p
+        ON p.productCode = ros.styleNo
 
-FROM retailer_order_styles ros
-INNER JOIN retailer_orders ro
-  ON ro.id = ros.retailerOrderId
+      LEFT JOIN favourites matchedFavourite
+        ON FIND_IN_SET(matchedFavourite.id, rfo.favourite_ids) > 0
+       AND matchedFavourite.productId = p.id
+       AND (
+            ros.size = CAST(matchedFavourite.admin_us_size AS CHAR)
+         OR ros.size = CAST(matchedFavourite.product_size AS CHAR)
+         OR ros.size = CONCAT(
+              CAST(matchedFavourite.product_size AS CHAR),
+              ' (',
+              matchedFavourite.size_country,
+              ')'
+            )
+       )
+       AND (
+            ros.size_country = matchedFavourite.size_country
+         OR ros.size_country IS NULL
+         OR ros.size_country = ''
+       )
 
-LEFT JOIN retailer_favourites_orders rfo
-  ON rfo.id = ro.favouriteOrderId
+      LEFT JOIN product_colours pc
+        ON LOWER(pc.hexcode) = LOWER(matchedFavourite.mesh_color)
 
-LEFT JOIN favourites f
-  ON FIND_IN_SET(f.id, rfo.favourite_ids) > 0
-
--- 🔥 JOIN WITH EXISTING COLOR MASTER
-LEFT JOIN product_colours pc
-  ON LOWER(pc.hexcode) = LOWER(f.mesh_color)
-
-WHERE ro.id = ?
-GROUP BY ros.id
-ORDER BY ros.id ASC;
-`,
+      WHERE ro.id = ?
+      ORDER BY ros.id ASC;
+      `,
       [orderId]
     );
 
@@ -82,7 +94,7 @@ ORDER BY ros.id ASC;
         barcode: row.barcode,
 
         // ✅ LABEL DATA (RAW)
-        size: row.admin_us_size ?? row.size,
+        size: row.size,
         quantity: row.quantity ?? 1,
         color: row.color,
         purchaseOrderNo: row.purchaseOrderNo,

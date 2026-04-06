@@ -278,6 +278,15 @@ const FreshOrdersAcceptedForm = ({
         .map((row: any) => [String(row.fav_id), row.barcode]),
     );
 
+  const buildFreshPreviewBarcode = (
+    purchaseOrderNo: string,
+    styleNo?: string,
+    index = 0,
+  ) => {
+    const previewSequence = String(index + 1).padStart(2, "0");
+    return `${purchaseOrderNo}-${styleNo ?? "STYLE"}-PREVIEW-${previewSequence}`;
+  };
+
   const buildFreshRowKey = ({
     favouriteId,
     styleNo,
@@ -637,7 +646,9 @@ const FreshOrdersAcceptedForm = ({
           const sizeCountry = match ? match[1] : "";
 
           // 🔥 FINAL BARCODE (ONLY SOURCE)
-          const barcode = barcodeMap.get(favouriteId) || "N/A";
+          const barcode =
+            barcodeMap.get(favouriteId) ||
+            buildFreshPreviewBarcode(data.purchaseOrderNo, current.styleNo, index);
           const comparisonKey = buildFreshRowKey({
             favouriteId,
             styleNo: current.styleNo,
