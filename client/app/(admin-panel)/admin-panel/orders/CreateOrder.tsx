@@ -14,7 +14,7 @@ import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 
 import { useCreateOrder } from "@/hooks/useCreateOrder";
 import { CreateOrderFormFields } from "@/components/CreateOrder/CreateOrderFormFields";
-import FreshOrderPdf from "../request/FreshOrderPdf";
+import RetailerPdf from "../request/RetailerPdf";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -176,7 +176,7 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
                   <PDFDownloadLink
                     key={`download-${previewDocumentKey}`}
                     document={
-                      <FreshOrderPdf
+                      <RetailerPdf
                         key={`document-${previewDocumentKey}`}
                         orderData={previewData}
                       />
@@ -206,7 +206,7 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
                 className="h-[75vh] w-full"
                 showToolbar={false}
               >
-                <FreshOrderPdf
+                <RetailerPdf
                   key={`viewer-document-${previewDocumentKey}`}
                   orderData={previewData}
                 />

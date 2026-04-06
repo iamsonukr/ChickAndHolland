@@ -98,7 +98,31 @@ export function buildPreviewData(
   responseOrders: any[],
   getColourBasedOnhex: (hex: string) => string | undefined,
 ) {
-  const loop = responseOrders[0].styles.map((currentItem: any) => ({
+  const buildTemporaryPreviewBarcode = (
+    purchaseOrderNo: string,
+    styleNo?: string | null,
+    index?: number,
+  ) => {
+    const previewSequence = String((index ?? 0) + 1).padStart(2, "0");
+    return `${purchaseOrderNo}-${styleNo ?? "STYLE"}-PREVIEW-${previewSequence}`;
+  };
+
+  const resolvePreviewColour = (
+    value?: string | null,
+    sampleValue?: string | null,
+  ) => {
+    if (!value || value === "SAS") return "SAS";
+
+    const resolvedValue = getColourBasedOnhex(value) ?? value;
+    const isSameAsSample =
+      sampleValue &&
+      typeof sampleValue === "string" &&
+      value.toLowerCase() === sampleValue.toLowerCase();
+
+    return isSameAsSample ? `SAS(${resolvedValue})` : resolvedValue;
+  };
+
+  const loop = responseOrders[0].styles.map((currentItem: any, index: number) => ({
     quantity:
       currentItem.customSizesQuantity.length < 1
         ? currentItem.quantity
@@ -115,10 +139,26 @@ export function buildPreviewData(
     comments: currentItem.comments.join(", "),
     color: currentItem.colorType,
     image: currentItem.convertedFirstProductImage,
-    meshColor: !currentItem.mesh || currentItem.mesh === "SAS" ? "SAS" : (getColourBasedOnhex(currentItem.mesh) ?? "SAS"),
-    beadingColor: !currentItem.beading || currentItem.beading === "SAS" ? "SAS" : (getColourBasedOnhex(currentItem.beading) ?? "SAS"),
+    barcode:
+      currentItem.barcode ??
+      buildTemporaryPreviewBarcode(
+        data.purchaseOrderNo,
+        currentItem.styleNo,
+        index,
+      ),
+    meshColor: resolvePreviewColour(
+      currentItem.meshColor ?? currentItem.mesh,
+      currentItem.product?.mesh_color,
+    ),
+    beadingColor: resolvePreviewColour(
+      currentItem.beadingColor ?? currentItem.beading,
+      currentItem.product?.beading_color,
+    ),
     lining: currentItem.lining,
-    liningColor: !currentItem.liningColor || currentItem.liningColor === "SAS" ? "SAS" : (getColourBasedOnhex(currentItem.liningColor) ?? "SAS"),
+    liningColor: resolvePreviewColour(
+      currentItem.liningColor,
+      currentItem.product?.lining_color,
+    ),
     refImg: currentItem.photoUrls,
   }));
 

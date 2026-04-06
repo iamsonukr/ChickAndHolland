@@ -248,7 +248,12 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   const buildStockPreviewData = async (
     data: CreateStockOrderForm,
     purchaseOrderNo: string,
+    barcodeOverride?: string | null,
   ) => {
+    const previewBarcode =
+      barcodeOverride ||
+      customers?.barcode ||
+      `${purchaseOrderNo}-${data.styleNo || "STYLE"}-PREVIEW-01`;
     const match = /\((.*?)\)/.exec(data.size);
     const sizeCountry = match?.[1] ?? customers?.size_country ?? "";
     const sasCheck = await productColorSAS(customers.product_id);
@@ -285,7 +290,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
           quantity: data.quantity,
           size: `${data.size.split("(")[0].trim()}/${data.quantity}`,
           styleNo: data.styleNo,
-          barcode: customers?.barcode,
+          barcode: previewBarcode,
           color: "Stock",
           size_country: sizeCountry,
           image: await convertWebPToJPG(customers?.image),
@@ -506,6 +511,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
         await buildStockPreviewData(
           data,
           response.purchaseOrderNo ?? data.purchaseOrderNo,
+          response.barcode,
         ),
       );
 
