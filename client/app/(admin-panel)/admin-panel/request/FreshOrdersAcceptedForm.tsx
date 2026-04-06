@@ -32,7 +32,7 @@ import {
   Presentation,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import React, { memo, useEffect, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Control, useFieldArray, useForm } from "react-hook-form";
 import useHttp from "@/lib/hooks/usePost";
 import {
@@ -96,16 +96,19 @@ const FreshOrdersAcceptedForm = ({
   const [uploadedFileType, setUploadedFileType] = useState<UploadedFileType>(null);
   const [uploadedFileObjectUrl, setUploadedFileObjectUrl] = useState<string | null>(null);
 
-  const setUploadedFile = (file: File | null) => {
-    if (uploadedFileObjectUrl) {
-      URL.revokeObjectURL(uploadedFileObjectUrl);
-    }
-    setUploadedFileObjectUrl(file ? URL.createObjectURL(file) : null);
+  const setUploadedFile = useCallback((file: File | null) => {
+    setUploadedFileObjectUrl((currentUrl) => {
+      if (currentUrl) {
+        URL.revokeObjectURL(currentUrl);
+      }
+
+      return file ? URL.createObjectURL(file) : null;
+    });
     setUploadedFileRaw(file);
     setUploadedFileType(file ? (file.name.endsWith(".pdf") ? "pdf" : "ppt") : null);
-  };
+  }, []);
 
-  const clearUploadedFile = () => setUploadedFile(null);
+  const clearUploadedFile = useCallback(() => setUploadedFile(null), [setUploadedFile]);
 
   const { executeAsync: mailex } = useHttp(
     "/stock-email",
@@ -282,6 +285,43 @@ const FreshOrdersAcceptedForm = ({
   };
 
 
+  const getFavouriteRowId = (current: any, index: number) =>
+    String(current?.fav_id ?? details[index]?.fav_id ?? "");
+
+  const buildFreshBarcodeMap = (rows: any[]) =>
+    new Map(
+      rows
+        .filter((row: any) => row?.barcode && row?.fav_id != null)
+        .map((row: any) => [String(row.fav_id), row.barcode]),
+    );
+
+  const buildFreshRowKey = ({
+    favouriteId,
+    styleNo,
+    size,
+    quantity,
+    meshColor,
+    beadingColor,
+    lining,
+    liningColor,
+    customColor,
+    comments,
+    barcode,
+  }: any) =>
+    [
+      favouriteId ?? "",
+      styleNo ?? "",
+      size ?? "",
+      quantity ?? "",
+      meshColor ?? "",
+      beadingColor ?? "",
+      lining ?? "",
+      liningColor ?? "",
+      customColor ?? "",
+      comments ?? "",
+      barcode ?? "",
+    ].join("::");
+
   const onSubmitFun = async (data: CreateFreshOrderForm) => {
     const finalData = details[0] as any;
 
@@ -366,6 +406,13 @@ const FreshOrdersAcceptedForm = ({
       });
 
       if (response.success) {
+        const acceptedOrderRes = await getRetailerOrderWithBarcode(
+          Number(form.getValues("orderId")),
+        );
+        const barcodeMap = buildFreshBarcodeMap(
+          Array.isArray(acceptedOrderRes?.data) ? acceptedOrderRes.data : [],
+        );
+
         const combinedStyles = await Promise.all(
           data.styles.map(async (current, index) => {
             // First get the standard colors for this specific style
@@ -374,9 +421,10 @@ const FreshOrdersAcceptedForm = ({
             let colors = colours.productColours;
             const styleNo = parseInt(details[index].product_id);
             const standardColors = await productColorSAS(styleNo);
+            const favouriteId = getFavouriteRowId(current, index);
 
             // Clean up size string
-            const cleanSize = current.size
+            const cleanSize = String(current.size ?? "")
               .split("")
               .map((item) => (item.trim() ? item : ""))
               .join("");
@@ -418,19 +466,28 @@ const FreshOrdersAcceptedForm = ({
               )
               : [];
 
-            // Create comparison key including all properties that should match
-            const comparisonKey = `${current.styleNo}-${current.meshColor}-${current.beadingColor}-${current.lining}-${current.liningColor}-${current.customColor}-${current.comments}`;
-
             // Return the item with necessary properties
-            let str = cleanSize;
-            let regex = /\((.*?)\)/;
-            let match: any = regex.exec(str);
+            const barcode = barcodeMap.get(favouriteId);
+            const match: any = /\((.*?)\)/.exec(cleanSize);
             let valueInBraces = match ? match[1] : "";
+            const comparisonKey = buildFreshRowKey({
+              favouriteId,
+              styleNo: current.styleNo,
+              size: cleanSize,
+              quantity: current.quantity,
+              meshColor: current.meshColor,
+              beadingColor: current.beadingColor,
+              lining: current.lining,
+              liningColor: current.liningColor,
+              customColor: current.customColor,
+              comments: current.comments,
+              barcode,
+            });
 
             return {
               key: comparisonKey,
               quantity: current.quantity,
-              size: `${cleanSize.split("(")[0]}/${current.quantity}`,
+              size: `${cleanSize.split("(")[0].trim()}/${current.quantity}`,
               size_country: valueInBraces,
               styleNo: current.styleNo,
               comments: current.comments || "", // Ensure comments is always defined
@@ -442,7 +499,7 @@ const FreshOrdersAcceptedForm = ({
               beadingColor: beadingColorDisplay,
               lining: liningDisplay,
               liningColor: liningColorDisplay,
-
+              barcode,
             };
           }),
         );
@@ -528,10 +585,10 @@ const FreshOrdersAcceptedForm = ({
         throw new Error("Failed to fetch order barcode data");
       }
 
-      const barcodeStyles = orderRes.data.styles || [];
+      const barcodeStyles = Array.isArray(orderRes.data) ? orderRes.data : [];
 
-      const barcodeMap = new Map(
-        barcodeStyles.map((s: any) => [String(s.styleNo), s.barcode])
+      const barcodeMap = buildFreshBarcodeMap(
+        barcodeStyles,
       );
 
       console.log("🧠 BARCODE MAP →", [...barcodeMap.entries()]);
@@ -547,9 +604,10 @@ const FreshOrdersAcceptedForm = ({
 
           const styleNoId = parseInt(details[index].product_id);
           const standardColors = await productColorSAS(styleNoId);
+          const favouriteId = getFavouriteRowId(current, index);
 
           // Clean size
-          const cleanSize = current.size
+          const cleanSize = String(current.size ?? "")
             .split("")
             .map((item) => (item.trim() ? item : ""))
             .join("");
@@ -591,23 +649,32 @@ const FreshOrdersAcceptedForm = ({
             )
             : [];
 
-          // Comparison key
-          const comparisonKey = `${current.styleNo}-${current.meshColor}-${current.beadingColor}-${current.lining}-${current.liningColor}-${current.customColor}-${current.comments}`;
-
           // Size country
           const match = /\((.*?)\)/.exec(cleanSize);
           const sizeCountry = match ? match[1] : "";
 
           // 🔥 FINAL BARCODE (ONLY SOURCE)
-          const barcode =
-            barcodeMap.get(String(current.styleNo)) || "N/A";
+          const barcode = barcodeMap.get(favouriteId) || "N/A";
+          const comparisonKey = buildFreshRowKey({
+            favouriteId,
+            styleNo: current.styleNo,
+            size: cleanSize,
+            quantity: current.quantity,
+            meshColor: current.meshColor,
+            beadingColor: current.beadingColor,
+            lining: current.lining,
+            liningColor: current.liningColor,
+            customColor: current.customColor,
+            comments: current.comments,
+            barcode,
+          });
 
-          console.log("🔍 PREVIEW BARCODE →", current.styleNo, barcode);
+          console.log("🔍 PREVIEW BARCODE →", favouriteId, current.styleNo, barcode);
 
           return {
             key: comparisonKey,
             quantity: current.quantity,
-            size: `${cleanSize.split("(")[0]}/${current.quantity}`,
+            size: `${cleanSize.split("(")[0].trim()}/${current.quantity}`,
             size_country: sizeCountry,
             styleNo: current.styleNo,
             comments: current.comments || "",
@@ -730,7 +797,7 @@ const FreshOrdersAcceptedForm = ({
     if (!open) {
       clearUploadedFile();
     }
-  }, [open]);
+  }, [open, clearUploadedFile]);
 
   return (
     <div>

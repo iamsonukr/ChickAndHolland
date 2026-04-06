@@ -845,6 +845,16 @@ router.get(
     LEFT JOIN retailer_order_styles ros
         ON ros.retailerOrderId = ro.id
        AND ros.styleNo = p.productCode
+       AND (
+            ros.size = CAST(f.admin_us_size AS CHAR)
+         OR ros.size = CAST(f.product_size AS CHAR)
+         OR ros.size = CONCAT(CAST(f.product_size AS CHAR), ' (', f.size_country, ')')
+       )
+       AND (
+            ros.size_country = f.size_country
+         OR ros.size_country IS NULL
+         OR ros.size_country = ''
+       )
 
     LEFT JOIN currencies curr 
         ON curr.id = f.currencyId
