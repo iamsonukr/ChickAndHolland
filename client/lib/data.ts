@@ -633,7 +633,7 @@ export const getAdminRetailersFreshOrders = async ({
   }
 
   const response = await fetch(
-    `${API_URL}/retailer-orders/admin/favorites-orders?retailerId${retailerId ?? "all"}&page=${page}&query=${encodeURIComponent(query as string)}`,
+    `${API_URL}/retailer-orders/admin/favorites-orders?retailerId=${retailerId ?? "all"}&page=${page}&query=${encodeURIComponent(query as string)}`,
     {
       headers,
     },

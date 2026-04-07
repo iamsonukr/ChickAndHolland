@@ -549,7 +549,7 @@ router.get(
     // -----------------------------
 
     // Retailer filter
-    if (retailerId) {
+    if (retailerId && retailerId !== "all") {
       whereClauses.push("rf.retailerId = ?");
       params.push(Number(retailerId));
     }
@@ -588,10 +588,11 @@ router.get(
       SELECT COUNT(*) AS total
       FROM retailer_favourites_orders rf
       WHERE rf.is_approved = 0
-      ${retailerId ? "AND rf.retailerId = ?" : ""}
+      ${retailerId && retailerId !== "all" ? "AND rf.retailerId = ?" : ""}
     `;
 
-    const countParams = retailerId ? [Number(retailerId)] : [];
+    const countParams =
+      retailerId && retailerId !== "all" ? [Number(retailerId)] : [];
 
     // -----------------------------
     // EXECUTION
