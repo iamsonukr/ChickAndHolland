@@ -1,7 +1,7 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import dayjs from "dayjs";
 
-const fresh = "Store Web Order";
+const fresh = "Fresh Order";
 
 const chunkItems = <T,>(items: T[], size: number) => {
   const chunks: T[][] = [];

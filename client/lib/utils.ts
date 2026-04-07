@@ -3,7 +3,7 @@ import { twMerge } from "tailwind-merge";
 import { API_URL } from "./constants";
 import { imageFormatsSupportedByPDF } from "@/lib/formSchemas";
 
-export let fresh = "Store Web Order";
+export let fresh = "Fresh Order";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

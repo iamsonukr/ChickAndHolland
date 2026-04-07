@@ -1441,7 +1441,7 @@ PublicStoreRoutes.get(
           ')'
         ) AS meshColor
 
-      FROM orderstyles s
+      FROM orderStyles s
       INNER JOIN orders o
         ON o.id = s.orderId
 
