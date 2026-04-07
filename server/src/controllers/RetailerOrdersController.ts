@@ -633,27 +633,26 @@ router.get(
 
     let query = `
   SELECT 
-  DATE_FORMAT(rf.createdAt, '%Y-%m-%d') AS received,
+  DATE_FORMAT(MIN(rf.createdAt), '%Y-%m-%d') AS received,
   rf.id as id,
-  s.id as stock_id,
-  r.name,
-  r.email as email,
-  p.productCode,
-  rf.quantity,
-  s.size as size,
-  rf.retailerId as retailer_id,
-  COALESCE(scp.discountedPrice, s.discountedPrice) * rf.quantity as total_price,
-  r.storeAddress,
-  r.email,
-  s.size_country,
+  MIN(s.id) as stock_id,
+  MIN(r.name) as name,
+  MIN(r.email) as email,
+  MIN(p.productCode) as productCode,
+  MIN(rf.quantity) as quantity,
+  MIN(s.size) as size,
+  MIN(rf.retailerId) as retailer_id,
+  MIN(COALESCE(scp.discountedPrice, s.discountedPrice) * rf.quantity) as total_price,
+  MIN(r.storeAddress) as storeAddress,
+  MIN(s.size_country) as size_country,
   COALESCE(MIN(pm.name), '') as image,
-  rf.mesh_color,
-  rf.beading_color,
-  rf.lining,
-  rf.lining_color,
-  COALESCE(curr.symbol, '€') as currencySymbol,
-  COALESCE(curr.name, 'Euro') as currencyName,
-  s.styleNo as product_id,
+  MIN(rf.mesh_color) as mesh_color,
+  MIN(rf.beading_color) as beading_color,
+  MIN(rf.lining) as lining,
+  MIN(rf.lining_color) as lining_color,
+  MIN(COALESCE(curr.symbol, '€')) as currencySymbol,
+  MIN(COALESCE(curr.name, 'Euro')) as currencyName,
+  MIN(s.styleNo) as product_id,
   sos.barcode AS barcode
 
 FROM retailer_stock_orders rf
@@ -676,7 +675,7 @@ LEFT JOIN stock_currency_pricing scp
 WHERE rf.id = ? 
   AND rf.is_approved = ?
 
-GROUP BY rf.id, sos.barcode;
+GROUP BY rf.id, curr.symbol, sos.barcode;
 `;
 
     console.log("[DEBUG] Executing query with bindings:", { id, status });
@@ -790,9 +789,9 @@ router.get(
 
     const sql = `
     SELECT 
-        f.admin_us_size,
+        MIN(f.admin_us_size) AS admin_us_size,
         f.id AS fav_id,
-        COALESCE(ros.quantity, f.quantity) AS quantity,
+        MIN(COALESCE(ros.quantity, f.quantity)) AS quantity,
         rf.id AS favouriteOrderId,
 
         -- 🔥 ACTUAL RETAILER ORDER ID
@@ -800,46 +799,46 @@ router.get(
 
         p.id AS product_id,
         MIN(pm.name) AS image,
-        f.retailerId AS retailerId,
+        MIN(f.retailerId) AS retailerId,
 
         -- 🔥 BARCODE (FINAL)
         ros.barcode AS barcode,
 
-        COALESCE(NULLIF(ros.size, ''), NULLIF(f.admin_us_size, ''), CAST(f.product_size AS CHAR)) AS size,
-        f.product_size AS original_size,
-        c.name AS customer_name,
-        c.email AS manufacturingEmailAddress,
-        c.phoneNumber AS phoneNumber,
-        p.productCode AS styleNo,
-        DATE_FORMAT(rf.createdAt, '%Y-%m-%d') AS orderReceivedDate,
-        c.storeAddress AS address,
+        MIN(COALESCE(NULLIF(ros.size, ''), NULLIF(f.admin_us_size, ''), CAST(f.product_size AS CHAR))) AS size,
+        MIN(f.product_size) AS original_size,
+        MIN(c.name) AS customer_name,
+        MIN(c.email) AS manufacturingEmailAddress,
+        MIN(c.phoneNumber) AS phoneNumber,
+        MIN(p.productCode) AS styleNo,
+        DATE_FORMAT(MIN(rf.createdAt), '%Y-%m-%d') AS orderReceivedDate,
+        MIN(c.storeAddress) AS address,
 
-        f.color AS color,
-        f.mesh_color AS mesh_color,
-        f.beading_color AS beading_color,
-        f.add_lining AS add_lining,
-        f.lining AS lining,
-        f.lining_color AS lining_color,
-        f.reference_image,
-        f.customization AS comments,
-        COALESCE(NULLIF(ros.size_country, ''), f.size_country) AS size_country,
+        MIN(f.color) AS color,
+        MIN(f.mesh_color) AS mesh_color,
+        MIN(f.beading_color) AS beading_color,
+        MIN(f.add_lining) AS add_lining,
+        MIN(f.lining) AS lining,
+        MIN(f.lining_color) AS lining_color,
+        MIN(f.reference_image) AS reference_image,
+        MIN(f.customization) AS comments,
+        MIN(COALESCE(NULLIF(ros.size_country, ''), f.size_country)) AS size_country,
 
-        CASE 
+        MIN(CASE 
             WHEN CAST(f.product_size AS SIGNED) >= 58 THEN COALESCE(pcp.price, p.price) * 1.60 * f.quantity
             WHEN CAST(f.product_size AS SIGNED) >= 54 THEN COALESCE(pcp.price, p.price) * 1.40 * f.quantity
             WHEN CAST(f.product_size AS SIGNED) >= 50 THEN COALESCE(pcp.price, p.price) * 1.20 * f.quantity
             ELSE COALESCE(pcp.price, p.price) * f.quantity
-        END AS total_amount,
+        END) AS total_amount,
 
-        CASE
+        MIN(CASE
             WHEN CAST(f.product_size AS SIGNED) >= 58 THEN COALESCE(pcp.price, p.price) * 1.60
             WHEN CAST(f.product_size AS SIGNED) >= 54 THEN COALESCE(pcp.price, p.price) * 1.40
             WHEN CAST(f.product_size AS SIGNED) >= 50 THEN COALESCE(pcp.price, p.price) * 1.20
             ELSE COALESCE(pcp.price, p.price)
-        END AS price,
+        END) AS price,
 
-        curr.symbol AS currencySymbol,
-        curr.name AS currencyName
+        MIN(curr.symbol) AS currencySymbol,
+        MIN(curr.name) AS currencyName
 
     FROM retailer_favourites_orders rf
 
@@ -892,9 +891,6 @@ router.get(
         rf.id,
         ro.id,
         p.id,
-        f.product_size,
-        c.name,
-        c.email,
         ros.barcode;
     `;
 
