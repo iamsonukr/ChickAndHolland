@@ -144,7 +144,17 @@ const OrderDetailsSheet = ({ orderDetails }: { orderDetails: any }) => {
 {/* ⭐ VIEW STATUS PROGRESS BUTTON ⭐ */}
 {/* =============================== */}
 <div className="mt-6 flex justify-center">
-  <Link href={`/admin-panel/orders/${orderDetails.id}/status`}>
+  <Link
+    href={{
+      pathname: `/admin-panel/orders/${orderDetails.id}/status`,
+      query: {
+        source:
+          orderDetails.orderSource ||
+          (orderDetails.retailer ? "retailer" : "regular"),
+        type: orderDetails.orderType || "",
+      },
+    }}
+  >
     <Button>View Status Progress</Button>
   </Link>
 </div>

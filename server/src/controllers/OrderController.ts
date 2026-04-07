@@ -74,6 +74,41 @@ function resolveUploadedOrderDocumentExtension(
   return "";
 }
 
+function getTrailingPoNumber(poNumber?: string | null) {
+  const match = poNumber?.match(/(\d+)\s*$/);
+  return match ? Number(match[1]) : 0;
+}
+
+async function resolveRegularPurchaseOrderNo(
+  purchaseOrderNo: string | undefined,
+  customerName: string,
+) {
+  const requestedPo = String(purchaseOrderNo ?? "").trim();
+  const existingOrder = requestedPo
+    ? await Order.findOne({ where: { purchaeOrderNo: requestedPo } })
+    : null;
+
+  if (requestedPo && !existingOrder) {
+    return requestedPo;
+  }
+
+  const prefix = customerName
+    .split(" ")[0]
+    .replace(/[^A-Za-z]/g, "")
+    .toUpperCase();
+
+  const latestRegularOrder = await Order.find({
+    order: { id: "desc" },
+    take: 1,
+  });
+  const latestSequence = getTrailingPoNumber(
+    latestRegularOrder[0]?.purchaeOrderNo,
+  );
+  const nextSequence = latestSequence > 0 ? latestSequence + 1 : 1;
+
+  return `PO#${prefix} ${nextSequence}`;
+}
+
 
 router.post(
   "/",
@@ -158,10 +193,14 @@ router.post(
         const customer = await Customer.findOneOrFail({
           where: { id: customerId },
         });
+        const resolvedPurchaseOrderNo = await resolveRegularPurchaseOrderNo(
+          purchaseOrderNo,
+          customer.name,
+        );
 
         // CREATE ORDER
         const order = new Order();
-        order.purchaeOrderNo = purchaseOrderNo;
+        order.purchaeOrderNo = resolvedPurchaseOrderNo;
         order.manufacturingEmailAddress = manufacturingEmailAddress;
         order.orderType = orderType as OrderType;
         order.orderReceivedDate = orderReceivedDate;
@@ -259,6 +298,7 @@ router.post(
         res.json({
           success: true,
           message: "Order created with barcode successfully",
+          purchaseOrderNo: order.purchaeOrderNo,
         });
       } catch (error) {
         console.error(error);
