@@ -39,10 +39,10 @@ const filterButtonClassName =
   "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted";
 
 const tableHeadClassName =
-  "border border-border px-3 py-2 text-center text-[15px] font-semibold text-foreground align-middle";
+  "border border-border px-2 py-1.5 text-center text-[15px] font-semibold text-foreground align-middle";
 
 const tableCellClassName =
-  "border border-border px-3 py-2 text-sm md:text-[15px] align-middle";
+  "border border-border px-2 py-1.5 text-sm md:text-[15px] align-middle";
 
 const buildOrdersFilterHref = ({
   query,

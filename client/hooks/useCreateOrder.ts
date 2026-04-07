@@ -15,7 +15,7 @@ import {
   SizeCountry,
 } from "@/lib/formSchemas";
 import {
-  getLatestRetailerOrder,
+  getLatestRegularOrder,
   getProductColours,
   getProductDetailsByProductCode,
 } from "@/lib/data";
@@ -319,7 +319,7 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
       .toUpperCase();
 
     try {
-      const latestPO = await getLatestRetailerOrder();
+      const latestPO = await getLatestRegularOrder();
       const latestSequence = getTrailingPoNumber(latestPO?.purchaeOrderNo);
       const nextSequence = latestSequence > 0 ? latestSequence + 1 : fallbackSequence;
 

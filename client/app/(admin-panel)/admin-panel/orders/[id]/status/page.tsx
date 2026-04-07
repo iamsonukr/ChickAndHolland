@@ -1,13 +1,13 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
-import Link from "next/link";
+import { use, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { API_URL } from "@/lib/constants";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 
 import StatusLabelBox from "@/components/StatusLabelBox";
 import StatusLabelBox1 from "@/components/StoreLable";
+import StatusScannerButton from "./StatusScannerButton";
 
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import LabelPdf from "@/components/LabelPdf";
@@ -15,39 +15,65 @@ import LabelPdf1 from "@/components/LabelBox";
 
 export default function OrderStatusPage({ params }: any) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const orderSource = searchParams.get("source");
+  const orderType = searchParams.get("type");
 
   const [retailerReport, setRetailerReport] = useState<any[]>([]);
   const [storeReport, setStoreReport] = useState<any[]>([]);
   const [stockReport, setStockReport] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     setLoading(true);
+    setRetailerReport([]);
+    setStoreReport([]);
+    setStockReport([]);
 
-    try {
-      const res = await fetch(`${API_URL}/report/status/report/${id}`);
-      const json = await res.json();
-      if (json.success) setRetailerReport(json.data || []);
-    } catch {}
+    if (orderSource === "regular") {
+      try {
+        const res = await fetch(`${API_URL}/orders/store-status/report/${id}`);
+        const json = await res.json();
+        if (json.success) setStoreReport(json.data || []);
+      } catch {}
+    } else if (orderSource === "retailer" && orderType === "Stock") {
+      try {
+        const res = await fetch(`${API_URL}/report/stock-status/report/${id}`);
+        const json = await res.json();
+        if (json.success) setStockReport(json.data || []);
+      } catch {}
+    } else if (orderSource === "retailer") {
+      try {
+        const res = await fetch(`${API_URL}/report/status/report/${id}`);
+        const json = await res.json();
+        if (json.success) setRetailerReport(json.data || []);
+      } catch {}
+    } else {
+      try {
+        const res = await fetch(`${API_URL}/report/status/report/${id}`);
+        const json = await res.json();
+        if (json.success) setRetailerReport(json.data || []);
+      } catch {}
 
-    try {
-      const res2 = await fetch(`${API_URL}/orders/store-status/report/${id}`);
-      const json2 = await res2.json();
-      if (json2.success) setStoreReport(json2.data || []);
-    } catch {}
+      try {
+        const res2 = await fetch(`${API_URL}/orders/store-status/report/${id}`);
+        const json2 = await res2.json();
+        if (json2.success) setStoreReport(json2.data || []);
+      } catch {}
 
-    try {
-      const res3 = await fetch(`${API_URL}/report/stock-status/report/${id}`);
-      const json3 = await res3.json();
-      if (json3.success) setStockReport(json3.data || []);
-    } catch {}
+      try {
+        const res3 = await fetch(`${API_URL}/report/stock-status/report/${id}`);
+        const json3 = await res3.json();
+        if (json3.success) setStockReport(json3.data || []);
+      } catch {}
+    }
 
     setLoading(false);
-  };
+  }, [id, orderSource, orderType]);
 
   useEffect(() => {
     fetchReport();
-  }, []);
+  }, [fetchReport]);
 
   if (loading) return <p className="p-6">Loading report...</p>;
 
@@ -106,6 +132,11 @@ export default function OrderStatusPage({ params }: any) {
                 </div>
 
                 <div className="flex flex-col items-center gap-2">
+                  <StatusScannerButton
+                    barcode={item.barcode}
+                    orderType="RETAILER"
+                    onScanned={fetchReport}
+                  />
                   <StatusLabelBox item={item} orderType="RETAILER" />
                   <PDFDownloadLink
                     document={<LabelPdf item={item} />}
@@ -157,6 +188,11 @@ export default function OrderStatusPage({ params }: any) {
                 </div>
 
                 <div className="flex flex-col items-center gap-2">
+                  <StatusScannerButton
+                    barcode={item.barcode}
+                    orderType="STORE"
+                    onScanned={fetchReport}
+                  />
                   <StatusLabelBox1 item={item} orderType="STORE" />
                   <PDFDownloadLink
                     document={<LabelPdf1 item={item} />}
@@ -208,6 +244,11 @@ export default function OrderStatusPage({ params }: any) {
                 </div>
 
                 <div className="flex flex-col items-center gap-2">
+                  <StatusScannerButton
+                    barcode={item.barcode}
+                    orderType="STOCK"
+                    onScanned={fetchReport}
+                  />
                   <StatusLabelBox item={item} orderType="STOCK" />
                   <PDFDownloadLink
                     document={<LabelPdf item={item} />}
