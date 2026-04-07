@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Camera, ScanLine } from "lucide-react";
 import { QrReader } from "react-qr-reader";
 import { toast } from "sonner";
@@ -31,25 +31,69 @@ const getScannerTitle = (orderType: StatusScanOrderType) => {
   return "Retailer Scanner";
 };
 
+const getReadableCameraError = (error: Error) => {
+  const errorName = error?.name || "";
+  const errorMessage = error?.message || "";
+
+  if (
+    errorName === "NotFoundException" ||
+    errorName === "ChecksumException" ||
+    errorName === "FormatException"
+  ) {
+    return null;
+  }
+
+  if (errorName === "NotAllowedError" || errorName === "PermissionDeniedError") {
+    return "Camera permission was denied. Please allow camera access in your browser.";
+  }
+
+  if (errorName === "NotFoundError" || errorName === "DevicesNotFoundError") {
+    return "No camera was found on this device.";
+  }
+
+  if (errorName === "NotReadableError" || errorName === "TrackStartError") {
+    return "The camera is already in use by another app or tab.";
+  }
+
+  if (errorName === "OverconstrainedError" || errorName === "ConstraintNotSatisfiedError") {
+    return "The preferred camera is not available on this device.";
+  }
+
+  if (errorName === "SecurityError" || !window.isSecureContext) {
+    return "Camera access needs a secure site. Open this page on HTTPS or localhost.";
+  }
+
+  return errorMessage || "Unable to start the camera.";
+};
+
 export default function StatusScannerButton({
   barcode: expectedBarcode,
   orderType,
   onScanned,
 }: StatusScannerButtonProps) {
+  const videoId = useId().replace(/:/g, "");
   const [open, setOpen] = useState(false);
   const [barcode, setBarcode] = useState("");
   const [scanLock, setScanLock] = useState(false);
   const [readyForShip, setReadyForShip] = useState(false);
+  const [scannerKey, setScannerKey] = useState(0);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastCameraErrorRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       setBarcode("");
       setScanLock(false);
       setReadyForShip(false);
+      setCameraError(null);
+      lastCameraErrorRef.current = null;
       return;
     }
 
+    setScannerKey((current) => current + 1);
+    setCameraError(null);
+    lastCameraErrorRef.current = null;
     const timeout = setTimeout(() => inputRef.current?.focus(), 150);
     return () => clearTimeout(timeout);
   }, [open]);
@@ -159,6 +203,27 @@ export default function StatusScannerButton({
     }
   };
 
+  const handleReaderResult = (result: any, error?: Error | null) => {
+    if (result?.text) {
+      setCameraError(null);
+      lastCameraErrorRef.current = null;
+      processBarcode(result.text);
+      return;
+    }
+
+    if (!error) return;
+
+    const readableError = getReadableCameraError(error);
+    if (!readableError) return;
+
+    setCameraError(readableError);
+
+    if (lastCameraErrorRef.current !== readableError) {
+      lastCameraErrorRef.current = readableError;
+      toast.error(readableError);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -184,16 +249,30 @@ export default function StatusScannerButton({
           )}
 
           <div className="overflow-hidden rounded-lg border">
-            <QrReader
-              onResult={(result) => {
-                if (result?.text) {
-                  processBarcode(result.text);
-                }
-              }}
-              constraints={{ facingMode: "environment" }}
-              className="w-full"
-            />
+            {open ? (
+              <QrReader
+                key={scannerKey}
+                onResult={handleReaderResult}
+                constraints={{ facingMode: { ideal: "environment" } }}
+                scanDelay={300}
+                videoId={`${videoId}-${scannerKey}`}
+                containerStyle={{ width: "100%" }}
+                videoContainerStyle={{ width: "100%", paddingTop: "56.25%" }}
+                videoStyle={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+                className="w-full"
+              />
+            ) : null}
           </div>
+
+          {cameraError && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {cameraError}
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Input
