@@ -654,6 +654,7 @@ export const getRetailerAdminStockOrderDetails = async (
     `${API_URL}/retailer-orders/admin/stock-order/form/${id}/${status}`,
     {
       headers,
+      cache: "no-store",
     },
   );
 
@@ -676,7 +677,10 @@ export const getRetailerAdminFreshOrderDetails = async (
 
   const response = await fetch(
     `${API_URL}/retailer-orders/admin/favorites-order/details/${id}/${status}`,
-    { headers }
+    {
+      headers,
+      cache: "no-store",
+    }
   );
 
   const responseJson = await response.json();

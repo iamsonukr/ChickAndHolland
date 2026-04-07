@@ -14,7 +14,7 @@ import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 
 import { useCreateOrder } from "@/hooks/useCreateOrder";
 import { CreateOrderFormFields } from "@/components/CreateOrder/CreateOrderFormFields";
-import FreshOrderPdf from "../request/FreshOrderPdf";
+import RetailerPdf from "../request/RetailerPdf";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -73,6 +73,9 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
   //
   const showUploadedPreview = !!uploadedFile;
   const showGeneratedPreview = !uploadedFile && !!previewData;
+  const previewDocumentKey = previewData
+    ? JSON.stringify(previewData)
+    : "create-order-preview-empty";
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -171,7 +174,13 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
                 <h2 className="font-semibold">Preview</h2>
                 <div className="flex items-center gap-3">
                   <PDFDownloadLink
-                    document={<FreshOrderPdf orderData={previewData} />}
+                    key={`download-${previewDocumentKey}`}
+                    document={
+                      <RetailerPdf
+                        key={`document-${previewDocumentKey}`}
+                        orderData={previewData}
+                      />
+                    }
                     fileName={`${previewData.purchaseOrderNo}.pdf`}
                   >
                     {({ loading: pdfLoading }) =>
@@ -192,8 +201,15 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
                 </div>
               </div>
 
-              <PDFViewer className="h-[75vh] w-full" showToolbar={false}>
-                <FreshOrderPdf orderData={previewData} />
+              <PDFViewer
+                key={`viewer-${previewDocumentKey}`}
+                className="h-[75vh] w-full"
+                showToolbar={false}
+              >
+                <RetailerPdf
+                  key={`viewer-document-${previewDocumentKey}`}
+                  orderData={previewData}
+                />
               </PDFViewer>
             </div>
           </div>

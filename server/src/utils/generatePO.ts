@@ -71,7 +71,7 @@ export async function generateUniquePO(prefix: string) {
   // Persist increment for next call
   await bumpGlobalNextNumber(nextNumber);
 
-  return `${prefix}${String(nextNumber).padStart(5, "0")}`;
+  return `${prefix.trim()} ${nextNumber}`;
 }
 
 export async function setGlobalPoSequence(target: number) {

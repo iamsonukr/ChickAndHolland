@@ -32,6 +32,11 @@ export type UploadedFileType = "pdf" | "ppt" | null;
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
+function getTrailingPoNumber(poNumber?: string | null) {
+  const match = poNumber?.match(/(\d+)\s*$/);
+  return match ? Number(match[1]) : 0;
+}
+
 export function buildSharedFormData(data: CreateOrderForm): FormData {
   const fd = new FormData();
   fd.append("purchaseOrderNo", data.purchaseOrderNo);
@@ -93,7 +98,31 @@ export function buildPreviewData(
   responseOrders: any[],
   getColourBasedOnhex: (hex: string) => string | undefined,
 ) {
-  const loop = responseOrders[0].styles.map((currentItem: any) => ({
+  const buildTemporaryPreviewBarcode = (
+    purchaseOrderNo: string,
+    styleNo?: string | null,
+    index?: number,
+  ) => {
+    const previewSequence = String((index ?? 0) + 1).padStart(2, "0");
+    return `${purchaseOrderNo}-${styleNo ?? "STYLE"}-PREVIEW-${previewSequence}`;
+  };
+
+  const resolvePreviewColour = (
+    value?: string | null,
+    sampleValue?: string | null,
+  ) => {
+    if (!value || value === "SAS") return "SAS";
+
+    const resolvedValue = getColourBasedOnhex(value) ?? value;
+    const isSameAsSample =
+      sampleValue &&
+      typeof sampleValue === "string" &&
+      value.toLowerCase() === sampleValue.toLowerCase();
+
+    return isSameAsSample ? `SAS(${resolvedValue})` : resolvedValue;
+  };
+
+  const loop = responseOrders[0].styles.map((currentItem: any, index: number) => ({
     quantity:
       currentItem.customSizesQuantity.length < 1
         ? currentItem.quantity
@@ -110,10 +139,26 @@ export function buildPreviewData(
     comments: currentItem.comments.join(", "),
     color: currentItem.colorType,
     image: currentItem.convertedFirstProductImage,
-    meshColor: !currentItem.mesh || currentItem.mesh === "SAS" ? "SAS" : (getColourBasedOnhex(currentItem.mesh) ?? "SAS"),
-    beadingColor: !currentItem.beading || currentItem.beading === "SAS" ? "SAS" : (getColourBasedOnhex(currentItem.beading) ?? "SAS"),
+    barcode:
+      currentItem.barcode ??
+      buildTemporaryPreviewBarcode(
+        data.purchaseOrderNo,
+        currentItem.styleNo,
+        index,
+      ),
+    meshColor: resolvePreviewColour(
+      currentItem.meshColor ?? currentItem.mesh,
+      currentItem.product?.mesh_color,
+    ),
+    beadingColor: resolvePreviewColour(
+      currentItem.beadingColor ?? currentItem.beading,
+      currentItem.product?.beading_color,
+    ),
     lining: currentItem.lining,
-    liningColor: !currentItem.liningColor || currentItem.liningColor === "SAS" ? "SAS" : (getColourBasedOnhex(currentItem.liningColor) ?? "SAS"),
+    liningColor: resolvePreviewColour(
+      currentItem.liningColor,
+      currentItem.product?.lining_color,
+    ),
     refImg: currentItem.photoUrls,
   }));
 
@@ -140,6 +185,7 @@ export function resolveFileType(file: File): UploadedFileType {
 
 export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOptions) {
   const router = useRouter();
+  const fallbackSequence = Math.max(1, Number(ordersTotalCount) + 1 || 1);
 
   // ── Derived arrays ──────────────────────────────────────────────────────────
   const colorTypeArray = Object.entries(ColorType).map(([key, value]) => ({
@@ -220,7 +266,7 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
   const form = useForm<CreateOrderForm>({
     resolver: zodResolver(createOrderFormSchema),
     defaultValues: {
-      purchaseOrderNo: `PO#${ordersTotalCount + 1}`,
+      purchaseOrderNo: `PO# ${fallbackSequence}`,
       manufacturingEmailAddress: "rubyinc@hotmail.com",
       orderType: orderTypeArrayState[0].value,
       orderReceivedDate: new Date(),
@@ -261,7 +307,10 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
 
   const generatePO = useCallback(async () => {
     const selected = form.getValues("customerId");
-    if (!selected || selected.length < 1) return;
+    if (!selected || selected.length < 1) {
+      form.setValue("purchaseOrderNo", `PO# ${fallbackSequence}`);
+      return;
+    }
 
     const customerName = selected[0].label ?? "";
     const prefix = customerName
@@ -271,16 +320,14 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
 
     try {
       const latestPO = await getLatestRetailerOrder();
-      let newNumber = "00001";
-      if (latestPO?.success && latestPO?.purchaeOrderNo) {
-        const numericPart = latestPO.purchaeOrderNo.replace(/[^\d]/g, "");
-        newNumber = String(Number(numericPart) + 1).padStart(5, "0");
-      }
-      form.setValue("purchaseOrderNo", `PO#${prefix}${newNumber}`);
+      const latestSequence = getTrailingPoNumber(latestPO?.purchaeOrderNo);
+      const nextSequence = latestSequence > 0 ? latestSequence + 1 : fallbackSequence;
+
+      form.setValue("purchaseOrderNo", `PO#${prefix} ${nextSequence}`);
     } catch {
-      // silently keep existing PO number if generation fails
+      form.setValue("purchaseOrderNo", `PO#${prefix} ${fallbackSequence}`);
     }
-  }, [form]);
+  }, [fallbackSequence, form]);
 
   useEffect(() => {
     generatePO();
@@ -294,18 +341,11 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
   // ── Auto-preview on watched fields change ───────────────────────────────────
   // When the user has uploaded their own file we skip auto-generation entirely —
   // the shell will render the upload instead.
-  const watchedStyles = useWatch({ control: form.control, name: "styles" });
-  const watchedCustomer = useWatch({ control: form.control, name: "customerId" });
-  const watchedOrderType = useWatch({ control: form.control, name: "orderType" });
-  const watchedAddress = useWatch({ control: form.control, name: "address" });
-  const watchedDates = useWatch({
-    control: form.control,
-    name: ["orderReceivedDate", "orderCancellationDate"],
-  });
+  const watchedForm = useWatch({ control: form.control });
 
   useEffect(() => {
     if (uploadedFile) return; // user supplied their own file — skip generation
-    if (!watchedDates?.[0] || !watchedDates?.[1]) return;
+    if (!watchedForm?.orderReceivedDate) return;
     if (!form.formState.isValid) return;
 
     const timeout = setTimeout(() => {
@@ -316,11 +356,7 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     uploadedFile,
-    watchedStyles,
-    watchedCustomer,
-    watchedOrderType,
-    watchedAddress,
-    watchedDates,
+    watchedForm,
     form.formState.isValid,
   ]);
 
@@ -385,7 +421,6 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
       toast.success(response.message ?? "Order added successfully");
       setPreviewData(null);
       router.refresh();
-      form.setValue("purchaseOrderNo", "");
     } catch {
       toast.error("Failed to add order", {
         description: error?.message ?? "Something went wrong",

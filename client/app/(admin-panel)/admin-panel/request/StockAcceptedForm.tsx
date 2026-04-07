@@ -29,7 +29,7 @@ import {
   Presentation,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Control, useFieldArray, useForm } from "react-hook-form";
 import useHttp from "@/lib/hooks/usePost";
 import {
@@ -64,11 +64,15 @@ import MultipleSelector, { Option } from "@/components/custom/multi-selector";
 import OrderCustomerPdf from "@/app/(admin-panel)/admin-panel/orders/OrderCustomerPdf";
 import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import Link from "next/link";
-import StockOrdersPdf from "./StockOrdersPdf";
 import RetailerPdf from "./RetailerPdf";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
 import { UploadedFileType } from "@/hooks/useCreateOrder";
 import { API_URL } from "@/lib/constants";
+
+const getTrailingPoNumber = (poNumber?: string | null) => {
+  const match = poNumber?.match(/(\d+)\s*$/);
+  return match ? Number(match[1]) : 0;
+};
 
 const StockAcceptedForm = ({ id }: { id: number }) => {
   const [open, setOpen] = useState(false);
@@ -83,16 +87,16 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   const [uploadedFileType, setUploadedFileType] = useState<UploadedFileType>(null);
   const [uploadedFileObjectUrl, setUploadedFileObjectUrl] = useState<string | null>(null);
 
-  const setUploadedFile = (file: File | null) => {
+  const setUploadedFile = useCallback((file: File | null) => {
     if (uploadedFileObjectUrl) {
       URL.revokeObjectURL(uploadedFileObjectUrl);
     }
     setUploadedFileObjectUrl(file ? URL.createObjectURL(file) : null);
     setUploadedFileRaw(file);
     setUploadedFileType(file ? (file.name.endsWith(".pdf") ? "pdf" : "ppt") : null);
-  };
+  }, [uploadedFileObjectUrl]);
 
-  const clearUploadedFile = () => setUploadedFile(null);
+  const clearUploadedFile = useCallback(() => setUploadedFile(null), [setUploadedFile]);
 
   const { executeAsync: mailex } = useHttp(
     "/stock-email",
@@ -155,6 +159,21 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     );
   };
 
+  const buildPrefilledPoNumber = async (customerName?: string | null) => {
+    const customerPrefix = (customerName ?? "")
+      .split(" ")[0]
+      ?.replace(/[^A-Za-z]/g, "")
+      .toUpperCase();
+
+    const latestRetailerOrder = await fetchJson<{ purchaeOrderNo?: string }>(
+      "/orders/latest-retailer-order",
+    );
+    const nextSequence =
+      getTrailingPoNumber(latestRetailerOrder?.purchaeOrderNo) + 1 || 1;
+
+    return `PO#${customerPrefix} ${nextSequence}`.trim();
+  };
+
   const form = useForm<CreateStockOrderForm>({
     resolver: zodResolver(createStockOrderFormSchema),
     defaultValues: {
@@ -182,17 +201,18 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     },
   });
 
-  const hydrateForm = (customerDetails: any, availableColours: any[]) => {
+  const hydrateForm = async (customerDetails: any, availableColours: any[]) => {
     const invoice = `INVOICE_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
     const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
     const totalAmount = Math.round(Number(customerDetails?.total_price || 0));
     const sizeLabel = customerDetails?.size_country
       ? `${customerDetails?.size ?? ""} (${customerDetails.size_country})`
       : `${customerDetails?.size ?? ""}`;
+    const purchaseOrderNo = await buildPrefilledPoNumber(customerDetails?.name);
 
     form.reset({
       orderId: id,
-      purchaseOrderNo: "",
+      purchaseOrderNo,
       manufacturingEmailAddress: "rubyinc@hotmail.com",
       estimate,
       invoice,
@@ -223,6 +243,66 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       total_amount: totalAmount,
       product_amount: totalAmount,
     });
+  };
+
+  const buildStockPreviewData = async (
+    data: CreateStockOrderForm,
+    purchaseOrderNo: string,
+    barcodeOverride?: string | null,
+  ) => {
+    const previewBarcode =
+      barcodeOverride ||
+      customers?.barcode ||
+      `${purchaseOrderNo}-${data.styleNo || "STYLE"}-PREVIEW-01`;
+    const match = /\((.*?)\)/.exec(data.size);
+    const sizeCountry = match?.[1] ?? customers?.size_country ?? "";
+    const sasCheck = await productColorSAS(customers.product_id);
+
+    const meshColorDisplay =
+      customers.mesh_color === sasCheck.mesh_color
+        ? `SAS( ${findColorName(customers.mesh_color)} )`
+        : data.meshColor;
+
+    const beadingColorDisplay =
+      customers.beading_color === sasCheck.beading_color
+        ? `SAS( ${findColorName(customers.beading_color)} )`
+        : data.beadingColor;
+
+    const liningDisplay =
+      customers.lining === sasCheck.lining
+        ? `SAS( ${customers.lining} )`
+        : data.lining;
+
+    const liningColorDisplay =
+      customers.lining_color === sasCheck.lining_color
+        ? formatSasColor(findColorName(customers.lining_color))
+        : data.liningColor;
+
+    return {
+      customerId: data.customerId,
+      manufacturingEmailAddress: data.manufacturingEmailAddress,
+      orderCancellationDate: data.orderCancellationDate,
+      orderReceivedDate: data.orderReceivedDate,
+      orderType: "Stock",
+      purchaseOrderNo,
+      details: [
+        {
+          quantity: data.quantity,
+          size: `${data.size.split("(")[0].trim()}/${data.quantity}`,
+          styleNo: data.styleNo,
+          barcode: previewBarcode,
+          color: "Stock",
+          size_country: sizeCountry,
+          image: await convertWebPToJPG(customers?.image),
+          meshColor: meshColorDisplay,
+          beadingColor: beadingColorDisplay,
+          lining: liningDisplay,
+          liningColor: liningColorDisplay,
+          comments: "",
+          refImg: [],
+        },
+      ],
+    };
   };
 
   const fetchData = async () => {
@@ -256,7 +336,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
           : null,
       );
       setPreviewData(null);
-      hydrateForm(customerDetails, availableColours);
+      await hydrateForm(customerDetails, availableColours);
       setOpen(true);
     } catch (error: any) {
       console.error("Failed to load stock order details", error);
@@ -426,6 +506,15 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
         ],
       };
 
+      Object.assign(
+        preview,
+        await buildStockPreviewData(
+          data,
+          response.purchaseOrderNo ?? data.purchaseOrderNo,
+          response.barcode,
+        ),
+      );
+
       setPreviewData(preview);
 
       // -----------------------------
@@ -529,6 +618,11 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       ],
     };
 
+    Object.assign(
+      preData,
+      await buildStockPreviewData(data, data.purchaseOrderNo),
+    );
+
     setPreviewData(preData);
   };
 
@@ -590,7 +684,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       clearUploadedFile();
       setPreviewData(null);
     }
-  }, [open]);
+  }, [open, clearUploadedFile]);
 
 
   const formChange = () => {
@@ -664,7 +758,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                     <FormLabel>Purchase Order No</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="PO#VICTORIA"
+                        placeholder="PO#RITIK 21"
                         {...field}
                         value={field.value ?? ""}
                         readOnly
@@ -1088,7 +1182,8 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
           )}
 
           {/* ── Preview panel — auto-generated PDF ── */}
-          <>
+          {previewData && (
+            <>
             <div className="bg-white p-4 border rounded-md mb-4">
               <h2 className="text-lg font-bold mb-3 text-pink-600">
                 Edit Order Before Download
@@ -1162,25 +1257,22 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                 </div>
               </div>
             </div>
-            {previewData && (
-              <>
-                <div className="flex justify-end py-3">
-                  <PDFDownloadLink
-                    document={<StockOrdersPdf orderData={previewData} />}
-                    fileName={`${previewData?.purchaseOrderNo}.pdf`}
-                  >
-                    <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
-                      Download PDF
-                    </button>
-                  </PDFDownloadLink>
-                </div>
+            <div className="flex justify-end py-3">
+              <PDFDownloadLink
+                document={<RetailerPdf orderData={previewData} />}
+                fileName={`${previewData?.purchaseOrderNo}.pdf`}
+              >
+                <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
+                  Download PDF
+                </button>
+              </PDFDownloadLink>
+            </div>
 
-                <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
-                  <StockOrdersPdf orderData={previewData} />
-                </PDFViewer>
-              </>
-            )}
-          </>
+            <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
+              <RetailerPdf orderData={previewData} />
+            </PDFViewer>
+            </>
+          )}
         </SheetContent>
       </Sheet>
     </div>

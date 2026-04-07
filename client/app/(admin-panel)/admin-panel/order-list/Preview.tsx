@@ -109,7 +109,7 @@ const Preview = ({
             return {
               quantity: item.quantity,
               size: `${item.size}/${item.quantity}`,
-              styleNo: item.productCode,
+              styleNo: item.styleNo ?? item.productCode,
               barcode: item.barcode,
               comments: item.comments || "",
               color: item.color,
