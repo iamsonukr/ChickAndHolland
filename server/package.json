@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
     "dev:tsx": "tsx watch src/index.ts",
+    "repair:catalog": "ts-node src/scripts/repairCatalogTables.ts",
     "build": "tsc",
     "start": "node ../builtfiles/server/index.js",
     "lint": "eslint . --ext .ts",

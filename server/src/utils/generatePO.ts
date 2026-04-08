@@ -1,10 +1,26 @@
-import { RetailerOrder } from "../models/RetailerOrder";
-import OrderSequence from "../models/OrderSequence";
 import db from "../db";
 
-async function ensureSequenceTable() {
-  // Create if missing
-  await db.query(`
+const GLOBAL_PO_SEQUENCE_NAME = "global_po";
+
+type Queryable = {
+  query: (query: string, parameters?: any[]) => Promise<any>;
+};
+
+function normalizePrefix(prefix: string) {
+  return prefix.trim().replace(/\s+/g, " ");
+}
+
+export function buildPurchaseOrderPrefix(customerName: string) {
+  const customerPrefix = String(customerName ?? "")
+    .split(" ")[0]
+    .replace(/[^A-Za-z]/g, "")
+    .toUpperCase();
+
+  return `PO#${customerPrefix || "ORDER"}`;
+}
+
+async function ensureSequenceTable(queryable: Queryable = db) {
+  await queryable.query(`
     CREATE TABLE IF NOT EXISTS order_sequence (
       id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(100) UNIQUE NOT NULL,
@@ -14,83 +30,113 @@ async function ensureSequenceTable() {
       deletedAt datetime(6) DEFAULT NULL
     )
   `);
-  // Patch old tables missing deletedAt / updatedAt
+
   try {
-    await db.query(
+    await queryable.query(
       "ALTER TABLE order_sequence ADD COLUMN IF NOT EXISTS deletedAt datetime(6) NULL AFTER updatedAt"
     );
   } catch {
-    // Older MySQL may not support IF NOT EXISTS; attempt a plain add and ignore error if exists.
     try {
-      await db.query(
+      await queryable.query(
         "ALTER TABLE order_sequence ADD COLUMN deletedAt datetime(6) NULL AFTER updatedAt"
       );
     } catch {}
   }
 }
 
-async function getGlobalNextNumber(): Promise<number> {
-  await ensureSequenceTable();
-
-  // Max numeric part across all orders
-  const rawMax = await db.query(`
-    SELECT MAX(CAST(REGEXP_REPLACE(purchaeOrderNo, '[^0-9]', '') AS UNSIGNED)) AS maxNum
-    FROM retailer_orders
-  `);
-  const maxInOrders = Number(rawMax?.[0]?.maxNum) || 0;
-
-  let seq = await OrderSequence.findOne({ where: { name: "global_po" } });
-  if (!seq) {
-    seq = OrderSequence.create({
-      name: "global_po",
-      nextNumber: maxInOrders + 1 || 1,
-    });
-    await seq.save();
-  }
-
-  // Ensure we never go below existing max
-  seq.nextNumber = Math.max(seq.nextNumber, maxInOrders + 1);
-  await seq.save();
-
-  return seq.nextNumber;
+async function ensureSequenceRow(queryable: Queryable = db, initialNextNumber = 1) {
+  await queryable.query(
+    `
+      INSERT INTO order_sequence (name, nextNumber, createdAt, updatedAt)
+      VALUES (?, ?, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))
+      ON DUPLICATE KEY UPDATE
+        updatedAt = CURRENT_TIMESTAMP(6)
+    `,
+    [GLOBAL_PO_SEQUENCE_NAME, Math.max(initialNextNumber, 1)],
+  );
 }
 
-async function bumpGlobalNextNumber(next: number) {
-  let seq = await OrderSequence.findOne({ where: { name: "global_po" } });
-  if (!seq) {
-    seq = OrderSequence.create({ name: "global_po", nextNumber: next + 1 });
-  } else {
-    seq.nextNumber = next + 1;
+export async function peekGlobalNextPoNumber() {
+  await ensureSequenceTable();
+  await ensureSequenceRow();
+
+  const rows = await db.query(
+    "SELECT nextNumber FROM order_sequence WHERE name = ? LIMIT 1",
+    [GLOBAL_PO_SEQUENCE_NAME],
+  );
+
+  return Math.max(Number(rows?.[0]?.nextNumber) || 1, 1);
+}
+
+async function reserveGlobalNextPoNumber() {
+  await ensureSequenceTable();
+
+  const queryRunner = db.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
+  try {
+    await ensureSequenceRow(queryRunner);
+
+    const rows = await queryRunner.query(
+      "SELECT id, nextNumber FROM order_sequence WHERE name = ? FOR UPDATE",
+      [GLOBAL_PO_SEQUENCE_NAME],
+    );
+
+    const currentNext = Math.max(Number(rows?.[0]?.nextNumber) || 1, 1);
+
+    await queryRunner.query(
+      "UPDATE order_sequence SET nextNumber = ?, updatedAt = CURRENT_TIMESTAMP(6) WHERE id = ?",
+      [currentNext + 1, rows[0].id],
+    );
+
+    await queryRunner.commitTransaction();
+    return currentNext;
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    throw error;
+  } finally {
+    await queryRunner.release();
   }
-  await seq.save();
 }
 
 export async function generateUniquePO(prefix: string) {
-  const nextNumber = await getGlobalNextNumber();
+  const nextNumber = await reserveGlobalNextPoNumber();
+  return `${normalizePrefix(prefix)} ${nextNumber}`;
+}
 
-  // Persist increment for next call
-  await bumpGlobalNextNumber(nextNumber);
-
-  return `${prefix.trim()} ${nextNumber}`;
+export async function previewUniquePO(prefix: string) {
+  const nextNumber = await peekGlobalNextPoNumber();
+  return `${normalizePrefix(prefix)} ${nextNumber}`;
 }
 
 export async function setGlobalPoSequence(target: number) {
   await ensureSequenceTable();
 
-  const rawMax = await db.query(`
-    SELECT MAX(CAST(REGEXP_REPLACE(purchaeOrderNo, '[^0-9]', '') AS UNSIGNED)) AS maxNum
-    FROM retailer_orders
-  `);
-  const maxInOrders = Number(rawMax?.[0]?.maxNum) || 0;
-  const safeTarget = Math.max(target, maxInOrders + 1);
+  const queryRunner = db.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
 
-  let seq = await OrderSequence.findOne({ where: { name: "global_po" } });
-  if (!seq) {
-    seq = OrderSequence.create({ name: "global_po", nextNumber: safeTarget });
-  } else {
-    seq.nextNumber = safeTarget;
+  try {
+    const safeTarget = Math.max(target, 1);
+
+    await queryRunner.query(
+      `
+        INSERT INTO order_sequence (name, nextNumber, createdAt, updatedAt)
+        VALUES (?, ?, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))
+        ON DUPLICATE KEY UPDATE
+          nextNumber = VALUES(nextNumber),
+          updatedAt = CURRENT_TIMESTAMP(6)
+      `,
+      [GLOBAL_PO_SEQUENCE_NAME, safeTarget],
+    );
+
+    await queryRunner.commitTransaction();
+    return safeTarget;
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    throw error;
+  } finally {
+    await queryRunner.release();
   }
-  await seq.save();
-
-  return seq.nextNumber;
 }

@@ -14,26 +14,21 @@ const RES_NAME = "Category";
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    try {
-      const categories = await Category.find({
-        select: {
-          id: true,
+    const categories = await Category.find({
+      select: {
+        id: true,
+        name: true,
+        priority: true,
+        subCategories: {
           name: true,
+          id: true,
+          createdAt: true,
           priority: true,
-          subCategories: {
-            name: true,
-            id: true,
-            createdAt: true,
-            priority: true,
-          },
         },
-        relations: ["subCategories"],
-      });
-      res.json(categories);
-    } catch (error) {
-      console.log(error)
-      
-    }
+      },
+      relations: ["subCategories"],
+    });
+    res.json(categories);
   })
 );
 

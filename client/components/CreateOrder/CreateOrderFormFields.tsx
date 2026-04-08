@@ -136,7 +136,7 @@ export function CreateOrderFormFields({
             <FormItem>
               <FormLabel>Purchase Order No</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} readOnly className="cursor-not-allowed bg-gray-100" />
               </FormControl>
               <FormMessage />
             </FormItem>
