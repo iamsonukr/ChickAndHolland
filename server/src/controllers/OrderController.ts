@@ -17,6 +17,11 @@ import db from "../db";
 import { RetailerOrder } from "../models/RetailerOrder";
 import { createStyleBarcode } from "../services/style.service";
 import { updateOrderByBarcode } from "../services/orderStatus.service";
+import {
+  buildPurchaseOrderPrefix,
+  generateUniquePO,
+  peekGlobalNextPoNumber,
+} from "../utils/generatePO";
 
 import StoreStyleProgress from "../models/StoreStyleProgress";  // ⬅ top me import add karna
 // import { updateOrderAndStyleStatus } from "../services/orderStatus.service";
@@ -74,39 +79,11 @@ function resolveUploadedOrderDocumentExtension(
   return "";
 }
 
-function getTrailingPoNumber(poNumber?: string | null) {
-  const match = poNumber?.match(/(\d+)\s*$/);
-  return match ? Number(match[1]) : 0;
-}
-
 async function resolveRegularPurchaseOrderNo(
-  purchaseOrderNo: string | undefined,
   customerName: string,
 ) {
-  const requestedPo = String(purchaseOrderNo ?? "").trim();
-  const existingOrder = requestedPo
-    ? await Order.findOne({ where: { purchaeOrderNo: requestedPo } })
-    : null;
-
-  if (requestedPo && !existingOrder) {
-    return requestedPo;
-  }
-
-  const prefix = customerName
-    .split(" ")[0]
-    .replace(/[^A-Za-z]/g, "")
-    .toUpperCase();
-
-  const latestRegularOrder = await Order.find({
-    order: { id: "desc" },
-    take: 1,
-  });
-  const latestSequence = getTrailingPoNumber(
-    latestRegularOrder[0]?.purchaeOrderNo,
-  );
-  const nextSequence = latestSequence > 0 ? latestSequence + 1 : 1;
-
-  return `PO#${prefix} ${nextSequence}`;
+  const prefix = buildPurchaseOrderPrefix(customerName);
+  return generateUniquePO(prefix);
 }
 
 
@@ -194,7 +171,6 @@ router.post(
           where: { id: customerId },
         });
         const resolvedPurchaseOrderNo = await resolveRegularPurchaseOrderNo(
-          purchaseOrderNo,
           customer.name,
         );
 
@@ -1150,30 +1126,18 @@ router.get(
 router.get(
   "/latest-regular-order",
   asyncHandler(async (req: Request, res: Response) => {
-    const latestOrder = await Order.find({
-      order: {
-        id: "desc",
-      },
-      take: 1,
-    });
-
-    return res.json(latestOrder[0]);
+    const nextNumber = await peekGlobalNextPoNumber();
+    const purchaeOrderNo = nextNumber > 1 ? `PO#GLOBAL ${nextNumber - 1}` : null;
+    return res.json({ purchaeOrderNo });
   })
 );
 
 router.get(
   "/latest-retailer-order",
   asyncHandler(async (req: Request, res: Response) => {
-    const latestOrder = await RetailerOrder.find({
-      order: {
-        id: "desc",
-      },
-      take: 1,
-    });
-
-    // console.log(latestOrder, "latestRetailerOrder");
-
-    return res.json(latestOrder[0] || {});
+    const nextNumber = await peekGlobalNextPoNumber();
+    const purchaeOrderNo = nextNumber > 1 ? `PO#GLOBAL ${nextNumber - 1}` : null;
+    return res.json({ purchaeOrderNo });
   })
 );
 

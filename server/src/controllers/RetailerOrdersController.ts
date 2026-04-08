@@ -15,7 +15,11 @@ import RetailerOrdersPayment from "../models/RetailerPaymentModal";
 import { getRepository, In, MoreThan } from "typeorm";
 import Order from "../models/Order";
 import { convertToUSSize } from "../lib/sizeConversion";
-import { generateUniquePO, setGlobalPoSequence } from "../utils/generatePO";
+import {
+  generateUniquePO,
+  peekGlobalNextPoNumber,
+  setGlobalPoSequence,
+} from "../utils/generatePO";
 import RetailerOrderStyles from "../models/RetailerOrderStyles";
 import StockOrderStyles from "../models/StockOrderStyles";
 import express from "express";
@@ -50,15 +54,11 @@ router.get(
   "/latest-po",
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const latestOrder = await db.getRepository(RetailerOrder)
-        .createQueryBuilder("order")
-        .where("order.is_stock_order = :type", { type: false }) // Only Fresh Orders
-        .orderBy("order.id", "DESC")
-        .getOne();
+      const nextNumber = await peekGlobalNextPoNumber();
 
       return res.json({
         success: true,
-        latestPO: latestOrder?.purchaeOrderNo || null,
+        latestPO: nextNumber > 1 ? `PO#GLOBAL ${nextNumber - 1}` : null,
       });
     } catch (err) {
       console.error("Error fetching latest PO:", err);
