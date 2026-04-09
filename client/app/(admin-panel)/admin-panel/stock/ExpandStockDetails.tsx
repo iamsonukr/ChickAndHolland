@@ -97,8 +97,8 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 type Props = {
   item: any;
-  beadingColourName: string;
-  liningColourName: string;
+  beadingColourName?: string;
+  liningColourName?: string;
 };
 
 const ExpandStockDetails = ({
@@ -106,6 +106,42 @@ const ExpandStockDetails = ({
   beadingColourName,
   liningColourName,
 }: Props) => {
+  const getColourLabel = (
+    colourValue?: string,
+    defaultColourValue?: string,
+    colourName?: string,
+  ) => {
+    const resolvedName = colourName || colourValue || "-";
+
+    if (
+      colourValue &&
+      defaultColourValue &&
+      colourValue === defaultColourValue &&
+      resolvedName !== "No Color"
+    ) {
+      return `SAS(${resolvedName})`;
+    }
+
+    return resolvedName;
+  };
+
+  const getLiningLabel = () => {
+    const resolvedLining = item.lining || "-";
+
+    if (
+      item.product?.lining &&
+      item.product.lining === item.lining &&
+      resolvedLining !== "No Lining"
+    ) {
+      return `SAS(${resolvedLining})`;
+    }
+
+    return resolvedLining;
+  };
+
+  const shouldShowSwatch = (colourValue?: string) =>
+    Boolean(colourValue && colourValue !== "No Color");
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -126,14 +162,18 @@ const ExpandStockDetails = ({
               <TableCell className="font-medium">Beading Color</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <div
-                    className="h-5 w-5 rounded-full"
-                    style={{ backgroundColor: item.beading_color }}
-                  />
+                  {shouldShowSwatch(item.beading_color) && (
+                    <div
+                      className="h-5 w-5 rounded-full"
+                      style={{ backgroundColor: item.beading_color }}
+                    />
+                  )}
                   <span>
-                    {item.beading_color === item.product.beading_color
-                      ? `SAS(${beadingColourName})`
-                      : beadingColourName}
+                    {getColourLabel(
+                      item.beading_color,
+                      item.product?.beading_color,
+                      beadingColourName,
+                    )}
                   </span>
                 </div>
               </TableCell>
@@ -144,14 +184,18 @@ const ExpandStockDetails = ({
               <TableCell className="font-medium">Lining Color</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <div
-                    className="h-5 w-5 rounded-full"
-                    style={{ backgroundColor: item.lining_color }}
-                  />
+                  {shouldShowSwatch(item.lining_color) && (
+                    <div
+                      className="h-5 w-5 rounded-full"
+                      style={{ backgroundColor: item.lining_color }}
+                    />
+                  )}
                   <span>
-                    {item.lining_color === item.product.lining_color
-                      ? `SAS(${liningColourName})`
-                      : liningColourName}
+                    {getColourLabel(
+                      item.lining_color,
+                      item.product?.lining_color,
+                      liningColourName,
+                    )}
                   </span>
                 </div>
               </TableCell>
@@ -160,11 +204,7 @@ const ExpandStockDetails = ({
            
             <TableRow>
               <TableCell className="font-medium">Lining</TableCell>
-              <TableCell>
-                {item.product.lining === item.lining
-                  ? `SAS(${item.lining})`
-                  : item.lining}
-              </TableCell>
+              <TableCell>{getLiningLabel()}</TableCell>
             </TableRow>
           </TableBody>
         </Table>

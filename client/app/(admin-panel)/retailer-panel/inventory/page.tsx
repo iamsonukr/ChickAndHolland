@@ -2,10 +2,12 @@ import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import { getProductColours, getStock } from "@/lib/data";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { cookies } from "next/headers";
 import { getRetailerDetails } from "@/lib/data";
 
 import StyleNoImage from "@/app/(admin-panel)/admin-panel/stock/StyleNoImage";
+import ExpandStockDetails from "@/app/(admin-panel)/admin-panel/stock/ExpandStockDetails";
 import TableActions from "../../admin-panel/stock/TableActions";
 import SizeSelector from "./SizeSelector";
 
@@ -52,7 +54,12 @@ export default async function Inventory({ searchParams }: InventoryProps) {
   const colours = await getProductColours({});
 
   const getColourName = (hex: string) => {
-    return colours.productColours.find((c) => c.hexcode === hex)?.name;
+    return colours.productColours.find((c: any) => c.hexcode === hex)?.name;
+  };
+
+  const getResolvedColourName = (colourValue?: string) => {
+    if (!colourValue) return "-";
+    return getColourName(colourValue) || colourValue;
   };
 
   return (
@@ -109,39 +116,51 @@ export default async function Inventory({ searchParams }: InventoryProps) {
                     </div>
                   </div>
 
-                  {/* SIZE + COLOR */}
-                  <div className="mt-1 border-t pt-2 text-gray-700">
-                    <div className="flex flex-col gap-1">
+                  {/* SIZE + MESH */}
+                  <div className="border-t pt-0 text-gray-600">
+                    <Table>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="py-0 text-xs font-medium">
+                            Size
+                          </TableCell>
+                          <TableCell className="py-0 text-xs whitespace-normal break-words">
+                            <span
+                              className="size-convert whitespace-normal break-words"
+                              data-eu={item.size}
+                              data-from={item.size_country}
+                            >
+                              {item.size} ({item.size_country})
+                            </span>
+                          </TableCell>
+                        </TableRow>
 
-                      {/* SIZE */}
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-medium shrink-0">Size</span>
-                        <span
-                          className="size-convert truncate text-right"
-                          data-eu={item.size}
-                          data-from={item.size_country}
-                        >
-                          {item.size} ({item.size_country})
-                        </span>
-                      </div>
+                        <TableRow>
+                          <TableCell className="py-0 text-xs font-medium">
+                            Mesh
+                          </TableCell>
+                          <TableCell className="py-1 text-xs whitespace-normal break-words">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="h-3 w-3 shrink-0 rounded-full"
+                                style={{ backgroundColor: item.mesh_color }}
+                              />
+                              <span className="whitespace-normal break-words">
+                                {item.mesh_color === item.product.mesh_color
+                                  ? `SAS(${getResolvedColourName(item.product.mesh_color)})`
+                                  : getResolvedColourName(item.mesh_color)}
+                              </span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
 
-                      {/* COLOR */}
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-medium shrink-0">Color</span>
-                        <div className="flex items-center gap-1 min-w-0">
-                          <span
-                            className="h-4 w-4 shrink-0 rounded-full border"
-                            style={{ backgroundColor: item.mesh_color }}
-                          />
-                          <span className="truncate max-w-[70px] sm:max-w-[90px]">
-                            {item.mesh_color === item.product.mesh_color
-                              ? `SAS(${getColourName(item.product.mesh_color)})`
-                              : getColourName(item.mesh_color)}
-                          </span>
-                        </div>
-                      </div>
-
-                    </div>
+                    <ExpandStockDetails
+                      item={item}
+                      beadingColourName={getResolvedColourName(item.beading_color)}
+                      liningColourName={getResolvedColourName(item.lining_color)}
+                    />
                   </div>
                 </div>
 
