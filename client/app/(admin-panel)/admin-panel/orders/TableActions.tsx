@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sheet";
 import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import FreshOrderPdf from "../request/FreshOrderPdf";
+import RetailerPdf from "../request/RetailerPdf";
 import { API_URL } from "@/lib/constants";
 import {
   getProductColorsCheck,
@@ -293,6 +294,7 @@ const fetchDetails = async () => {
   console.log("📌 BARCODE FOUND? →", stock.details?.[0]?.barcode);
 
   const d = stock.details[0];
+  const std = await standard(d.product_id);
 
   setPreviewData({
     id: data.id,
@@ -313,11 +315,23 @@ const fetchDetails = async () => {
 
         size_country: d.size_country,
         image: await convertWebPToJPG(d.image),
-       color: d.color || "Stock",
-    meshColor: d.mesh_color || "Stock",
-    beadingColor: d.beading_color || "Stock",
-    lining: d.lining || "Stock",
-    liningColor: d.lining_color || "Stock",
+        color: d.color || "Stock",
+        meshColor:
+          d.mesh_color === std.mesh_color
+            ? formatSasColor(getColorName(std.mesh_color))
+            : getColorName(d.mesh_color),
+        beadingColor:
+          d.beading_color === std.beading_color
+            ? formatSasColor(getColorName(std.beading_color))
+            : getColorName(d.beading_color),
+        lining:
+          d.lining === std.lining ? `SAS(${d.lining})` : d.lining,
+        liningColor:
+          d.lining_color === std.lining_color
+            ? formatSasColor(getColorName(std.lining_color))
+            : getColorName(d.lining_color),
+        comments: d.comments || "",
+        refImg: [],
       },
     ],
 
@@ -472,7 +486,13 @@ const fetchDetails = async () => {
   ) : (
     <>
       <PDFDownloadLink
-        document={<FreshOrderPdf orderData={previewData} />}
+        document={
+          data.orderSource === "retailer" ? (
+            <RetailerPdf orderData={previewData} />
+          ) : (
+            <FreshOrderPdf orderData={previewData} />
+          )
+        }
         fileName={`${previewData.purchaseOrderNo}.pdf`}
       >
         <button className="rounded bg-blue-600 px-4 py-2 text-white">
@@ -512,7 +532,11 @@ const fetchDetails = async () => {
   )
 ) : (
   <PDFViewer className="mt-4 h-[90vh] w-full" showToolbar={false}>
-    <FreshOrderPdf orderData={previewData} />
+    {data.orderSource === "retailer" ? (
+      <RetailerPdf orderData={previewData} />
+    ) : (
+      <FreshOrderPdf orderData={previewData} />
+    )}
   </PDFViewer>
 )}
 
