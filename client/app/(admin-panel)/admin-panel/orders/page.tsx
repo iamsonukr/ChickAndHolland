@@ -1,4 +1,5 @@
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
+import Link from "next/link";
 import CreateOrder from "./CreateOrder";
 import { getCustomers, getOrders } from "@/lib/data";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
@@ -15,6 +16,7 @@ import AddressCard from "./AddressCard";
 import Delete, { DeleteButton, ItemsProvider } from "./Delete";
 import OrderDetailsSheet from "./OrderDetails";
 import AdjustSequenceButton from "./AdjustSequenceButton";
+import { Button } from "@/components/ui/button";
 
 const statusToDbField: Record<string, string | null> = {
   "Pattern/Khaka":     "pattern",
@@ -134,6 +136,9 @@ const OrdersPage = async (props: {
             <div className="flex items-center gap-2">
               <DeleteButton />
               <AdjustSequenceButton />
+              <Link href="/admin-panel/orders/qr-scan">
+                <Button variant="outline">Global QR Scan</Button>
+              </Link>
               <CreateOrder
                 customers={customers.customers}
                 ordersTotalCount={latestOrderPurchaseOrderNo}
