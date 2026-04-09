@@ -1,6 +1,6 @@
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import CreateOrder from "./CreateOrder";
-import { getCustomers, getDates, getOrderDates, getOrders } from "@/lib/data";
+import { getCustomers, getOrders } from "@/lib/data";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import dayjs from "dayjs";
@@ -17,15 +17,16 @@ import OrderDetailsSheet from "./OrderDetails";
 import AdjustSequenceButton from "./AdjustSequenceButton";
 
 const statusToDbField: Record<string, string | null> = {
+  "Pattern/Khaka":     "pattern",
   "Pattern":           "pattern",
   "Khaka":             "khaka",
   "Issue Beading":     "issue_beading",
   "Beading":           "beading",
   "Zarkan":            "zarkan",
   "Stitching":         "stitching",
-  "Ready to Delivery": "ready_to_delivery",
+  "Ready To Delivery": "ready_to_delivery",
   "Shipped":           "shipped",
-  "Balance Pending":   null,
+  "Balance Pending":   "balance_pending",
 };
 
 const getRowClassName = (difference: number, orderStatus: string) => {
@@ -78,20 +79,10 @@ const OrdersPage = async (props: {
     orderType: orderType === "All" ? "" : orderType,
   });
 
-  const orderStatusData = async (status: string, id: number) => {
-    const res = await getDates(id);
-    if (status === "Pattern/Khaka") {
-      return res.data.pattern ? dayjs(res.data.pattern).format("MMM D, YYYY") : "";
-    }
-    return dayjs(res.data[status]).format("MMM D, YYYY");
-  };
-
-  const orderStatusDataTwo = async (status: string, id: number) => {
-    const res = await getOrderDates(id);
-    if (!res.data) return "";
+  const getStatusDate = (status: string, order: any) => {
     const dbField = statusToDbField[status];
     if (!dbField) return "";
-    return res.data[dbField] ? dayjs(res.data[dbField]).format("MMM D, YYYY") : "";
+    return order?.[dbField] ? dayjs(order[dbField]).format("MMM D, YYYY") : "";
   };
 
   const customers = await getCustomers({});
@@ -303,9 +294,7 @@ const OrdersPage = async (props: {
                                 )}
                               </div>
                               <p className="text-xs opacity-70">
-                                {order.orderSource === "retailer"
-                                  ? orderStatusData(order.orderStatus.toString(), order.id)
-                                  : orderStatusDataTwo(order.orderStatus.toString(), order.id)}
+                                {getStatusDate(order.orderStatus.toString(), order)}
                               </p>
                             </div>
                           </td>

@@ -1363,7 +1363,7 @@ export const getOrderStatusDatesStockDetails = async (id: number) => {
   };
 
   const response = await fetch(
-    `${API_URL}/retailer-orders/orderStatusDates/stock/${id}`,
+    `${API_URL}/orders/order/status/${id}`,
     {
       headers,
     },

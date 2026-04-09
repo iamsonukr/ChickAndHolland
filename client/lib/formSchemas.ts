@@ -20,7 +20,7 @@ export enum OrderStatus {
   Zarkan = "Zarkan",
   Stitching = "Stitching",
   BalancePending = "Balance Pending",
-  ReadyToDelivery = "Ready to Delivery",
+  ReadyToDelivery = "Ready To Delivery",
   Shipped = "Shipped",
 }
 
