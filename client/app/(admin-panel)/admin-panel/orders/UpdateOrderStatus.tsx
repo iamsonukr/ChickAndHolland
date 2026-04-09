@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +35,7 @@ import {
 import useHttp from "@/lib/hooks/usePost";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { getOrderStatusDatesStockDetails } from "@/lib/data";
+import { getOrderDates } from "@/lib/data";
 import dayjs from "dayjs";
 import { API_URL } from "@/lib/constants";
 
@@ -50,11 +50,6 @@ interface StatusDateTypes {
   ready_to_delivery: string | null;
   shipped: string | null;
 }
-interface ProgressLog {
-  stage?: string;
-  status?: string;
-  createdAt: string;
-}
 
 
 const statusFieldMap: Record<string, keyof StatusDateTypes | null> = {
@@ -65,14 +60,13 @@ const statusFieldMap: Record<string, keyof StatusDateTypes | null> = {
   "Zarkan": "zarkan",
   "Stitching": "stitching",
   "Balance Pending": "balance_pending", // 🔥 FIX
-  "Ready to Delivery": "ready_to_delivery",
+  "Ready To Delivery": "ready_to_delivery",
   "Shipped": "shipped",
 };
 
 
 const UpdateOrderStatus = ({ orderData }: { orderData: any }) => {
   const [open, setOpen] = useState(false);
-const [storeProgress, setStoreProgress] = useState<ProgressLog[]>([]);
 
   const [datesOfStatus, setDatesOfStatus] = useState<StatusDateTypes>({
     pattern: null,
@@ -86,6 +80,8 @@ const [storeProgress, setStoreProgress] = useState<ProgressLog[]>([]);
     shipped: null,
   });
 
+  const [storeProgress, setStoreProgress] = useState<any[]>([]);
+
   const form = useForm<UpdateOrderStatusForm>({
     resolver: zodResolver(updateOrderStatusFormSchema),
     defaultValues: {
@@ -98,7 +94,7 @@ const [storeProgress, setStoreProgress] = useState<ProgressLog[]>([]);
 
   const fetchOrderDates = async () => {
   try {
-    const res = await getOrderStatusDatesStockDetails(orderData.id);
+    const res = await getOrderDates(orderData.id);
     if (res?.data) {
       setDatesOfStatus(res.data);
     }
@@ -137,9 +133,9 @@ const onOpenChange = (val: boolean) => {
   const onSubmit = async (values: UpdateOrderStatusForm) => {
     try {
       const response = await executeAsync({
-  barcode: orderData.styles[0].barcode, // or selected style barcode
-  status: values.status,
-});
+        orderId: orderData.id,
+        status: values.status,
+      });
 
 
       if (!response.success) {

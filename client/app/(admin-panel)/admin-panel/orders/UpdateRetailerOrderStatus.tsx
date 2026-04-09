@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -53,7 +53,7 @@ interface DateTypes {
   stitching: string | null;
   balance_pending: string | null;
   ready_to_delivery: string | null;
-  shippingStatus: string | null;
+  shipped: string | null;
 }
 
 interface ProgressLog {
@@ -73,7 +73,7 @@ const statusToDateField: Record<string, keyof DateTypes | null> = {
   Stitching: "stitching",
   "Balance Pending": "balance_pending",
   "Ready To Delivery": "ready_to_delivery",
-  Shipped: "shippingStatus",
+  Shipped: "shipped",
 };
 
 /* ================= COMPONENT ================= */
@@ -91,7 +91,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
     stitching: null,
     balance_pending: null,
     ready_to_delivery: null,
-    shippingStatus: null,
+    shipped: null,
   });
 
   const [progressLogs, setProgressLogs] = useState<ProgressLog[]>([]);
@@ -99,7 +99,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
   const form = useForm<z.infer<typeof updateFormSchema>>({
     resolver: zodResolver(updateFormSchema),
     defaultValues: {
-      status: "",
+      status: orderData.orderStatus ?? "",
     },
   });
 
@@ -204,7 +204,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
         null;
 
       return {
-        value: key,
+        value: label,
         label,
         date,
       };

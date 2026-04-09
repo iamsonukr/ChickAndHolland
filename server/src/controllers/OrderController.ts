@@ -640,6 +640,7 @@ router.get(
 
     // Fetch and map payment data for retailer orders
     const paymentsMap = new Map<number, number>();
+    const retailerStageDatesMap = new Map<number, Record<string, string>>();
     if (retailerOrderIds.length > 0) {
       const retailerPayments = await db
         .createQueryBuilder()
@@ -652,6 +653,53 @@ router.get(
 
       retailerPayments.forEach((p) => {
         paymentsMap.set(Number(p.orderId), Number(p.paidAmount));
+      });
+
+      const [freshProgressDates, stockProgressDates] = await Promise.all([
+        db
+          .createQueryBuilder()
+          .select("ros.retailerOrderId", "orderId")
+          .addSelect("sp.stage", "stage")
+          .addSelect("MAX(sp.createdAt)", "stageDate")
+          .from("styleProgress", "sp")
+          .innerJoin("retailer_order_styles", "ros", "ros.barcode = sp.barcode")
+          .where("ros.retailerOrderId IN (:...ids)", { ids: retailerOrderIds })
+          .groupBy("ros.retailerOrderId")
+          .addGroupBy("sp.stage")
+          .getRawMany(),
+        db
+          .createQueryBuilder()
+          .select("sos.retailerOrderId", "orderId")
+          .addSelect("sp.stage", "stage")
+          .addSelect("MAX(sp.createdAt)", "stageDate")
+          .from("styleProgress", "sp")
+          .innerJoin("stock_order_styles", "sos", "sos.barcode = sp.barcode")
+          .where("sos.retailerOrderId IN (:...ids)", { ids: retailerOrderIds })
+          .groupBy("sos.retailerOrderId")
+          .addGroupBy("sp.stage")
+          .getRawMany(),
+      ]);
+
+      const stageToFieldMap: Record<string, string> = {
+        Pattern: "pattern",
+        Khaka: "khaka",
+        "Issue Beading": "issue_beading",
+        Beading: "beading",
+        Zarkan: "zarkan",
+        Stitching: "stitching",
+        "Balance Pending": "balance_pending",
+        "Ready To Delivery": "ready_to_delivery",
+        Shipped: "shipped",
+      };
+
+      [...freshProgressDates, ...stockProgressDates].forEach((row: any) => {
+        const orderId = Number(row.orderId);
+        const field = stageToFieldMap[row.stage];
+        if (!field || !row.stageDate) return;
+
+        const existing = retailerStageDatesMap.get(orderId) ?? {};
+        existing[field] = row.stageDate;
+        retailerStageDatesMap.set(orderId, existing);
       });
     }
 
@@ -689,6 +737,11 @@ router.get(
         };
       });
 
+      const recoveredStageDates =
+        baseOrder.orderSource === "retailer"
+          ? retailerStageDatesMap.get(baseOrder.id) ?? {}
+          : {};
+
       const result: any = {
         id: baseOrder.id,
         createdAt: baseOrder.createdAt,
@@ -702,6 +755,18 @@ router.get(
         shippingStatus: baseOrder.shippingStatus,
         shippingDate: baseOrder.shippingDate,
         trackingNo: baseOrder.trackingNo,
+        pattern: detailedOrder?.pattern ?? recoveredStageDates.pattern ?? null,
+        khaka: detailedOrder?.khaka ?? recoveredStageDates.khaka ?? null,
+        issue_beading:
+          detailedOrder?.issue_beading ?? recoveredStageDates.issue_beading ?? null,
+        beading: detailedOrder?.beading ?? recoveredStageDates.beading ?? null,
+        zarkan: detailedOrder?.zarkan ?? recoveredStageDates.zarkan ?? null,
+        stitching: detailedOrder?.stitching ?? recoveredStageDates.stitching ?? null,
+        balance_pending:
+          detailedOrder?.balance_pending ?? recoveredStageDates.balance_pending ?? null,
+        ready_to_delivery:
+          detailedOrder?.ready_to_delivery ?? recoveredStageDates.ready_to_delivery ?? null,
+        shipped: detailedOrder?.shipped ?? recoveredStageDates.shipped ?? null,
         ppt_path: detailedOrder?.ppt_path || null,
         customer:
           baseOrder.orderSource === "regular"
@@ -973,29 +1038,59 @@ router.post(
 router.put(
   "/orderStatus",
   asyncHandler(async (req: Request, res: Response) => {
-    const { barcode, status } = req.body;
+    const { barcode, orderId, status } = req.body as {
+      barcode?: string;
+      orderId?: number;
+      status?: OrderStatus;
+    };
 
-    if (!barcode || !status) {
+    if ((!barcode && !orderId) || !status) {
       return res.status(400).json({
         success: false,
-        message: "Barcode and status required",
+        message: "Order identifier and status required",
       });
     }
 
-    // 1️⃣ Validate style + order (sirf check ke liye)
-    const style = await Style.findOne({
-      where: { barcode },
-      relations: ["order"],
-    });
+    let order: Order | null = null;
+    let styles: Style[] = [];
 
-    if (!style) {
+    if (orderId) {
+      order = await Order.findOne({
+        where: { id: Number(orderId) },
+        relations: ["styles"],
+      });
+
+      if (!order) {
+        return res.status(404).json({
+          success: false,
+          message: "Order not found",
+        });
+      }
+
+      styles = order.styles ?? [];
+    } else {
+      const style = await Style.findOne({
+        where: { barcode },
+        relations: ["order"],
+      });
+
+      if (!style) {
+        return res.status(404).json({
+          success: false,
+          message: "Invalid barcode",
+        });
+      }
+
+      order = style.order;
+      styles = [style];
+    }
+
+    if (!styles.length || !order) {
       return res.status(404).json({
         success: false,
-        message: "Invalid barcode",
+        message: "No styles found for this order",
       });
     }
-
-    const order = style.order;
 
     // 2️⃣ BLOCK SHIP IF BALANCE PENDING
     if (
@@ -1009,11 +1104,13 @@ router.put(
     }
 
     // 3️⃣ 🔥 SINGLE SOURCE OF TRUTH (ADMIN ACTION)
-    await updateOrderByBarcode(
-      barcode,
-      status,
-      0 // qty = 0 → admin/manual update
-    );
+    for (const style of styles) {
+      await updateOrderByBarcode(
+        style.barcode,
+        status,
+        0 // qty = 0 → admin/manual update
+      );
+    }
 
     return res.json({
       success: true,
@@ -1091,7 +1188,17 @@ router.get(
     const { id } = req.params;
 
     const order = await RetailerOrder.findOne({
-      select: ["pattern", "stitching", "ready_to_delivery", "beading"],
+      select: [
+        "pattern",
+        "khaka",
+        "issue_beading",
+        "beading",
+        "zarkan",
+        "stitching",
+        "balance_pending",
+        "ready_to_delivery",
+        "shipped",
+      ],
       where: {
         id: Number(id),
       },
@@ -1110,7 +1217,17 @@ router.get(
     const { id } = req.params;
 
     const order = await Order.findOne({
-      select: ["pattern", "stitching", "ready_to_delivery", "beading"],
+      select: [
+        "pattern",
+        "khaka",
+        "issue_beading",
+        "beading",
+        "zarkan",
+        "stitching",
+        "balance_pending",
+        "ready_to_delivery",
+        "shipped",
+      ],
       where: {
         id: Number(id),
       },

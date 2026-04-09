@@ -1917,7 +1917,7 @@ router.post(
     order.orderStatus = finalStatus as OrderStatus;
 
 
-    switch (status) {
+    switch (finalStatus) {
       case OrderStatus.Pattern:
         order.pattern = now;
         break;
@@ -2051,6 +2051,7 @@ router.get(
   beading,
   zarkan,
   stitching,
+  balance_pending,
   ready_to_delivery,
   shipped
 FROM retailer_orders WHERE id = ?`;
@@ -2069,7 +2070,18 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
-    const qa = `select pattern , beading , stitching , ready_to_delivery from orders as r where r.id = ? `;
+    const qa = `SELECT
+  pattern,
+  khaka,
+  issue_beading,
+  beading,
+  zarkan,
+  stitching,
+  balance_pending,
+  ready_to_delivery,
+  shipped
+FROM orders AS r
+WHERE r.id = ?`;
 
     const [result] = await db.query(qa, [id]);
 
