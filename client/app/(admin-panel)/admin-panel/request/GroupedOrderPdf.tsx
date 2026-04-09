@@ -4,11 +4,9 @@ import dayjs from "dayjs";
 
 const chunkItems = <T,>(items: T[], size: number) => {
   const chunks: T[][] = [];
-
   for (let index = 0; index < items.length; index += size) {
     chunks.push(items.slice(index, index + size));
   }
-
   return chunks;
 };
 
@@ -98,9 +96,7 @@ const normalizeBarcodeValue = (barcode?: string | null) => {
 
 const getVariantBarcodeUrl = (barcode?: string | null) => {
   const normalizedBarcode = normalizeBarcodeValue(barcode);
-
   if (!normalizedBarcode) return "";
-
   return `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(
     normalizedBarcode,
   )}&scale=2&height=8&includetext=false`;
@@ -114,6 +110,8 @@ const GroupedOrderPdf = ({
   showShippingDate?: boolean;
 }) => {
   const groupedPages = buildGroupedPages(orderData?.details ?? []);
+
+  console.log("This is orderData in PDF", orderData);
 
   return (
     <Document>
@@ -298,7 +296,12 @@ const GroupedOrderPdf = ({
                           <Text style={styles.variantValue} wrap>
                             {getVariantSizeText(variant)}
                           </Text>
-                          <Text style={styles.variantMeta}>Qty: {variant.quantity}</Text>
+                          <View style={styles.variantMetaGroup}>
+                            <Text style={styles.variantMeta}>Qty: {variant.quantity}</Text>
+                            <Text style={styles.variantColor} wrap>
+                              {variant.beadingColor}
+                            </Text>
+                          </View>
 
                           {normalizedBarcode ? (
                             <>
@@ -565,21 +568,21 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: "38%",
     paddingLeft: 8,
-    paddingBottom: 10,
+    paddingBottom: 4,
   },
   variantOverlay: {
-    paddingHorizontal: 6,
-    paddingTop: 5,
-    paddingBottom: 6,
-    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: 8,
+    paddingTop: 7,
+    paddingBottom: 8,
+    // backgroundColor: "rgba(255,255,255,0.92)",
     borderRadius: 4,
     border: "1px solid #999",
   },
   variantOverlayTitle: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "bold",
     color: "#FF5698",
-    marginBottom: 4,
+    marginBottom: 6,
     textAlign: "center",
   },
   variantGrid: {
@@ -591,9 +594,9 @@ const styles = StyleSheet.create({
     width: "24%",
     border: "1px solid #000",
     borderRadius: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 3,
-    minHeight: 88,
+    paddingVertical: 6,
+    paddingHorizontal: 5,
+    minHeight: 96,
     backgroundColor: "#ffffff",
     justifyContent: "flex-start",
   },
@@ -604,30 +607,44 @@ const styles = StyleSheet.create({
     marginRight: 0,
   },
   variantTitle: {
-    fontSize: 8,
+    fontSize: 9.5,
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 2,
   },
   variantValue: {
+    fontSize: 9,
+    textAlign: "center",
+    marginBottom: 2,
+  },
+  variantMetaGroup: {
+    marginBottom: 2,
+  },
+  variantMeta: {
     fontSize: 8,
     textAlign: "center",
     marginBottom: 2,
   },
-  variantMeta: {
-    fontSize: 7,
+  variantColor: {
+    fontSize: 8,
+    textAlign: "center",
+    marginTop: 2,
+    paddingTop: 2,
+  },
+  variantDetailText: {
+    fontSize: 8,
     textAlign: "center",
   },
   variantBarcode: {
     width: "100%",
-    maxWidth: 70,
-    height: 18,
+    maxWidth: 76,
+    height: 20,
     alignSelf: "center",
-    marginTop: 4,
-    marginBottom: 2,
+    marginTop: 3,
+    marginBottom: 3,
   },
   variantCodeText: {
-    fontSize: 5.5,
+    fontSize: 6.5,
     textAlign: "center",
     wordBreak: "break-all",
   },
