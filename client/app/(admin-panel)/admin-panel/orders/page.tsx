@@ -308,7 +308,7 @@ const OrdersPage = async (props: {
 
                           {/* Address */}
                           <td className={cn(tableCellClassName, "max-w-[220px] whitespace-normal break-words")}>
-                            <div className="truncate">
+                            <div className="whitespace-normal break-words leading-5">
                               <AddressCard ad={order.address} />
                             </div>
                           </td>

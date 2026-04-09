@@ -43,6 +43,58 @@ function safeArray(value: any) {
   return [];
 }
 
+function sanitizeText(value: unknown) {
+  if (typeof value !== "string") return "";
+
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  const lowered = trimmed.toLowerCase();
+  if (lowered === "null" || lowered === "undefined") return "";
+
+  return trimmed;
+}
+
+function buildOrderAddress(
+  orderAddress: unknown,
+  customer?: { storeAddress?: string | null; country?: { name?: string | null } | null } | null,
+) {
+  const explicitAddress = sanitizeText(orderAddress);
+  const defaultAddress = sanitizeText(customer?.storeAddress);
+  const countryName = sanitizeText(customer?.country?.name);
+
+  const baseAddress = explicitAddress || defaultAddress;
+
+  if (!baseAddress) return countryName;
+  if (!countryName) return baseAddress;
+
+  const baseAddressLower = baseAddress.toLowerCase();
+  const countryNameLower = countryName.toLowerCase();
+  const bracketedCountry = `(${countryNameLower})`;
+
+  if (baseAddressLower.includes(bracketedCountry)) {
+    return baseAddress;
+  }
+
+  if (baseAddressLower.includes(countryNameLower)) {
+    const trailingCountryPattern = new RegExp(
+      `(?:,|\\-|\\s)*\\(?${countryName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)?\\s*$`,
+      "i",
+    );
+
+    const baseWithoutCountry = baseAddress
+      .replace(trailingCountryPattern, "")
+      .replace(/[,\-]\s*$/, "")
+      .trim();
+
+    if (!baseWithoutCountry) return `(${countryName})`;
+
+    return `${baseWithoutCountry} (${countryName})`;
+  }
+
+  return `${baseAddress} (${countryName})`;
+}
+
 
 
 interface Field {
@@ -620,6 +672,7 @@ router.get(
         .select("order")
         .from(Order, "order")
         .leftJoinAndSelect("order.customer", "customer")
+        .leftJoinAndSelect("customer.country", "customerCountry")
         .leftJoinAndSelect("order.styles", "styles")
         .where("order.id IN (:...ids)", { ids: regularOrderIds })
         .getMany();
@@ -632,6 +685,7 @@ router.get(
         .from(RetailerOrder, "order")
         .leftJoinAndSelect("order.retailer", "retailer")
         .leftJoinAndSelect("retailer.customer", "customer")
+        .leftJoinAndSelect("customer.country", "customerCountry")
         .leftJoinAndSelect("order.favourite_order", "favourite_order")
         .leftJoinAndSelect("order.Stock_order", "Stock_order")
         .where("order.id IN (:...ids)", { ids: retailerOrderIds })
@@ -742,6 +796,16 @@ router.get(
           ? retailerStageDatesMap.get(baseOrder.id) ?? {}
           : {};
 
+      const resolvedCustomer =
+        baseOrder.orderSource === "regular"
+          ? detailedOrder?.customer
+          : detailedOrder?.retailer?.customer;
+
+      const resolvedAddress = buildOrderAddress(
+        baseOrder.address,
+        resolvedCustomer,
+      );
+
       const result: any = {
         id: baseOrder.id,
         createdAt: baseOrder.createdAt,
@@ -750,7 +814,7 @@ router.get(
         orderType: baseOrder.orderType,
         orderReceivedDate: baseOrder.orderReceivedDate,
         orderCancellationDate: baseOrder.orderCancellationDate,
-        address: baseOrder.address,
+        address: resolvedAddress,
         orderStatus: baseOrder.orderStatus,
         shippingStatus: baseOrder.shippingStatus,
         shippingDate: baseOrder.shippingDate,
@@ -775,7 +839,8 @@ router.get(
                 id: detailedOrder.customer.id,
                 name: detailedOrder.customer.name,
                 phoneNumber: detailedOrder.customer.phoneNumber,  // <-- ADD THIS
-
+                storeAddress: detailedOrder.customer.storeAddress,
+                country: detailedOrder.customer.country?.name ?? null,
               }
               : null
             : detailedOrder?.retailer?.customer
@@ -783,7 +848,8 @@ router.get(
                 id: detailedOrder.retailer.customer.id,
                 name: detailedOrder.retailer.customer.name,
                 phoneNumber: detailedOrder.retailer.customer.phoneNumber,  // <-- ADD THIS
-
+                storeAddress: detailedOrder.retailer.customer.storeAddress,
+                country: detailedOrder.retailer.customer.country?.name ?? null,
               }
               : null,
         styles: styles || [],
