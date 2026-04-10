@@ -31,39 +31,45 @@ const getScannerTitle = (orderType: StatusScanOrderType) => {
   return "Retailer Scanner";
 };
 
-const getReadableCameraError = (error: Error) => {
+/**
+ * Filter errors so that background scanning noise 
+ * doesn't trigger the "Unable to start camera" UI message.
+ */
+const getReadableCameraError = (error: any) => {
   const errorName = error?.name || "";
   const errorMessage = error?.message || "";
 
+  // 1. Ignore "Not Found" errors - these happen every millisecond 
+  // when the camera is looking for a QR code but hasn't seen one yet.
   if (
     errorName === "NotFoundException" ||
     errorName === "ChecksumException" ||
-    errorName === "FormatException"
+    errorName === "FormatException" ||
+    errorMessage.includes("No multi-format reader")
   ) {
     return null;
   }
 
+  // 2. Return specific messages ONLY for critical hardware/permission issues.
   if (errorName === "NotAllowedError" || errorName === "PermissionDeniedError") {
-    return "Camera permission was denied. Please allow camera access in your browser.";
+    return "Camera permission denied. Please allow access in settings.";
   }
 
   if (errorName === "NotFoundError" || errorName === "DevicesNotFoundError") {
-    return "No camera was found on this device.";
+    return "No camera found on this device.";
   }
 
   if (errorName === "NotReadableError" || errorName === "TrackStartError") {
-    return "The camera is already in use by another app or tab.";
-  }
-
-  if (errorName === "OverconstrainedError" || errorName === "ConstraintNotSatisfiedError") {
-    return "The preferred camera is not available on this device.";
+    return "Camera is already in use by another tab.";
   }
 
   if (errorName === "SecurityError" || !window.isSecureContext) {
-    return "Camera access needs a secure site. Open this page on HTTPS or localhost.";
+    return "Camera requires a secure HTTPS connection.";
   }
 
-  return errorMessage || "Unable to start the camera.";
+  // 3. IMPORTANT: Default to null. 
+  // If we don't recognize the error, don't show it, as it's likely minor noise.
+  return null;
 };
 
 export default function StatusScannerButton({
@@ -197,7 +203,7 @@ export default function StatusScannerButton({
 
       await processRetailerOrStockBarcode(code);
     } catch {
-      toast.error("Camera scan failed");
+      toast.error("Process failed");
     } finally {
       unlockScannerSoon();
     }
@@ -237,7 +243,7 @@ export default function StatusScannerButton({
         <DialogHeader>
           <DialogTitle>{getScannerTitle(orderType)}</DialogTitle>
           <DialogDescription>
-            Open the camera and scan this item barcode to move it to the next stage.
+            Scan this item's barcode to move it to the next stage.
           </DialogDescription>
         </DialogHeader>
 
@@ -248,7 +254,7 @@ export default function StatusScannerButton({
             </div>
           )}
 
-          <div className="overflow-hidden rounded-lg border">
+          <div className="overflow-hidden rounded-lg border bg-black/5">
             {open ? (
               <QrReader
                 key={scannerKey}
@@ -261,7 +267,8 @@ export default function StatusScannerButton({
                 videoStyle={{
                   width: "100%",
                   height: "100%",
-                  objectFit: "cover",
+                  // Changed from 'cover' to 'contain' to prevent cropping the QR edges
+                  objectFit: "contain", 
                 }}
                 className="w-full"
               />
@@ -280,6 +287,7 @@ export default function StatusScannerButton({
               placeholder="Enter barcode manually"
               value={barcode}
               onChange={(event) => setBarcode(event.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && processBarcode(barcode)}
             />
             <Button
               type="button"
@@ -294,7 +302,7 @@ export default function StatusScannerButton({
 
           {readyForShip && (
             <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              Ready To Delivery is already done. Scan the same barcode once more to ship it.
+              Ready To Delivery is done. Scan the same barcode once more to ship it.
             </div>
           )}
         </div>

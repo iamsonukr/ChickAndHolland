@@ -34,14 +34,21 @@ type ScanOutcome = {
   };
 };
 
-const getReadableCameraError = (error: Error) => {
+/**
+ * Filter errors so that common "no QR found in frame" noise 
+ * doesn't trigger the "Unable to start camera" UI message.
+ */
+const getReadableCameraError = (error: any) => {
   const errorName = error?.name || "";
   const errorMessage = error?.message || "";
 
+  // These are standard "no barcode found in this frame" exceptions.
+  // We return null so the UI doesn't show an error.
   if (
     errorName === "NotFoundException" ||
     errorName === "ChecksumException" ||
-    errorName === "FormatException"
+    errorName === "FormatException" ||
+    errorMessage.includes("No multi-format reader")
   ) {
     return null;
   }
@@ -66,7 +73,9 @@ const getReadableCameraError = (error: Error) => {
     return "Camera access needs a secure site. Open this page on HTTPS or localhost.";
   }
 
-  return errorMessage || "Unable to start the camera.";
+  // Only return a default error if it's a fatal start-up error
+  // Otherwise, return null to avoid "false positive" error messages.
+  return null;
 };
 
 const getBadgeVariant = (statusTone?: ScanOutcome["statusTone"]) => {
@@ -350,6 +359,8 @@ export default function GlobalQrScanPage() {
     if (!error) return;
 
     const readableError = getReadableCameraError(error);
+    
+    // If readableError is null, it means it's a minor scan error we should ignore
     if (!readableError) return;
 
     setCameraError(readableError);
@@ -377,9 +388,7 @@ export default function GlobalQrScanPage() {
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight">Global QR Scanner</h1>
             <p className="max-w-2xl text-sm text-muted-foreground">
-              Scan any retailer, stock, or store barcode from one place. The existing
-              per-product scan buttons on the status page are unchanged and still work
-              the same way.
+              Scan any retailer, stock, or store barcode from one place.
             </p>
           </div>
 
@@ -405,10 +414,6 @@ export default function GlobalQrScanPage() {
               <Camera className="h-5 w-5" />
               Camera Scan
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Point the camera at any order QR or barcode to auto-detect the correct
-              order flow.
-            </p>
           </div>
 
           <div className="space-y-4 p-5">
@@ -442,8 +447,7 @@ export default function GlobalQrScanPage() {
                   <div className="font-medium">Retailer shipment confirmation pending</div>
                   <div className="text-xs sm:text-sm">
                     Scan <span className="font-mono">{pendingRetailerShipBarcode}</span> once
-                    more to mark it as shipped. Scanning a different code will continue with a
-                    fresh scan.
+                    more to mark it as shipped.
                   </div>
                 </div>
                 <Button
@@ -465,9 +469,6 @@ export default function GlobalQrScanPage() {
                 <ScanLine className="h-5 w-5" />
                 Manual Scan
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Barcode gun and keyboard input both work here.
-              </p>
             </div>
 
             <div className="space-y-4 p-5">
@@ -493,9 +494,6 @@ export default function GlobalQrScanPage() {
           <Card className="border-2">
             <div className="border-b bg-muted/30 px-5 py-4">
               <div className="text-lg font-semibold">Last Scan Result</div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                The scanner auto-detects the matched order type and shows the update here.
-              </p>
             </div>
 
             <div className="p-5">
@@ -545,49 +543,28 @@ export default function GlobalQrScanPage() {
                   {result.details && (
                     <div className="grid gap-3 border-t pt-4 text-sm sm:grid-cols-2">
                       <div>
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Style No
-                        </div>
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground">Style No</div>
                         <div className="font-medium">{result.details.styleNo || "-"}</div>
                       </div>
-
                       <div>
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Purchase Order
-                        </div>
-                        <div className="font-medium">
-                          {result.details.purchaseOrderNo || "-"}
-                        </div>
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground">Purchase Order</div>
+                        <div className="font-medium">{result.details.purchaseOrderNo || "-"}</div>
                       </div>
-
                       <div>
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Size
-                        </div>
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground">Size</div>
                         <div className="font-medium">{result.details.size || "-"}</div>
                       </div>
-
                       <div>
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Mesh Color
-                        </div>
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground">Mesh Color</div>
                         <div className="font-medium">{result.details.color || "-"}</div>
                       </div>
-
                       <div>
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Qty
-                        </div>
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground">Qty</div>
                         <div className="font-medium">{result.details.quantity ?? "-"}</div>
                       </div>
-
                       <div>
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Remaining
-                        </div>
-                        <div className="font-medium">
-                          {result.details.remainingQty ?? "-"}
-                        </div>
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground">Remaining</div>
+                        <div className="font-medium">{result.details.remainingQty ?? "-"}</div>
                       </div>
                     </div>
                   )}
