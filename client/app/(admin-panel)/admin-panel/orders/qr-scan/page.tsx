@@ -148,9 +148,9 @@ export default function GlobalQrScanPage() {
       body: JSON.stringify(
         isConfirmShip
           ? {
-              barcode: code,
-              confirmShip: true,
-            }
+            barcode: code,
+            confirmShip: true,
+          }
           : { barcode: code },
       ),
     });
@@ -359,7 +359,7 @@ export default function GlobalQrScanPage() {
     if (!error) return;
 
     const readableError = getReadableCameraError(error);
-    
+
     // If readableError is null, it means it's a minor scan error we should ignore
     if (!readableError) return;
 
@@ -421,7 +421,13 @@ export default function GlobalQrScanPage() {
               <QrReader
                 key={scannerKey}
                 onResult={handleReaderResult}
-                constraints={{ facingMode: { ideal: "environment" } }}
+                constraints={{
+                  facingMode: "environment",
+                  // Adding explicit width/height hints for better 1D detection
+                  width: { ideal: 1920 },
+                  height: { ideal: 1080 },
+                  aspectRatio: { ideal: 1.7777777778 } // 16:9 is better for horizontal bars
+                }}
                 scanDelay={300}
                 videoId={`${videoId}-${scannerKey}`}
                 containerStyle={{ width: "100%" }}
@@ -429,7 +435,7 @@ export default function GlobalQrScanPage() {
                 videoStyle={{
                   width: "100%",
                   height: "100%",
-                  objectFit: "cover",
+                  objectFit: "contain", // Do NOT use 'cover' for horizontal barcodes
                 }}
                 className="w-full"
               />
@@ -506,11 +512,11 @@ export default function GlobalQrScanPage() {
                   className={cn(
                     "space-y-4 rounded-xl border px-4 py-4",
                     result.statusTone === "success" &&
-                      "border-emerald-200 bg-emerald-50/70",
+                    "border-emerald-200 bg-emerald-50/70",
                     result.statusTone === "warning" &&
-                      "border-amber-200 bg-amber-50/80",
+                    "border-amber-200 bg-amber-50/80",
                     result.statusTone === "error" &&
-                      "border-red-200 bg-red-50/70",
+                    "border-red-200 bg-red-50/70",
                   )}
                 >
                   <div className="flex flex-wrap items-center gap-2">

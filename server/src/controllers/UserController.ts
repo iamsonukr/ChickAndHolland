@@ -245,8 +245,12 @@ router.post(
 
     // Fix 1: No email, no roleId — use only username
     const sql = `
-      SELECT * FROM ${TABLE_NAMES.USERS}
-      WHERE username = ?
+      SELECT
+        u.*,
+        r.permissions AS rolePermissions
+      FROM ${TABLE_NAMES.USERS} u
+      LEFT JOIN ${TABLE_NAMES.USER_ROLES} r ON u.roleId = r.id
+      WHERE u.username = ?
       LIMIT 1
     `;
 
@@ -263,6 +267,24 @@ router.post(
     }
 
     // Token data — no role permissions because no roles column
+    let rolePermissions: string[] = [];
+
+    if (Array.isArray(user.rolePermissions)) {
+      rolePermissions = user.rolePermissions;
+    } else if (
+      typeof user.rolePermissions === "string" &&
+      user.rolePermissions
+    ) {
+      try {
+        const parsedPermissions = JSON.parse(user.rolePermissions);
+        rolePermissions = Array.isArray(parsedPermissions)
+          ? parsedPermissions
+          : [];
+      } catch {
+        rolePermissions = [];
+      }
+    }
+
     const tokenData = {
       id: user.id,
       username: user.username,
@@ -277,9 +299,8 @@ router.post(
       id: user.id,
       token,
       msg: "User logged in successfully",
-      rolePermissions: ["ALL"], // give full admin access
+      rolePermissions,
     });
-
   })
 );
 
