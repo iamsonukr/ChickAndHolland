@@ -159,7 +159,6 @@ export async function reserveUniqueBarcodeScan(
         message: getDuplicateScanMessage(),
       };
     }
-
     throw error;
   }
 }
@@ -168,7 +167,6 @@ export async function releaseReservedBarcodeScan(scanId?: number | null) {
   if (!scanId) {
     return;
   }
-
   await ensureScanGuardTable();
   await db.query(`DELETE FROM ${SCAN_GUARD_TABLE} WHERE id = ?`, [scanId]);
 }
