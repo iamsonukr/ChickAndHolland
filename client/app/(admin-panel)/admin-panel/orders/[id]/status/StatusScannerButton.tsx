@@ -6,6 +6,7 @@ import { QrReader } from "react-qr-reader";
 import { toast } from "sonner";
 
 import { API_URL } from "@/lib/constants";
+import { getScannerRequestHeaders } from "@/lib/scannerHeaders";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -122,7 +123,7 @@ export default function StatusScannerButton({
   const processStoreBarcode = async (code: string) => {
     const response = await fetch(`${API_URL}/orders/store-scan-update`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getScannerRequestHeaders(),
       body: JSON.stringify({ barcode: code }),
     });
     const json = await response.json();
@@ -145,7 +146,7 @@ export default function StatusScannerButton({
       `${API_URL}/scan/${isRetailer ? "scan" : "stock/scan"}`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getScannerRequestHeaders(),
         body: JSON.stringify(
           isRetailer && readyForShip
             ? { barcode: code, confirmShip: true }

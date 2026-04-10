@@ -7,6 +7,7 @@ import { QrReader } from "react-qr-reader";
 import { toast } from "sonner";
 
 import { API_URL } from "@/lib/constants";
+import { getScannerRequestHeaders } from "@/lib/scannerHeaders";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -144,7 +145,7 @@ export default function GlobalQrScanPage() {
     const isConfirmShip = pendingRetailerShipBarcode === code;
     const response = await fetch(`${API_URL}/scan/scan`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getScannerRequestHeaders(),
       body: JSON.stringify(
         isConfirmShip
           ? {
@@ -225,7 +226,7 @@ export default function GlobalQrScanPage() {
   const tryStockFlow = async (code: string): Promise<ScanOutcome | null> => {
     const response = await fetch(`${API_URL}/scan/stock/scan`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getScannerRequestHeaders(),
       body: JSON.stringify({ barcode: code }),
     });
     const json = await response.json();
@@ -258,7 +259,7 @@ export default function GlobalQrScanPage() {
   const tryStoreFlow = async (code: string): Promise<ScanOutcome | null> => {
     const response = await fetch(`${API_URL}/orders/store-scan-update`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getScannerRequestHeaders(),
       body: JSON.stringify({ barcode: code }),
     });
     const json = await response.json();

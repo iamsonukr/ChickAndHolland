@@ -22,6 +22,11 @@ import {
   generateUniquePO,
   peekGlobalNextPoNumber,
 } from "../utils/generatePO";
+import {
+  releaseReservedBarcodeScan,
+  requireScannerIdentity,
+  reserveUniqueBarcodeScan,
+} from "../lib/scanGuard";
 
 import StoreStyleProgress from "../models/StoreStyleProgress";  // ⬅ top me import add karna
 // import { updateOrderAndStyleStatus } from "../services/orderStatus.service";
@@ -1456,6 +1461,7 @@ PublicStoreRoutes.get(
 
 PublicStoreRoutes.post(
   "/store-scan-update",
+  requireScannerIdentity,
   asyncHandler(async (req: Request, res: Response) => {
     const { barcode } = req.body;
 
@@ -1522,19 +1528,34 @@ PublicStoreRoutes.post(
       });
     }
 
-    // 3️⃣ 🔥 SINGLE SOURCE OF TRUTH
-    await updateOrderByBarcode(
+    const scanReservation = await reserveUniqueBarcodeScan(
+      req,
+      "STORE",
       barcode,
-      nextStage,
-      1 // qty = 1 → store scan
     );
 
-    return res.json({
-      success: true,
-      barcode,
-      currentStage,
-      nextStage,
-    });
+    if (!scanReservation.success) {
+      return res.status(409).json(scanReservation);
+    }
+
+    try {
+      // 3️⃣ 🔥 SINGLE SOURCE OF TRUTH
+      await updateOrderByBarcode(
+        barcode,
+        nextStage,
+        1 // qty = 1 → store scan
+      );
+
+      return res.json({
+        success: true,
+        barcode,
+        currentStage,
+        nextStage,
+      });
+    } catch (error) {
+      await releaseReservedBarcodeScan(scanReservation.scanId);
+      throw error;
+    }
   })
 );
 

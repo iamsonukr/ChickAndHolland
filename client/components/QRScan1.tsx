@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { QrReader } from "react-qr-reader";
 import { API_URL } from "@/lib/constants";
+import { getScannerRequestHeaders } from "@/lib/scannerHeaders";
 import WebLabelBox from "@/components/WebLabelBox";
 
 export default function QRScanPage() {
@@ -37,7 +38,7 @@ export default function QRScanPage() {
       if (readyForShip) {
         const res = await fetch(`${API_URL}/scan/scan`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getScannerRequestHeaders(),
           body: JSON.stringify({
             barcode: code,
             confirmShip: true,
@@ -69,7 +70,7 @@ export default function QRScanPage() {
       ========================================= */
       let res = await fetch(`${API_URL}/scan/scan`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getScannerRequestHeaders(),
         body: JSON.stringify({ barcode: code }),
       });
 
@@ -79,7 +80,7 @@ export default function QRScanPage() {
       if (!json.success && !json.code) {
         res = await fetch(`${API_URL}/scan/stock/scan`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getScannerRequestHeaders(),
           body: JSON.stringify({ barcode: code }),
         });
         json = await res.json();

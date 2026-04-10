@@ -4,6 +4,11 @@ import asyncHandler from "../middleware/AsyncHandler";
 import RetailerOrderStyles from "../models/RetailerOrderStyles";
 import StyleProgress from "../models/StyleProgress";
 import { ShippingStatus } from "../models/Order"; // ✅ IMPORTANT
+import {
+  releaseReservedBarcodeScan,
+  requireScannerIdentity,
+  reserveUniqueBarcodeScan,
+} from "../lib/scanGuard";
 
 const router = Router();
 
@@ -32,6 +37,7 @@ function getNextRetailerStatus(current: string | null): string {
  */
 router.post(
   "/update-status",
+  requireScannerIdentity,
   asyncHandler(async (req: Request, res: Response) => {
     const { barcode, qty } = req.body;
 
@@ -67,15 +73,6 @@ router.post(
     const nextStage = getNextRetailerStatus(currentStage);
 
     // ===============================
-    // ✅ SAVE PROGRESS (TYPEORM SAFE)
-    // ===============================
-    const progress = new StyleProgress();
-    progress.barcode = barcode;
-    progress.stage = nextStage as any; // enum safe
-    progress.qty = qty;
-    await progress.save();
-
-    // ===============================
     // ✅ UPDATE RETAILER ORDER
     // ===============================
     const order = style.retailerOrder;
@@ -88,6 +85,17 @@ if (order.orderStatus === "Balance Pending") {
 }
 // ✅ Admin already marked Ready → barcode can SHIP
 if (order.orderStatus === "Ready To Delivery") {
+  const scanReservation = await reserveUniqueBarcodeScan(
+    req,
+    "RETAILER",
+    barcode,
+  );
+
+  if (!scanReservation.success) {
+    return res.status(409).json(scanReservation);
+  }
+
+  try {
   // ⚠️ payment check yahan hona chahiye
   // (agar payment logic yahan available ho to)
   
@@ -116,7 +124,31 @@ if (order.orderStatus === "Ready To Delivery") {
       currentStage: "Shipped",
     },
   });
+  } catch (error) {
+    await releaseReservedBarcodeScan(scanReservation.scanId);
+    throw error;
+  }
 }
+
+    const scanReservation = await reserveUniqueBarcodeScan(
+      req,
+      "RETAILER",
+      barcode,
+    );
+
+    if (!scanReservation.success) {
+      return res.status(409).json(scanReservation);
+    }
+
+    try {
+      // ===============================
+      // ✅ SAVE PROGRESS (TYPEORM SAFE)
+      // ===============================
+      const progress = new StyleProgress();
+      progress.barcode = barcode;
+      progress.stage = nextStage as any; // enum safe
+      progress.qty = qty;
+      await progress.save();
 
 
     const now = new Date();
@@ -158,6 +190,10 @@ switch (nextStage) {
         currentStage: nextStage,
       },
     });
+    } catch (error) {
+      await releaseReservedBarcodeScan(scanReservation.scanId);
+      throw error;
+    }
   })
 );
 

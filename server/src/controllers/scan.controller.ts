@@ -9,6 +9,11 @@ import StyleProgress from "../models/StyleProgress";
 import RetailerOrdersPayment from "../models/RetailerPaymentModal";
 
 import { OrderStatus, ShippingStatus } from "../models/Order";
+import {
+  releaseReservedBarcodeScan,
+  requireScannerIdentity,
+  reserveUniqueBarcodeScan,
+} from "../lib/scanGuard";
 
 const router = Router();
 
@@ -120,6 +125,7 @@ router.get(
 ------------------------------------------ */
 router.post(
   "/scan",
+  requireScannerIdentity,
   asyncHandler(async (req: Request, res: Response) => {
     const { barcode } = req.body;
 
@@ -170,28 +176,43 @@ if (
  &&
   req.body.confirmShip === true
 ) {
-  const now = new Date();
+  const scanReservation = await reserveUniqueBarcodeScan(
+    req,
+    "RETAILER",
+    barcode,
+  );
 
-  order.orderStatus = OrderStatus.Shipped;
-  order.shipped = now;
-  order.shippingStatus = ShippingStatus.Shipped;
-  order.shippingDate = now;
-  order.status_id = 1;
+  if (!scanReservation.success) {
+    return res.status(409).json(scanReservation);
+  }
 
-  await order.save();
+  try {
+    const now = new Date();
 
-  const progress = new StyleProgress();
-  progress.barcode = barcode;
-  progress.stage = OrderStatus.Shipped as any;
-  progress.qty = 1;
-  await progress.save();
+    order.orderStatus = OrderStatus.Shipped;
+    order.shipped = now;
+    order.shippingStatus = ShippingStatus.Shipped;
+    order.shippingDate = now;
+    order.status_id = 1;
 
-  return res.json({
-    success: true,
-    code: "SHIPPED",
-    message: "Order shipped successfully",
-    nextStage: "Shipped",
-  });
+    await order.save();
+
+    const progress = new StyleProgress();
+    progress.barcode = barcode;
+    progress.stage = OrderStatus.Shipped as any;
+    progress.qty = 1;
+    await progress.save();
+
+    return res.json({
+      success: true,
+      code: "SHIPPED",
+      message: "Order shipped successfully",
+      nextStage: "Shipped",
+    });
+  } catch (error) {
+    await releaseReservedBarcodeScan(scanReservation.scanId);
+    throw error;
+  }
 }
 
 
@@ -221,82 +242,96 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
     const currentStage = last?.stage || null;
     const nextStage = nextFreshStage(currentStage);
 
-    /* --------- INSERT STYLE PROGRESS --------- */
-    const progress = new StyleProgress();
-    progress.barcode = barcode;
-    progress.stage = nextStage as any;
-    progress.qty = 1;
-    await progress.save();
+    const scanReservation = await reserveUniqueBarcodeScan(
+      req,
+      "RETAILER",
+      barcode,
+    );
 
-    /* --------- CHECK IF ALL STYLES REACHED NEXT STAGE --------- */
-    const allStyles = await RetailerOrderStyles.find({
-      where: { retailerOrder: { id: order.id } },
-    });
-
-    let allReached = true;
-
-    for (const s of allStyles) {
-      const last = await StyleProgress.findOne({
-        where: { barcode: s.barcode },
-        order: { id: "DESC" },
-      });
-
-      if (!last || last.stage !== nextStage) {
-        allReached = false;
-        break;
-      }
+    if (!scanReservation.success) {
+      return res.status(409).json(scanReservation);
     }
 
-    /* --------- UPDATE ORDER ONLY IF ALL STYLES MATCH --------- */
-  /* --------- SMART ORDER STATUS UPDATE --------- */
+    try {
+      /* --------- INSERT STYLE PROGRESS --------- */
+      const progress = new StyleProgress();
+      progress.barcode = barcode;
+      progress.stage = nextStage as any;
+      progress.qty = 1;
+      await progress.save();
 
-// 1) Find lowest stage among all styles
-const lowestStage = await getLowestStage(order.id);
+      /* --------- CHECK IF ALL STYLES REACHED NEXT STAGE --------- */
+      const allStyles = await RetailerOrderStyles.find({
+        where: { retailerOrder: { id: order.id } },
+      });
 
-// 2) If lowest stage equals next stage → update order
-if (lowestStage === nextStage) {
-  const now = new Date();
+      let allReached = true;
 
-  order.orderStatus = nextStage as any;
+      for (const s of allStyles) {
+        const last = await StyleProgress.findOne({
+          where: { barcode: s.barcode },
+          order: { id: "DESC" },
+        });
 
-  const field = nextStage.toLowerCase().replace(/\s+/g, "_");
-  (order as any)[field] = now;
+        if (!last || last.stage !== nextStage) {
+          allReached = false;
+          break;
+        }
+      }
 
-  if (nextStage === "Shipped") {
-    order.shippingStatus = ShippingStatus.Shipped;
-    order.shippingDate = now;
-    order.status_id = 1;
-  }
+      /* --------- UPDATE ORDER ONLY IF ALL STYLES MATCH --------- */
+    /* --------- SMART ORDER STATUS UPDATE --------- */
 
-  await order.save();
+    // 1) Find lowest stage among all styles
+    const lowestStage = await getLowestStage(order.id);
 
-  return res.json({
-    success: true,
-    message: `Order moved to ${nextStage}`,
-    currentStage,
-    nextStage,
-    orderUpdated: true,
-  });
-}
+    // 2) If lowest stage equals next stage → update order
+    if (lowestStage === nextStage) {
+      const now = new Date();
 
-// 3) Order will NOT update because other styles are behind
-return res.json({
-  success: true,
-  message: `Style moved to ${nextStage}, waiting for all styles`,
-  currentStage,
-  nextStage,
-  orderUpdated: false,
-});
+      order.orderStatus = nextStage as any;
 
+      const field = nextStage.toLowerCase().replace(/\s+/g, "_");
+      (order as any)[field] = now;
 
-    /* --------- RETURN RESPONSE --------- */
+      if (nextStage === "Shipped") {
+        order.shippingStatus = ShippingStatus.Shipped;
+        order.shippingDate = now;
+        order.status_id = 1;
+      }
+
+      await order.save();
+
+      return res.json({
+        success: true,
+        message: `Order moved to ${nextStage}`,
+        currentStage,
+        nextStage,
+        orderUpdated: true,
+      });
+    }
+
+    // 3) Order will NOT update because other styles are behind
     return res.json({
       success: true,
-      message: `Moved to ${nextStage}`,
+      message: `Style moved to ${nextStage}, waiting for all styles`,
       currentStage,
       nextStage,
-      orderUpdated: allReached,
+      orderUpdated: false,
     });
+
+      /* --------- RETURN RESPONSE --------- */
+      return res.json({
+        success: true,
+        message: `Moved to ${nextStage}`,
+        currentStage,
+        nextStage,
+        orderUpdated: allReached,
+      });
+    } catch (error) {
+      await releaseReservedBarcodeScan(scanReservation.scanId);
+      throw error;
+    }
   })
 );
 
@@ -305,6 +340,7 @@ return res.json({
 ------------------------------------------ */
 router.post(
   "/stock/scan",
+  requireScannerIdentity,
   asyncHandler(async (req: Request, res: Response) => {
     const { barcode } = req.body;
 
@@ -348,21 +384,35 @@ router.post(
     const currentStage = last?.stage || null;
     const nextStage = nextStockStage(currentStage);
 
-    /* -------- INSERT LOG -------- */
-    const progress = new StyleProgress();
-    progress.barcode = barcode;
-    progress.stage = nextStage as any;
-    progress.qty = 1;
-    await progress.save();
+    const scanReservation = await reserveUniqueBarcodeScan(
+      req,
+      "STOCK",
+      barcode,
+    );
 
-  
+    if (!scanReservation.success) {
+      return res.status(409).json(scanReservation);
+    }
 
-    return res.json({
-      success: true,
-      message: `Stock moved to ${nextStage}`,
-      currentStage,
-      nextStage,
-    });
+    try {
+      /* -------- INSERT LOG -------- */
+      const progress = new StyleProgress();
+      progress.barcode = barcode;
+      progress.stage = nextStage as any;
+      progress.qty = 1;
+      await progress.save();
+
+      return res.json({
+        success: true,
+        message: `Stock moved to ${nextStage}`,
+        currentStage,
+        nextStage,
+      });
+    } catch (error) {
+      await releaseReservedBarcodeScan(scanReservation.scanId);
+      throw error;
+    }
+
   })
 );
 
