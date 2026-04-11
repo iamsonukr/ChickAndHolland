@@ -1,4 +1,5 @@
 import { fresh } from "@/lib/utils";
+import { build2dBarcodeUrl, normalizeBarcodeValue } from "@/lib/barcodes";
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import dayjs from "dayjs";
 
@@ -82,25 +83,6 @@ const getCommentsSummary = (variants: any[], fallback?: string) => {
 
 const getReferenceImages = (variants: any[]) =>
   Array.from(new Set(variants.flatMap((item) => normalizeImages(item.refImg))));
-
-const normalizeBarcodeValue = (barcode?: string | null) => {
-  const normalizedBarcode = String(barcode ?? "").trim();
-
-  if (!normalizedBarcode) return "";
-  if (["N/A", "NA", "NULL", "UNDEFINED"].includes(normalizedBarcode.toUpperCase())) {
-    return "";
-  }
-
-  return normalizedBarcode;
-};
-
-const getVariantBarcodeUrl = (barcode?: string | null) => {
-  const normalizedBarcode = normalizeBarcodeValue(barcode);
-  if (!normalizedBarcode) return "";
-  return `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(
-    normalizedBarcode,
-  )}&scale=2&height=8&includetext=false`;
-};
 
 const GroupedOrderPdf = ({
   orderData,
@@ -277,7 +259,7 @@ const GroupedOrderPdf = ({
 
               <View style={styles.pageVariantOverlay} wrap={false}>
                 <View style={styles.variantOverlay}>
-                  <Text style={styles.variantOverlayTitle}>Size / Barcode Details</Text>
+                  <Text style={styles.variantOverlayTitle}>Size / 2D Barcode Details</Text>
                   <View style={styles.variantGrid}>
                     {variants.map((variant: any, variantIndex: number) => {
                       const normalizedBarcode = normalizeBarcodeValue(variant.barcode);
@@ -307,7 +289,7 @@ const GroupedOrderPdf = ({
                             <>
                               <Image
                                 alt=""
-                                src={getVariantBarcodeUrl(normalizedBarcode)}
+                                src={build2dBarcodeUrl(normalizedBarcode, 120)}
                                 style={styles.variantBarcode}
                               />
                               <Text style={styles.variantCodeText}>
@@ -596,7 +578,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingVertical: 6,
     paddingHorizontal: 5,
-    minHeight: 96,
+    minHeight: 138,
     backgroundColor: "#ffffff",
     justifyContent: "flex-start",
   },
@@ -636,9 +618,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   variantBarcode: {
-    width: "100%",
-    maxWidth: 76,
-    height: 20,
+    width: 62,
+    height: 62,
     alignSelf: "center",
     marginTop: 3,
     marginBottom: 3,

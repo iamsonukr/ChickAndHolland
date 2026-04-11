@@ -1,5 +1,7 @@
 "use client";
 
+import { build2dBarcodeUrl } from "@/lib/barcodes";
+
 /* ================= COLOR MASTER (DB MIRROR) ================= */
 
 const PRODUCT_COLORS: Record<string, string> = {
@@ -175,12 +177,11 @@ const { name: colorName, hex: colorHex } = resolveColor(
 
             <div className="bg-white p-3 rounded-lg border border-gray-300 shadow-inner flex justify-center">
               <img
-                src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(
-                  item.barcode
-                )}&scale=2&height=18&includetext=false`}
-                alt="barcode"
+                src={build2dBarcodeUrl(item.barcode, 180)}
+                alt="2d barcode"
                 style={{
-                  width: "160px",
+                  width: "120px",
+                  height: "120px",
                   imageRendering: "pixelated",
                 }}
               />

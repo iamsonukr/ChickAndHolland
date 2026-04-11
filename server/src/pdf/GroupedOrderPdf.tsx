@@ -558,77 +558,90 @@ const styles = StyleSheet.create({
     objectFit: "contain",
     borderRadius: 4,
   },
+
+  // ── Variant / Barcode overlay ──────────────────────────────────────────────
   pageVariantOverlay: {
     position: "absolute",
     right: 0,
     bottom: 0,
-    width: "38%",
+    // Widened to 42% so 4 cards have breathing room
+    width: "42%",
     paddingLeft: 8,
     paddingBottom: 10,
   },
   variantOverlay: {
-    paddingHorizontal: 6,
-    paddingTop: 5,
-    paddingBottom: 6,
-    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: 8,
+    paddingTop: 6,
+    paddingBottom: 8,
+    backgroundColor: "rgba(255,255,255,0.97)",
     borderRadius: 4,
     border: "1px solid #999",
   },
   variantOverlayTitle: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "bold",
     color: "#FF5698",
-    marginBottom: 4,
+    marginBottom: 6,
     textAlign: "center",
   },
   variantGrid: {
     flexDirection: "row",
     flexWrap: "nowrap",
     alignItems: "stretch",
+    // gap replaces the fragile %-margin trick
+    gap: 4,
   },
   variantCard: {
-    width: "24%",
+    // flex:1 distributes width evenly across however many cards exist (up to 4)
+    flex: 1,
     border: "1px solid #000",
     borderRadius: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 3,
-    minHeight: 88,
+    paddingVertical: 5,
+    paddingHorizontal: 4,
+    minHeight: 100,
     backgroundColor: "#ffffff",
     justifyContent: "flex-start",
+    alignItems: "center",
+    overflow: "hidden",
   },
   variantCardSpaced: {
-    marginRight: "1.333%",
+    // spacing now handled by gap on the grid, keep empty for API compat
+    marginRight: 0,
   },
   variantCardLast: {
     marginRight: 0,
   },
   variantTitle: {
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 2,
+    marginBottom: 3,
   },
   variantValue: {
     fontSize: 8,
     textAlign: "center",
-    marginBottom: 2,
+    marginBottom: 3,
+    lineHeight: 1.3,
   },
   variantMeta: {
-    fontSize: 7,
+    fontSize: 8,
     textAlign: "center",
-  },
-  variantBarcode: {
-    width: "100%",
-    maxWidth: 70,
-    height: 18,
-    alignSelf: "center",
-    marginTop: 4,
     marginBottom: 2,
   },
+  variantBarcode: {
+    // percentage width keeps it inside the card regardless of card size
+    width: "95%",
+    height: 22,
+    alignSelf: "center",
+    marginTop: 5,
+    marginBottom: 3,
+  },
   variantCodeText: {
-    fontSize: 5.5,
+    fontSize: 6,
     textAlign: "center",
-    wordBreak: "break-all",
+    // prevent long barcodes from stretching the card
+    maxWidth: "100%",
+    overflow: "hidden",
   },
 });
 

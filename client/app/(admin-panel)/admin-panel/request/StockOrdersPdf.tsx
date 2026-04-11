@@ -1,4 +1,5 @@
 import React from "react";
+import { build2dBarcodeUrl } from "@/lib/barcodes";
 import {
   Document,
   Image,
@@ -74,10 +75,11 @@ const StockOrdersPdf = ({ orderData }: { orderData: any }) => {
             {/* ================= BARCODE BLOCK ================= */}
             {item.barcode && (
               <View style={styles.barcodeContainer}>
-                <Text style={styles.barcodeTitle}>Barcode</Text>
+                <Text style={styles.barcodeTitle}>2D Barcode</Text>
                 
                 <Image
-                  src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${item.barcode}&scale=3&height=10&includetext=false`}
+                  alt="2d barcode"
+                  src={build2dBarcodeUrl(item.barcode, 180)}
                   style={styles.barcodeImage}
                 />
 
@@ -91,7 +93,7 @@ const StockOrdersPdf = ({ orderData }: { orderData: any }) => {
           {/* ================= PRODUCT IMAGE ================= */}
           {item.image && (
             <View style={styles.imageBox}>
-              <Image src={item.image} style={styles.image} />
+              <Image alt="" src={item.image} style={styles.image} />
             </View>
           )}
         </View>
@@ -179,8 +181,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   barcodeImage: {
-    width: 220,
-    height: 60,
+    width: 120,
+    height: 120,
   },
   barcodeText: {
     fontSize: 9,

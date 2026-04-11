@@ -1,4 +1,4 @@
-
+import { build2dBarcodeUrl } from "@/lib/barcodes";
 
 
 type Props = {
@@ -46,9 +46,9 @@ export default function WebLabelBox({
       {barcode && (
         <div className="py-2 flex flex-col items-center">
           <img
-            src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${barcode}&scale=2&height=8&includetext=false`}
-            alt="barcode"
-            className="w-[120px] h-[35px]"
+            src={build2dBarcodeUrl(barcode, 120)}
+            alt="2d barcode"
+            className="h-[72px] w-[72px]"
           />
           {/* <p className="text-[8px] mt-1">{barcode}</p> */}
         </div>

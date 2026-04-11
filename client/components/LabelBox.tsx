@@ -6,6 +6,7 @@ import {
   Image,
   StyleSheet,
 } from "@react-pdf/renderer";
+import { build2dBarcodeUrl } from "@/lib/barcodes";
 
 /* ======================================================
    MESH COLOR FORMATTER
@@ -77,11 +78,10 @@ export default function LabelPdf({ item }: { item: any }) {
           {/* ================= BARCODE ================= */}
           {item.barcode && (
             <View style={styles.barcodeBlock}>
-              <Text style={styles.scanText}>SCAN</Text>
+              <Text style={styles.scanText}>2D SCAN</Text>
               <Image
-                src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(
-                  item.barcode
-                )}&scale=2&height=14&includetext=false`}
+                alt="2d barcode"
+                src={build2dBarcodeUrl(item.barcode, 120)}
                 style={styles.barcode}
               />
             </View>
@@ -191,8 +191,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   barcode: {
-    width: 120,
-    height: 32,
+    width: 54,
+    height: 54,
   },
 
   /* FOOTER */
