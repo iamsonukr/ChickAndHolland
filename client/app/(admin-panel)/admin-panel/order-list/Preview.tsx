@@ -229,7 +229,7 @@ const Preview = ({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button onClick={fetchDetails}>Preview / Mail</Button>
+        <Button onClick={fetchDetails}>Preview</Button>
       </SheetTrigger>
 
       <SheetContent className="!min-w-[95%] overflow-y-auto">

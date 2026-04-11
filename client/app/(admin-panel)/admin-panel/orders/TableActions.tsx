@@ -374,7 +374,7 @@ const fetchDetails = async () => {
           <Button
             onClick={data.orderSource === "regular" ? fetchData : fetchDetails}
           >
-            Preview / Mail <File className="ml-2" />
+            Preview <File className="ml-2" />
           </Button>
         </SheetTrigger>
 

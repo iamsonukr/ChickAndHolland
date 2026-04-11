@@ -5,6 +5,7 @@ import { Ellipsis, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
+import { parseRolePermissions } from "@/lib/adminPermissions";
 import { getMenuListWithPermissions } from "@/lib/menuList";
 import { Button } from "@/components/ui/button";
 import { CollapseMenuButton } from "@/components/custom/admin-panel/colllapseMenuButton";
@@ -35,7 +36,7 @@ export function Menu({
     pathname,
     userDetails.userType,
     userDetails.userType === "ADMIN"
-      ? JSON.parse(userDetails.rolePermissions)
+      ? parseRolePermissions(userDetails.rolePermissions)
       : [],
   );
   const totalCount = freshCount + stockCount;

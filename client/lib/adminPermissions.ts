@@ -5,6 +5,7 @@ const ADMIN_PERMISSION_ROUTES = [
   "/admin-panel/user-roles",
   "/admin-panel/contactus",
   "/admin-panel/orders",
+  "/admin-panel/orders/qr-scan",
   "/admin-panel/order-list",
   "/admin-panel/request",
   "/admin-panel/products/categories",
@@ -20,6 +21,10 @@ const ADMIN_PERMISSION_ROUTES = [
   "/admin-panel/expenses/ozil",
   "/admin-panel/quickbook",
 ] as const;
+
+const ADMIN_PERMISSION_INHERITANCE: Record<string, readonly string[]> = {
+  "/admin-panel/orders/qr-scan": ["/admin-panel/orders"],
+};
 
 const normalizeRoute = (route: string) => {
   if (route === "/") {
@@ -41,6 +46,16 @@ const routeMatches = (pathname: string, route: string) => {
     normalizedPath === normalizedRoute ||
     normalizedPath.startsWith(`${normalizedRoute}/`)
   );
+};
+
+const getEffectivePermissionRoutes = (route: string) => {
+  const normalizedRoute = normalizeRoute(route);
+  const inheritedRoutes = ADMIN_PERMISSION_INHERITANCE[normalizedRoute] ?? [];
+
+  return [
+    normalizedRoute,
+    ...inheritedRoutes.map((inheritedRoute) => normalizeRoute(inheritedRoute)),
+  ];
 };
 
 export const parseRolePermissions = (rawPermissions?: string | null) => {
@@ -68,18 +83,28 @@ export const hasAdminRouteAccess = (
   pathname: string,
   permissions: string[],
 ) => {
+  return hasAdminPermissionAccess(
+    getRequiredAdminPermission(pathname),
+    permissions,
+  );
+};
+
+export const hasAdminPermissionAccess = (
+  route: string | null,
+  permissions: string[],
+) => {
   if (permissions.includes("ALL")) {
     return true;
   }
 
-  const requiredPermission = getRequiredAdminPermission(pathname);
-
-  if (!requiredPermission) {
+  if (!route) {
     return false;
   }
 
+  const allowedRoutes = new Set(getEffectivePermissionRoutes(route));
+
   return permissions.some(
-    (permission) => normalizeRoute(permission) === normalizeRoute(requiredPermission),
+    (permission) => allowedRoutes.has(normalizeRoute(permission)),
   );
 };
 

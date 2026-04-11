@@ -339,7 +339,6 @@ export default function GlobalQrScanPage() {
                 playsInline
                 className="absolute inset-0 h-full w-full object-cover"
               />
-
               {/* Scan overlay */}
               <div className="pointer-events-none absolute inset-0">
                 <svg className="absolute inset-0 h-full w-full" xmlns="http://www.w3.org/2000/svg">

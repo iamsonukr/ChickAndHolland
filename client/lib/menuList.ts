@@ -17,6 +17,7 @@ import {
   UserIcon,
   Users,
 } from "lucide-react";
+import { hasAdminPermissionAccess } from "@/lib/adminPermissions";
 
 type Submenu = {
   href: string;
@@ -103,17 +104,19 @@ export function getMenuList(pathname: string, userType: any): Group[] {
           {
             href: "/admin-panel/orders",
             label: "All Orders",
-            active: pathname.includes("/orders"),
+            active:
+              pathname.includes("/orders") &&
+              !pathname.includes("/orders/qr-scan"),
             icon: Cog,
             submenus: [],
           },
-//           {
-//   href: "/admin-panel/qr-scan",
-//   label: "QR Scan",
-//   active: pathname.includes("/qr-scan"),
-//   icon: Cog,
-//   submenus: [],
-// },
+          {
+            href: "/admin-panel/orders/qr-scan",
+            label: "Global QR Scan",
+            active: pathname.includes("/orders/qr-scan"),
+            icon: Cog,
+            submenus: [],
+          },
 
           {
             href: "/admin-panel/order-list",
@@ -404,13 +407,13 @@ export const getMenuListWithPermissions = (
 
       return {
         ...menu,
-canAccess: thePermissions.includes("ALL") || thePermissions.includes(value),
+        canAccess: hasAdminPermissionAccess(value, thePermissions),
         // canAccess: true,
         submenus: menu.submenus.map((submenu) => {
           const value = submenu.href;
           return {
             ...submenu,
-canAccess: thePermissions.includes("ALL") || thePermissions.includes(value),
+            canAccess: hasAdminPermissionAccess(value, thePermissions),
             // canAccess: true,
           };
         }),
