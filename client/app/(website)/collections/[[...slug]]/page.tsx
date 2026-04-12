@@ -6,7 +6,6 @@ import LazyVideo from "@/components/custom/LazyVideo";
 import TopSection from "./TopSection";
 import { cookies } from "next/headers";
 import ClientPaginatedProducts from "@/components/custom/ClientPaginatedProducts";
-import ScrollToTop from "@/components/custom/ScrollToTop";
 import { getRetailerDetails } from "@/lib/data";
 
 
@@ -88,7 +87,6 @@ export default async function CollectionProducts(props: {
   return (
     <div className="  flex flex-center flex-col justify-center content-center item-center" >
       {/* Hero section */}
-      <ScrollToTop />
       <TopSection
         name={categoryName}
         subCategoryId={subCategoryId}

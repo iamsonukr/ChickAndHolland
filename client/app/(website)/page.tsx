@@ -156,8 +156,9 @@ export default function Home() {
       {/* SS26 Description + Slider */}
       <div className="w-full flex flex-col items-center">
         <div className="max-w-4xl mx-auto text-center mb-12 px-4">
+         
           <p className="bg-[#F3F4F6] px-10 py-14 text-center text-[14px] leading-2 text-gray-400 md:px-10 md:text-[16px] md:leading-10 2xl:px-14 2xl:text-[16px] 2xl:leading-6 3xl:px-20 3xl:!leading-[32px] 4xl:px-28 4xl:text-4xl 4xl:!leading-[40px] font-brandon">
-            Chic & Holland unveiled its SS26 "300 Hours" couture collection at Dubai Fashion Week,
+             <h1 className="inline-block" >Chic & Holland</h1> unveiled its SS26 "300 Hours" couture collection at Dubai Fashion Week,
             celebrating a decade of craftsmanship and artistry. Each look showcased our signature
             hand-embellished detailing, sculpted silhouettes, and luxurious materials—brought to life
             by global muses on the runway. This milestone presentation marks our expansion into the

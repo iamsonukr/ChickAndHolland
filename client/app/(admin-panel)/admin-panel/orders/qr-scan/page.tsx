@@ -2,12 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Camera, Loader2, ScanLine } from "lucide-react";
-import { BrowserMultiFormatReader } from "@zxing/browser";
-import { DecodeHintType, BarcodeFormat } from "@zxing/library";
+import {
+  ArrowLeft,
+  Camera,
+  Flashlight,
+  Loader2,
+  ScanLine,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { API_URL } from "@/lib/constants";
+import { useQrCodeScanner } from "@/lib/hooks/useQrCodeScanner";
 import { getScannerRequestHeaders } from "@/lib/scannerHeaders";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -63,102 +68,23 @@ export default function GlobalQrScanPage() {
   const [scanLock, setScanLock] = useState(false);
   const [pendingRetailerShipBarcode, setPendingRetailerShipBarcode] = useState<string | null>(null);
   const [result, setResult] = useState<ScanOutcome | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [lastScanned, setLastScanned] = useState<string | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const controlsRef = useRef<{ stop: () => void } | null>(null);
   const scanLockRef = useRef(false); // mirror of scanLock for use inside the ZXing callback closure
+  const { cameraError, toggleTorch, torchOn, videoRef } = useQrCodeScanner({
+    active: true,
+    onScan: (text) => {
+      if (scanLockRef.current) {
+        return;
+      }
+
+      void processBarcode(text);
+    },
+  });
 
   // ── Camera ───────────────────────────────────────────────────────────────
-  const startCamera = async () => {
-    if (!videoRef.current) return;
-    setCameraError(null);
-
-    try {
-      const hints = new Map();
-      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-        BarcodeFormat.QR_CODE,
-        BarcodeFormat.CODE_128,
-        BarcodeFormat.CODE_39,
-        BarcodeFormat.CODE_93,
-        BarcodeFormat.EAN_13,
-        BarcodeFormat.EAN_8,
-        BarcodeFormat.UPC_A,
-        BarcodeFormat.UPC_E,
-        BarcodeFormat.ITF,
-        BarcodeFormat.DATA_MATRIX,
-        BarcodeFormat.PDF_417,
-        BarcodeFormat.AZTEC,
-      ]);
-      hints.set(DecodeHintType.TRY_HARDER, true);
-
-      const reader = new BrowserMultiFormatReader(hints, {
-        delayBetweenScanAttempts: 150,
-        delayBetweenScanSuccess: 1500,
-      });
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-      });
-      streamRef.current = stream;
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-
-      const controls = await reader.decodeFromStream(
-        stream,
-        videoRef.current,
-        (scanResult) => {
-          if (!scanResult) return;
-          const text = scanResult.getText();
-          if (!text || scanLockRef.current) return;
-          setLastScanned((prev) => {
-            if (prev === text) return prev; // debounce same barcode
-            processBarcode(text);
-            return text;
-          });
-        },
-      );
-      controlsRef.current = controls;
-    } catch (err: any) {
-      const name = err?.name || "";
-      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
-        setCameraError("Camera permission was denied. Please allow camera access in your browser.");
-      } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
-        setCameraError("No camera was found on this device.");
-      } else if (name === "NotReadableError" || name === "TrackStartError") {
-        setCameraError("The camera is already in use by another app or tab.");
-      } else if (name === "SecurityError" || !window.isSecureContext) {
-        setCameraError("Camera access needs a secure site. Open this page on HTTPS or localhost.");
-      } else {
-        setCameraError("Unable to start camera. Use manual entry below.");
-      }
-    }
-  };
-
-  const stopCamera = () => {
-    controlsRef.current?.stop();
-    controlsRef.current = null;
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
-  };
-
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      startCamera();
-      inputRef.current?.focus();
-    }, 200);
-    return () => {
-      clearTimeout(timeout);
-      stopCamera();
-    };
+    inputRef.current?.focus();
   }, []);
 
   // Keep ref in sync so the ZXing callback (closed over on mount) can read it
@@ -207,7 +133,7 @@ export default function GlobalQrScanPage() {
     }
     if (json?.code === "READY_FOR_SHIP") {
       setPendingRetailerShipBarcode(code);
-      return { success: true, orderType: "RETAILER", barcode: code, message: json.message || "Ready To Delivery is done. Scan the same barcode once more to ship it.", currentStage: "Ready To Delivery", nextStage: "Ready To Delivery", statusTone: "warning" };
+      return { success: true, orderType: "RETAILER", barcode: code, message: json.message || "Ready To Delivery is done. Scan the same QR code once more to ship it.", currentStage: "Ready To Delivery", nextStage: "Ready To Delivery", statusTone: "warning" };
     }
     if (json?.code === "SHIPPED") {
       setPendingRetailerShipBarcode(null);
@@ -271,7 +197,7 @@ export default function GlobalQrScanPage() {
         success: false,
         orderType: "UNKNOWN" as const,
         barcode: code,
-        message: "This barcode was not found in retailer, stock, or store orders.",
+        message: "This QR code was not found in retailer, stock, or store orders.",
         statusTone: "error" as const,
       };
 
@@ -281,7 +207,7 @@ export default function GlobalQrScanPage() {
       else if (nextResult.success) toast.success(nextResult.message);
       else toast.error(nextResult.message);
     } catch {
-      const errorResult: ScanOutcome = { success: false, orderType: "UNKNOWN", barcode: code, message: "Something went wrong while scanning this barcode.", statusTone: "error" };
+      const errorResult: ScanOutcome = { success: false, orderType: "UNKNOWN", barcode: code, message: "Something went wrong while scanning this QR code.", statusTone: "error" };
       setResult(errorResult);
       toast.error(errorResult.message);
     } finally {
@@ -304,7 +230,7 @@ export default function GlobalQrScanPage() {
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight">Global QR Scanner</h1>
             <p className="max-w-2xl text-sm text-muted-foreground">
-              Scan any retailer, stock, or store barcode from one place.
+              Scan any retailer, stock, or store QR code from one place.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -326,12 +252,11 @@ export default function GlobalQrScanPage() {
           <div className="border-b bg-muted/30 px-5 py-4">
             <div className="flex items-center gap-2 text-lg font-semibold">
               <Camera className="h-5 w-5" />
-              Camera Scan
+              QR Camera Scan
             </div>
           </div>
 
           <div className="space-y-4 p-5">
-            {/* Native video element — no react-qr-reader wrapper */}
             <div className="relative overflow-hidden rounded-xl border bg-black aspect-video">
               <video
                 ref={videoRef}
@@ -345,7 +270,7 @@ export default function GlobalQrScanPage() {
                   <defs>
                     <mask id="gscan-mask">
                       <rect width="100%" height="100%" fill="white" />
-                      <rect x="8%" y="30%" width="84%" height="40%" rx="6" fill="black" />
+                      <rect x="25%" y="18%" width="50%" height="64%" rx="12" fill="black" />
                     </mask>
                   </defs>
                   <rect width="100%" height="100%" fill="rgba(0,0,0,0.5)" mask="url(#gscan-mask)" />
@@ -353,29 +278,29 @@ export default function GlobalQrScanPage() {
 
                 {/* Corner brackets */}
                 {[
-                  "top-[28%] left-[6%] border-t-2 border-l-2 rounded-tl-md",
-                  "top-[28%] right-[6%] border-t-2 border-r-2 rounded-tr-md",
-                  "top-[68%] left-[6%] border-b-2 border-l-2 rounded-bl-md",
-                  "top-[68%] right-[6%] border-b-2 border-r-2 rounded-br-md",
+                  "top-[16%] left-[23%] border-t-2 border-l-2 rounded-tl-md",
+                  "top-[16%] right-[23%] border-t-2 border-r-2 rounded-tr-md",
+                  "top-[80%] left-[23%] border-b-2 border-l-2 rounded-bl-md",
+                  "top-[80%] right-[23%] border-b-2 border-r-2 rounded-br-md",
                 ].map((cls, i) => (
                   <div key={i} className={`absolute h-6 w-6 border-white ${cls}`} />
                 ))}
 
                 {/* Animated scan line */}
                 <div
-                  className="absolute left-[8%] w-[84%] h-px bg-green-400/90"
-                  style={{ top: "30%", animation: "gscanline 2s ease-in-out infinite" }}
+                  className="absolute left-[25%] w-[50%] h-px bg-green-400/90"
+                  style={{ top: "18%", animation: "gscanline 2s ease-in-out infinite" }}
                 />
                 <style>{`
                   @keyframes gscanline {
                     0%   { transform: translateY(0);    opacity: 1; }
-                    50%  { transform: translateY(40cqh); opacity: 0.5; }
+                    50%  { transform: translateY(64cqh); opacity: 0.5; }
                     100% { transform: translateY(0);    opacity: 1; }
                   }
                 `}</style>
 
                 <p className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs text-white/60 whitespace-nowrap">
-                  Hold barcode steady inside the frame
+                  Hold the QR code inside the frame
                 </p>
               </div>
 
@@ -384,6 +309,26 @@ export default function GlobalQrScanPage() {
                   <p className="text-center text-sm text-white">{cameraError}</p>
                 </div>
               )}
+
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute right-3 top-3 h-9 w-9 border border-white/20 bg-black/45 text-white hover:bg-black/65"
+                onClick={async () => {
+                  try {
+                    await toggleTorch();
+                  } catch (error) {
+                    toast.error(
+                      error instanceof Error
+                        ? error.message
+                        : "Torch not supported on this device.",
+                    );
+                  }
+                }}
+              >
+                <Flashlight className={cn("h-4 w-4", torchOn && "text-yellow-300")} />
+              </Button>
             </div>
 
             {pendingRetailerShipBarcode && (
@@ -407,13 +352,13 @@ export default function GlobalQrScanPage() {
             <div className="border-b bg-muted/30 px-5 py-4">
               <div className="flex items-center gap-2 text-lg font-semibold">
                 <ScanLine className="h-5 w-5" />
-                Manual Scan
+                Manual QR Entry
               </div>
             </div>
             <div className="space-y-4 p-5">
               <Input
                 ref={inputRef}
-                placeholder="Enter barcode manually"
+                placeholder="Enter QR code manually"
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && processBarcode(barcode)}
@@ -427,7 +372,7 @@ export default function GlobalQrScanPage() {
                 {scanLock
                   ? <Loader2 className="h-4 w-4 animate-spin" />
                   : <ScanLine className="h-4 w-4" />}
-                Process Barcode
+                Process QR Code
               </Button>
             </div>
           </Card>
@@ -439,7 +384,7 @@ export default function GlobalQrScanPage() {
             <div className="p-5">
               {!result ? (
                 <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                  No barcode scanned yet.
+                  No QR code scanned yet.
                 </div>
               ) : (
                 <div className={cn(
