@@ -292,32 +292,26 @@ const GroupedOrderPdf = ({
                             <Text style={styles.variantTitle}>{variant.styleNo}</Text>
                             <View style={styles.variantInfoGroup}>
                               <View style={styles.variantInfoRow}>
-                                <Text style={styles.variantInfoLabel}>Size</Text>
-                                <Text style={styles.variantInfoValue} wrap>
-                                  {getVariantSizeText(variant)}
-                                </Text>
+                                <Text style={styles.variantInfoLabel}>Size:</Text>
+                                <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text>
                               </View>
-                              <View
-                                style={[
-                                  styles.variantInfoRow,
-                                  styles.variantInfoRowBorder,
-                                ]}
-                              >
-                                <Text style={styles.variantInfoLabel}>QTY</Text>
-                                <Text style={styles.variantInfoValue}>
-                                  {variant.quantity ?? "-"}
-                                </Text>
+                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
+                                <Text style={styles.variantInfoLabel}>QTY:</Text>
+                                <Text style={styles.variantInfoValue}>{variant.quantity ?? "-"}</Text>
                               </View>
-                              <View
-                                style={[
-                                  styles.variantInfoRow,
-                                  styles.variantInfoRowBorder,
-                                ]}
-                              >
-                                <Text style={styles.variantInfoLabel}>Color</Text>
-                                <Text style={styles.variantInfoValue} wrap>
-                                  {variantColorText}
-                                </Text>
+                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
+                                <Text style={styles.variantInfoLabel}>Color:</Text>
+                              </View>
+                              <View style={[styles.colorValuesRow, styles.variantInfoRowBorder]}>
+                                {variant.color ? (
+                                  <Text style={styles.colorDetail}>{variant.color}</Text>
+                                ) : null}
+                                {variant.meshColor ? (
+                                  <Text style={styles.colorDetail}>{variant.meshColor}</Text>
+                                ) : null}
+                                {!variant.color && !variant.meshColor ? (
+                                  <Text style={styles.colorDetail}>-</Text>
+                                ) : null}
                               </View>
                             </View>
                           </View>
@@ -511,6 +505,8 @@ const styles = StyleSheet.create({
   dataText: {
     fontSize: 13,
     width: "100%",
+    hyphens: "none",
+    wordBreak: "normal",
   },
   customizationContainer: {
     flexDirection: "column",
@@ -533,6 +529,8 @@ const styles = StyleSheet.create({
   commentsText: {
     fontSize: 12,
     lineHeight: 1.4,
+    hyphens: "none",
+    wordBreak: "normal",
   },
   extraImagesContainer: {
     flexDirection: "column",
@@ -642,17 +640,16 @@ const styles = StyleSheet.create({
   },
   variantInfoRow: {
     flexDirection: "row",
-    // alignItems: "flex-start",
     paddingHorizontal: 2,
-    // flexDirection: "row",
+    paddingVertical: 1,
+    alignItems: "flex-start", // ✅ FIXED: top-align so label sits at top when colors stack
     justifyContent: "space-between",
-    paddingVertical: 2,
   },
   variantInfoRowBorder: {
     borderTop: "1px solid #d4d4d8",
   },
   variantInfoLabel: {
-    width: 28,
+    minWidth: 28,
     fontSize: 7,
     fontWeight: "bold",
     color: "#444",
@@ -660,7 +657,22 @@ const styles = StyleSheet.create({
   variantInfoValue: {
     flex: 1,
     fontSize: 7,
-    textAlign: "right",
+    textAlign: "left",
+    marginLeft: 4,
+    hyphens: "none",
+    wordBreak: "normal",
+  },
+  colorValuesRow: {
+    paddingHorizontal: 2,
+    paddingVertical: 2,
+    flexDirection: "column",
+  },
+  colorDetail: {
+    fontSize: 7,
+    textAlign: "left",
+    hyphens: "none",
+    wordBreak: "normal",
+    lineHeight: 1.4,
   },
   variantBarcodeSection: {
     borderTop: "1px solid #d4d4d8",

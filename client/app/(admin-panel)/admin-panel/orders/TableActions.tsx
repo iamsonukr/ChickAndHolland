@@ -26,7 +26,6 @@ import {
 } from "@/lib/data";
 import { convertWebPToJPG } from "../request/StockAcceptedForm";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
-import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
 
 const resolveUploadedDocumentUrl = (filePath?: string | null) => {
   if (!filePath) return "";
@@ -51,8 +50,7 @@ const TableActions = ({ data }: { data: any }) => {
   const [previewData, setPreviewData] = useState<any>(null);
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [previewLoading, setPreviewLoading] = useState(false);
+const [uploading, setUploading] = useState(false);
 
 
   const { executeAsync: Stock, loading } = useHttp(
@@ -81,9 +79,6 @@ const TableActions = ({ data }: { data: any }) => {
 
   /** ********** STORE / ONLINE ORDERS ********** **/
   const fetchData = async () => {
-    setPreviewLoading(true);
-    setPreviewData(null);
-    setOrderDetails(null);
     try {
       const colours = await getProductColours({});
       const res = await fetch(API_URL + `/orders/orderDetails?orderId=${data.id}`);
@@ -171,16 +166,12 @@ const TableActions = ({ data }: { data: any }) => {
       
     } catch (err) {
       toast.error("Failed to load order");
-    } finally {
-      setPreviewLoading(false);
     }
   };
 
   /** ********** RETAILER ORDERS ********** **/
  /** ********** RETAILER ORDERS ********** **/
 const fetchDetails = async () => {
-  setPreviewLoading(true);
-  setPreviewData(null);
   try {
     console.log("🚀 FETCH STARTED");
 
@@ -354,8 +345,6 @@ const fetchDetails = async () => {
   } catch (error) {
     console.error("❌ FAILED TO LOAD RETAILER ORDER", error);
     toast.error("Failed to load retailer order");
-  } finally {
-    setPreviewLoading(false);
   }
 };
 
@@ -389,14 +378,7 @@ const fetchDetails = async () => {
           </Button>
         </SheetTrigger>
 
-        <SheetContent className="relative min-w-full overflow-y-auto">
-          {previewLoading && (
-            <AdminLoaderScreen
-              className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm"
-              title="Loading order preview"
-              description="Preparing the latest order details, preview document, and uploaded file state."
-            />
-          )}
+        <SheetContent className="min-w-full overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Order Details Preview</SheetTitle>
             <SheetDescription>
@@ -404,11 +386,7 @@ const fetchDetails = async () => {
             </SheetDescription>
           </SheetHeader>
 
-          {!previewData && !previewLoading && (
-            <p className="mt-8 text-center text-muted-foreground">
-              Preview unavailable.
-            </p>
-          )}
+          {!previewData && <p className="mt-8 text-center">Loading...</p>}
 
        {previewData && (
   <>
