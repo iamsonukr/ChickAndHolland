@@ -131,9 +131,9 @@ const OrdersPage = async (props: {
         <div className="flex flex-col gap-4">
 
           {/* Page Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <h1 className="text-lg md:text-xl font-semibold">All Orders</h1>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
               <DeleteButton />
               <AdjustSequenceButton />
               <Link href="/admin-panel/orders/qr-scan">
@@ -149,7 +149,7 @@ const OrdersPage = async (props: {
           <div className="space-y-2">
 
             {/* Search + Filter */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
               <CustomSearchBar query={query} />
               <OrderTypeFilter />
               <div className="flex flex-wrap items-center gap-2">

@@ -18,6 +18,7 @@ import CustomFilters from "../CustomFilters";
 import ExpensesDownloader from "../Downloads";
 import EditInvoice from "../EditInvoice";
 import dayjs from "dayjs";
+import TableScrollWrapper from "@/components/TableScrollWrapper";
 
 const Expenses = async (
   props: {
@@ -60,14 +61,16 @@ const Expenses = async (
   return (
     <ContentLayout title="Manage Expenses">
       <div className="flex flex-col gap-8">
-        <div className="flex flex-row items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl md:text-2xl">Expenses</h1>
-          <AddExpenseForm
-            expenseName="Ozil Expenses"
-            expenseLength={expenses?.length}
-          />
+          <div className="w-full sm:w-auto sm:text-right">
+            <AddExpenseForm
+              expenseName="Ozil Expenses"
+              expenseLength={expenses?.length}
+            />
+          </div>
         </div>
-        <div className="w-12/12 flex justify-end">
+        <div className="flex w-full justify-start sm:justify-end">
           <ExpensesDownloader
             expenses={Downloads}
             name="Ozil"
@@ -79,7 +82,8 @@ const Expenses = async (
 
           <CustomFilters />
 
-          <Table>
+          <TableScrollWrapper>
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
@@ -129,7 +133,8 @@ const Expenses = async (
                 );
               })}
             </TableCaption>
-          </Table>
+            </Table>
+          </TableScrollWrapper>
 
           <CustomPagination
             currentPage={currentPage}

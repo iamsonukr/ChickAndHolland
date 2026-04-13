@@ -13,6 +13,7 @@ import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import StyleNoImage from "@/app/(admin-panel)/admin-panel/stock/StyleNoImage";
 import TableActions from "./TableActions";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
+import TableScrollWrapper from "@/components/TableScrollWrapper";
 
 const RetailerOrder = async (
   props: {
@@ -53,7 +54,8 @@ const RetailerOrder = async (
         {/*  {JSON.stringify(myOrders, null, 2)}*/}
         {/*</pre>*/}
 
-        <Table>
+        <TableScrollWrapper>
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Style NO</TableHead>
@@ -89,7 +91,8 @@ const RetailerOrder = async (
               );
             })}
           </TableBody>
-        </Table>
+          </Table>
+        </TableScrollWrapper>
 
         <CustomPagination
           currentPage={currentPage}

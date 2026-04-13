@@ -71,7 +71,7 @@ const page = async (props: {
       </div> */}
       <TableScrollWrapper>
       <Tabs defaultValue="accepted" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-3">
           <TabsTrigger value="accepted">Accepted</TabsTrigger>
           <TabsTrigger value="delivered">Delivered</TabsTrigger>
           <TabsTrigger value="rejected">Rejected</TabsTrigger>

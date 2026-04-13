@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, LogOut } from "lucide-react";
+import { Ellipsis } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -19,17 +19,17 @@ import {
 interface MenuProps {
   isOpen: boolean | undefined;
   userDetails?: any;
-  freshCount: any;
-  stockCount: any;
-  unreadEnquiryCount: number;
+  freshCount?: number;
+  stockCount?: number;
+  unreadEnquiryCount?: number;
 }
 
 export function Menu({
   isOpen,
   userDetails,
-  freshCount,
-  stockCount,
-  unreadEnquiryCount,
+  freshCount = 0,
+  stockCount = 0,
+  unreadEnquiryCount = 0,
 }: MenuProps) {
   const pathname = usePathname();
   const menuListWithPermissions = getMenuListWithPermissions(

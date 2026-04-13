@@ -35,9 +35,9 @@ const Customers = async (props: {
     <ContentLayout title="Customers">
       <MapProvider>
         <div className="flex flex-col gap-8">
-          <div className="flex flex-row items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-xl md:text-2xl">All customers</h1>
-            <div className={"space-x-2"}>
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
 <AddCustomerForm 
    countries={countries} 
    currencies={currencies} 

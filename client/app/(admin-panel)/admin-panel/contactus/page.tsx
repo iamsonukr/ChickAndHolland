@@ -67,15 +67,15 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
   const todayCount = allContacts.filter(
     (c) => new Date(c.createdAt).toDateString() === new Date().toDateString()
   ).length;
+  const buildFilterHref = (tab: FilterType) => {
+    const params = new URLSearchParams();
+    params.set("filter", tab);
+    if (q) params.set("q", encodeURIComponent(q));
+    return `?${params.toString()}`;
+  };
 
   return (
-    <ContentLayout
-      title={
-        <span className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-          Enquiries
-        </span>
-      }
-    >
+    <ContentLayout title="Enquiries">
       
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="p-4 md:p-6">
@@ -89,7 +89,7 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
             {/* Filter Tabs - Mobile */}
             <div className="lg:hidden mb-6">
               <div className="bg-white dark:bg-gray-800 rounded-lg p-1 shadow border border-gray-200 dark:border-gray-700">
-                <div className="flex space-x-1">
+                <div className="grid grid-cols-3 gap-1">
                   {[
                     { key: "all", label: "All", count: allContacts.length },
                     { key: "unread", label: "New", count: unreadCount },
@@ -97,7 +97,7 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
                   ].map((tab) => (
                     <a
                       key={tab.key}
-                      href={`?filter=${tab.key}`}
+                      href={buildFilterHref(tab.key as FilterType)}
                       className={`flex-1 text-center py-2 px-1 rounded-md font-medium transition-colors ${
                         filter === tab.key
                           ? "bg-gray-800 text-white dark:bg-gray-700"
@@ -105,10 +105,10 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
                       }`}
                     >
                       {tab.label}
-                      <span className={`ml-1 text-xs ${
-                        filter === tab.key ? "text-gray-300" : "text-gray-500 dark:text-gray-500"
-                      }`}>
-                        ({tab.count})
+                        <span className={`block text-[10px] ${
+                          filter === tab.key ? "text-gray-300" : "text-gray-500 dark:text-gray-500"
+                        }`}>
+                          ({tab.count})
                       </span>
                     </a>
                   ))}
@@ -138,7 +138,7 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
                     ].map((tab) => (
                       <a
                         key={tab.key}
-                        href={`?filter=${tab.key}`}
+                        href={buildFilterHref(tab.key as FilterType)}
                         className={`px-4 py-2 rounded-md font-medium transition-colors ${
                           filter === tab.key
                             ? "bg-white text-gray-800"

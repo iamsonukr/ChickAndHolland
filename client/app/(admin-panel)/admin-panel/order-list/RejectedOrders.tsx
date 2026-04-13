@@ -129,7 +129,7 @@ const RejectedOrders = ({
 
       <Table>
         <TableHeader>
-          <TableRow className="text-lg">
+          <TableRow className="text-sm sm:text-base">
             <TableHead>
               <Checkbox
                 checked={isAllSelected}
@@ -149,7 +149,7 @@ const RejectedOrders = ({
             const isSelected = selectedOrders.some((o) => o.id === item.id);
 
             return (
-              <TableRow key={item.id} className="text-lg">
+              <TableRow key={item.id} className="text-sm sm:text-base">
                 <TableCell>
                   <Checkbox
                     checked={isSelected}

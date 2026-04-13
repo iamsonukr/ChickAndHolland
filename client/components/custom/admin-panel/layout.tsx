@@ -10,34 +10,34 @@ export default function AdminPanelLayout({
   userDetails,
   freshCount,
   stockCount,
-  unreadEnquiryCount ,  
+  unreadEnquiryCount,
 }: {
   children: React.ReactNode;
   userDetails: any;
-  freshCount:any;
-  stockCount:any;
-    unreadEnquiryCount: any;  // <-- Add here
-
+  freshCount: number;
+  stockCount: number;
+  unreadEnquiryCount: number;
 }) {
   const sidebar = useStore(useSidebarToggle, (state) => state);
   if (!sidebar) return null;
   return (
     <>
-      <Sidebar userDetails={userDetails} freshCount={freshCount} stockCount={stockCount}   unreadEnquiryCount={unreadEnquiryCount}
- />
-     <main
-  className={cn(
-    "min-h-dvh bg-background transition-[margin-left] duration-300 ease-in-out",
-    sidebar?.isOpen === false ? "lg:ml-[90px]" : "lg:ml-72",
-  )}
->
- 
-
-  {/* Page Content */}
-  <div className="p-4">
-    {children}
-  </div>
-</main>
+      <Sidebar
+        userDetails={userDetails}
+        freshCount={freshCount}
+        stockCount={stockCount}
+        unreadEnquiryCount={unreadEnquiryCount}
+      />
+      <main
+        className={cn(
+          "min-h-dvh min-w-0 bg-background transition-[margin-left] duration-300 ease-in-out",
+          sidebar?.isOpen === false ? "lg:ml-[90px]" : "lg:ml-72",
+        )}
+      >
+        <div className="min-w-0 px-3 py-3 sm:px-4 sm:py-4 lg:px-5">
+          {children}
+        </div>
+      </main>
     </>
   );
 }

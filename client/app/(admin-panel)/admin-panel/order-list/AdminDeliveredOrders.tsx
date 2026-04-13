@@ -114,7 +114,7 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
 
       <Table>
         <TableHeader>
-          <TableRow className="text-center text-lg">
+          <TableRow className="text-center text-sm sm:text-base">
             <TableHead>
               <Checkbox
                 checked={isAllSelected}
@@ -137,7 +137,10 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
             data.map((item: any) => {
               const isSelected = selectedOrders.some((o) => o.id === item.id);
               return (
-                <TableRow className="text-nowrap text-lg">
+                <TableRow
+                  key={item.id}
+                  className="text-nowrap text-sm sm:text-base"
+                >
                   <TableCell>
                     <Checkbox
                       checked={isSelected}

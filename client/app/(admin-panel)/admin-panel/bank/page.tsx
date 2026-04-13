@@ -31,7 +31,7 @@ export default async function page() {
   return (
     <ContentLayout title="Bank Details">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <Building className="h-6 w-6 text-primary" />
             <h2 className="text-2xl font-bold tracking-tight">Bank Account</h2>
@@ -67,7 +67,7 @@ export default async function page() {
 
                     <CardContent>
                       <div className="space-y-3">
-                        <div className="grid grid-cols-2 items-center gap-2">
+                        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 sm:items-center sm:gap-2">
                           <span className="font-medium text-gray-500">
                             Account Holder:
                           </span>
@@ -76,7 +76,7 @@ export default async function page() {
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-2 items-center gap-2">
+                        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 sm:items-center sm:gap-2">
                           <span className="font-medium text-gray-500">
                             Account Number:
                           </span>
@@ -85,20 +85,20 @@ export default async function page() {
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-2 items-center gap-2">
+                        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 sm:items-center sm:gap-2">
                           <span className="font-medium text-gray-500">
                             Swift Code:
                           </span>
                           <span className="font-semibold">{item.ifscCode}</span>
                         </div>
                         {item.swiftCode && (
-  <div className="grid grid-cols-2 items-center gap-2">
+  <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 sm:items-center sm:gap-2">
     <span className="font-medium text-gray-500">IFSC Code:</span>
     <span className="font-semibold">{item.swiftCode}</span>
   </div>
 )}
 
-                        <div className="grid grid-cols-2 items-center gap-2">
+                        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 sm:items-center sm:gap-2">
                           <span className="font-medium text-gray-500">
                             Address:
                           </span>
@@ -108,7 +108,7 @@ export default async function page() {
                     </CardContent>
 
                     <CardFooter className="border-t pt-4">
-                      <div className="flex w-full justify-between">
+                      <div className="flex w-full flex-wrap gap-2 sm:justify-between">
                         <BankDetailsForm bank={item} isEdit={true} />
                         {item.isActive == 0 ? (
                           <Active id={item.id} />

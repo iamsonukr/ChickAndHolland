@@ -53,8 +53,9 @@ const CustomPagination = ({
   const pageNumbers = generatePageNumbers();
 
   return (
-    <Pagination className="border p-2">
-      <PaginationContent>
+    <div className="w-full overflow-x-auto rounded-md border p-2">
+      <Pagination className="justify-start sm:justify-center">
+        <PaginationContent className="w-max flex-nowrap">
         {/* Previous */}
         <PaginationItem>
           <PaginationPrevious
@@ -107,8 +108,9 @@ const CustomPagination = ({
             disabled={currentPage === totalPages}
           />
         </PaginationItem>
-      </PaginationContent>
-    </Pagination>
+        </PaginationContent>
+      </Pagination>
+    </div>
   );
 };
 

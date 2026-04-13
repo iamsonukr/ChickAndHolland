@@ -43,15 +43,16 @@ const Stock = async (props: {
     <ContentLayout title="Stock">
       <div className="space-y-4">
         {/* HEADER */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl md:text-2xl font-semibold">
             Stock data
           </h1>
-
-          <AddStockForm
-            colours={colours.productColours}
-            currencies={currencies?.currencies ?? currencies}
-          />
+          <div className="w-full sm:w-auto sm:text-right">
+            <AddStockForm
+              colours={colours.productColours}
+              currencies={currencies?.currencies ?? currencies}
+            />
+          </div>
         </div>
 
         {/* SEARCH */}

@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,7 @@ export function FreshTable({ data }: { data: any[] }) {
   const router = useRouter();
 
   const search = useSearchParams();
+  const hasResetPage = useRef(false);
   const [details, setDetails] = useState([]);
   const [explanation, setExplanation] = useState("");
   const reject = async (id: number) => {
@@ -49,16 +50,18 @@ export function FreshTable({ data }: { data: any[] }) {
   };
 
   useEffect(() => {
+    if (hasResetPage.current) return;
+    hasResetPage.current = true;
+
     const newSearchParams = new URLSearchParams(search.toString());
     newSearchParams.delete("cPage");
-    console.log("this is data for orders", data);
     router.push(`?${newSearchParams}`);
     router.refresh();
-  }, []);
+  }, [router, search]);
   return (
     <Table>
       <TableHeader>
-        <TableRow className="text-lg">
+        <TableRow className="text-sm sm:text-base">
           <TableHead className="">Date</TableHead>
           <TableHead className="text-center">Customer</TableHead>
           <TableHead className="text-center">Sizes</TableHead>
@@ -69,7 +72,7 @@ export function FreshTable({ data }: { data: any[] }) {
       </TableHeader>
       <TableBody>
         {data?.map((invoice) => (
-          <TableRow key={invoice.id} className="text-lg">
+          <TableRow key={invoice.id} className="text-sm sm:text-base">
             <TableCell className="font-medium">
               {dayjs(invoice.formatted_date).format("DD-MM-YYYY")}
             </TableCell>

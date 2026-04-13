@@ -16,8 +16,8 @@ export function Sidebar({ userDetails,freshCount, stockCount,unreadEnquiryCount 
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-20 h-screen -translate-x-full bg-secondary transition-[width] duration-300 ease-in-out lg:translate-x-0",
-        sidebar?.isOpen === false ? "w-[90px]" : "w-72",
+        "fixed left-0 top-0 z-20 h-screen -translate-x-full border-r bg-secondary transition-[width,transform] duration-300 ease-in-out lg:translate-x-0",
+        sidebar?.isOpen === false ? "w-[90px]" : "w-[280px] sm:w-72",
       )}
     >
       <SidebarToggle isOpen={sidebar?.isOpen} setIsOpen={sidebar?.setIsOpen} />

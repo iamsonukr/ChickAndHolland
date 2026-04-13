@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import AddUserForm from "./AddUser";
 import TableActions from "./TableActions";
+import TableScrollWrapper from "@/components/TableScrollWrapper";
 // import TableActions from "./TableActions";
 
 const Users = async (
@@ -33,19 +34,22 @@ const Users = async (
   return (
     <ContentLayout title="Users">
       <div className="flex flex-col gap-8">
-        <div className="flex flex-row items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl md:text-2xl">Users</h1>
           {/* <AddCustomerForm /> */}
 
           {/* <AddUserForm /> */}
 
-          <AddUserForm />
+          <div className="w-full sm:w-auto sm:text-right">
+            <AddUserForm />
+          </div>
         </div>
 
         <div className="space-y-2">
           <CustomSearchBar query={query} />
 
-          <Table>
+          <TableScrollWrapper>
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Username</TableHead>
@@ -67,7 +71,8 @@ const Users = async (
                 );
               })}
             </TableBody>
-          </Table>
+            </Table>
+          </TableScrollWrapper>
 
           <CustomPagination
             currentPage={currentPage}

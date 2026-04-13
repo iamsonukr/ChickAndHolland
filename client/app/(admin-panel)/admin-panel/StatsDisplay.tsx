@@ -22,10 +22,10 @@ export const StatsDisplay = ({ data }: { data: any }) => {
   };
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-6">
 
       {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
         {/* Total Orders */}
         <Card className="bg-gradient-to-br from-blue-50 to-white hover:shadow-lg">
@@ -77,14 +77,14 @@ export const StatsDisplay = ({ data }: { data: any }) => {
 
         {/* 🔥 Combined Revenue Card */}
         <Card className="bg-gradient-to-br from-yellow-50 to-white hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between pb-1">
+          <CardHeader className="flex flex-col items-start gap-3 pb-1 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-sm font-semibold text-yellow-700">
               Revenue Summary
             </CardTitle>
 
             {/* Currency Select */}
             <select
-              className="text-[11px] font-semibold text-yellow-700 border border-yellow-300 rounded-md px-1 bg-white"
+              className="w-full rounded-md border border-yellow-300 bg-white px-2 py-1 text-[11px] font-semibold text-yellow-700 sm:w-auto"
               value={data.selectedCurrency}
               onChange={(e) => data.onCurrencyChange(e.target.value)}
             >
@@ -95,7 +95,7 @@ export const StatsDisplay = ({ data }: { data: any }) => {
             </select>
           </CardHeader>
 
-          <CardContent className="pt-0 space-y-2">
+          <CardContent className="space-y-2 pt-0">
             {/* Total */}
             <div className="text-[28px] font-extrabold text-yellow-900">
               {formatCurrency(data.convertedTotal)}
@@ -103,7 +103,7 @@ export const StatsDisplay = ({ data }: { data: any }) => {
             <p className="text-xs text-yellow-600">Total Revenue</p>
 
             {/* Paid + Pending small summary */}
-            <div className="mt-3 border-t pt-3 space-y-1 text-sm">
+            <div className="mt-3 space-y-1 border-t pt-3 text-sm">
               <p className="text-emerald-700 font-semibold">
                 Paid: {formatCurrency(data.convertedPaid)}
               </p>
@@ -127,7 +127,8 @@ export const StatsDisplay = ({ data }: { data: any }) => {
         </CardHeader>
 
         <CardContent className="p-0">
-          <Table>
+          <div className="overflow-x-auto">
+            <Table className="min-w-[620px]">
             <TableHeader>
               <TableRow className="bg-gray-100">
                 <TableHead>Style No</TableHead>
@@ -171,7 +172,8 @@ export const StatsDisplay = ({ data }: { data: any }) => {
                 </TableRow>
               )}
             </TableBody>
-          </Table>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

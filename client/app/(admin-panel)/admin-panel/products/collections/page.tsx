@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TableActions from "./TableActions";
+import TableScrollWrapper from "@/components/TableScrollWrapper";
 
 const Categories = async (props: {
   searchParams: Promise<Record<string, string>>;
@@ -53,9 +54,11 @@ const Categories = async (props: {
     <ContentLayout title="Product Collections">
       <div className="flex flex-col gap-8">
         {/* Header */}
-        <div className="flex flex-row items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl md:text-2xl">Product Collections</h1>
-          <AddCategoryForm categories={categoriesList} />
+          <div className="w-full sm:w-auto sm:text-right">
+            <AddCategoryForm categories={categoriesList} />
+          </div>
         </div>
 
         {/* Search */}
@@ -63,7 +66,8 @@ const Categories = async (props: {
           <CustomSearchBar query={query} />
 
           {/* Table */}
-          <Table>
+          <TableScrollWrapper>
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Collection Name</TableHead>
@@ -104,7 +108,8 @@ const Categories = async (props: {
                     ));
                 })}
             </TableBody>
-          </Table>
+            </Table>
+          </TableScrollWrapper>
 
           {/* Pagination */}
           <CustomPagination

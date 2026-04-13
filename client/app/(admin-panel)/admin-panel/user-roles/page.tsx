@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TableActions from "./TableActions";
+import TableScrollWrapper from "@/components/TableScrollWrapper";
 
 const UserRoles = async (
   props: {
@@ -33,16 +34,18 @@ const UserRoles = async (
   return (
     <ContentLayout title="User Roles">
       <div className="flex flex-col gap-8">
-        <div className="flex flex-row items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl md:text-2xl">User Roles</h1>
-
-          <AddUserRoleForm />
+          <div className="w-full sm:w-auto sm:text-right">
+            <AddUserRoleForm />
+          </div>
         </div>
 
         <div className="space-y-2">
           <CustomSearchBar query={query} />
 
-          <Table>
+          <TableScrollWrapper>
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Role Name</TableHead>
@@ -63,7 +66,8 @@ const UserRoles = async (
                 );
               })}
             </TableBody>
-          </Table>
+            </Table>
+          </TableScrollWrapper>
 
           <CustomPagination
             currentPage={currentPage}

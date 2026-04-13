@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TableActions from "./TableActions";
+import TableScrollWrapper from "@/components/TableScrollWrapper";
 
 const StoreLocators = async (
   props: {
@@ -32,7 +33,7 @@ const StoreLocators = async (
     <ContentLayout title="Store Locators">
       <MapProvider>
         <div className="flex flex-col gap-8">
-          <div className="flex flex-row items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-xl md:text-2xl">Store Locators</h1>
             {/* <AddExpenseForm /> */}
             {/*<AddLocator />*/}
@@ -43,7 +44,8 @@ const StoreLocators = async (
           <div className="space-y-2">
             <CustomSearchBar query={query} />
 
-            <Table>
+            <TableScrollWrapper>
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
@@ -64,7 +66,8 @@ const StoreLocators = async (
                   );
                 })}
               </TableBody>
-            </Table>
+              </Table>
+            </TableScrollWrapper>
 
             <CustomPagination
               currentPage={currentPage}

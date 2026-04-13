@@ -19,7 +19,7 @@ export function SheetMenu({ userDetails }: any) {
         </Button>
       </SheetTrigger>
       <SheetContent
-        className="flex h-full flex-col bg-secondary px-3 sm:w-72"
+        className="flex h-full w-[88vw] max-w-[320px] flex-col bg-secondary px-3 py-4"
         side="left"
       >
         <SheetHeader>

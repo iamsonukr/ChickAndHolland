@@ -19,7 +19,7 @@ const CustomSearchBar = ({
 
   return (
     <form
-      className="flex flex-1 flex-row gap-2"
+      className="flex w-full flex-col gap-2 sm:flex-row sm:items-center"
       onSubmit={(e) => {
         e.preventDefault();
         const newParams = new URLSearchParams(searchParams);
@@ -29,14 +29,16 @@ const CustomSearchBar = ({
       }}
     >
       <Input
+        className="w-full"
         value={searchQuery}
         onChange={(e) => {
           setSearchQuery(e.target.value);
         }}
         placeholder={placeholder ?? "Search"}
       />
-      <Button size={"icon"} type="submit">
-        <Search />
+      <Button className="gap-2 sm:w-auto" type="submit">
+        <Search className="h-4 w-4" />
+        <span className="sm:hidden">Search</span>
       </Button>
     </form>
   );

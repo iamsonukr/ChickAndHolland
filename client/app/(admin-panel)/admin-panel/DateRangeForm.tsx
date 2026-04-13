@@ -26,7 +26,7 @@ import {
   subMonths,
   startOfMonth,
 } from "date-fns";
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [
@@ -104,11 +104,14 @@ export const DateRangeForm = () => {
     }
   };
 
-  const updateURL = (start: Date, end: Date) => {
-    router.push(
-      `?startDate=${format(start, "yyyy-MM-dd")}&endDate=${format(end, "yyyy-MM-dd")}`,
-    );
-  };
+  const updateURL = useCallback(
+    (start: Date, end: Date) => {
+      router.push(
+        `?startDate=${format(start, "yyyy-MM-dd")}&endDate=${format(end, "yyyy-MM-dd")}`,
+      );
+    },
+    [router],
+  );
 
   const onDateSelect = (date: Date | undefined, isStart: boolean) => {
     if (!date) return;
@@ -127,19 +130,17 @@ export const DateRangeForm = () => {
   useEffect(() => {
     const timeoutId = setTimeout(() => updateURL(startDate, endDate), 500);
     return () => clearTimeout(timeoutId);
-  }, [startDate, endDate]);
+  }, [endDate, startDate, updateURL]);
 
   return (
-    <div className="mb-8 flex flex-wrap items-center gap-6 rounded-xl border border-gray-100 bg-white p-6 shadow-lg">
-      {/* Header */}
+    <div className="mb-8 flex flex-col gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-lg sm:p-6 xl:flex-row xl:items-center xl:justify-between">
       <div className="flex items-center gap-3">
         <CalendarDays className="h-5 w-5 text-blue-500" />
         <span className="text-lg font-semibold text-gray-800">Date Range</span>
       </div>
 
-      {/* Preset Selector */}
       <Select onValueChange={onPresetSelect}>
-        <SelectTrigger className="w-[200px] border-gray-200 bg-gray-50 transition-colors hover:bg-gray-100">
+        <SelectTrigger className="w-full border-gray-200 bg-gray-50 transition-colors hover:bg-gray-100 sm:w-[200px]">
           <SelectValue
             placeholder="Select a preset"
             className="text-gray-700"
@@ -166,8 +167,7 @@ export const DateRangeForm = () => {
         </SelectContent>
       </Select>
 
-      {/* Custom Range Picker */}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <span className="text-sm font-medium text-gray-600">Custom Range:</span>
 
         <Popover open={isStartOpen} onOpenChange={setIsStartOpen}>
@@ -175,7 +175,7 @@ export const DateRangeForm = () => {
             <Button
               variant="outline"
               className={cn(
-                "w-[160px] justify-start bg-gray-50 text-left font-medium text-gray-700 transition-colors hover:bg-gray-100",
+                "w-full justify-start bg-gray-50 text-left font-medium text-gray-700 transition-colors hover:bg-gray-100 sm:w-[170px]",
                 !startDate && "text-gray-400",
               )}
             >
@@ -193,14 +193,16 @@ export const DateRangeForm = () => {
           </PopoverContent>
         </Popover>
 
-        <span className="text-sm font-medium text-gray-500">→</span>
+        <span className="hidden text-sm font-medium text-gray-500 sm:inline">
+          to
+        </span>
 
         <Popover open={isEndOpen} onOpenChange={setIsEndOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               className={cn(
-                "w-[160px] justify-start bg-gray-50 text-left font-medium text-gray-700 transition-colors hover:bg-gray-100",
+                "w-full justify-start bg-gray-50 text-left font-medium text-gray-700 transition-colors hover:bg-gray-100 sm:w-[170px]",
                 !endDate && "text-gray-400",
               )}
             >

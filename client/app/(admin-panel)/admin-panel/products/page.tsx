@@ -19,6 +19,7 @@ import {
 import AddProductForm from "./AddProductForm";
 import BulkPriceIncrease from "./BulkPriceIncrease";
 import TableActions from "./TableActions";
+import TableScrollWrapper from "@/components/TableScrollWrapper";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,9 +66,9 @@ const ProductPage = async ({ searchParams }: PageProps) => {
     <ContentLayout title="Products">
       <div className="flex flex-col gap-8">
         {/* Header */}
-        <div className="flex flex-row items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl md:text-2xl">Products</h1>
-          <div className="flex gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
             <BulkPriceIncrease subCategories={subCategories} />
             <AddProductForm
               categories={categories}
@@ -81,7 +82,8 @@ const ProductPage = async ({ searchParams }: PageProps) => {
         <div className="space-y-2">
           <CustomSearchBar query={query} />
 
-          <Table>
+          <TableScrollWrapper>
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Product Code</TableHead>
@@ -110,7 +112,8 @@ const ProductPage = async ({ searchParams }: PageProps) => {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+            </Table>
+          </TableScrollWrapper>
 
           <CustomPagination
             currentPage={currentPage}

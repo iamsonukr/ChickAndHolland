@@ -92,7 +92,7 @@ export default function DashboardCharts({
   return (
     <Card>
       <CardHeader className="flex flex-col items-stretch space-y-0 border-b p-0 sm:flex-row">
-        <div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
+        <div className="flex flex-1 flex-col justify-center gap-1 px-4 py-4 sm:px-6 sm:py-6">
           <CardTitle>Total Orders</CardTitle>
           <CardDescription>
             Showing total orders {formattedRange}
@@ -102,7 +102,7 @@ export default function DashboardCharts({
       <CardContent className="px-2 sm:p-6">
         <ChartContainer
           config={chartConfig}
-          className="aspect-auto h-[250px] w-full"
+          className="aspect-auto h-[220px] w-full sm:h-[250px]"
         >
           <BarChart
             accessibilityLayer

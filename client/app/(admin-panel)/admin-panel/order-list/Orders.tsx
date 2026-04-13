@@ -121,7 +121,7 @@ const Orders = ({ data }: { data: any }) => {
       )}
       <Table>
         <TableHeader>
-          <TableRow className="text-center text-lg">
+          <TableRow className="text-center text-sm sm:text-base">
             <TableHead>
               <Checkbox
                 checked={isAllSelected}
@@ -155,7 +155,7 @@ const Orders = ({ data }: { data: any }) => {
               <TableRow
                 key={index}
                 className={cn(
-                  "text-nowrap text-lg",
+                  "text-nowrap text-sm sm:text-base",
                   difference < 7
                     ? "bg-red-600 text-gray-200 hover:bg-red-500"
                     : difference < 14

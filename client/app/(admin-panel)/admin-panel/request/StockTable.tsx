@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StockAcceptedForm from "./StockAcceptedForm";
 import {
   Dialog,
@@ -31,6 +31,7 @@ import dayjs from "dayjs";
 const StockTable = ({ data }: { data: any[] }) => {
   const router = useRouter();
   const search = useSearchParams();
+  const hasResetPage = useRef(false);
 
   const [explanation, setExplanation] = useState("");
 
@@ -51,17 +52,20 @@ const StockTable = ({ data }: { data: any[] }) => {
   };
 
   useEffect(() => {
+    if (hasResetPage.current) return;
+    hasResetPage.current = true;
+
     const newSearchParams = new URLSearchParams(search?.toString());
     newSearchParams.delete("cPage");
     router.push(`?${newSearchParams}`);
     router.refresh();
-  }, []);
+  }, [router, search]);
 
   return (
     <div>
       <Table>
         <TableHeader>
-          <TableRow className="text-lg">
+          <TableRow className="text-sm sm:text-base">
             <TableHead className="">Date</TableHead>
             <TableHead className="">Customer</TableHead>
             <TableHead className="text-center">Product Code</TableHead>
@@ -75,7 +79,7 @@ const StockTable = ({ data }: { data: any[] }) => {
           {data &&
             data[0]?.formatted_date &&
             data.map((invoice) => (
-              <TableRow key={invoice.id} className="text-lg">
+              <TableRow key={invoice.id} className="text-sm sm:text-base">
                 <TableCell className="font-medium">
                   {dayjs(invoice.formatted_date).format("DD-MM-YYYY")}
                 </TableCell>

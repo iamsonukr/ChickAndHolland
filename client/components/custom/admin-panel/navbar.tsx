@@ -13,17 +13,15 @@ interface NavbarProps {
 export function Navbar({ title, userDetails }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 w-full bg-background/95 shadow backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:shadow-secondary">
-      <div className="mx-4 flex h-14 items-center justify-between sm:mx-8">
-        
-        {/* Left Section */}
-        <div className="flex items-center gap-4 lg:gap-6">
+      <div className="mx-3 flex h-14 min-w-0 items-center justify-between gap-2 sm:mx-4 lg:mx-6">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4 lg:gap-6">
           <SheetMenu userDetails={userDetails} />
-          <h1 className="font-bold text-lg tracking-wide">{title}</h1>
+          <h1 className="truncate text-base font-bold tracking-wide sm:text-lg">
+            {title}
+          </h1>
         </div>
 
-        {/* Right Section */}
-        <div className="flex items-center gap-4">
-          {/* <NotificationBell /> */}
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
           <UserNav
             user={{
@@ -32,7 +30,6 @@ export function Navbar({ title, userDetails }: NavbarProps) {
             }}
           />
         </div>
-
       </div>
     </header>
   );

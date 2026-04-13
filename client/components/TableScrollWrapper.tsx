@@ -8,10 +8,26 @@ export default function TableScrollWrapper({ children }: { children: React.React
   const [contentWidth, setContentWidth] = useState(0);
 
   useEffect(() => {
-    if (bottomRef.current) {
+    const updateWidth = () => {
+      if (!bottomRef.current) return;
       const table = bottomRef.current.querySelector("table");
-      if (table) setContentWidth(table.scrollWidth);
-    }
+      setContentWidth(table ? table.scrollWidth : 0);
+    };
+
+    updateWidth();
+
+    const resizeObserver = new ResizeObserver(updateWidth);
+    const table = bottomRef.current?.querySelector("table");
+
+    if (bottomRef.current) resizeObserver.observe(bottomRef.current);
+    if (table) resizeObserver.observe(table);
+
+    window.addEventListener("resize", updateWidth);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
   }, [children]);
 
   const handleTopScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -28,26 +44,23 @@ export default function TableScrollWrapper({ children }: { children: React.React
 
   return (
     <div className="w-full">
-      {/* ----- TOP SCROLLBAR ----- */}
-      <div className="pointer-events-none overflow-hidden h-4 mb-1">
+      <div className="pointer-events-none mb-1 hidden h-4 overflow-hidden sm:block">
         <div
           ref={topRef}
-          className="pointer-events-auto  overflow-x-auto h-4"
+          className="pointer-events-auto h-4 overflow-x-auto"
           onScroll={handleTopScroll}
         >
-          <div style={{ width: contentWidth }} className="h-1"></div>
+          <div style={{ width: contentWidth }} className="h-1" />
         </div>
       </div>
 
-      {/* ----- TABLE + BOTTOM SCROLLBAR ----- */}
       <div
         ref={bottomRef}
         onScroll={handleBottomScroll}
-        className="overflow-x-auto"
+        className="w-full overflow-x-auto"
       >
         {children}
       </div>
-
     </div>
   );
 }

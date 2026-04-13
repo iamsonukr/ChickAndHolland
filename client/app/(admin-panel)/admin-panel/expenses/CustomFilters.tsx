@@ -21,7 +21,7 @@ const CustomFilters = () => {
   const toDate = searchParams?.get("toDate");
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
       <Select
         defaultValue={expenseType || "All"}
         onValueChange={(value) => {
@@ -31,7 +31,7 @@ const CustomFilters = () => {
           router.push(`?${newSearchParams.toString()}`);
         }}
       >
-        <SelectTrigger>
+        <SelectTrigger className="w-full sm:w-[180px]">
           <SelectValue placeholder="Expense Type" />
         </SelectTrigger>
         <SelectContent>
@@ -53,7 +53,7 @@ const CustomFilters = () => {
           router.push(`?${newSearchParams.toString()}`);
         }}
       >
-        <SelectTrigger>
+        <SelectTrigger className="w-full sm:w-[180px]">
           <SelectValue placeholder="Payment Status" />
         </SelectTrigger>
         <SelectContent>
