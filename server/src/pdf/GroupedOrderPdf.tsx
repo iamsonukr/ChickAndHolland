@@ -277,6 +277,7 @@ const GroupedOrderPdf = ({
                 </View>
               </View>
 
+{/* bar code details starts */}
               <View style={styles.pageVariantOverlay} wrap={false}>
                 <View style={styles.variantOverlay}>
                   <Text style={styles.variantOverlayTitle}>Size / Barcode Details</Text>

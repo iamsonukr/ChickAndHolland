@@ -19,7 +19,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -73,6 +72,7 @@ import { convertWebPToJPG } from "./StockAcceptedForm";
 import RetailerPdf from "./RetailerPdf";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
 import { UploadedFileType } from "@/hooks/useCreateOrder";
+import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
 
 const getTrailingPoNumber = (poNumber?: string | null) => {
   const match = poNumber?.match(/(\d+)\s*$/);
@@ -95,6 +95,8 @@ const FreshOrdersAcceptedForm = ({
   const [open, setOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [total_state, setTotalState] = useState(0);
+  const [prefillLoading, setPrefillLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [uploadedFile, setUploadedFileRaw] = useState<File | null>(null);
   const [uploadedFileType, setUploadedFileType] = useState<UploadedFileType>(null);
   const [uploadedFileObjectUrl, setUploadedFileObjectUrl] = useState<string | null>(null);
@@ -123,6 +125,8 @@ const FreshOrdersAcceptedForm = ({
     "/retailer-orders/admin/accepted/favorites-order",
     "POST",
   );
+
+  const isOrderSubmitting = actionLoading || loading;
 
   const router = useRouter();
 
@@ -171,6 +175,9 @@ const FreshOrdersAcceptedForm = ({
   const watch = form.watch();
 
   const fetchData = async () => {
+    setOpen(true);
+    setPrefillLoading(true);
+
     try {
       const res = await getRetailerAdminFreshOrderDetails(id, 0);
       let data = res.data;
@@ -261,9 +268,17 @@ const FreshOrdersAcceptedForm = ({
         });
       }
 
+      setPreviewData(null);
       setDetails(data);
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
+      toast.error("Could not load fresh order", {
+        description:
+          error?.message || "The retailer request details could not be loaded.",
+      });
+      setOpen(false);
+    } finally {
+      setPrefillLoading(false);
     }
   };
 
@@ -315,7 +330,10 @@ const FreshOrdersAcceptedForm = ({
     ].join("::");
 
   const onSubmitFun = async (data: CreateFreshOrderForm) => {
-    const finalData = details[0] as any;
+    setActionLoading(true);
+
+    try {
+      const finalData = details[0] as any;
 
     const dataSend = {
       rfo_id: id,
@@ -387,6 +405,7 @@ const FreshOrdersAcceptedForm = ({
             description: message,
           },
         );
+        return;
       }
     }
 
@@ -558,6 +577,9 @@ const FreshOrdersAcceptedForm = ({
         description: error?.message ?? "Something went wrong",
       });
     }
+  } finally {
+    setActionLoading(false);
+  }
   };
 
   const productColorSAS = async (id: number) => {
@@ -795,11 +817,31 @@ const FreshOrdersAcceptedForm = ({
 
   return (
     <div>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>
-          <Button onClick={fetchData}>Accept</Button>
-        </SheetTrigger>
-        <SheetContent className="min-w-[100%] overflow-y-auto">
+      <Sheet
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!prefillLoading && !isOrderSubmitting) {
+            setOpen(nextOpen);
+          }
+        }}
+      >
+        <Button onClick={fetchData} disabled={prefillLoading || isOrderSubmitting}>
+          {prefillLoading ? "Preparing..." : "Accept"}
+        </Button>
+        <SheetContent className="relative min-w-[100%] overflow-y-auto">
+          {(prefillLoading || isOrderSubmitting) && (
+            <AdminLoaderScreen
+              className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm"
+              title={
+                prefillLoading ? "Preparing order details" : "Creating accepted order"
+              }
+              description={
+                prefillLoading
+                  ? "Loading the retailer request and building the acceptance form."
+                  : "Saving the accepted order, syncing documents, and refreshing the request list."
+              }
+            />
+          )}
           <SheetHeader>
             <SheetTitle>Add New Order</SheetTitle>
             <SheetDescription>
@@ -807,6 +849,8 @@ const FreshOrdersAcceptedForm = ({
             </SheetDescription>
           </SheetHeader>
 
+          {!prefillLoading && details.length > 0 && (
+          <>
           <Form {...form}>
             <form
               className="mt-8 grid grid-cols-1 gap-2 md:grid-cols-3"
@@ -1405,9 +1449,9 @@ const FreshOrdersAcceptedForm = ({
                 <Button
                   type="submit"
                   className="flex-1"
-                  disabled={loading}
+                  disabled={prefillLoading || isOrderSubmitting}
                 >
-                  {loading ? "Loading..." : "Create Order"}
+                  {isOrderSubmitting ? "Creating..." : "Create Order"}
                 </Button>
 
               </div>
@@ -1608,6 +1652,8 @@ const FreshOrdersAcceptedForm = ({
                 <FreshOrderPdf orderData={previewData} />
               </PDFViewer>
             </>
+          )}
+          </>
           )}
 
         </SheetContent>

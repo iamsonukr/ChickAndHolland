@@ -24,6 +24,7 @@ import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import RetailerPdf from "../request/RetailerPdf";
 import { Presentation } from "lucide-react";
 import { API_URL } from "@/lib/constants";
+import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
 
 const resolveUploadedDocumentUrl = (filePath?: string | null) => {
   if (!filePath) return "";
@@ -53,6 +54,7 @@ const Preview = ({
   order: any;
 }) => {
   const [data, setData] = useState<any>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const { executeAsync: stockMail, loading: stockLoading } = useHttp(
     "/stock-email",
@@ -87,6 +89,7 @@ const Preview = ({
   };
 
   const fetchDetails = async () => {
+    setPreviewLoading(true);
     try {
       setData(null);
       const colourRes = await getProductColours({});
@@ -201,6 +204,8 @@ const Preview = ({
     } catch (err) {
       console.error("Failed to load order preview", err);
       toast.error("Failed to load order");
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -232,12 +237,23 @@ const Preview = ({
         <Button onClick={fetchDetails}>Preview</Button>
       </SheetTrigger>
 
-      <SheetContent className="!min-w-[95%] overflow-y-auto">
+      <SheetContent className="relative !min-w-[95%] overflow-y-auto">
+        {previewLoading && (
+          <AdminLoaderScreen
+            className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm"
+            title="Loading order preview"
+            description="Preparing the latest retailer order details and preview document."
+          />
+        )}
         <SheetHeader>
           <SheetTitle>Order Preview</SheetTitle>
         </SheetHeader>
 
-        {!data && <p className="mt-8 text-center">Loading...</p>}
+        {!data && !previewLoading && (
+          <p className="mt-8 text-center text-muted-foreground">
+            Preview unavailable.
+          </p>
+        )}
 
         {data && (
           <>

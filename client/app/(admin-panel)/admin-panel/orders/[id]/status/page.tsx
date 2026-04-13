@@ -12,12 +12,17 @@ import StatusScannerButton from "./StatusScannerButton";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import LabelPdf from "@/components/LabelPdf";
 import LabelPdf1 from "@/components/LabelBox";
+import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
 
-export default function OrderStatusPage({ params }: any) {
+export default function OrderStatusPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = use(params);
   const searchParams = useSearchParams();
-  const orderSource = searchParams.get("source");
-  const orderType = searchParams.get("type");
+  const orderSource = searchParams?.get("source");
+  const orderType = searchParams?.get("type");
 
   const [retailerReport, setRetailerReport] = useState<any[]>([]);
   const [storeReport, setStoreReport] = useState<any[]>([]);
@@ -75,7 +80,15 @@ export default function OrderStatusPage({ params }: any) {
     fetchReport();
   }, [fetchReport]);
 
-  if (loading) return <p className="p-6">Loading report...</p>;
+  if (loading) {
+    return (
+      <AdminLoaderScreen
+        className="min-h-[70vh]"
+        title="Loading order status"
+        description="Fetching barcode progress, status labels, and scan history."
+      />
+    );
+  }
 
   const nothing =
     !retailerReport.length &&

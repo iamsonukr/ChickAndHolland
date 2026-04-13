@@ -84,6 +84,16 @@ const getCommentsSummary = (variants: any[], fallback?: string) => {
 const getReferenceImages = (variants: any[]) =>
   Array.from(new Set(variants.flatMap((item) => normalizeImages(item.refImg))));
 
+const getVariantColorText = (item: any, fallbackColor?: string) => {
+  const preferredColor = [item.color, fallbackColor].find((value) => {
+    const normalizedValue = String(value ?? "").trim();
+
+    return normalizedValue && normalizedValue.toUpperCase() !== "STOCK";
+  });
+
+  return preferredColor || item.beadingColor || item.meshColor || fallbackColor || "-";
+};
+
 const GroupedOrderPdf = ({
   orderData,
   showShippingDate = false,
@@ -263,6 +273,10 @@ const GroupedOrderPdf = ({
                   <View style={styles.variantGrid}>
                     {variants.map((variant: any, variantIndex: number) => {
                       const normalizedBarcode = normalizeBarcodeValue(variant.barcode);
+                      const variantColorText = getVariantColorText(
+                        variant,
+                        baseItem?.color,
+                      );
 
                       return (
                         <View
@@ -274,33 +288,58 @@ const GroupedOrderPdf = ({
                               : styles.variantCardLast,
                           ]}
                         >
-                          <Text style={styles.variantTitle}>{variant.styleNo}</Text>
-                          <Text style={styles.variantValue} wrap>
-                            {getVariantSizeText(variant)}
-                          </Text>
-                          <View style={styles.variantMetaGroup}>
-                            <Text style={styles.variantMeta}>Qty: {variant.quantity}</Text>
-                            <Text style={styles.variantColor} wrap>
-                              {variant.beadingColor}
-                            </Text>
+                          <View style={styles.variantCardTop}>
+                            <Text style={styles.variantTitle}>{variant.styleNo}</Text>
+                            <View style={styles.variantInfoGroup}>
+                              <View style={styles.variantInfoRow}>
+                                <Text style={styles.variantInfoLabel}>Size</Text>
+                                <Text style={styles.variantInfoValue} wrap>
+                                  {getVariantSizeText(variant)}
+                                </Text>
+                              </View>
+                              <View
+                                style={[
+                                  styles.variantInfoRow,
+                                  styles.variantInfoRowBorder,
+                                ]}
+                              >
+                                <Text style={styles.variantInfoLabel}>QTY</Text>
+                                <Text style={styles.variantInfoValue}>
+                                  {variant.quantity ?? "-"}
+                                </Text>
+                              </View>
+                              <View
+                                style={[
+                                  styles.variantInfoRow,
+                                  styles.variantInfoRowBorder,
+                                ]}
+                              >
+                                <Text style={styles.variantInfoLabel}>Color</Text>
+                                <Text style={styles.variantInfoValue} wrap>
+                                  {variantColorText}
+                                </Text>
+                              </View>
+                            </View>
                           </View>
 
-                          {normalizedBarcode ? (
-                            <>
-                              <Image
-                                alt=""
-                                src={build2dBarcodeUrl(normalizedBarcode, 120)}
-                                style={styles.variantBarcode}
-                              />
+                          <View style={styles.variantBarcodeSection}>
+                            {normalizedBarcode ? (
+                              <>
+                                <Image
+                                  alt=""
+                                  src={build2dBarcodeUrl(normalizedBarcode, 120)}
+                                  style={styles.variantBarcode}
+                                />
+                                <Text style={styles.variantCodeText}>
+                                  {normalizedBarcode}
+                                </Text>
+                              </>
+                            ) : (
                               <Text style={styles.variantCodeText}>
-                                {normalizedBarcode}
+                                Barcode unavailable
                               </Text>
-                            </>
-                          ) : (
-                            <Text style={styles.variantCodeText}>
-                              Barcode unavailable
-                            </Text>
-                          )}
+                            )}
+                          </View>
                         </View>
                       );
                     })}
@@ -556,7 +595,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingTop: 7,
     paddingBottom: 8,
-    // backgroundColor: "rgba(255,255,255,0.92)",
     borderRadius: 4,
     border: "1px solid #999",
   },
@@ -576,11 +614,11 @@ const styles = StyleSheet.create({
     width: "24%",
     border: "1px solid #000",
     borderRadius: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 5,
-    minHeight: 138,
+    paddingTop: 6,
+    paddingBottom: 6,
+    minHeight: 156,
     backgroundColor: "#ffffff",
-    justifyContent: "flex-start",
+    justifyContent: "space-between",
   },
   variantCardSpaced: {
     marginRight: "1.333%",
@@ -588,40 +626,53 @@ const styles = StyleSheet.create({
   variantCardLast: {
     marginRight: 0,
   },
+  variantCardTop: {
+    paddingHorizontal: 5,
+  },
   variantTitle: {
     fontSize: 9.5,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  variantValue: {
-    fontSize: 9,
-    textAlign: "center",
-    marginBottom: 2,
+  variantInfoGroup: {
+    borderWidth: 1,
+    borderColor: "#d4d4d8",
+    borderRadius: 3,
   },
-  variantMetaGroup: {
-    marginBottom: 2,
+  variantInfoRow: {
+    flexDirection: "row",
+    // alignItems: "flex-start",
+    paddingHorizontal: 2,
+    // flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 2,
   },
-  variantMeta: {
-    fontSize: 8,
-    textAlign: "center",
-    marginBottom: 2,
+  variantInfoRowBorder: {
+    borderTop: "1px solid #d4d4d8",
   },
-  variantColor: {
-    fontSize: 8,
-    textAlign: "center",
-    marginTop: 2,
-    paddingTop: 2,
+  variantInfoLabel: {
+    width: 28,
+    fontSize: 7,
+    fontWeight: "bold",
+    color: "#444",
   },
-  variantDetailText: {
-    fontSize: 8,
-    textAlign: "center",
+  variantInfoValue: {
+    flex: 1,
+    fontSize: 7,
+    textAlign: "right",
+  },
+  variantBarcodeSection: {
+    borderTop: "1px solid #d4d4d8",
+    marginTop: 6,
+    paddingTop: 5,
+    paddingHorizontal: 5,
+    alignItems: "center",
   },
   variantBarcode: {
-    width: 62,
-    height: 62,
+    width: 56,
+    height: 56,
     alignSelf: "center",
-    marginTop: 3,
     marginBottom: 3,
   },
   variantCodeText: {

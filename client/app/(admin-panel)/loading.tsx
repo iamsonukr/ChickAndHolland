@@ -1,8 +1,12 @@
+import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
+
 const Loader = () => {
   return (
-    <div className="flex h-dvh w-full items-center justify-center bg-background">
-      <div className="h-32 w-32 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
-    </div>
+    <AdminLoaderScreen
+      className="min-h-dvh"
+      title="Loading admin panel"
+      description="Preparing your dashboard, live counts, and workspace tools."
+    />
   );
 };
 

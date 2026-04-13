@@ -68,6 +68,7 @@ import RetailerPdf from "./RetailerPdf";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
 import { UploadedFileType } from "@/hooks/useCreateOrder";
 import { API_URL } from "@/lib/constants";
+import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
 
 const getTrailingPoNumber = (poNumber?: string | null) => {
   const match = poNumber?.match(/(\d+)\s*$/);
@@ -79,6 +80,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   const [previewData, setPreviewData] = useState<any>(null);
   const [customers, setCustomers] = useState<any>();
   const [prefillLoading, setPrefillLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [currencyInfo, setCurrencyInfo] = useState<{
     symbol: string;
     name: string;
@@ -109,6 +111,8 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   const { loading, error, executeAsync } = useHttp(
     "/retailer-orders/admin/accepted/stock-order",
   );
+
+  const isOrderSubmitting = actionLoading || loading;
 
 
 
@@ -306,6 +310,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   };
 
   const fetchData = async () => {
+    setOpen(true);
     setPrefillLoading(true);
 
     try {
@@ -400,6 +405,8 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
 
 
   const onSubmit = async (data: CreateStockOrderForm) => {
+    setActionLoading(true);
+
     try {
       const preData = buildAcceptedOrderPayload(data);
 
@@ -544,6 +551,8 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
           description: message,
         },
       );
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -721,11 +730,31 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
 
   return (
     <div>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <Button onClick={fetchData} disabled={prefillLoading}>
-          {prefillLoading ? "Loading..." : "Accept"}
+      <Sheet
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!prefillLoading && !isOrderSubmitting) {
+            setOpen(nextOpen);
+          }
+        }}
+      >
+        <Button onClick={fetchData} disabled={prefillLoading || isOrderSubmitting}>
+          {prefillLoading ? "Preparing..." : "Accept"}
         </Button>
-        <SheetContent className="min-w-[100%] overflow-y-auto">
+        <SheetContent className="relative min-w-[100%] overflow-y-auto">
+          {(prefillLoading || isOrderSubmitting) && (
+            <AdminLoaderScreen
+              className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm"
+              title={
+                prefillLoading ? "Preparing stock order" : "Accepting stock order"
+              }
+              description={
+                prefillLoading
+                  ? "Loading the stock request details and building the acceptance form."
+                  : "Saving the accepted order, syncing documents, and refreshing the request list."
+              }
+            />
+          )}
           <SheetHeader>
             <SheetTitle>Stock order</SheetTitle>
             <SheetDescription>
@@ -1125,8 +1154,12 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                     Preview Order{" "}
                   </Button>
                 )}
-                <Button type="submit" className="flex-1" disabled={loading}>
-                  {loading ? "Loading..." : "Accept Order"} (
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={prefillLoading || isOrderSubmitting}
+                >
+                  {isOrderSubmitting ? "Accepting..." : "Accept Order"} (
                   {currencyInfo?.symbol || "€"}{" "}
                   {Math.round(customers?.total_price || 0)})
                 </Button>

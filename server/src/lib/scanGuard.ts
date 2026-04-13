@@ -98,7 +98,6 @@ const getScannerRoleName = async (
 
     return employee?.roleName ? String(employee.roleName).trim() : null;
   }
-
   return null;
 };
 

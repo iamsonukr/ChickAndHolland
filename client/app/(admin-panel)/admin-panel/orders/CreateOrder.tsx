@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -16,6 +18,7 @@ import { useCreateOrder } from "@/hooks/useCreateOrder";
 import { CreateOrderFormFields } from "@/components/CreateOrder/CreateOrderFormFields";
 import RetailerPdf from "../request/RetailerPdf";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
+import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,6 +30,7 @@ interface CreateOrderProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
+  const [actionLoading, setActionLoading] = useState(false);
   const {
     // form
     form,
@@ -65,6 +69,17 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
     previewLoading,
   } = useCreateOrder({ customers, ordersTotalCount });
 
+  const isCreatingOrder = actionLoading || loading;
+
+  const handleSubmit = async (data: any) => {
+    setActionLoading(true);
+    try {
+      await onSubmit(data);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // ── Decide what to show in the preview panel ────────────────────────────────
   //
   //   uploadedFile present  → show the uploaded file (PDF iframe or PPT badge)
@@ -78,14 +93,28 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
     : "create-order-preview-empty";
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!isCreatingOrder) {
+          setOpen(nextOpen);
+        }
+      }}
+    >
       <SheetTrigger asChild>
         <Button>
           Add New Order <Plus className="ml-1 h-4 w-4" />
         </Button>
       </SheetTrigger>
 
-      <SheetContent className="min-w-[100%] overflow-y-auto">
+      <SheetContent className="relative min-w-[100%] overflow-y-auto">
+        {isCreatingOrder && (
+          <AdminLoaderScreen
+            className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm"
+            title="Creating order"
+            description="Saving the order, attaching documents, and refreshing the admin panel."
+          />
+        )}
         <SheetHeader>
           <SheetTitle>Add New Order</SheetTitle>
           <SheetDescription>Fill in the form below to add an order</SheetDescription>
@@ -104,12 +133,12 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
           setCustomOrderType={setCustomOrderType}
           orderTypeArrayState={orderTypeArrayState}
           setOrderTypeArrayState={setOrderTypeArrayState}
-          loading={loading}
+          loading={isCreatingOrder}
           previewLoading={previewLoading}
           uploadedFile={uploadedFile}
           uploadedFileType={uploadedFileType}
           setUploadedFile={setUploadedFile}
-          onSubmit={onSubmit}
+          onSubmit={handleSubmit}
           onPreviewSubmit={onPreviewSubmit}
           onErrors={onErrors}
           addStyle={addStyle}
