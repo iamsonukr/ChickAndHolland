@@ -34,6 +34,5 @@ export default function ScrollToTop() {
 
     return () => window.cancelAnimationFrame(frameId);
   }, [pathname]);
-
   return null;
 }

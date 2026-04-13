@@ -25,6 +25,7 @@ import {
 import {
   releaseReservedBarcodeScan,
   requireScannerIdentity,
+  requireScannerRoleStageAccess,
   reserveUniqueBarcodeScan,
 } from "../lib/scanGuard";
 
@@ -1462,6 +1463,7 @@ PublicStoreRoutes.get(
 PublicStoreRoutes.post(
   "/store-scan-update",
   requireScannerIdentity,
+  requireScannerRoleStageAccess(resolveStoreScannerStage),
   asyncHandler(async (req: Request, res: Response) => {
     const { barcode } = req.body;
 
@@ -1581,6 +1583,52 @@ function getNextStatus(current: OrderStatus | null): OrderStatus {
 
   const index = STORE_STATUS_FLOW.indexOf(current);
   return STORE_STATUS_FLOW[index + 1] || current;
+}
+
+async function resolveStoreScannerStage(req: Request) {
+  const barcode = String(req.body?.barcode ?? "").trim();
+
+  if (!barcode) {
+    return null;
+  }
+
+  const style = await Style.findOne({
+    where: { barcode },
+    relations: ["order"],
+  });
+
+  if (!style) {
+    return null;
+  }
+
+  const order = style.order;
+
+  const lastProgress = await StoreStyleProgress.findOne({
+    where: { barcode },
+    order: { createdAt: "DESC" },
+  });
+
+  const currentStage = lastProgress?.status
+    ? (lastProgress.status as OrderStatus)
+    : null;
+  const nextStage = getNextStatus(currentStage);
+
+  if (nextStage === OrderStatus.Ready_To_Delivery) {
+    return null;
+  }
+
+  if (
+    nextStage === OrderStatus.Shipped &&
+    order.orderStatus === OrderStatus.Balance_Pending
+  ) {
+    return null;
+  }
+
+  if (currentStage === nextStage) {
+    return null;
+  }
+
+  return nextStage;
 }
 
 

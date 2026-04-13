@@ -7,6 +7,7 @@ import { ShippingStatus } from "../models/Order"; // ✅ IMPORTANT
 import {
   releaseReservedBarcodeScan,
   requireScannerIdentity,
+  requireScannerRoleStageAccess,
   reserveUniqueBarcodeScan,
 } from "../lib/scanGuard";
 
@@ -32,12 +33,47 @@ function getNextRetailerStatus(current: string | null): string {
   return RETAILER_STATUS_FLOW[index + 1] || RETAILER_STATUS_FLOW[index];
 }
 
+async function resolveRetailerStatusUpdateStage(req: Request) {
+  const barcode = String(req.body?.barcode ?? "").trim();
+
+  if (!barcode) {
+    return null;
+  }
+
+  const style = await RetailerOrderStyles.findOne({
+    where: { barcode },
+    relations: ["retailerOrder"],
+  });
+
+  if (!style) {
+    return null;
+  }
+
+  const order = style.retailerOrder;
+
+  if (order.orderStatus === "Balance Pending") {
+    return null;
+  }
+
+  if (order.orderStatus === "Ready To Delivery") {
+    return "Shipped";
+  }
+
+  const lastProgress = await StyleProgress.findOne({
+    where: { barcode },
+    order: { createdAt: "DESC" },
+  });
+
+  return getNextRetailerStatus(lastProgress?.stage || null);
+}
+
 /**
  * 🔥 Update status of RETAILER barcode (AUTO FLOW)
  */
 router.post(
   "/update-status",
   requireScannerIdentity,
+  requireScannerRoleStageAccess(resolveRetailerStatusUpdateStage),
   asyncHandler(async (req: Request, res: Response) => {
     const { barcode, qty } = req.body;
 

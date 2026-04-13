@@ -12,6 +12,7 @@ import { OrderStatus, ShippingStatus } from "../models/Order";
 import {
   releaseReservedBarcodeScan,
   requireScannerIdentity,
+  requireScannerRoleStageAccess,
   reserveUniqueBarcodeScan,
 } from "../lib/scanGuard";
 
@@ -94,6 +95,80 @@ function nextStockStage(current: string | null): string {
   return STOCK_FLOW[index + 1] || current;
 }
 
+async function resolveRetailerScannerStage(req: Request) {
+  const barcode = String(req.body?.barcode ?? "").trim();
+
+  if (!barcode) {
+    return null;
+  }
+
+  const style = await RetailerOrderStyles.findOne({
+    where: { barcode },
+    relations: ["retailerOrder"],
+  });
+
+  if (!style) {
+    return null;
+  }
+
+  const order = style.retailerOrder;
+
+  if ((order.orderStatus as OrderStatus) === OrderStatus.Balance_Pending) {
+    return null;
+  }
+
+  if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
+    return req.body?.confirmShip === true ? OrderStatus.Shipped : null;
+  }
+
+  const last = await StyleProgress.findOne({
+    where: { barcode },
+    order: { createdAt: "DESC" },
+  });
+
+  return nextFreshStage(last?.stage || null);
+}
+
+async function resolveStockScannerStage(req: Request) {
+  const barcode = String(req.body?.barcode ?? "").trim();
+
+  if (!barcode) {
+    return null;
+  }
+
+  const style = await StockOrderStyles.findOne({
+    where: { barcode },
+    relations: ["retailerOrder"],
+  });
+
+  if (!style) {
+    return null;
+  }
+
+  const order = style.retailerOrder;
+
+  const payments = await RetailerOrdersPayment.find({
+    where: { order: { id: order.id } },
+  });
+
+  const paid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const remaining = Number(order.purchaseAmount) - paid;
+
+  if (
+    ["Ready To Delivery", "Shipped"].includes(order.orderStatus) &&
+    remaining > 0
+  ) {
+    return null;
+  }
+
+  const last = await StyleProgress.findOne({
+    where: { barcode },
+    order: { createdAt: "DESC" },
+  });
+
+  return nextStockStage(last?.stage || null);
+}
+
 /* -----------------------------------------
    1️⃣ GET PROGRESS + STORE ORDER DETAIL
 ------------------------------------------ */
@@ -126,6 +201,7 @@ router.get(
 router.post(
   "/scan",
   requireScannerIdentity,
+  requireScannerRoleStageAccess(resolveRetailerScannerStage),
   asyncHandler(async (req: Request, res: Response) => {
     const { barcode } = req.body;
 
@@ -341,6 +417,7 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
 router.post(
   "/stock/scan",
   requireScannerIdentity,
+  requireScannerRoleStageAccess(resolveStockScannerStage),
   asyncHandler(async (req: Request, res: Response) => {
     const { barcode } = req.body;
 

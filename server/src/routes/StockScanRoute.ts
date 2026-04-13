@@ -6,6 +6,7 @@ import { ShippingStatus } from "../models/Order";
 import {
   releaseReservedBarcodeScan,
   requireScannerIdentity,
+  requireScannerRoleStageAccess,
   reserveUniqueBarcodeScan,
 } from "../lib/scanGuard";
 
@@ -28,9 +29,34 @@ function nextStage(current: string | null) {
   return FLOW[index + 1] || current;
 }
 
+async function resolveStockRouteStage(req: Request) {
+  const barcode = String(req.body?.barcode ?? "").trim();
+
+  if (!barcode) {
+    return null;
+  }
+
+  const style = await StockOrderStyles.findOne({
+    where: { barcode },
+    relations: ["retailerOrder"],
+  });
+
+  if (!style) {
+    return null;
+  }
+
+  const last = await StyleProgress.findOne({
+    where: { barcode },
+    order: { id: "DESC" },
+  });
+
+  return nextStage(last?.stage || null);
+}
+
 router.post(
   "/update",
   requireScannerIdentity,
+  requireScannerRoleStageAccess(resolveStockRouteStage),
   asyncHandler(async (req: Request, res: Response) => {
     const { barcode } = req.body;
 

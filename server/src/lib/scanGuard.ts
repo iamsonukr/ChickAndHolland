@@ -2,12 +2,14 @@ import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import CONFIG from "../config";
 import db from "../db";
+import { TABLE_NAMES } from "../constants";
 
 export type ScanFlowType = "RETAILER" | "STOCK" | "STORE";
 
-type ScannerIdentity = {
+export type ScannerIdentity = {
   scannerId: number;
   scannerType: string;
+  scannerRoleName: string | null;
 };
 
 type ReserveScanResult =
@@ -34,7 +36,75 @@ const getAuthorizationHeader = (req: Request) =>
 const getDuplicateScanMessage = () =>
   "This barcode was already scanned by your login. Ask the next department/user to scan it.";
 
-const normalizeScannerIdentity = (decodedToken: any): ScannerIdentity | null => {
+const normalizeRoleKey = (value?: string | null) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
+
+const normalizeStageKey = (value?: string | null) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
+
+const SCANNER_ROLE_STAGE_RULES: Record<string, string[]> = {
+  "pattern-master": ["Pattern"],
+  "khaka-master": ["Khaka"],
+  "issue-beading-master": ["Issue Beading"],
+  "issuebeading-master": ["Issue Beading"],
+  "beading-master": ["Beading"],
+  "zarkan-master": ["Zarkan"],
+  "zarkar-master": ["Zarkan"],
+  "stitching-master": ["Stitching"],
+  "balance-pending-master": ["Balance Pending"],
+  "balancepending-master": ["Balance Pending"],
+  "ready-to-delivery-master": ["Ready To Delivery"],
+  "readytodelivery-master": ["Ready To Delivery"],
+  "shipped-master": ["Shipped"],
+  "shipping-master": ["Shipped"],
+};
+
+const getScannerRoleName = async (
+  scannerId: number,
+  scannerType: string,
+): Promise<string | null> => {
+  if (scannerType === "USER") {
+    const [user] = (await db.query(
+      `
+        SELECT r.roleName
+        FROM ${TABLE_NAMES.USERS} u
+        LEFT JOIN ${TABLE_NAMES.USER_ROLES} r ON u.roleId = r.id
+        WHERE u.id = ?
+        LIMIT 1
+      `,
+      [scannerId],
+    )) as Array<{ roleName?: string | null }>;
+
+    return user?.roleName ? String(user.roleName).trim() : null;
+  }
+
+  if (scannerType === "EMPLOYEE") {
+    const [employee] = (await db.query(
+      `
+        SELECT r.name AS roleName
+        FROM ${TABLE_NAMES.EMPLOYEES} e
+        LEFT JOIN ${TABLE_NAMES.ROLES} r ON e.roleId = r.id
+        WHERE e.id = ?
+        LIMIT 1
+      `,
+      [scannerId],
+    )) as Array<{ roleName?: string | null }>;
+
+    return employee?.roleName ? String(employee.roleName).trim() : null;
+  }
+
+  return null;
+};
+
+const normalizeScannerIdentity = async (
+  decodedToken: any,
+): Promise<ScannerIdentity | null> => {
   const scannerId = Number(decodedToken?.id);
   const scannerType = String(
     decodedToken?.type || decodedToken?.role || "",
@@ -47,6 +117,10 @@ const normalizeScannerIdentity = (decodedToken: any): ScannerIdentity | null => 
   return {
     scannerId,
     scannerType: scannerType.toUpperCase(),
+    scannerRoleName: await getScannerRoleName(
+      scannerId,
+      scannerType.toUpperCase(),
+    ),
   };
 };
 
@@ -92,7 +166,7 @@ export const requireScannerIdentity = async (
   try {
     const token = authorization.split(" ")[1];
     const decodedToken = jwt.verify(token, CONFIG.JWT_SECRET);
-    const scannerIdentity = normalizeScannerIdentity(decodedToken);
+    const scannerIdentity = await normalizeScannerIdentity(decodedToken);
 
     if (!scannerIdentity) {
       return res.status(401).json({
@@ -170,3 +244,58 @@ export async function releaseReservedBarcodeScan(scanId?: number | null) {
   await ensureScanGuardTable();
   await db.query(`DELETE FROM ${SCAN_GUARD_TABLE} WHERE id = ?`, [scanId]);
 }
+
+type NextStageResolver = (
+  req: Request,
+) => Promise<string | null | undefined> | string | null | undefined;
+
+export const requireScannerRoleStageAccess =
+  (resolveNextStage: NextStageResolver) =>
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const scanner = (req as any).scannerIdentity as
+        | ScannerIdentity
+        | undefined;
+
+      if (!scanner) {
+        return res.status(401).json({
+          success: false,
+          code: "SCANNER_AUTH_REQUIRED",
+          message: "Scanner login required. Please login and scan again.",
+        });
+      }
+
+      const nextStage = String((await resolveNextStage(req)) ?? "").trim();
+
+      if (!nextStage) {
+        return next();
+      }
+
+      const normalizedRole = normalizeRoleKey(scanner.scannerRoleName);
+      const allowedStages = SCANNER_ROLE_STAGE_RULES[normalizedRole];
+
+      if (!allowedStages?.length) {
+        return next();
+      }
+
+      const isAllowed = allowedStages.some(
+        (allowedStage) =>
+          normalizeStageKey(allowedStage) === normalizeStageKey(nextStage),
+      );
+
+      if (isAllowed) {
+        return next();
+      }
+
+      return res.status(403).json({
+        success: false,
+        code: "SCANNER_STAGE_FORBIDDEN",
+        message: `Your role ${scanner.scannerRoleName} can only scan ${allowedStages.join(", ")} stage items. This item is ready for ${nextStage}.`,
+        scannerRole: scanner.scannerRoleName,
+        allowedStages,
+        nextStage,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
