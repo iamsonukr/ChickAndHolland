@@ -98,8 +98,8 @@ export default function Home() {
       <div className="w-full bg-black">
         <div className="relative h-auto md:h-screen">
           <HlsVideo
-            src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Landingpagevideo/landingpage.mp4"
-            fallbackSrc="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Landingpagevideo/landingpage.mp4"
+            src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Landingpagevideo/newchic-video.mp4"
+            fallbackSrc="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Landingpagevideo/newchic-video.mp4"
             autoPlay muted loop playsInline preload="auto"
             controlsList="nodownload"
             className="m-0 h-full w-full object-cover p-0"

@@ -183,18 +183,18 @@ const handleOpenChange = (next: boolean) => {
 
       <DialogContent
         className={cn(
-          "p-0 gap-0 overflow-hidden",
-          // Mobile: true fullscreen
-          "fixed inset-0 w-screen h-[100dvh] max-w-none rounded-none",
-          // Desktop: centered modal
-          "sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2",
-          "sm:w-full sm:max-w-xl sm:h-auto sm:rounded-lg"
+          "left-0 top-0 h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden border-0 bg-transparent p-0 shadow-none",
+          "data-[state=closed]:slide-out-to-left-0 data-[state=closed]:slide-out-to-top-0",
+          "data-[state=open]:slide-in-from-left-0 data-[state=open]:slide-in-from-top-0",
+          "sm:left-1/2 sm:top-1/2 sm:h-auto sm:w-full sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2",
+          "sm:overflow-hidden sm:rounded-lg sm:border sm:bg-background sm:shadow-lg",
+          "[&>button]:hidden"
         )}
       >
-        <div className="relative w-full h-full sm:h-auto flex flex-col">
+        <div className="relative flex h-full w-full flex-col sm:h-auto">
 
           {/* ── Camera area ─────────────────────────────────────────────── */}
-          <div className="relative flex-1 bg-black sm:flex-none sm:aspect-video overflow-hidden">
+          <div className="relative min-h-0 flex-1 overflow-hidden bg-black sm:flex-none sm:aspect-video">
             <video
               ref={videoRef}
               muted
@@ -256,6 +256,7 @@ const handleOpenChange = (next: boolean) => {
                 {getScannerTitle(orderType)}
               </span>
               <button
+                type="button"
                 onClick={() => handleOpenChange(false)}
                 className="text-white/80 hover:text-white p-1"
               >
@@ -265,6 +266,7 @@ const handleOpenChange = (next: boolean) => {
 
             {/* Torch button */}
             <button
+              type="button"
               onClick={async () => {
                 try {
                   await toggleTorch();
@@ -296,7 +298,7 @@ const handleOpenChange = (next: boolean) => {
           </div>
 
           {/* ── Bottom sheet: manual entry ───────────────────────────────── */}
-          <div className="bg-background px-4 pt-4 pb-6 space-y-3 sm:px-6 sm:pb-6">
+          <div className="space-y-3 bg-background px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-6">
             {expectedBarcode && (
               <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                 Expected QR:{" "}
@@ -310,7 +312,7 @@ const handleOpenChange = (next: boolean) => {
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 ref={inputRef}
                 placeholder="Enter QR code manually"
@@ -322,7 +324,7 @@ const handleOpenChange = (next: boolean) => {
                 type="button"
                 onClick={() => processBarcode(barcode)}
                 disabled={scanLock}
-                className="gap-2 shrink-0"
+                className="w-full gap-2 sm:w-auto sm:shrink-0"
               >
                 <ScanLine className="h-4 w-4" />
                 Process QR
