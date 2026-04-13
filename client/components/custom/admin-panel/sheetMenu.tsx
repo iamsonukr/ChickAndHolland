@@ -19,22 +19,26 @@ export function SheetMenu({ userDetails }: any) {
         </Button>
       </SheetTrigger>
       <SheetContent
-        className="flex h-full w-[88vw] max-w-[320px] flex-col bg-secondary px-3 py-4"
+        className="w-[88vw] max-w-[320px] bg-secondary p-0"
         side="left"
       >
-        <SheetHeader>
-          <Button
-            className="flex items-center justify-center pb-2 pt-1"
-            variant="link"
-            asChild
-          >
-            <Link href="/" className="flex items-center gap-2">
-              <PanelsTopLeft className="mr-1 h-6 w-6" />
-              <h1 className="text-lg font-bold">Chic & Holland</h1>
-            </Link>
-          </Button>
-        </SheetHeader>
-        <Menu isOpen userDetails={userDetails} />
+        <div className="flex h-full min-h-0 flex-col overflow-y-auto px-3 py-4">
+          <SheetHeader className="shrink-0">
+            <Button
+              className="flex items-center justify-center pb-2 pt-1"
+              variant="link"
+              asChild
+            >
+              <Link href="/" className="flex items-center gap-2">
+                <PanelsTopLeft className="mr-1 h-6 w-6" />
+                <h1 className="text-lg font-bold">Chic & Holland</h1>
+              </Link>
+            </Button>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <Menu isOpen userDetails={userDetails} />
+          </div>
+        </div>
       </SheetContent>
     </Sheet>
   );

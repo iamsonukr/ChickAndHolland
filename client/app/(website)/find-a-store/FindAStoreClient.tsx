@@ -9,6 +9,20 @@ export default function FindAStoreClient({ clientsData }) {
   const [filteredStores, setFilteredStores] = useState(
     clientsData.mapClients
   );
+  const getGoogleMapsUrl = (store) => {
+    const addressParts = [
+      store.name,
+      store.address,
+      store.city_name,
+      store.country,
+    ].filter(Boolean);
+
+    const query = addressParts.length
+      ? addressParts.join(", ")
+      : `${store.latitude},${store.longitude}`;
+
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  };
 
   const getDistanceInKm = (
   lat1: number,
@@ -220,6 +234,7 @@ const handlePincodeSearch = async (pincode: string) => {
       onClick={(e) => {
         e.stopPropagation();
         handleStoreSelect(store);
+        window.open(getGoogleMapsUrl(store), "_blank", "noopener,noreferrer");
       }}
     >
       View on Map →
