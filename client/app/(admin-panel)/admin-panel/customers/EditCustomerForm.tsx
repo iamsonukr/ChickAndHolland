@@ -38,6 +38,7 @@ import {
 } from "@/lib/formSchemas";
 import useHttp from "@/lib/hooks/usePost";
 import { AutocompleteCustom } from "@/components/custom/SearchLocations";
+import CountryCombobox from "./CountryCombobox";
 
 const EditCustomerForm = ({
   previousData,
@@ -107,7 +108,7 @@ const EditCustomerForm = ({
         previousData?.currencyId?.toString() ||
         "",
     });
-  }, [previousData]);
+  }, [form, previousData]);
 
   /** Google Autocomplete */
   const onChange = async (place: google.maps.places.PlaceResult | null) => {
@@ -124,8 +125,6 @@ const EditCustomerForm = ({
 
   /** Submit Edited Customer */
   const onSubmit = async (data: AddCustomerFormType) => {
-      console.log("ADD CUSTOMER SUBMIT 👉", data);
-
     try {
       const response = await executeAsync(data);
 
@@ -221,24 +220,17 @@ const EditCustomerForm = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Country</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Country" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem
-                          key={country.id.toString()}
-                          value={country.id.toString()}
-                        >
-                          {country.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>Select customer's country.</FormDescription>
+                  <FormControl>
+                    <CountryCombobox
+                      countries={countries}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Select Country"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Select customer&apos;s country.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

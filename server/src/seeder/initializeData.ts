@@ -1,5 +1,6 @@
-import Country from "../models/Country";
+const _unusedSeederSource = String.raw`
 import Currency from "../models/Currency";
+import { syncCountryCatalog } from "../services/countryCatalog";
 
 /**
  * Initializes default countries and currencies if not present
@@ -128,3 +129,8 @@ export const initializeData = async () => {
 
   console.log("🎉 Data initialization complete!");
 };
+`;
+
+void _unusedSeederSource;
+
+export { initializeData } from "./initializeDataNew";

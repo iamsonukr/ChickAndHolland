@@ -1,6 +1,6 @@
 import {  Request, Response, Router } from "express";
-import Country from "../models/Country";
 import asyncHandler from "../middleware/AsyncHandler";
+import { syncCountryCatalog } from "../services/countryCatalog";
 
 
 const CountryController = Router();
@@ -8,8 +8,8 @@ const CountryController = Router();
 CountryController.get(
     "/",
     asyncHandler(async (req: Request, res: Response) => {
-      const clients = await Country.find();
-      res.json(clients);
+      const countries = await syncCountryCatalog();
+      res.json(countries);
     })
 );
 

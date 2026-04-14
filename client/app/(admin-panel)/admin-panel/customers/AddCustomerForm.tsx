@@ -31,6 +31,7 @@ import {
 } from "@/lib/formSchemas";
 import useHttp from "@/lib/hooks/usePost";
 import { AutocompleteCustom } from "@/components/custom/SearchLocations";
+import CountryCombobox from "./CountryCombobox";
 import {
   Select,
   SelectContent,
@@ -121,8 +122,6 @@ const AddCustomerForm = ({
     });
   };
 
-  console.log(countries);
-
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -196,26 +195,14 @@ const AddCustomerForm = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Country</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Country" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem
-                          key={country.id.toString()}
-                          value={country.id.toString()}
-                        >
-                          {country.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <CountryCombobox
+                      countries={countries}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Select Country"
+                    />
+                  </FormControl>
                   <FormDescription>
                     Select the Country where this customer is located.
                   </FormDescription>
