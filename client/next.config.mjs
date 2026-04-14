@@ -35,8 +35,6 @@
 
 // export default nextConfig;
 
-
-
 import bundleAnalyzer from "@next/bundle-analyzer";
 
 const withBundleAnalyzer = bundleAnalyzer({
@@ -61,6 +59,16 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "ymts.blr1.digitaloceanspaces.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "chicandholland-space.ams3.cdn.digitaloceanspaces.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "chicandholland-space.ams3.digitaloceanspaces.com",
         pathname: "/**",
       },
       {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { SyntheticEvent, useState } from "react";
 import Image, { ImageProps } from "next/image";
 import { cn } from "@/lib/utils";
 import LoadingPlaceholder from "@/components/custom/LoadingPlaceHolder";
@@ -16,9 +16,17 @@ const CustomizedImage = ({
   fill,
   width,
   height,
+  onLoad,
+  sizes,
   ...props
 }: CustomizedImageProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const imageSizes = sizes ?? (fill ? "100vw" : undefined);
+
+  const handleLoad = (event: SyntheticEvent<HTMLImageElement>) => {
+    setIsLoaded(true);
+    onLoad?.(event);
+  };
 
   return (
     <div className={cn("relative h-full w-full", wrapperClassName)}>
@@ -30,13 +38,13 @@ const CustomizedImage = ({
           fill
           src={props.src || "/placeholder.png"}
           alt={props.alt || "Image"}
+          sizes={imageSizes}
           className={cn(
             "object-cover transition-opacity duration-300",
             !isLoaded && "opacity-0",
-            className  // ← now className overrides image styles, not wrapper
+            className,
           )}
-          onLoad={() => setIsLoaded(true)}
-          priority={false}
+          onLoad={handleLoad}
         />
       ) : (
         <Image
@@ -45,13 +53,13 @@ const CustomizedImage = ({
           height={height ?? 750}
           src={props.src || "/placeholder.png"}
           alt={props.alt || "Image"}
+          sizes={imageSizes}
           className={cn(
             "h-full w-full max-w-full object-cover transition-opacity duration-300",
             !isLoaded && "opacity-0",
-            className  // ← same here
+            className,
           )}
-          onLoad={() => setIsLoaded(true)}
-          priority={false}
+          onLoad={handleLoad}
         />
       )}
     </div>

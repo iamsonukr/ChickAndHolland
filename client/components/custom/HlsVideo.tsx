@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 
-interface HlsVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
+export interface HlsVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
   src: string;
   fallbackSrc?: string;
   startLevel?: number;
   maxBufferLength?: number;
+  backBufferLength?: number;
   lowLatencyMode?: boolean;
 }
 
@@ -15,8 +16,9 @@ export default function HlsVideo({
   src,
   fallbackSrc,
   startLevel = -1,
-  maxBufferLength = 60,
-  lowLatencyMode = true,
+  maxBufferLength = 15,
+  backBufferLength = 30,
+  lowLatencyMode = false,
   ...videoProps
 }: HlsVideoProps) {
   const {
@@ -35,129 +37,120 @@ export default function HlsVideo({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
-
-  const [isLoading, setIsLoading] = useState(true);
   const [useFallback, setUseFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setUseFallback(false);
+    setError(null);
+  }, [src, fallbackSrc]);
+
+  useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || useFallback) return;
 
-    const initialize = () => {
-      /** --------------------------
-       *  HLS.JS PLAYER INITIALIZATION
-       * -------------------------- */
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-          enableWorker: false,
-          lowLatencyMode,
-          startLevel,
-          maxBufferLength,
-          maxMaxBufferLength: maxBufferLength * 2,
-          backBufferLength: 120,
-        });
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode,
+        startLevel,
+        maxBufferLength,
+        maxMaxBufferLength: maxBufferLength * 2,
+        backBufferLength,
+        capLevelToPlayerSize: true,
+      });
 
-        hlsRef.current = hls;
+      hlsRef.current = hls;
+      hls.loadSource(src);
+      hls.attachMedia(video);
 
-        hls.loadSource(src);
-        hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (autoPlay) video.play().catch(() => {});
+      });
 
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          setIsLoading(false);
-          if (autoPlay) video.play().catch(() => {});
-        });
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (!data || Object.keys(data).length === 0) {
+          return;
+        }
 
-        /** --------------------------
-         *  GLOBAL HLS ERROR HANDLER
-         * -------------------------- */
-        hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.details === "bufferStalledError") {
+          hls.startLoad();
+          video.play().catch(() => {});
+          return;
+        }
 
-          // IGNORE EMPTY ERRORS {}
-          if (!data || Object.keys(data).length === 0) {
-            return;
-          }
+        if (!data.fatal) {
+          return;
+        }
 
-          // AUTO RECOVER STALLING
-          if (data.details === "bufferStalledError") {
-            hls.startLoad();
-            video.play().catch(() => {});
-            return;
-          }
+        if (fallbackSrc) {
+          setUseFallback(true);
+          hls.destroy();
+          return;
+        }
 
-          // RECOVER NON-FATAL
-          if (!data.fatal) return;
+        setError("Failed to load video");
+      });
 
-          // FATAL ERRORS → FALLBACK
-          if (fallbackSrc) {
-            setUseFallback(true);
-            hls.destroy();
-            return;
-          }
-
-          setError("Failed to load video");
-        });
-
-        return;
-      }
-
-      /** --------------------------
-       *  SAFARI NATIVE HLS SUPPORT
-       * -------------------------- */
-      if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = src;
-
-        video.addEventListener("loadedmetadata", () => {
-          setIsLoading(false);
-          if (autoPlay) video.play().catch(() => {});
-        });
-
-        video.addEventListener("error", () => {
-          if (fallbackSrc) {
-            setUseFallback(true);
-          } else {
-            setError("Failed to load video");
-          }
-        });
-
-        return;
-      }
-
-      /** --------------------------
-       *  NO HLS SUPPORT AT ALL
-       * -------------------------- */
-      if (fallbackSrc) {
-        setUseFallback(true);
-      } else {
-        setError("HLS is not supported");
-      }
-      setIsLoading(false);
-    };
-
-    if (!useFallback) {
-      initialize();
+      return () => {
+        hls.destroy();
+        hlsRef.current = null;
+      };
     }
 
-    return () => {
-      hlsRef.current?.destroy();
-      hlsRef.current = null;
-    };
-  }, [src, fallbackSrc, autoPlay, useFallback, startLevel, maxBufferLength, lowLatencyMode]);
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      const handleLoadedMetadata = () => {
+        if (autoPlay) video.play().catch(() => {});
+      };
 
-  /** --------------------------
-   *  ERROR DISPLAY
-   * -------------------------- */
+      const handleError = () => {
+        if (fallbackSrc) {
+          setUseFallback(true);
+          return;
+        }
+
+        setError("Failed to load video");
+      };
+
+      video.src = src;
+      video.addEventListener("loadedmetadata", handleLoadedMetadata);
+      video.addEventListener("error", handleError);
+
+      return () => {
+        video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        video.removeEventListener("error", handleError);
+        video.removeAttribute("src");
+        video.load();
+      };
+    }
+
+    if (fallbackSrc) {
+      setUseFallback(true);
+      return;
+    }
+
+    setError("HLS is not supported");
+  }, [
+    src,
+    fallbackSrc,
+    autoPlay,
+    useFallback,
+    startLevel,
+    maxBufferLength,
+    backBufferLength,
+    lowLatencyMode,
+  ]);
+
   if (error) {
     return (
-      <div className={`flex items-center justify-center bg-gray-200 ${className}`}>
+      <div
+        className={`flex items-center justify-center bg-gray-200 ${className}`}
+      >
         <p className="text-gray-500">Error loading video</p>
       </div>
     );
   }
 
-  /** --------------------------
-   *  FALLBACK MP4 PLAYER
-   * -------------------------- */
   if (useFallback && fallbackSrc) {
     return (
       <video
@@ -173,14 +166,10 @@ export default function HlsVideo({
         controlsList={controlsList}
         style={style}
         src={fallbackSrc}
-        webkit-playsinline="true"  // ← Add this
       />
     );
   }
 
-  /** --------------------------
-   *  NORMAL HLS PLAYER
-   * -------------------------- */
   return (
     <video
       {...restProps}
@@ -195,7 +184,6 @@ export default function HlsVideo({
       preload={preload}
       controlsList={controlsList}
       style={style}
-      webkit-playsinline="true"  // ← Add this
     />
   );
 }
