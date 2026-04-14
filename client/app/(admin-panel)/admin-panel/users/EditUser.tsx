@@ -24,6 +24,7 @@ import { Edit } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { PasswordInput } from "@/components/custom/password-input";
 import {
   EditUserFormType,
   editUserFormSchema,
@@ -125,8 +126,7 @@ const EditUserForm = ({ previousData }: any) => {
                 <FormItem>
                   <FormLabel>New Password</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
+                    <PasswordInput
                       placeholder="Leave blank to keep current password"
                       {...field}
                     />

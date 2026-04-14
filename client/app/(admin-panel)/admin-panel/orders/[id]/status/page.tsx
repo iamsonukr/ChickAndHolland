@@ -14,6 +14,56 @@ import LabelPdf from "@/components/LabelPdf";
 import LabelPdf1 from "@/components/LabelBox";
 import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
 
+const formatReportValue = (value: unknown) => {
+  const text = String(value ?? "").trim();
+  return text || "-";
+};
+
+const formatReportSize = (item: any) => {
+  const size = String(item?.size ?? "").trim();
+
+  if (!size) {
+    return "-";
+  }
+
+  const sizeCountry = String(item?.size_country ?? "").trim();
+  const quantity = item?.quantity;
+  const prefixedSize = sizeCountry ? `${sizeCountry} ${size}` : size;
+
+  if (
+    prefixedSize.includes("/") ||
+    prefixedSize.includes(",") ||
+    quantity === undefined ||
+    quantity === null ||
+    quantity === ""
+  ) {
+    return prefixedSize;
+  }
+
+  return `${prefixedSize} / ${quantity}`;
+};
+
+function ReportIdentity({ item }: { item: any }) {
+  const entries = [
+    ["Style No", formatReportValue(item?.styleNo)],
+    ["Scan Code", formatReportValue(item?.barcode)],
+    ["Size", formatReportSize(item)],
+  ];
+
+  return (
+    <div className="grid gap-3 rounded-lg border bg-muted/30 p-3 text-sm sm:grid-cols-3">
+      {entries.map(([label, value]) => (
+        <div key={label}>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            {label}
+          </div>
+          <div className="font-medium">{value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function OrderStatusPage({
   params,
 }: {
@@ -124,16 +174,14 @@ export default function OrderStatusPage({
           {retailerReport.map((item: any) => (
             <Card key={item.styleId} className="p-4 mb-4 border-2">
               <div className="flex justify-between gap-6">
-                <div className="flex-1">
-                  <h2 className="font-semibold text-lg">
-                    {item.styleNo} ({item.barcode})
-                  </h2>
+                <div className="flex-1 space-y-3">
+                  <ReportIdentity item={item} />
 
                   {/* <p>Total Qty: {item.totalQty}</p>
                   <p>Completed: {item.completed}</p>
                   <p>Remaining: {item.remaining}</p> */}
 
-                  <h3 className="mt-2 font-semibold">Progress Logs</h3>
+                  <h3 className="font-semibold">Progress Logs</h3>
 
                   {item.progress?.map((p: any) => (
                     <div key={p.id} className="text-sm">
@@ -180,16 +228,14 @@ export default function OrderStatusPage({
           {storeReport.map((item: any) => (
             <Card key={item.styleId} className="p-4 mb-4 border-2">
               <div className="flex justify-between gap-6">
-                <div className="flex-1">
-                  <h2 className="font-semibold text-lg">
-                    {item.styleNo} ({item.barcode})
-                  </h2>
+                <div className="flex-1 space-y-3">
+                  <ReportIdentity item={item} />
 
                   {/* <p>Total Qty: {item.totalQty}</p>
                   <p>Completed: {item.completedQty}</p>
                   <p>Remaining: {item.remainingQty}</p> */}
 
-                  <h3 className="mt-2 font-semibold">Progress Logs</h3>
+                  <h3 className="font-semibold">Progress Logs</h3>
 
                   {item.progress?.map((p: any) => (
                     <div key={p.id} className="text-sm">
@@ -236,16 +282,14 @@ export default function OrderStatusPage({
           {stockReport.map((item: any) => (
             <Card key={item.styleId} className="p-4 mb-4 border-2">
               <div className="flex justify-between gap-6">
-                <div className="flex-1">
-                  <h2 className="font-semibold text-lg">
-                    {item.styleNo} ({item.barcode})
-                  </h2>
+                <div className="flex-1 space-y-3">
+                  <ReportIdentity item={item} />
 
                   {/* <p>Total Qty: {item.totalQty}</p>
                   <p>Completed: {item.completedQty}</p>
                   <p>Remaining: {item.remainingQty}</p> */}
 
-                  <h3 className="mt-2 font-semibold">Progress Logs</h3>
+                  <h3 className="font-semibold">Progress Logs</h3>
 
                   {item.progress?.map((p: any) => (
                     <div key={p.id} className="text-sm">

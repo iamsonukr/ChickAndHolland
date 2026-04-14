@@ -11,6 +11,14 @@ interface NavbarProps {
 }
 
 export function Navbar({ title, userDetails }: NavbarProps) {
+  const user = {
+    name: userDetails?.name || "Admin",
+    username: userDetails?.username || "admin",
+  };
+  const showUsername =
+    user.username &&
+    user.username.toLowerCase() !== user.name.toLowerCase();
+
   return (
     <header className="sticky top-0 z-50 w-full bg-background/95 shadow backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:shadow-secondary">
       <div className="mx-3 flex h-14 min-w-0 items-center justify-between gap-2 sm:mx-4 lg:mx-6">
@@ -23,12 +31,15 @@ export function Navbar({ title, userDetails }: NavbarProps) {
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          <UserNav
-            user={{
-              name: userDetails?.name || "Admin",
-              username: userDetails?.username || "admin",
-            }}
-          />
+          <div className="hidden max-w-[180px] flex-col items-end text-right sm:flex">
+            <span className="truncate text-sm font-semibold">{user.name}</span>
+            {showUsername && (
+              <span className="truncate text-xs text-muted-foreground">
+                {user.username}
+              </span>
+            )}
+          </div>
+          <UserNav user={user} />
         </div>
       </div>
     </header>

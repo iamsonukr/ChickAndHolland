@@ -24,6 +24,9 @@ import { logout } from "@/lib/actions";
 
 export function UserNav({ user }: { user: any }) {
   const router = useRouter();
+  const showUsername =
+    user?.username &&
+    String(user.username).toLowerCase() !== String(user.name).toLowerCase();
 
   return (
     <DropdownMenu>
@@ -49,21 +52,23 @@ export function UserNav({ user }: { user: any }) {
       </TooltipProvider>
 
       <DropdownMenuContent className="w-56" align="end" forceMount>
-        {/* <DropdownMenuLabel className="font-normal">
+        <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
               {user?.name || "User"}
             </p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user?.username || "username"}
-            </p>
+            {showUsername && (
+              <p className="text-xs leading-none text-muted-foreground">
+                {user?.username || "username"}
+              </p>
+            )}
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator /> */}
+        <DropdownMenuSeparator />
         <DropdownMenuItem
           className="hover:cursor-pointer"
           onClick={async () => {
-            logout();
+            await logout();
             router.replace("/login");
           }}
         >
