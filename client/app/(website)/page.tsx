@@ -16,7 +16,7 @@ const FEATURES = [
     title: "Timeless Elegance",
     text: "Chic & Holland's aim is to design and create dresses that will never go out of style - something that our discerning customers will be able to enjoy and appreciate for many years to come.",
     href: "/product/1153",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/0C4A5453%20copy.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/0C4ssA5453%20copy.jpg",
     alt: "Timeless Elegance by Chic & Holland",
     reverse: false,
   },
@@ -24,7 +24,7 @@ const FEATURES = [
     title: "Truly Handmade",
     text: "We believe ourselves to be the guardians of this craft! In an age when everything is being made by machines, we chose to lovingly handcraft all of our garments at our own atelier.",
     href: "/product/1150",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/HF110537.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/HF110537-comp.jpg",
     alt: "Truly Handmade craftsmanship by Chic & Holland",
     reverse: true,
   },
@@ -32,7 +32,7 @@ const FEATURES = [
     title: "Crystals & Embellishment",
     text: "One of our signature elements is our obsession with crystals. Each dress uses several types of crystals and beads, each using its own distinct language to communicate its purpose, accentuate a curve, and tell its own story.",
     href: "/product/1154",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/0C4A5674%20copy.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/0C4A5674%20copy-comp.jpg",
     alt: "Crystals and embellishment details by Chic & Holland",
     reverse: false,
   },
@@ -260,7 +260,7 @@ export default function Home() {
       </div>
 
       <div className="py-8">
-        <div className="flex w-full flex-col items-center gap-2 md:flex-row md:justify-between">
+        <div className="flex w-full flex-col  items-center gap-2 md:flex-row md:justify-between">
           <div className="w-full md:w-1/2">
             <div className="flex flex-col items-center justify-center bg-gray-100 px-4 py-2 md:px-5 md:py-4">
               <h2 className="mb-2 text-center font-adornstoryserif text-lg font-thin md:text-4xl 2xl:text-3xl 3xl:text-5xl 4xl:text-6xl">
@@ -283,10 +283,11 @@ export default function Home() {
               </p>
             </div>
           </div>
-          <div className="flex w-full items-center justify-center md:w-1/2">
+          {/* <div className="flex w-full items-center justify-center md:w-1/2"> */}
+          <div className="flex w-full items-center justify-center m-auto md:w-1/2">
             <LazyHlsVideo
               src={`${BASE_HLS}/Sequence%2001_5/hls/playlist.m3u8`}
-              fallbackSrc="https://chicandholland-space.ams3.digitaloceanspaces.com/Homepage-videos/Sequence%2001_5.mp4"
+              fallbackSrc="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001%205.mp4"
               autoPlay
               muted
               loop
@@ -296,7 +297,7 @@ export default function Home() {
               posterAlt="300 Hours couture campaign video"
               imageSizes={HALF_SECTION_IMAGE_SIZES}
               rootMargin="250px"
-              className="h-full w-full object-cover p-0 md:h-[30%] md:max-w-[50%]"
+              className="h-full mx-auto w-full object-cover p-0 md:h-[30%] md:max-w-[505px]"
             />
           </div>
         </div>
@@ -304,7 +305,7 @@ export default function Home() {
 
       <div className="flex flex-col gap-4 py-8">
         <SectionHeader title="300 HOURS" subtitle="COUTURE 2025/26" />
-        <div className="flex flex-row gap-2 md:gap-4">
+        <div className="flex flex-row gap-2 md:gap-2">
           {COLLECTION_VIDEOS.map(({ seq, posterSrc, posterAlt }) => (
             <Link
               key={seq}
