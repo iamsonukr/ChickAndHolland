@@ -81,10 +81,10 @@ const Header = async () => {
               </MenubarItem>
                 <MenubarItem className="!w-full" asChild>
                   <Link
-                    href={"/brand"}
+                    href={"/about-us"}
                     className="font-brandon text-xl  text-[#C9A39A]"
                   >
-                    BRAND
+                    AB
                   </Link>
                 </MenubarItem>
 
@@ -212,8 +212,8 @@ const Header = async () => {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <NavigationMenuLink href="/brand" className={`${navigationMenuTriggerStyle()} font-brandon`}>
-                  BRAND
+                <NavigationMenuLink href="/about-us" className={`${navigationMenuTriggerStyle()} font-brandon`}>
+                  ABOUT US
                 </NavigationMenuLink>
               </NavigationMenuItem>
 

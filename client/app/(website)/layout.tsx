@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   description:
     "Discover Chic & Holland, a luxury couture fashion brand creating handcrafted evening gowns and designer dresses.",
   alternates: {
-    canonical: "https://chicandholland.com/",
+    canonical: "https://www.chicandholland.com/",
   },
 };
 
@@ -66,7 +66,7 @@ const structuredData = {
   "@type": "Organization",
   name: "Chic & Holland",
   alternateName: "Chic and Holland",
-  url: "https://chicandholland.com/",
+  url: "https://www.chicandholland.com/",
   logo: "https://ymts.blr1.cdn.digitaloceanspaces.com/chicandholland/Brand_New/logo.png",
   description:
     "Chic & Holland is a luxury fashion brand offering designer dresses and couture collections.",
