@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import { CustomizedImage } from "./CustomizedImage";
 import Link from "next/link";
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import useHttp from "@/lib/hooks/usePost";
@@ -11,6 +11,8 @@ import { usePathname } from "next/navigation";
 import ProductCardDetails from "./productCardDetails";
 export const MIN_QUANTITY = 1;
 export const MAX_QUANTITY = 24;
+const CARD_IMAGE_SIZES =
+  "(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw";
 
 interface Product {
   id: string;
@@ -126,10 +128,9 @@ const ProductCard = ({
             <CustomizedImage
               src={productImage || ""}
               alt={imageAlt}
-              quality={100}
               width={400}
               height={700}
-              unoptimized
+              sizes={CARD_IMAGE_SIZES}
               priority={priority}
             />
           </Link>
@@ -137,9 +138,9 @@ const ProductCard = ({
           <CustomizedImage
             src={productImage || ""}
             alt={imageAlt}
-            quality={100}
             width={400}
             height={700}
+            sizes={CARD_IMAGE_SIZES}
             priority={priority}
           />
         )}

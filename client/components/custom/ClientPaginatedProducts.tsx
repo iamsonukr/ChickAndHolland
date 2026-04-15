@@ -6,6 +6,7 @@ import ProductCard from "./ProductCard";
 import LazyVideo from "./LazyVideo";
 import { cn } from "@/lib/utils";
 import { API_URL } from "@/lib/constants";
+import { CollectionProductCardsSkeleton } from "./CollectionProductsSkeleton";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -39,6 +40,7 @@ interface Props {
   currencyId?: number;
   isLoggedIn: boolean;
   initialPage: number;
+  initialHasMore?: boolean;
   itemsPerPage?: number;
 }
 
@@ -63,12 +65,13 @@ export default function ClientPaginatedProducts({
   currencyId,
   isLoggedIn,
   initialPage,
+  initialHasMore = true,
   itemsPerPage = ITEMS_PER_PAGE,
 }: Props) {
   const [pages, setPages] = useState<PageData[]>([]);
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(initialHasMore);
   const [error, setError] = useState<string | null>(null);
 
   const isFetchingRef = useRef(false);
@@ -201,11 +204,7 @@ export default function ClientPaginatedProducts({
 
       {/* Skeleton — only between pages */}
       {isLoading && pages.length > 0 && (
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-4 animate-pulse">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-[300px] bg-gray-200 rounded" />
-          ))}
-        </div>
+        <CollectionProductCardsSkeleton itemCount={4} />
       )}
 
       {/* End of catalogue */}

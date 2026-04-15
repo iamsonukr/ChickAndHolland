@@ -1,4 +1,4 @@
-import { getProducts } from "@/lib/data";
+import { getProducts, getRetailerDetails, getSubCategoryDetails } from "@/lib/data";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
 import ProductCard from "@/components/custom/ProductCard";
@@ -6,10 +6,10 @@ import LazyVideo from "@/components/custom/LazyVideo";
 import TopSection from "./TopSection";
 import { cookies } from "next/headers";
 import ClientPaginatedProducts from "@/components/custom/ClientPaginatedProducts";
-import { getRetailerDetails } from "@/lib/data";
 
 
 const ITEMS_PER_PAGE = 12;
+const FULL_INITIAL_FETCH_SUBCATEGORY_IDS = new Set([50, 56]);
 
 export default async function CollectionProducts(props: {
   params: Promise<{ slug: string[] }>;
@@ -25,9 +25,9 @@ export default async function CollectionProducts(props: {
   let currencyId = cookieStore.get("currencyId")?.value;
   const retailerId = cookieStore.get("retailerId")?.value;
 
-  // Always prefer the retailer's latest currency from the backend so price views
-  // update immediately after an admin changes currency.
-  if (retailerId) {
+  // Use the currency cookie when available so we avoid an extra blocking
+  // retailer request on every collection view.
+  if (!currencyId && retailerId) {
     const latestRetailer = await getRetailerDetails(Number(retailerId));
     const latestCurrencyId =
       latestRetailer?.currencyId ||
@@ -40,18 +40,23 @@ export default async function CollectionProducts(props: {
 
   const categoryId = parseInt(params.slug[0], 10);
   const subCategoryId = parseInt(params.slug[1], 10);
+  const resolvedCurrencyId = currencyId ? parseInt(currencyId, 10) : undefined;
+  const shouldFetchFullCollection =
+    FULL_INITIAL_FETCH_SUBCATEGORY_IDS.has(subCategoryId);
 
-  // Fetch ALL product data at once
-  const allProductData = await getProducts({
+  const initialProductData = await getProducts({
     categoryId,
     subCategoryId,
-    ...(currencyId ? { currencyId: parseInt(currencyId) } : {}),
+    ...(resolvedCurrencyId ? { currencyId: resolvedCurrencyId } : {}),
+    ...(shouldFetchFullCollection
+      ? {}
+      : { page: 1, limit: ITEMS_PER_PAGE }),
   });
 
   // Error handling for empty data
   if (
-    !allProductData?.products?.length &&
-    !allProductData?.productsWithoutVideo?.length
+    !initialProductData?.products?.length &&
+    !initialProductData?.productsWithoutVideo?.length
   ) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -66,23 +71,26 @@ export default async function CollectionProducts(props: {
   let groupIndex = 0;
 
   // Add product groups first
-  while (remainingCount > 0 && groupIndex < allProductData.products.length) {
-    initialGroups.push(allProductData.products[groupIndex]);
-    remainingCount -= allProductData.products[groupIndex].products.length;
+  while (
+    remainingCount > 0 &&
+    groupIndex < initialProductData.products.length
+  ) {
+    initialGroups.push(initialProductData.products[groupIndex]);
+    remainingCount -= initialProductData.products[groupIndex].products.length;
     groupIndex++;
   }
 
   // Add products without video if needed
   let initialProductsWithoutVideo = [];
   if (remainingCount > 0) {
-    initialProductsWithoutVideo = allProductData.productsWithoutVideo.slice(
+    initialProductsWithoutVideo = initialProductData.productsWithoutVideo.slice(
       0,
       remainingCount,
     );
   }
 
   // Get the category name for the heading
-  const categoryName = allProductData.categoryDetails?.name || "";
+  const categoryName = initialProductData.categoryDetails?.name || "";
 
   return (
     <div className="  flex flex-center flex-col justify-center content-center item-center" >
@@ -149,9 +157,12 @@ export default async function CollectionProducts(props: {
         <ClientPaginatedProducts
           categoryId={categoryId}
           subCategoryId={subCategoryId}
-          currencyId={currencyId ? parseInt(currencyId) : undefined}
+          currencyId={resolvedCurrencyId}
           isLoggedIn={isLoggedIn}
           initialPage={2}
+          initialHasMore={
+            shouldFetchFullCollection || Boolean(initialProductData.hasMore)
+          }
           itemsPerPage={ITEMS_PER_PAGE}
         />
       </div>
@@ -167,19 +178,14 @@ export async function generateMetadata(props: {
     return notFound();
   }
 
-  const categoryId = parseInt(params.slug[0], 10);
   const subCategoryId = parseInt(params.slug[1], 10);
-
-  const productsData = await getProducts({
-    categoryId,
-    subCategoryId,
-  });
-
-  const categoryName = productsData.categoryDetails.name || "Collection";
+  const categoryDetails = await getSubCategoryDetails(subCategoryId);
+  const categoryName = categoryDetails?.name || "Collection";
+  const description = `Check out our latest collection of ${categoryName} on Chic & Holland.`;
 
   return {
     title: `${categoryName} | Chic & Holland`,
-    description: `Check out our latest collection of ${categoryName} on Chic & Holland.`,
+    description,
     keywords: [
       `${categoryName}`,
       "fashion",
@@ -189,15 +195,15 @@ export async function generateMetadata(props: {
     ],
     openGraph: {
       title: `${categoryName} | Chic & Holland`,
-      description: `Check out our latest collection of ${categoryName} on Chic & Holland.`,
-      images: productsData.products
-        ? productsData.products.slice(0, 4).map((prdData) => ({
-          url: prdData.products[0].imageName,
+      description,
+      images: [
+        {
+          url: "https://chicandholland.com/Chic-Holland-HC-S26-037.jpg",
           width: 1200,
           height: 630,
-          alt: prdData.products[0].productCode,
-        }))
-        : [],
+          alt: `${categoryName} by Chic & Holland`,
+        },
+      ],
       locale: "en_US",
       type: "website",
     },

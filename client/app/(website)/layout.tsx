@@ -6,7 +6,6 @@ import Header from "@/components/custom/website/Header";
 import Footer from "@/components/custom/website/Footer";
 import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner";
-import Loaders from "./Loader";
 import ScrollToTop from "@/components/custom/ScrollToTop";
 
 const poppins = Poppins({
@@ -130,7 +129,6 @@ export default function RootLayout({
 
       <body className="bg-background font-poppins antialiased">
         <ScrollToTop />
-        <Loaders />
         <Header />
         <main className="w-full">{children}</main>
         <Footer />

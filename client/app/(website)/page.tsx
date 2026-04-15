@@ -1,10 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { cn } from "@/lib/utils";
 import LazyHlsVideo from "@/components/custom/LazyHlsVideo";
 import { CustomizedImage } from "@/components/custom/CustomizedImage";
 import { Button } from "@/components/ui/button";
-import HomepageShowcaseSlider from "./HomepageShowcaseSlider";
-import TrendsCarousel from "./TrendsCarousel";
+import HomeHeroVideo from "./HomeHeroVideo";
 
 const BASE_HLS =
   "https://chicandholland-space.ams3.digitaloceanspaces.com/homepage/new-collection-videos";
@@ -16,7 +17,7 @@ const FEATURES = [
     title: "Timeless Elegance",
     text: "Chic & Holland's aim is to design and create dresses that will never go out of style - something that our discerning customers will be able to enjoy and appreciate for many years to come.",
     href: "/product/1153",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/0C4ssA5453%20copy.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/LossyCompressed/0C4A5453%20copy-LossyCompres.jpg",
     alt: "Timeless Elegance by Chic & Holland",
     reverse: false,
   },
@@ -24,7 +25,7 @@ const FEATURES = [
     title: "Truly Handmade",
     text: "We believe ourselves to be the guardians of this craft! In an age when everything is being made by machines, we chose to lovingly handcraft all of our garments at our own atelier.",
     href: "/product/1150",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/HF110537-comp.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/LossyCompressed/HF110537-LossyCompres.jpg",
     alt: "Truly Handmade craftsmanship by Chic & Holland",
     reverse: true,
   },
@@ -32,7 +33,7 @@ const FEATURES = [
     title: "Crystals & Embellishment",
     text: "One of our signature elements is our obsession with crystals. Each dress uses several types of crystals and beads, each using its own distinct language to communicate its purpose, accentuate a curve, and tell its own story.",
     href: "/product/1154",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/0C4A5674%20copy-comp.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/LossyCompressed/0C4A5674%20copy-LossyCompres.jpg",
     alt: "Crystals and embellishment details by Chic & Holland",
     reverse: false,
   },
@@ -87,6 +88,46 @@ const TEXT_SIZES =
   "text-2xl md:text-3xl 2xl:text-3xl 3xl:text-5xl 4xl:text-6xl";
 const SUBTEXT_SIZES =
   "text-lg md:text-xl 2xl:text-xl 3xl:text-3xl 4xl:text-5xl";
+
+function MediaGridSkeleton({
+  itemCount,
+  columnsClassName,
+}: {
+  itemCount: number;
+  columnsClassName: string;
+}) {
+  return (
+    <div className={cn("grid gap-4 px-4", columnsClassName)}>
+      {Array.from({ length: itemCount }).map((_, index) => (
+        <div
+          key={index}
+          className="aspect-[2/3] animate-pulse rounded-md bg-gray-200"
+          aria-hidden="true"
+        />
+      ))}
+    </div>
+  );
+}
+
+const HomepageShowcaseSlider = dynamic(() => import("./HomepageShowcaseSlider"), {
+  loading: () => (
+    <div className="w-full max-w-6xl">
+      <MediaGridSkeleton
+        itemCount={3}
+        columnsClassName="grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+      />
+    </div>
+  ),
+});
+
+const TrendsCarousel = dynamic(() => import("./TrendsCarousel"), {
+  loading: () => (
+    <MediaGridSkeleton
+      itemCount={4}
+      columnsClassName="grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+    />
+  ),
+});
 
 function SectionHeader({
   title,
@@ -151,21 +192,11 @@ export default function Home() {
     <div>
       <div className="w-full bg-black">
         <div className="relative h-auto md:h-screen">
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            controlsList="nodownload"
-            className="m-0 h-full w-full object-cover p-0"
-            poster="/Chic-Holland-HC-S26-037.jpg"
-          >
-            <source
-              src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Landingpagevideo/newchic-video.mp4"
-              type="video/mp4"
-            />
-          </video>
+          <HomeHeroVideo
+            src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Landingpagevideo/newchic-video.mp4"
+            posterSrc="/Chic-Holland-HC-S26-037.jpg"
+            posterAlt="Chic & Holland couture campaign"
+          />
           <Link
             href="/collections/72/80"
             className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 text-xs text-white md:text-base 3xl:text-2xl 4xl:text-3xl"
@@ -197,7 +228,6 @@ export default function Home() {
                     alt={alt}
                     fill
                     sizes={FEATURE_IMAGE_SIZES}
-                    unoptimized
                     className="object-cover"
                     loading="lazy"
                   />
