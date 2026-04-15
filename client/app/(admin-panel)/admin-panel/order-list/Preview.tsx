@@ -108,7 +108,7 @@ const Preview = ({
 
             return {
               quantity: item.quantity,
-              size: `${item.size}/${item.quantity}`,
+              size: String(item.size ?? "").trim(),
               styleNo: item.styleNo ?? item.productCode,
               barcode: item.barcode,
               comments: item.comments || "",
@@ -153,13 +153,11 @@ const Preview = ({
       }
 
       const stock = await getRetailerAdminStockOrderDetails(id, 1);
-      const stockDetails = stock.details?.[0];
+      const stockDetails = Array.isArray(stock.details) ? stock.details : [];
 
-      if (!stockDetails) {
+      if (!stockDetails.length) {
         throw new Error("Stock order details not found");
       }
-
-      const std = await productColorSAS(stockDetails.product_id);
 
       setData({
         id: order.id,
@@ -169,34 +167,38 @@ const Preview = ({
         orderReceivedDate: order.received_date,
         orderType: "Stock",
         ppt_path: uploadedDocumentPath,
-        details: [
-          {
-            quantity: stockDetails.quantity,
-            size: `${stockDetails.size}/${stockDetails.quantity}`,
-            styleNo: stockDetails.productCode,
-            barcode: stockDetails.barcode,
-            color: "Stock",
-            meshColor:
-              stockDetails.mesh_color === std.mesh_color
-                ? formatSasColor(getColorName(std.mesh_color))
-                : getColorName(stockDetails.mesh_color),
-            beadingColor:
-              stockDetails.beading_color === std.beading_color
-                ? formatSasColor(getColorName(std.beading_color))
-                : getColorName(stockDetails.beading_color),
-            lining:
-              stockDetails.lining === std.lining
-                ? `SAS(${stockDetails.lining})`
-                : stockDetails.lining,
-            liningColor:
-              stockDetails.lining_color === std.lining_color
-                ? formatSasColor(getColorName(std.lining_color))
-                : getColorName(stockDetails.lining_color),
-            size_country: stockDetails.size_country,
-            comments: stockDetails.comments || "",
-            image: await convertWebPToJPG(stockDetails.image),
-          },
-        ],
+        details: await Promise.all(
+          stockDetails.map(async (item: any) => {
+            const std = await productColorSAS(item.product_id);
+
+            return {
+              quantity: item.quantity,
+              size: String(item.size ?? "").trim(),
+              styleNo: item.productCode,
+              barcode: item.barcode,
+              color: "Stock",
+              meshColor:
+                item.mesh_color === std.mesh_color
+                  ? formatSasColor(getColorName(std.mesh_color))
+                  : getColorName(item.mesh_color),
+              beadingColor:
+                item.beading_color === std.beading_color
+                  ? formatSasColor(getColorName(std.beading_color))
+                  : getColorName(item.beading_color),
+              lining:
+                item.lining === std.lining
+                  ? `SAS(${item.lining})`
+                  : item.lining,
+              liningColor:
+                item.lining_color === std.lining_color
+                  ? formatSasColor(getColorName(std.lining_color))
+                  : getColorName(item.lining_color),
+              size_country: item.size_country,
+              comments: item.comments || "",
+              image: await convertWebPToJPG(item.image),
+            };
+          }),
+        ),
       });
     } catch (err) {
       console.error("Failed to load order preview", err);

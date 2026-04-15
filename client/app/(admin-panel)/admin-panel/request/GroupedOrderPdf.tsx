@@ -45,6 +45,7 @@ const buildGroupedPages = (details: any[] = []) => {
 
     return pages.map((variants, pageIndex) => ({
       baseItem: groupItems[0],
+      groupItems,
       pageIndex,
       totalPages: pages.length,
       variants,
@@ -52,8 +53,8 @@ const buildGroupedPages = (details: any[] = []) => {
   });
 };
 
-const getPageQuantity = (variants: any[]) =>
-  variants.reduce((total, item) => {
+const getGroupQuantity = (items: any[]) =>
+  items.reduce((total, item) => {
     const quantity = Number(item.quantity);
     return total + (Number.isFinite(quantity) ? quantity : 0);
   }, 0);
@@ -63,11 +64,39 @@ const getVariantSizeText = (item: any) => {
     return `US ${item.admin_us_size} (${item.size_country} ${item.size})`;
   }
 
-  return item.size ?? "-";
+  const size = String(item.size ?? "").trim();
+
+  if (!size) {
+    return "-";
+  }
+
+  const sizeCountry = String(item.size_country ?? "").trim();
+
+  if (
+    !sizeCountry ||
+    size.startsWith(`${sizeCountry} `) ||
+    size.includes(`(${sizeCountry})`)
+  ) {
+    return size;
+  }
+
+  return `${sizeCountry} ${size}`;
 };
 
-const getSizeSummary = (variants: any[]) =>
-  variants.map((item) => getVariantSizeText(item)).join(", ");
+const getSizeSummary = (items: any[]) => {
+  const sizeCounts = new Map<string, number>();
+
+  items.forEach((item) => {
+    const label = getVariantSizeText(item);
+    const quantity = Number(item.quantity);
+    const pieceCount = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+    sizeCounts.set(label, (sizeCounts.get(label) ?? 0) + pieceCount);
+  });
+
+  return Array.from(sizeCounts.entries())
+    .map(([label, count]) => (count > 1 ? `${label} x ${count}` : label))
+    .join(", ");
+};
 
 const getCommentsSummary = (variants: any[], fallback?: string) => {
   const uniqueComments = Array.from(
@@ -84,16 +113,6 @@ const getCommentsSummary = (variants: any[], fallback?: string) => {
 const getReferenceImages = (variants: any[]) =>
   Array.from(new Set(variants.flatMap((item) => normalizeImages(item.refImg))));
 
-const getVariantColorText = (item: any, fallbackColor?: string) => {
-  const preferredColor = [item.color, fallbackColor].find((value) => {
-    const normalizedValue = String(value ?? "").trim();
-
-    return normalizedValue && normalizedValue.toUpperCase() !== "STOCK";
-  });
-
-  return preferredColor || item.beadingColor || item.meshColor || fallbackColor || "-";
-};
-
 const GroupedOrderPdf = ({
   orderData,
   showShippingDate = false,
@@ -107,8 +126,8 @@ const GroupedOrderPdf = ({
 
   return (
     <Document>
-      {groupedPages.map(({ baseItem, pageIndex, totalPages, variants }, index) => {
-        const referenceImages = getReferenceImages(variants);
+      {groupedPages.map(({ baseItem, groupItems, pageIndex, totalPages, variants }, index) => {
+        const referenceImages = getReferenceImages(groupItems);
         const sizeCountry =
           baseItem?.size_country ?? orderData?.details?.[0]?.size_country ?? "-";
 
@@ -179,7 +198,7 @@ const GroupedOrderPdf = ({
                             <Text style={styles.headerText}>Quantity</Text>
                           </View>
                           <View style={styles.tableDataCell}>
-                            <Text style={styles.dataText}>{getPageQuantity(variants)}</Text>
+                            <Text style={styles.dataText}>{getGroupQuantity(groupItems)}</Text>
                           </View>
                         </View>
                         <View style={styles.rightSection}>
@@ -199,7 +218,7 @@ const GroupedOrderPdf = ({
                           </View>
                           <View style={styles.sizeDataCell}>
                             <Text style={styles.dataText} wrap>
-                              {getSizeSummary(variants)}
+                              {getSizeSummary(groupItems)}
                             </Text>
                           </View>
                         </View>
@@ -273,10 +292,6 @@ const GroupedOrderPdf = ({
                   <View style={styles.variantGrid}>
                     {variants.map((variant: any, variantIndex: number) => {
                       const normalizedBarcode = normalizeBarcodeValue(variant.barcode);
-                      const variantColorText = getVariantColorText(
-                        variant,
-                        baseItem?.color,
-                      );
 
                       return (
                         <View
@@ -288,9 +303,9 @@ const GroupedOrderPdf = ({
                               : styles.variantCardLast,
                           ]}
                         >
-                          <View style={styles.variantCardTop}>
-                            <Text style={styles.variantTitle}>{variant.styleNo}</Text>
-                            <View style={styles.variantInfoGroup}>
+                        <View style={styles.variantCardTop}>
+                          <Text style={styles.variantTitle}>{variant.styleNo}</Text>
+                          <View style={styles.variantInfoGroup}>
                               <View style={styles.variantInfoRow}>
                                 <Text style={styles.variantInfoLabel}>Size:</Text>
                                 <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text>

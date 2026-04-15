@@ -2,7 +2,6 @@
 
 
 
-import { getRetailerOrderWithBarcode } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -271,48 +270,138 @@ const FreshOrdersAcceptedForm = ({
   const getFavouriteRowId = (current: any, index: number) =>
     String(current?.fav_id ?? details[index]?.fav_id ?? "");
 
-  const buildFreshBarcodeMap = (rows: any[]) =>
-    new Map(
-      rows
-        .filter((row: any) => row?.barcode && row?.fav_id != null)
-        .map((row: any) => [String(row.fav_id), row.barcode]),
-    );
+  const getPieceCount = (quantity: unknown) => {
+    const numericQuantity = Math.trunc(Number(quantity));
+    return Number.isFinite(numericQuantity) && numericQuantity > 0
+      ? numericQuantity
+      : 0;
+  };
 
   const buildFreshPreviewBarcode = (
     purchaseOrderNo: string,
     styleNo?: string,
-    index = 0,
+    rowIndex = 0,
+    pieceIndex = 0,
   ) => {
-    const previewSequence = String(index + 1).padStart(2, "0");
-    return `${purchaseOrderNo}-${styleNo ?? "STYLE"}-PREVIEW-${previewSequence}`;
+    const rowSequence = String(rowIndex + 1).padStart(2, "0");
+    const pieceSequence = String(pieceIndex + 1).padStart(2, "0");
+
+    return `${purchaseOrderNo}-${styleNo ?? "STYLE"}-PREVIEW-${rowSequence}-${pieceSequence}`;
   };
 
-  const buildFreshRowKey = ({
-    favouriteId,
-    styleNo,
-    size,
-    quantity,
-    meshColor,
-    beadingColor,
-    lining,
-    liningColor,
-    customColor,
-    comments,
-    barcode,
-  }: any) =>
-    [
-      favouriteId ?? "",
-      styleNo ?? "",
-      size ?? "",
-      quantity ?? "",
-      meshColor ?? "",
-      beadingColor ?? "",
-      lining ?? "",
-      liningColor ?? "",
-      customColor ?? "",
-      comments ?? "",
-      barcode ?? "",
-    ].join("::");
+  const buildFreshBarcodeGroups = (rows: any[] = []) => {
+    const groupedBarcodes = new Map<string, string[]>();
+
+    rows.forEach((row) => {
+      if (!row?.barcode || row?.fav_id == null) {
+        return;
+      }
+
+      const favouriteId = String(row.fav_id);
+      const existingBarcodes = groupedBarcodes.get(favouriteId) ?? [];
+      existingBarcodes.push(String(row.barcode));
+      groupedBarcodes.set(favouriteId, existingBarcodes);
+    });
+
+    return groupedBarcodes;
+  };
+
+  const buildFreshPreviewDetails = async (
+    data: CreateFreshOrderForm,
+    purchaseOrderNo: string,
+    groupedBarcodes?: Map<string, string[]>,
+  ) => {
+    const colours = await getProductColours({});
+    const colors = colours.productColours;
+
+    const detailGroups = await Promise.all(
+      data.styles.map(async (current, index) => {
+        const styleNo = parseInt(details[index].product_id);
+        const standardColors = await productColorSAS(styleNo);
+        const favouriteId = getFavouriteRowId(current, index);
+        const rowBarcodes = groupedBarcodes?.get(favouriteId) ?? [];
+        const cleanSize = String(current.size ?? "")
+          .split("")
+          .map((item) => (item.trim() ? item : ""))
+          .join("");
+        const match = /\((.*?)\)/.exec(cleanSize);
+        const sizeCountry = match ? match[1] : "";
+        const displaySize = cleanSize.split("(")[0].trim();
+        const totalPieces = Math.max(getPieceCount(current.quantity), rowBarcodes.length);
+
+        if (totalPieces <= 0) {
+          return [];
+        }
+
+        const rowTotalPrice = Number(details[index]?.total_amount) || 0;
+        const unitPrice = rowTotalPrice / totalPieces;
+
+        const meshColorDisplay =
+          current.meshColor ===
+            colors.find(
+              (colour: any) => colour.hexcode == standardColors.mesh_color,
+            )?.name
+            ? `SAS( ${current.meshColor} )`
+            : current.meshColor;
+
+        const beadingColorDisplay =
+          current.beadingColor ===
+            colors.find(
+              (colour: any) => colour.hexcode == standardColors.beading_color,
+            )?.name
+            ? `SAS( ${current.beadingColor} )`
+            : current.beadingColor;
+
+        const liningDisplay =
+          current.lining === standardColors.lining
+            ? `SAS( ${current.lining} )`
+            : current.lining;
+
+        const liningColorDisplay =
+          current.liningColor ==
+            colors.find(
+              (colour: any) => colour.hexcode == standardColors.lining_color,
+            )?.name
+            ? formatSasValue(current.liningColor)
+            : current.liningColor;
+
+        const currentRefImages = details[index].reference_image
+          ? await Promise.all(
+              JSON.parse(details[index].reference_image).map((item: any) =>
+                convertWebPToJPG(item),
+              ),
+            )
+          : [];
+        const productImage = await convertWebPToJPG(details[index].image);
+
+        return Array.from({ length: totalPieces }, (_, pieceIndex) => ({
+          quantity: 1,
+          size: displaySize,
+          size_country: sizeCountry,
+          styleNo: current.styleNo,
+          comments: current.comments || "",
+          price: unitPrice,
+          color: current.meshColor || current.customColor,
+          image: productImage,
+          refImg: currentRefImages,
+          meshColor: meshColorDisplay,
+          beadingColor: beadingColorDisplay,
+          lining: liningDisplay,
+          liningColor: liningColorDisplay,
+          barcode:
+            rowBarcodes[pieceIndex] ||
+            buildFreshPreviewBarcode(
+              purchaseOrderNo,
+              current.styleNo,
+              index,
+              pieceIndex,
+            ),
+        }));
+      }),
+    );
+
+    return detailGroups.flat();
+  };
 
   const onSubmitFun = async (data: CreateFreshOrderForm) => {
     const finalData = details[0] as any;
@@ -398,139 +487,15 @@ const FreshOrdersAcceptedForm = ({
       });
 
       if (response.success) {
-        const acceptedOrderRes = await getRetailerOrderWithBarcode(
-          Number(form.getValues("orderId")),
+        const purchaseOrderNo = response.purchaseOrderNo || data.purchaseOrderNo;
+        const barcodeGroups = buildFreshBarcodeGroups(
+          Array.isArray(response.createdStyles) ? response.createdStyles : [],
         );
-        const barcodeMap = buildFreshBarcodeMap(
-          Array.isArray(acceptedOrderRes?.data) ? acceptedOrderRes.data : [],
+        const finalStyles = await buildFreshPreviewDetails(
+          data,
+          purchaseOrderNo,
+          barcodeGroups,
         );
-
-        const combinedStyles = await Promise.all(
-          data.styles.map(async (current, index) => {
-            // First get the standard colors for this specific style
-            const colours = await getProductColours({});
-
-            let colors = colours.productColours;
-            const styleNo = parseInt(details[index].product_id);
-            const standardColors = await productColorSAS(styleNo);
-            const favouriteId = getFavouriteRowId(current, index);
-
-            // Clean up size string
-            const cleanSize = String(current.size ?? "")
-              .split("")
-              .map((item) => (item.trim() ? item : ""))
-              .join("");
-
-            // Compare each color with standard and mark as SAS if matching
-            const meshColorDisplay =
-              current.meshColor ===
-                colors.find(
-                  (colour: any) => colour.hexcode == standardColors.mesh_color,
-                )?.name
-                ? `SAS( ${current.meshColor} )`
-                : current.meshColor;
-
-            const beadingColorDisplay =
-              current.beadingColor ===
-                colors.find(
-                  (colour: any) => colour.hexcode == standardColors.beading_color,
-                )?.name
-                ? `SAS( ${current.beadingColor} )`
-                : current.beadingColor;
-
-            const liningDisplay =
-              current.lining === standardColors.lining
-                ? `SAS( ${current.lining} )`
-                : current.lining;
-
-            const liningColorDisplay =
-              current.liningColor ==
-                colors.find(
-                  (colour: any) => colour.hexcode == standardColors.lining_color,
-                )?.name
-                ? formatSasValue(current.liningColor)
-                : current.liningColor;
-
-            // Get current reference images
-            const currentRefImages = details[index].reference_image
-              ? JSON.parse(details[index].reference_image).map((item: any) =>
-                convertWebPToJPG(item),
-              )
-              : [];
-
-            // Return the item with necessary properties
-            const barcode = barcodeMap.get(favouriteId);
-            const match: any = /\((.*?)\)/.exec(cleanSize);
-            let valueInBraces = match ? match[1] : "";
-            const comparisonKey = buildFreshRowKey({
-              favouriteId,
-              styleNo: current.styleNo,
-              size: cleanSize,
-              quantity: current.quantity,
-              meshColor: current.meshColor,
-              beadingColor: current.beadingColor,
-              lining: current.lining,
-              liningColor: current.liningColor,
-              customColor: current.customColor,
-              comments: current.comments,
-              barcode,
-            });
-
-            return {
-              key: comparisonKey,
-              quantity: current.quantity,
-              size: `${cleanSize.split("(")[0].trim()}/${current.quantity}`,
-              size_country: valueInBraces,
-              styleNo: current.styleNo,
-              comments: current.comments || "", // Ensure comments is always defined
-              price: details[index].total_amount,
-              color: current.meshColor || current.customColor,
-              image: await convertWebPToJPG(details[index].image),
-              refImg: currentRefImages,
-              meshColor: meshColorDisplay,
-              beadingColor: beadingColorDisplay,
-              lining: liningDisplay,
-              liningColor: liningColorDisplay,
-              barcode,
-            };
-          }),
-        );
-
-        // Now perform the combination logic on processed items
-        const reduced = combinedStyles.reduce((acc: any[], item) => {
-          // Find existing item with same properties
-          const existingItemIndex = acc.findIndex(
-            (existing) => existing.key === item.key,
-          );
-
-          if (existingItemIndex !== -1) {
-            // Update existing item
-            const existingItem = acc[existingItemIndex];
-            const totalQuantity =
-              Number(existingItem.quantity) + Number(item.quantity);
-
-            existingItem.quantity = totalQuantity;
-            existingItem.size = `${existingItem.size}, ${item.size}`;
-            existingItem.price =
-              Number(existingItem.price) + Number(item.price);
-
-            // Combine reference images (removing duplicates if desired)
-            existingItem.refImg = [
-              ...new Set([...existingItem.refImg, ...item.refImg]),
-            ];
-
-            // Keep the latest image
-            existingItem.image = item.image;
-          } else {
-            // Add new item
-            acc.push(item);
-          }
-
-          return acc;
-        }, []);
-
-        // Remove temporary key and prepare final data
-        const finalStyles = reduced.map(({ key, ...rest }) => rest);
 
         const preData = {
           customerId: data.customerId,
@@ -538,12 +503,12 @@ const FreshOrdersAcceptedForm = ({
           orderCancellationDate: data.orderCancellationDate,
           orderReceivedDate: data.orderReceivedDate,
           orderType: "Fresh",
-          purchaseOrderNo: data.purchaseOrderNo,
+          purchaseOrderNo,
           details: finalStyles,
           total: total_state,
         };
 
-        FreshEmail(preData);
+        await FreshEmail(preData);
       } else {
         return toast.error("Failed to add order");
       }
@@ -571,8 +536,23 @@ const FreshOrdersAcceptedForm = ({
 
   const onPreviewSubmit = async (data: CreateFreshOrderForm) => {
     try {
-      const orderRes = await getRetailerOrderWithBarcode(Number(form.getValues("orderId")));
+      const finalStyles = await buildFreshPreviewDetails(
+        data,
+        data.purchaseOrderNo,
+      );
 
+      setPreviewData({
+        customerId: data.customerId,
+        manufacturingEmailAddress: data.manufacturingEmailAddress,
+        orderCancellationDate: data.orderCancellationDate,
+        orderReceivedDate: data.orderReceivedDate,
+        orderType: "Fresh",
+        purchaseOrderNo: data.purchaseOrderNo,
+        details: finalStyles,
+        total: total_state,
+      });
+      return;
+      /*
       if (!orderRes?.success) {
         throw new Error("Failed to fetch order barcode data");
       }
@@ -731,6 +711,7 @@ const FreshOrdersAcceptedForm = ({
       console.log("✅ FINAL PREVIEW DATA →", preData);
 
       setPreviewData(preData);
+      */
     } catch (err) {
       console.error("❌ onPreviewSubmit ERROR →", err);
       toast.error("Failed to generate preview");

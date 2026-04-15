@@ -639,7 +639,7 @@ router.get(
   MIN(r.name) as name,
   MIN(r.email) as email,
   MIN(p.productCode) as productCode,
-  MIN(rf.quantity) as quantity,
+  COALESCE(MAX(sos.quantity), MIN(rf.quantity)) as quantity,
   MIN(s.size) as size,
   MIN(rf.retailerId) as retailer_id,
   MIN(COALESCE(scp.discountedPrice, s.discountedPrice) * rf.quantity) as total_price,
@@ -1000,18 +1000,36 @@ router.post(
     // ------------------------
     // 🔥 5. INSERT STOCK STYLE + GENERATE BARCODE
     // ------------------------
-    const stockStyle = new StockOrderStyles();
-    stockStyle.retailerOrder = order;
+    const createdStyles: Array<{
+      styleNo: string;
+      size: string;
+      size_country: string;
+      quantity: number;
+      barcode: string;
+    }> = [];
+    const pieceCount = Math.max(Number(data.quantity) || 0, 0);
 
-    stockStyle.styleNo = data.styleNo;
-    stockStyle.size = data.size;
-    stockStyle.size_country = data.size_country;
+    for (let pieceIndex = 0; pieceIndex < pieceCount; pieceIndex++) {
+      const stockStyle = new StockOrderStyles();
+      stockStyle.retailerOrder = order;
+      stockStyle.styleNo = data.styleNo;
+      stockStyle.size = data.size;
+      stockStyle.size_country = data.size_country;
+      stockStyle.quantity = 1; // one row = one physical piece
 
-    stockStyle.quantity = 1; // always one barcode per piece
-    await stockStyle.save(); // generate ID
+      await stockStyle.save(); // generate ID first
 
-    stockStyle.barcode = `${order.purchaeOrderNo}-${stockStyle.id}`;
-    await stockStyle.save();
+      stockStyle.barcode = `${order.purchaeOrderNo}-${stockStyle.id}`;
+      await stockStyle.save();
+
+      createdStyles.push({
+        styleNo: stockStyle.styleNo,
+        size: stockStyle.size,
+        size_country: stockStyle.size_country,
+        quantity: stockStyle.quantity,
+        barcode: stockStyle.barcode,
+      });
+    }
 
     // ------------------------
     // 🔥 6. Payment Entry
@@ -1031,7 +1049,9 @@ router.post(
       orderId: order.id,
       purchaseOrderNo: order.purchaeOrderNo,
       po_number: order.purchaeOrderNo,
-      barcode: stockStyle.barcode,
+      barcode: createdStyles[0]?.barcode ?? null,
+      barcodes: createdStyles.map((style) => style.barcode),
+      createdStyles,
     });
   })
 );
@@ -1224,21 +1244,42 @@ router.post(
       // -------------------------------
       // 🔹 Insert styles + barcode generation
       // -------------------------------
+      const createdStyles: Array<{
+        fav_id: number | null;
+        styleNo: string;
+        size: string;
+        size_country: string;
+        quantity: number;
+        barcode: string;
+      }> = [];
+
       if (normalizedStyles.length > 0) {
         for (let i = 0; i < normalizedStyles.length; i++) {
           const style = normalizedStyles[i];
+          const pieceCount = Math.max(Number(style.normalizedQuantity) || 0, 0);
 
-          const ros = new RetailerOrderStyles();
-          ros.retailerOrder = order;
-          ros.styleNo = style.styleNo;
-          ros.quantity = style.normalizedQuantity;
-          ros.size = style.normalizedSize;
-          ros.size_country = style.normalizedSizeCountry;
-          ros.photoUrls = JSON.stringify([]);
+          for (let pieceIndex = 0; pieceIndex < pieceCount; pieceIndex++) {
+            const ros = new RetailerOrderStyles();
+            ros.retailerOrder = order;
+            ros.styleNo = style.styleNo;
+            ros.quantity = 1; // one row = one physical piece
+            ros.size = style.normalizedSize;
+            ros.size_country = style.normalizedSizeCountry;
+            ros.photoUrls = JSON.stringify([]);
 
-          await ros.save(); // generate ID  
-          ros.barcode = `${order.purchaeOrderNo}-${ros.id}`;
-          await ros.save();
+            await ros.save(); // generate ID
+            ros.barcode = `${order.purchaeOrderNo}-${ros.id}`;
+            await ros.save();
+
+            createdStyles.push({
+              fav_id: style.fav_id ? Number(style.fav_id) : null,
+              styleNo: ros.styleNo,
+              size: ros.size,
+              size_country: ros.size_country,
+              quantity: ros.quantity,
+              barcode: ros.barcode,
+            });
+          }
         }
       }
 
@@ -1255,6 +1296,7 @@ router.post(
         msg: "Order Accepted",
         purchaseOrderNo: uniquePO,
         orderId: order.id,
+        createdStyles,
       });
 
     } catch (err) {

@@ -245,18 +245,36 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     });
   };
 
+  const getPieceCount = (quantity: unknown) => {
+    const numericQuantity = Math.trunc(Number(quantity));
+    return Number.isFinite(numericQuantity) && numericQuantity > 0
+      ? numericQuantity
+      : 0;
+  };
+
+  const buildStockPreviewBarcode = (
+    purchaseOrderNo: string,
+    styleNo?: string,
+    pieceIndex = 0,
+  ) => {
+    const pieceSequence = String(pieceIndex + 1).padStart(2, "0");
+    return `${purchaseOrderNo}-${styleNo || "STYLE"}-PREVIEW-${pieceSequence}`;
+  };
+
   const buildStockPreviewData = async (
     data: CreateStockOrderForm,
     purchaseOrderNo: string,
-    barcodeOverride?: string | null,
+    barcodeOverrides?: string[] | null,
   ) => {
-    const previewBarcode =
-      barcodeOverride ||
-      customers?.barcode ||
-      `${purchaseOrderNo}-${data.styleNo || "STYLE"}-PREVIEW-01`;
     const match = /\((.*?)\)/.exec(data.size);
     const sizeCountry = match?.[1] ?? customers?.size_country ?? "";
+    const displaySize = data.size.split("(")[0].trim();
     const sasCheck = await productColorSAS(customers.product_id);
+    const pieceCount = Math.max(
+      getPieceCount(data.quantity),
+      Array.isArray(barcodeOverrides) ? barcodeOverrides.length : 0,
+    );
+    const image = await convertWebPToJPG(customers?.image);
 
     const meshColorDisplay =
       customers.mesh_color === sasCheck.mesh_color
@@ -285,23 +303,23 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       orderReceivedDate: data.orderReceivedDate,
       orderType: "Stock",
       purchaseOrderNo,
-      details: [
-        {
-          quantity: data.quantity,
-          size: `${data.size.split("(")[0].trim()}/${data.quantity}`,
-          styleNo: data.styleNo,
-          barcode: previewBarcode,
-          color: "Stock",
-          size_country: sizeCountry,
-          image: await convertWebPToJPG(customers?.image),
-          meshColor: meshColorDisplay,
-          beadingColor: beadingColorDisplay,
-          lining: liningDisplay,
-          liningColor: liningColorDisplay,
-          comments: "",
-          refImg: [],
-        },
-      ],
+      details: Array.from({ length: pieceCount }, (_, pieceIndex) => ({
+        quantity: 1,
+        size: displaySize,
+        styleNo: data.styleNo,
+        barcode:
+          barcodeOverrides?.[pieceIndex] ||
+          buildStockPreviewBarcode(purchaseOrderNo, data.styleNo, pieceIndex),
+        color: "Stock",
+        size_country: sizeCountry,
+        image,
+        meshColor: meshColorDisplay,
+        beadingColor: beadingColorDisplay,
+        lining: liningDisplay,
+        liningColor: liningColorDisplay,
+        comments: "",
+        refImg: [],
+      })),
     };
   };
 
@@ -452,7 +470,31 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       // -----------------------------
       // 4️⃣ COLOR SAS LOGIC FIX (DEFINE BEFORE USING)
       // -----------------------------
-      let str = data.size;
+      const createdBarcodes = Array.isArray(response.createdStyles)
+        ? response.createdStyles
+            .map((style: any) => String(style?.barcode ?? "").trim())
+            .filter(Boolean)
+        : Array.isArray(response.barcodes)
+          ? response.barcodes
+              .map((barcode: any) => String(barcode ?? "").trim())
+              .filter(Boolean)
+          : response.barcode
+            ? [String(response.barcode)]
+            : [];
+      const preview = await buildStockPreviewData(
+        data,
+        response.purchaseOrderNo ?? data.purchaseOrderNo,
+        createdBarcodes,
+      );
+
+      setPreviewData(preview);
+
+      // -----------------------------
+      // 6ï¸âƒ£ SEND EMAIL
+      // -----------------------------
+      await StockEmail(preview);
+
+      /*
       let regex = /\((.*?)\)/;
       let match: any = regex.exec(str);
       let valueInBraces = match?.[1];
@@ -521,6 +563,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       // 6️⃣ SEND EMAIL
       // -----------------------------
       await StockEmail(preview);
+      */
 
       // -----------------------------
       // 7️⃣ SUCCESS
@@ -569,61 +612,9 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   };
 
   const onPreviewSubmit = async (data: CreateStockOrderForm) => {
-    let str = data.size;
-    let regex = /\((.*?)\)/;
-    let match: any = regex.exec(str);
-    let valueInBraces = match?.[1] ?? "";
-    let SasCheck = await productColorSAS(customers.product_id);
-
-    const meshColorDisplay =
-      customers.mesh_color === SasCheck.mesh_color
-        ? `SAS( ${findColorName(customers.mesh_color)} )`
-        : data.meshColor;
-
-    const beadingColorDisplay =
-      customers.beading_color === SasCheck.beading_color
-        ? `SAS( ${findColorName(customers.beading_color)} )`
-        : data.beadingColor;
-
-    const liningDisplay =
-      customers.lining === SasCheck.lining
-        ? `SAS( ${customers.lining} )`
-        : data.lining;
-
-    const liningColorDisplay =
-      customers.lining_color === SasCheck.lining_color
-        ? formatSasColor(findColorName(customers.lining_color))
-        : data.liningColor;
-
-    const preData = {
-      customerId: data.customerId,
-      manufacturingEmailAddress: data.manufacturingEmailAddress,
-      orderCancellationDate: data.orderCancellationDate,
-      orderReceivedDate: data.orderReceivedDate,
-      orderType: "Stock",
-      purchaseOrderNo: data.purchaseOrderNo,
-      details: [
-        {
-          quantity: data.quantity,
-          size: `${data.size.split("(")[0].trim()}/${data.quantity}`,
-          styleNo: data.styleNo,
-          size_country: valueInBraces,
-          color: "Stock",
-          image: await convertWebPToJPG(customers?.image),
-          meshColor: meshColorDisplay,
-          beadingColor: beadingColorDisplay,
-          lining: liningDisplay,
-          liningColor: liningColorDisplay,
-        },
-      ],
-    };
-
-    Object.assign(
-      preData,
+    setPreviewData(
       await buildStockPreviewData(data, data.purchaseOrderNo),
     );
-
-    setPreviewData(preData);
   };
 
   const onErrors = (errors: any) => {

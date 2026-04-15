@@ -212,7 +212,7 @@ const fetchDetails = async () => {
 
           return {
             quantity: i.quantity,
-            size: `${i.size}/${i.quantity}`,
+            size: String(i.size ?? "").trim(),
             styleNo: i.styleNo,
 
             /** 🔥 BARCODE HERE */
@@ -293,8 +293,42 @@ const fetchDetails = async () => {
   console.log("📌 STOCK ORDER DETAILS →", stock.details);
   console.log("📌 BARCODE FOUND? →", stock.details?.[0]?.barcode);
 
-  const d = stock.details[0];
-  const std = await standard(d.product_id);
+  const stockDetails = Array.isArray(stock.details) ? stock.details : [];
+  if (!stockDetails.length) {
+    throw new Error("Stock order details not found");
+  }
+
+  const previewDetails = await Promise.all(
+    stockDetails.map(async (d: any) => {
+      const std = await standard(d.product_id);
+
+      return {
+        quantity: d.quantity,
+        size: String(d.size ?? "").trim(),
+        styleNo: d.productCode,
+        barcode: d.barcode,
+        size_country: d.size_country,
+        image: await convertWebPToJPG(d.image),
+        color: d.color || "Stock",
+        meshColor:
+          d.mesh_color === std.mesh_color
+            ? formatSasColor(getColorName(std.mesh_color))
+            : getColorName(d.mesh_color),
+        beadingColor:
+          d.beading_color === std.beading_color
+            ? formatSasColor(getColorName(std.beading_color))
+            : getColorName(d.beading_color),
+        lining:
+          d.lining === std.lining ? `SAS(${d.lining})` : d.lining,
+        liningColor:
+          d.lining_color === std.lining_color
+            ? formatSasColor(getColorName(d.lining_color))
+            : getColorName(d.lining_color),
+        comments: d.comments || "",
+        refImg: [],
+      };
+    }),
+  );
 
   setPreviewData({
     id: data.id,
@@ -304,6 +338,8 @@ const fetchDetails = async () => {
     orderType: "Stock",
     purchaseOrderNo: data.purchaeOrderNo,
 
+    details: previewDetails,
+    /*
     details: [
       {
         quantity: d.quantity,
@@ -335,7 +371,8 @@ const fetchDetails = async () => {
       },
     ],
 
-    ppt_path: d.ppt_path || data.ppt_path || "",
+    */
+    ppt_path: stockDetails[0]?.ppt_path || data.ppt_path || "",
   });
 
   await fetchPPT(data.id);
