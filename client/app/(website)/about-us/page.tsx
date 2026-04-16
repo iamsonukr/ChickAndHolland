@@ -214,7 +214,7 @@ export default function BrandPage() {
           >
             <video
               ref={videoRef}
-              src="https://ymts.blr1.cdn.digitaloceanspaces.com/chicandholland/Brand_New/chick&.mov"
+              src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Brand_New/Chick&mov-lossyC.mp4"
               autoPlay
               muted
               loop

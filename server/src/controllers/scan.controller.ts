@@ -10,6 +10,7 @@ import RetailerOrdersPayment from "../models/RetailerPaymentModal";
 
 import { OrderStatus, ShippingStatus } from "../models/Order";
 import {
+  getScannerRolePrimaryStage,
   releaseReservedBarcodeScan,
   requireScannerIdentity,
   requireScannerRoleStageAccess,
@@ -30,13 +31,6 @@ const RETAILER_FLOW = [
   "Stitching",
   "Balance Pending",
 ];
-
-function nextFreshStage(current: string | null): string {
-  if (!current) return RETAILER_FLOW[0];
-
-  const index = RETAILER_FLOW.indexOf(current);
-  return RETAILER_FLOW[index + 1] || current;
-}
 /* -----------------------------------------
    ORDER STAGE INDEX FOR LOWEST STAGE LOGIC
 ------------------------------------------ */
@@ -88,12 +82,16 @@ const STOCK_FLOW = [
   "Shipped",
 ];
 
-function nextStockStage(current: string | null): string {
-  if (!current) return STOCK_FLOW[0];
-
-  const index = STOCK_FLOW.indexOf(current);
-  return STOCK_FLOW[index + 1] || current;
-}
+const STOCK_GUARD_FLOW = [
+  "Pattern",
+  "Khaka",
+  "Issue Beading",
+  "Beading",
+  "Zarkan",
+  "Stitching",
+  "Ready To Delivery",
+  "Shipped",
+];
 
 async function resolveRetailerScannerStage(req: Request) {
   const barcode = String(req.body?.barcode ?? "").trim();
@@ -118,7 +116,26 @@ async function resolveRetailerScannerStage(req: Request) {
   }
 
   if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
-    return req.body?.confirmShip === true ? OrderStatus.Shipped : null;
+    const last = await StyleProgress.findOne({
+      where: { barcode },
+      order: { createdAt: "DESC" },
+    });
+
+    return req.body?.confirmShip === true
+      ? {
+          currentStage: last?.stage || null,
+          targetStage: OrderStatus.Shipped,
+          flowStages: [...RETAILER_FLOW, OrderStatus.Shipped],
+        }
+      : null;
+  }
+
+  const targetStage = getScannerRolePrimaryStage(
+    (req as any).scannerIdentity?.scannerRoleName,
+  );
+
+  if (!targetStage || !RETAILER_FLOW.includes(targetStage)) {
+    return null;
   }
 
   const last = await StyleProgress.findOne({
@@ -126,7 +143,11 @@ async function resolveRetailerScannerStage(req: Request) {
     order: { createdAt: "DESC" },
   });
 
-  return nextFreshStage(last?.stage || null);
+  return {
+    currentStage: last?.stage || null,
+    targetStage,
+    flowStages: [...RETAILER_FLOW, OrderStatus.Shipped],
+  };
 }
 
 async function resolveStockScannerStage(req: Request) {
@@ -161,12 +182,24 @@ async function resolveStockScannerStage(req: Request) {
     return null;
   }
 
+  const targetStage = getScannerRolePrimaryStage(
+    (req as any).scannerIdentity?.scannerRoleName,
+  );
+
+  if (!targetStage || !STOCK_FLOW.includes(targetStage)) {
+    return null;
+  }
+
   const last = await StyleProgress.findOne({
     where: { barcode },
     order: { createdAt: "DESC" },
   });
 
-  return nextStockStage(last?.stage || null);
+  return {
+    currentStage: last?.stage || null,
+    targetStage,
+    flowStages: STOCK_GUARD_FLOW,
+  };
 }
 
 /* -----------------------------------------
@@ -316,7 +349,30 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
     });
 
     const currentStage = last?.stage || null;
-    const nextStage = nextFreshStage(currentStage);
+    const isShippingScan =
+      (order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery &&
+      req.body.confirmShip === true;
+    const targetStage = isShippingScan
+      ? OrderStatus.Shipped
+      : getScannerRolePrimaryStage((req as any).scannerIdentity?.scannerRoleName);
+
+    if (!targetStage) {
+      return res.status(403).json({
+        success: false,
+        code: "SCANNER_STAGE_FORBIDDEN",
+        message: "Your scanner login is not mapped to a stage.",
+      });
+    }
+
+    if (!isShippingScan && !RETAILER_FLOW.includes(targetStage)) {
+      return res.status(403).json({
+        success: false,
+        code: "SCANNER_STAGE_FORBIDDEN",
+        message: `${targetStage} cannot be scanned in the retailer manufacturing flow.`,
+        currentStage,
+        nextStage: targetStage,
+      });
+    }
 
     const scanReservation = await reserveUniqueBarcodeScan(
       req,
@@ -332,28 +388,9 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
       /* --------- INSERT STYLE PROGRESS --------- */
       const progress = new StyleProgress();
       progress.barcode = barcode;
-      progress.stage = nextStage as any;
+      progress.stage = targetStage as any;
       progress.qty = 1;
       await progress.save();
-
-      /* --------- CHECK IF ALL STYLES REACHED NEXT STAGE --------- */
-      const allStyles = await RetailerOrderStyles.find({
-        where: { retailerOrder: { id: order.id } },
-      });
-
-      let allReached = true;
-
-      for (const s of allStyles) {
-        const last = await StyleProgress.findOne({
-          where: { barcode: s.barcode },
-          order: { id: "DESC" },
-        });
-
-        if (!last || last.stage !== nextStage) {
-          allReached = false;
-          break;
-        }
-      }
 
       /* --------- UPDATE ORDER ONLY IF ALL STYLES MATCH --------- */
     /* --------- SMART ORDER STATUS UPDATE --------- */
@@ -362,15 +399,15 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
     const lowestStage = await getLowestStage(order.id);
 
     // 2) If lowest stage equals next stage → update order
-    if (lowestStage === nextStage) {
+    if (lowestStage === targetStage) {
       const now = new Date();
 
-      order.orderStatus = nextStage as any;
+      order.orderStatus = targetStage as any;
 
-      const field = nextStage.toLowerCase().replace(/\s+/g, "_");
+      const field = targetStage.toLowerCase().replace(/\s+/g, "_");
       (order as any)[field] = now;
 
-      if (nextStage === "Shipped") {
+      if (targetStage === "Shipped") {
         order.shippingStatus = ShippingStatus.Shipped;
         order.shippingDate = now;
         order.status_id = 1;
@@ -380,9 +417,9 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
 
       return res.json({
         success: true,
-        message: `Order moved to ${nextStage}`,
+        message: `Order moved to ${targetStage}`,
         currentStage,
-        nextStage,
+        nextStage: targetStage,
         orderUpdated: true,
       });
     }
@@ -390,20 +427,11 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
     // 3) Order will NOT update because other styles are behind
     return res.json({
       success: true,
-      message: `Style moved to ${nextStage}, waiting for all styles`,
+      message: `Style moved to ${targetStage}, waiting for all styles`,
       currentStage,
-      nextStage,
+      nextStage: targetStage,
       orderUpdated: false,
     });
-
-      /* --------- RETURN RESPONSE --------- */
-      return res.json({
-        success: true,
-        message: `Moved to ${nextStage}`,
-        currentStage,
-        nextStage,
-        orderUpdated: allReached,
-      });
     } catch (error) {
       await releaseReservedBarcodeScan(scanReservation.scanId);
       throw error;
@@ -459,7 +487,27 @@ router.post(
     });
 
     const currentStage = last?.stage || null;
-    const nextStage = nextStockStage(currentStage);
+    const targetStage = getScannerRolePrimaryStage(
+      (req as any).scannerIdentity?.scannerRoleName,
+    );
+
+    if (!targetStage) {
+      return res.status(403).json({
+        success: false,
+        code: "SCANNER_STAGE_FORBIDDEN",
+        message: "Your scanner login is not mapped to a stage.",
+      });
+    }
+
+    if (!STOCK_FLOW.includes(targetStage)) {
+      return res.status(403).json({
+        success: false,
+        code: "SCANNER_STAGE_FORBIDDEN",
+        message: `${targetStage} cannot be scanned in the stock flow.`,
+        currentStage,
+        nextStage: targetStage,
+      });
+    }
 
     const scanReservation = await reserveUniqueBarcodeScan(
       req,
@@ -475,15 +523,15 @@ router.post(
       /* -------- INSERT LOG -------- */
       const progress = new StyleProgress();
       progress.barcode = barcode;
-      progress.stage = nextStage as any;
+      progress.stage = targetStage as any;
       progress.qty = 1;
       await progress.save();
 
       return res.json({
         success: true,
-        message: `Stock moved to ${nextStage}`,
+        message: `Stock moved to ${targetStage}`,
         currentStage,
-        nextStage,
+        nextStage: targetStage,
       });
     } catch (error) {
       await releaseReservedBarcodeScan(scanReservation.scanId);

@@ -12,6 +12,12 @@ export type ScannerIdentity = {
   scannerRoleName: string | null;
 };
 
+export type ScanStageAccessContext = {
+  currentStage?: string | null;
+  targetStage?: string | null;
+  flowStages?: string[];
+};
+
 type ReserveScanResult =
   | {
       success: true;
@@ -48,6 +54,8 @@ const normalizeStageKey = (value?: string | null) =>
     .toLowerCase()
     .replace(/[\s_]+/g, "-");
 
+const normalizeStageLabel = (value?: string | null) => String(value ?? "").trim();
+
 const SCANNER_ROLE_STAGE_RULES: Record<string, string[]> = {
   "pattern-master": ["Pattern"],
   "khaka-master": ["Khaka"],
@@ -64,6 +72,26 @@ const SCANNER_ROLE_STAGE_RULES: Record<string, string[]> = {
   "shipped-master": ["Shipped"],
   "shipping-master": ["Shipped"],
 };
+
+const getFlowStageIndex = (flowStages: string[], stage?: string | null) => {
+  const normalizedStage = normalizeStageKey(stage);
+
+  if (!normalizedStage) {
+    return -1;
+  }
+
+  return flowStages.findIndex(
+    (flowStage) => normalizeStageKey(flowStage) === normalizedStage,
+  );
+};
+
+export const getScannerRoleAllowedStages = (scannerRoleName?: string | null) => {
+  const normalizedRole = normalizeRoleKey(scannerRoleName);
+  return [...(SCANNER_ROLE_STAGE_RULES[normalizedRole] || [])];
+};
+
+export const getScannerRolePrimaryStage = (scannerRoleName?: string | null) =>
+  getScannerRoleAllowedStages(scannerRoleName)[0] || null;
 
 const getScannerRoleName = async (
   scannerId: number,
@@ -244,12 +272,17 @@ export async function releaseReservedBarcodeScan(scanId?: number | null) {
   await db.query(`DELETE FROM ${SCAN_GUARD_TABLE} WHERE id = ?`, [scanId]);
 }
 
-type NextStageResolver = (
+type StageAccessResolver = (
   req: Request,
-) => Promise<string | null | undefined> | string | null | undefined;
+) =>
+  | Promise<ScanStageAccessContext | string | null | undefined>
+  | ScanStageAccessContext
+  | string
+  | null
+  | undefined;
 
 export const requireScannerRoleStageAccess =
-  (resolveNextStage: NextStageResolver) =>
+  (resolveStageAccess: StageAccessResolver) =>
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const scanner = (req as any).scannerIdentity as
@@ -264,14 +297,24 @@ export const requireScannerRoleStageAccess =
         });
       }
 
-      const nextStage = String((await resolveNextStage(req)) ?? "").trim();
+      const resolvedAccess = await resolveStageAccess(req);
+      const accessContext: ScanStageAccessContext =
+        resolvedAccess &&
+        typeof resolvedAccess === "object" &&
+        !Array.isArray(resolvedAccess)
+          ? (resolvedAccess as ScanStageAccessContext)
+          : {
+              targetStage:
+                typeof resolvedAccess === "string" ? resolvedAccess : null,
+            };
 
-      if (!nextStage) {
+      const targetStage = normalizeStageLabel(accessContext?.targetStage);
+
+      if (!targetStage) {
         return next();
       }
 
-      const normalizedRole = normalizeRoleKey(scanner.scannerRoleName);
-      const allowedStages = SCANNER_ROLE_STAGE_RULES[normalizedRole];
+      const allowedStages = getScannerRoleAllowedStages(scanner.scannerRoleName);
 
       if (!allowedStages?.length) {
         return next();
@@ -279,21 +322,65 @@ export const requireScannerRoleStageAccess =
 
       const isAllowed = allowedStages.some(
         (allowedStage) =>
-          normalizeStageKey(allowedStage) === normalizeStageKey(nextStage),
+          normalizeStageKey(allowedStage) === normalizeStageKey(targetStage),
       );
 
-      if (isAllowed) {
-        return next();
+      if (!isAllowed) {
+        return res.status(403).json({
+          success: false,
+          code: "SCANNER_STAGE_FORBIDDEN",
+          message: `Your role ${scanner.scannerRoleName} can only scan ${allowedStages.join(", ")} stage items. This scan is trying to mark ${targetStage}.`,
+          scannerRole: scanner.scannerRoleName,
+          allowedStages,
+          currentStage: accessContext?.currentStage ?? null,
+          nextStage: targetStage,
+        });
       }
 
-      return res.status(403).json({
-        success: false,
-        code: "SCANNER_STAGE_FORBIDDEN",
-        message: `Your role ${scanner.scannerRoleName} can only scan ${allowedStages.join(", ")} stage items. This item is ready for ${nextStage}.`,
-        scannerRole: scanner.scannerRoleName,
-        allowedStages,
-        nextStage,
-      });
+      const flowStages = Array.isArray(accessContext?.flowStages)
+        ? accessContext.flowStages
+            .map((stage: string) => normalizeStageLabel(stage))
+            .filter(Boolean)
+        : [];
+
+      if (flowStages.length) {
+        const targetStageIndex = getFlowStageIndex(flowStages, targetStage);
+
+        if (targetStageIndex === -1) {
+          return res.status(403).json({
+            success: false,
+            code: "SCANNER_STAGE_FORBIDDEN",
+            message: `${targetStage} is not available in this scan flow.`,
+            scannerRole: scanner.scannerRoleName,
+            allowedStages,
+            currentStage: accessContext?.currentStage ?? null,
+            nextStage: targetStage,
+          });
+        }
+
+        const currentStage = normalizeStageLabel(accessContext?.currentStage);
+        const currentStageIndex = getFlowStageIndex(flowStages, currentStage);
+
+        if (currentStage && currentStageIndex !== -1 && targetStageIndex <= currentStageIndex) {
+          const isSameStage = targetStageIndex === currentStageIndex;
+
+          return res.status(409).json({
+            success: false,
+            code: isSameStage
+              ? "SCANNER_STAGE_ALREADY_DONE"
+              : "SCANNER_STAGE_REGRESSION",
+            message: isSameStage
+              ? `This item is already at ${targetStage}.`
+              : `This item is already at ${currentStage}. You can only scan forward stages.`,
+            scannerRole: scanner.scannerRoleName,
+            allowedStages,
+            currentStage,
+            nextStage: targetStage,
+          });
+        }
+      }
+
+      return next();
     } catch (error) {
       next(error);
     }

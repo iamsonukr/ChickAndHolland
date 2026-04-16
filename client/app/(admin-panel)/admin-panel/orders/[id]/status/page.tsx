@@ -3,7 +3,6 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { API_URL } from "@/lib/constants";
-import { Card } from "@/components/ui/card";
 
 import StatusLabelBox from "@/components/StatusLabelBox";
 import StatusLabelBox1 from "@/components/StoreLable";
@@ -13,18 +12,15 @@ import { PDFDownloadLink } from "@react-pdf/renderer";
 import LabelPdf from "@/components/LabelPdf";
 import LabelPdf1 from "@/components/LabelBox";
 import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
+import { normalizeBarcodeValue } from "@/lib/barcodes";
+import GoBackButton from "@/components/GoBackButton";
 
-const formatReportValue = (value: unknown) => {
-  const text = String(value ?? "").trim();
-  return text || "-";
-};
+const formatReportValue = (value: unknown) =>
+  String(value ?? "").trim() || "-";
 
 const formatReportSize = (item: any) => {
   const size = String(item?.size ?? "").trim();
-
-  if (!size) {
-    return "-";
-  }
+  if (!size) return "-";
 
   const sizeCountry = String(item?.size_country ?? "").trim();
   const quantity = item?.quantity;
@@ -43,24 +39,204 @@ const formatReportSize = (item: any) => {
   return `${prefixedSize} / ${quantity}`;
 };
 
-function ReportIdentity({ item }: { item: any }) {
-  const entries = [
-    ["Style No", formatReportValue(item?.styleNo)],
-    ["Scan Code", formatReportValue(item?.barcode)],
-    ["Size", formatReportSize(item)],
-  ];
+type ReportType = "RETAILER" | "STORE" | "STOCK";
+
+interface NormalizedItem {
+  raw: any;
+  type: ReportType;
+}
+
+const TYPE_BADGE: Record<ReportType, string> = {
+  RETAILER: "bg-blue-100 text-blue-700 border-blue-200",
+  STORE: "bg-green-100 text-green-700 border-green-200",
+  STOCK: "bg-purple-100 text-purple-700 border-purple-200",
+};
+
+const TYPE_RING: Record<ReportType, string> = {
+  RETAILER: "ring-blue-400",
+  STORE: "ring-green-400",
+  STOCK: "ring-purple-400",
+};
+
+const TYPE_DOT: Record<ReportType, string> = {
+  RETAILER: "bg-blue-500",
+  STORE: "bg-green-500",
+  STOCK: "bg-purple-500",
+};
+
+function ProgressPopup({
+  progress,
+  onClose,
+}: {
+  progress: any[];
+  onClose: () => void;
+}) {
+  const sorted = [...progress].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
 
   return (
-    <div className="grid gap-3 rounded-lg border bg-muted/30 p-3 text-sm sm:grid-cols-3">
-      {entries.map(([label, value]) => (
-        <div key={label}>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-            {label}
-          </div>
-          <div className="font-medium">{value}</div>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl bg-white p-4 sm:p-5 shadow-2xl space-y-4 max-h-[80vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-800">Stage History</h3>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="h-11 w-11 flex items-center justify-center rounded-full text-xl leading-none text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          >
+            ×
+          </button>
         </div>
-      ))}
+
+        <ol className="relative border-l border-gray-200 space-y-4 pl-4">
+          {sorted.map((p, i) => (
+            <li key={p.id ?? i} className="relative">
+              <span
+                className={`absolute -left-[19px] top-1 w-3 h-3 rounded-full border-2 border-white ${i === sorted.length - 1
+                    ? "bg-green-500 animate-pulse"
+                    : "bg-gray-300"
+                  }`}
+              />
+              <p className="text-xs font-medium text-gray-800 break-words">
+                {p.stage || p.status}
+              </p>
+              <p className="mt-0.5 text-[10px] text-gray-400">
+                {new Date(p.createdAt).toLocaleDateString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+                {" · "}
+                {new Date(p.createdAt).toLocaleTimeString("en-GB", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </div>
     </div>
+  );
+}
+
+function ItemCard({
+  raw,
+  type,
+  onRefresh,
+}: NormalizedItem & { onRefresh: () => void }) {
+  const [showProgress, setShowProgress] = useState(false);
+
+  const barcode = normalizeBarcodeValue(raw.barcode);
+  const LabelComponent = type === "STORE" ? StatusLabelBox1 : StatusLabelBox;
+  const PdfComponent = type === "STORE" ? LabelPdf1 : LabelPdf;
+
+  const progress: any[] = raw.progress ?? [];
+  const sorted = [...progress].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+  const currentStage = sorted[sorted.length - 1];
+
+  return (
+    <>
+      {showProgress && (
+        <ProgressPopup
+          progress={progress}
+          onClose={() => setShowProgress(false)}
+        />
+      )}
+
+      <div
+        className={`rounded-xl border bg-white shadow-sm ring-1 ${TYPE_RING[type]} p-3 sm:p-4 flex flex-col gap-4 min-w-0`}
+      >
+        <div className="flex flex-col gap-3 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <span
+              className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full border ${TYPE_BADGE[type]}`}
+            >
+              {type}
+            </span>
+
+            <div className="min-w-0 text-right">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                Size
+              </p>
+              <p className="text-xs sm:text-sm font-medium break-words">
+                {formatReportSize(raw)}
+              </p>
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              Style No
+            </p>
+            <p className="font-bold text-sm sm:text-base text-foreground break-words">
+              {formatReportValue(raw.styleNo)}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => progress.length > 0 && setShowProgress(true)}
+          className={`w-full flex items-center gap-2 rounded-lg px-3 py-3 text-left transition-colors min-h-[44px] ${progress.length > 0
+              ? "bg-gray-50 hover:bg-gray-100 cursor-pointer"
+              : "bg-gray-50 cursor-default"
+            }`}
+        >
+          <span
+            className={`shrink-0 h-2.5 w-2.5 rounded-full ${currentStage ? TYPE_DOT[type] : "bg-gray-300"
+              }`}
+          />
+          <span className="text-xs sm:text-sm font-medium text-gray-700 flex-1 break-words">
+            {currentStage
+              ? currentStage.stage || currentStage.status
+              : "No stages"}
+          </span>
+          {progress.length > 1 && (
+            <span className="text-[10px] text-gray-400 shrink-0">
+              {progress.length} ›
+            </span>
+          )}
+        </button>
+
+        <div className="mt-auto flex flex-col gap-2 pt-3 border-t">
+          <div className="w-full">
+            <StatusScannerButton
+              barcode={barcode}
+              orderType={type}
+              onScanned={onRefresh}
+            />
+          </div>
+
+          <div className="w-full">
+            <LabelComponent item={raw} orderType={type} />
+          </div>
+
+          <PDFDownloadLink
+            document={<PdfComponent item={raw} />}
+            fileName={`${raw.styleNo}-label.pdf`}
+            className="w-full"
+          >
+            {({ loading }: { loading: boolean }) => (
+              <button
+                type="button"
+                className="w-full rounded-lg bg-black px-3 py-3 text-xs sm:text-sm font-medium text-white min-h-[44px] hover:bg-gray-900"
+              >
+                {loading ? "Generating..." : "Download PDF"}
+              </button>
+            )}
+          </PDFDownloadLink>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -74,55 +250,57 @@ export default function OrderStatusPage({
   const orderSource = searchParams?.get("source");
   const orderType = searchParams?.get("type");
 
-  const [retailerReport, setRetailerReport] = useState<any[]>([]);
-  const [storeReport, setStoreReport] = useState<any[]>([]);
-  const [stockReport, setStockReport] = useState<any[]>([]);
+  const [allItems, setAllItems] = useState<NormalizedItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
-    setRetailerReport([]);
-    setStoreReport([]);
-    setStockReport([]);
+    const collected: NormalizedItem[] = [];
+
+    const fetchAndCollect = async (url: string, type: ReportType) => {
+      try {
+        const res = await fetch(url);
+        const json = await res.json();
+
+        if (json.success) {
+          (json.data || []).forEach((item: any) =>
+            collected.push({ raw: item, type })
+          );
+        }
+      } catch { }
+    };
 
     if (orderSource === "regular") {
-      try {
-        const res = await fetch(`${API_URL}/orders/store-status/report/${id}`);
-        const json = await res.json();
-        if (json.success) setStoreReport(json.data || []);
-      } catch {}
+      await fetchAndCollect(
+        `${API_URL}/orders/store-status/report/${id}`,
+        "STORE"
+      );
     } else if (orderSource === "retailer" && orderType === "Stock") {
-      try {
-        const res = await fetch(`${API_URL}/report/stock-status/report/${id}`);
-        const json = await res.json();
-        if (json.success) setStockReport(json.data || []);
-      } catch {}
+      await fetchAndCollect(
+        `${API_URL}/report/stock-status/report/${id}`,
+        "STOCK"
+      );
     } else if (orderSource === "retailer") {
-      try {
-        const res = await fetch(`${API_URL}/report/status/report/${id}`);
-        const json = await res.json();
-        if (json.success) setRetailerReport(json.data || []);
-      } catch {}
+      await fetchAndCollect(
+        `${API_URL}/report/status/report/${id}`,
+        "RETAILER"
+      );
     } else {
-      try {
-        const res = await fetch(`${API_URL}/report/status/report/${id}`);
-        const json = await res.json();
-        if (json.success) setRetailerReport(json.data || []);
-      } catch {}
-
-      try {
-        const res2 = await fetch(`${API_URL}/orders/store-status/report/${id}`);
-        const json2 = await res2.json();
-        if (json2.success) setStoreReport(json2.data || []);
-      } catch {}
-
-      try {
-        const res3 = await fetch(`${API_URL}/report/stock-status/report/${id}`);
-        const json3 = await res3.json();
-        if (json3.success) setStockReport(json3.data || []);
-      } catch {}
+      await Promise.all([
+        fetchAndCollect(`${API_URL}/report/status/report/${id}`, "RETAILER"),
+        fetchAndCollect(
+          `${API_URL}/orders/store-status/report/${id}`,
+          "STORE"
+        ),
+        fetchAndCollect(
+          `${API_URL}/report/stock-status/report/${id}`,
+          "STOCK"
+        ),
+      ]);
     }
 
+    setAllItems(collected);
     setLoading(false);
   }, [id, orderSource, orderType]);
 
@@ -140,189 +318,80 @@ export default function OrderStatusPage({
     );
   }
 
-  const nothing =
-    !retailerReport.length &&
-    !storeReport.length &&
-    !stockReport.length;
+  if (!allItems.length) return <p className="p-4 sm:p-6">No report found</p>;
 
-  if (nothing) return <p className="p-6">No report found</p>;
+  const q = search.toLowerCase();
+  const filtered = allItems.filter(({ raw }) => {
+    const styleNo = String(raw.styleNo ?? "").toLowerCase();
+    const size = formatReportSize(raw).toLowerCase();
+    return styleNo.includes(q) || size.includes(q);
+  });
 
   return (
-    <div className="p-6">
 
-      {/* ================= HEADER ================= */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Order Status Report</h1>
+    <div className="px-3 py-4 sm:p-4 md:p-6">
+      <div className="rounded-lg bg-white shadow p-3 sm:p-4 md:p-6">
+        <div className="mb-5 sm:mb-6 flex flex-col gap-4">
 
-        {/* QR SCAN BUTTON */}
-        {/* <Link href="/admin-panel/orders/qr-scan">
-          <Button variant="outline" className="text-sm">
-            📷 QR Scan
-          </Button>
-        </Link> */}
+          {/* Top Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+            {/* Left Section */}
+            <div className="min-w-0">
+              <GoBackButton className="mb-2" label="Back to Orders" />
+
+              <h1 className="text-xl sm:text-2xl font-bold break-words">
+                Order Status Report
+              </h1>
+
+              <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+                Total items: {filtered.length}
+              </p>
+            </div>
+
+            {/* Right Section (Search) */}
+            <div className="w-full sm:w-auto">
+              <input
+                type="text"
+                placeholder="Search by style no or size..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full sm:w-72 md:w-80 rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+          </div>
+        </div>
+
+
+        <div className="mb-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+          {(["RETAILER", "STORE", "STOCK"] as ReportType[]).map((t) => {
+            const count = filtered.filter((i) => i.type === t).length;
+            if (!count) return null;
+
+            return (
+              <span
+                key={t}
+                className={`px-2.5 py-1 rounded-full border font-medium ${TYPE_BADGE[t]}`}
+              >
+                {t}: {count}
+              </span>
+            );
+          })}
+
+          {filtered.length === 0 && <span>No results</span>}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filtered.map(({ raw, type }, i) => (
+            <ItemCard
+              key={`${type}-${raw.styleId ?? i}`}
+              raw={raw}
+              type={type}
+              onRefresh={fetchReport}
+            />
+          ))}
+        </div>
       </div>
-
-      {/* ================================================= */}
-      {/* 🔵 RETAILER REPORT */}
-      {/* ================================================= */}
-      {retailerReport.length > 0 && (
-        <div className="mb-10">
-          <h2 className="text-xl font-bold mb-4 text-blue-600">
-            Retailer Order Status
-          </h2>
-
-          {retailerReport.map((item: any) => (
-            <Card key={item.styleId} className="p-4 mb-4 border-2">
-              <div className="flex justify-between gap-6">
-                <div className="flex-1 space-y-3">
-                  <ReportIdentity item={item} />
-
-                  {/* <p>Total Qty: {item.totalQty}</p>
-                  <p>Completed: {item.completed}</p>
-                  <p>Remaining: {item.remaining}</p> */}
-
-                  <h3 className="font-semibold">Progress Logs</h3>
-
-                  {item.progress?.map((p: any) => (
-                    <div key={p.id} className="text-sm">
-                      {p.stage} — 
-                      {/* {p.qty} pcs —{" "} */}
-                      {new Date(p.createdAt).toLocaleDateString()}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-col items-center gap-2">
-                  <StatusScannerButton
-                    barcode={item.barcode}
-                    orderType="RETAILER"
-                    onScanned={fetchReport}
-                  />
-                  <StatusLabelBox item={item} orderType="RETAILER" />
-                  <PDFDownloadLink
-                    document={<LabelPdf item={item} />}
-                    fileName={`${item.styleNo}-label.pdf`}
-                  >
-                    {({ loading }) => (
-                      <button className="rounded bg-black px-3 py-1 text-xs text-white">
-                        {loading ? "Preparing PDF..." : "⬇ Download Label"}
-                      </button>
-                    )}
-                  </PDFDownloadLink>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* ================================================= */}
-      {/* 🟢 STORE REPORT */}
-      {/* ================================================= */}
-      {storeReport.length > 0 && (
-        <div className="mb-10">
-          <h2 className="text-xl font-bold mb-4 text-green-600">
-            Store Order Status
-          </h2>
-
-          {storeReport.map((item: any) => (
-            <Card key={item.styleId} className="p-4 mb-4 border-2">
-              <div className="flex justify-between gap-6">
-                <div className="flex-1 space-y-3">
-                  <ReportIdentity item={item} />
-
-                  {/* <p>Total Qty: {item.totalQty}</p>
-                  <p>Completed: {item.completedQty}</p>
-                  <p>Remaining: {item.remainingQty}</p> */}
-
-                  <h3 className="font-semibold">Progress Logs</h3>
-
-                  {item.progress?.map((p: any) => (
-                    <div key={p.id} className="text-sm">
-                      {p.stage || p.status} — 
-                      {/* {p.qty} pcs —{" "} */}
-                      {new Date(p.createdAt).toLocaleDateString()}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-col items-center gap-2">
-                  <StatusScannerButton
-                    barcode={item.barcode}
-                    orderType="STORE"
-                    onScanned={fetchReport}
-                  />
-                  <StatusLabelBox1 item={item} orderType="STORE" />
-                  <PDFDownloadLink
-                    document={<LabelPdf1 item={item} />}
-                    fileName={`${item.styleNo}-label.pdf`}
-                  >
-                    {({ loading }) => (
-                      <button className="rounded bg-black px-3 py-1 text-xs text-white">
-                        {loading ? "Preparing PDF..." : "⬇ Download Label"}
-                      </button>
-                    )}
-                  </PDFDownloadLink>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* ================================================= */}
-      {/* 🟣 STOCK REPORT */}
-      {/* ================================================= */}
-      {stockReport.length > 0 && (
-        <div>
-          <h2 className="text-xl font-bold mb-4 text-purple-600">
-            Stock Order Status
-          </h2>
-
-          {stockReport.map((item: any) => (
-            <Card key={item.styleId} className="p-4 mb-4 border-2">
-              <div className="flex justify-between gap-6">
-                <div className="flex-1 space-y-3">
-                  <ReportIdentity item={item} />
-
-                  {/* <p>Total Qty: {item.totalQty}</p>
-                  <p>Completed: {item.completedQty}</p>
-                  <p>Remaining: {item.remainingQty}</p> */}
-
-                  <h3 className="font-semibold">Progress Logs</h3>
-
-                  {item.progress?.map((p: any) => (
-                    <div key={p.id} className="text-sm">
-                      {p.stage || p.status} — 
-                      {/* {p.qty} pcs —{" "} */}
-                      {new Date(p.createdAt).toLocaleDateString()}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-col items-center gap-2">
-                  <StatusScannerButton
-                    barcode={item.barcode}
-                    orderType="STOCK"
-                    onScanned={fetchReport}
-                  />
-                  <StatusLabelBox item={item} orderType="STOCK" />
-                  <PDFDownloadLink
-                    document={<LabelPdf item={item} />}
-                    fileName={`${item.styleNo}-label.pdf`}
-                  >
-                    {({ loading }) => (
-                      <button className="rounded bg-black px-3 py-1 text-xs text-white">
-                        {loading ? "Preparing PDF..." : "⬇ Download Label"}
-                      </button>
-                    )}
-                  </PDFDownloadLink>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

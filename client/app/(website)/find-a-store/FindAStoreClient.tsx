@@ -107,8 +107,14 @@ export default function FindAStoreClient({ clientsData }) {
 
 const handleStoreSelect = (store) => {
   const el = document.getElementById("mapArea");
+
   if (el) {
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    const y = el.getBoundingClientRect().top + window.pageYOffset - 100;
+
+    window.scrollTo({
+      top: y,
+      behavior: "smooth",
+    });
   }
 
   setSelectedStore(store);
@@ -118,16 +124,17 @@ const handleStoreSelect = (store) => {
   });
 };
   return (
-    <div className="w-full bg-gradient-to-br from-slate-50 to-gray-50 min-h-screen mt-5">
+    <div     id="mapArea" className="w-full  bg-gradient-to-br from-slate-50 to-gray-50 min-h-screen mt-5">
       {/* HEADER */}
       <div className="pt-3 pb-3 text-center bg-white shadow-sm">
-        <h1 id="mapArea" className="text-3xl sm:text-4xl font-bold font-adornstoryserif text-black">
+        <h1  className="text-3xl sm:text-4xl font-bold font-adornstoryserif text-black">
           OUR RETAILERS
         </h1>
       </div>
 
       {/* MAIN WRAPPER */}
       <div
+  
         className="
           mt-6
           grid

@@ -334,34 +334,36 @@ export default function Home() {
       </div>
 
       <div className="flex flex-col gap-4 py-8">
-        <SectionHeader title="300 HOURS" subtitle="COUTURE 2025/26" />
-        <div className="flex flex-row gap-2 md:gap-2">
-          {COLLECTION_VIDEOS.map(({ seq, posterSrc, posterAlt }) => (
-            <Link
-              key={seq}
-              href="/collections/72/80"
-              className="block h-full w-1/4"
-            >
-              <LazyHlsVideo
-                src={`${BASE_HLS}/${seq}/hls/playlist.m3u8`}
-                fallbackSrc={`${BASE_MP4}/${seq}.mp4`}
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                controlsList="nodownload"
-                posterSrc={posterSrc}
-                posterAlt={posterAlt}
-                imageSizes={CAROUSEL_IMAGE_SIZES}
-                rootMargin="250px"
-                wrapperClassName="aspect-[2/3]"
-                className="h-full w-full object-cover"
-              />
-            </Link>
-          ))}
-        </div>
-      </div>
+  <SectionHeader title="300 HOURS" subtitle="COUTURE 2025/26" />
+
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-2">
+    {COLLECTION_VIDEOS.map(({ seq, posterSrc, posterAlt }) => (
+      <Link
+        key={seq}
+        href="/collections/72/80"
+        className="block h-full w-full"
+      >
+        <LazyHlsVideo
+          src={`${BASE_HLS}/${seq}/hls/playlist.m3u8`}
+          fallbackSrc={`${BASE_MP4}/${seq}.mp4`}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          controlsList="nodownload"
+          posterSrc={posterSrc}
+          posterAlt={posterAlt}
+          imageSizes={CAROUSEL_IMAGE_SIZES}
+          rootMargin="250px"
+          wrapperClassName="aspect-[2/3]"
+          className="h-full w-full object-cover"
+        />
+      </Link>
+    ))}
+  </div>
+</div>
+
 
       <div className="flex flex-col gap-4 py-8">
         <SectionHeader

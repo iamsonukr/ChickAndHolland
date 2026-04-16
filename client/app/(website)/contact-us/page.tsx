@@ -125,7 +125,7 @@ const ContactUs = () => {
             <div className="relative w-full h-[60vh] sm:h-[70vh] lg:h-full">
               <video
                 ref={videoRef}
-                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/IOS_Converted/Sequence_01_6_ios.mp4"
+                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/IOS_Converted/Sequence%2001%206%20Ios-LossyC.mp4"
                 autoPlay={true}
                 muted={true}
                 loop={true}

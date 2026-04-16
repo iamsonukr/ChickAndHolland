@@ -7,13 +7,21 @@ const TopSection = ({
   subCategoryId: number;
   name: string;
 }) => {
-  const videoMap = {
-    80: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001.mp4",
-    82: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001_1.mp4",
-    83: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001_1.mp4",
-    84: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001_4.mp4",
-    85: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001_1.mp4",
-  };
+const videoMap = {
+  80: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001-lossyC.mp4",
+  82: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
+  83: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
+  84: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%204-lossyC.mp4",
+  85: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
+};
+
+  // const videoMap = {
+  //   80: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001.mp4",
+  //   82: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001_1.mp4",
+  //   83: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001_1.mp4",
+  //   84: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001_4.mp4",
+  //   85: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001_1.mp4",
+  // };
 
   const customVideo = videoMap[subCategoryId];
   const showMultipleVideos = [65, 67, 68].includes(subCategoryId);
