@@ -25,10 +25,12 @@ const Users = async (
   const currentPage = searchParams["cPage"] ? Number(searchParams["cPage"]) : 1;
   const query = searchParams["q"] ? searchParams["q"] : "";
 
-  const users = await getUsers({
+  const { users, totalCount } = await getUsers({
     page: currentPage,
     query,
   });
+
+  console.log("🚀 ~ file: page.tsx:24 ~ Users ~ users:", users, totalCount);
 
 
   return (
@@ -58,7 +60,7 @@ const Users = async (
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users?.users?.map((user: any) => {
+              {users?.map((user: any) => {
                 return (
                   <TableRow key={user.id}>
                     <TableCell>{user.username}</TableCell>
@@ -74,9 +76,11 @@ const Users = async (
             </Table>
           </TableScrollWrapper>
 
+
           <CustomPagination
             currentPage={currentPage}
-            totalLength={users?.totalCount}
+            totalLength={Number(totalCount)}
+            itemsPerPage={10}
           />
         </div>
       </div>

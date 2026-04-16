@@ -14,19 +14,22 @@ import { useSearchParams } from "next/navigation";
 const CustomPagination = ({
   totalLength,
   currentPage,
+  itemsPerPage = 50,
   resetOtherFields = true,
 }: {
   totalLength: number | undefined;
   currentPage: number;
+  itemsPerPage: number;
   resetOtherFields?: boolean;
 }) => {
   const searchParams = useSearchParams();
+  console.log("🚀 ~ file: customPagination.tsx:17 ~ CustomPagination ~ searchParams:", searchParams?.toString(), totalLength, currentPage);
 
   if (totalLength === undefined || totalLength <= 0) {
     return null;
   }
 
-  const itemsPerPage = 50;
+  
   const totalPages = Math.ceil(totalLength / itemsPerPage);
 
   const generatePageNumbers = () => {

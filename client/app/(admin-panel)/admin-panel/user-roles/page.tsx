@@ -72,6 +72,7 @@ const UserRoles = async (
           <CustomPagination
             currentPage={currentPage}
             totalLength={userRoles?.totalCount}
+            itemsPerPage={10}
           />
         </div>
       </div>

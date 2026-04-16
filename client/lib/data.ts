@@ -957,7 +957,7 @@ export const getUsers = async ({
 
   const res = await fetch(url, { headers, cache: "no-store" });
   const data = await res.json();
-
+  console.log("🚀 ~ file: data.ts:100 ~ getUsers ~ data:", data);
   // Normalize backend response (ensure frontend always gets consistent structure)
   return {
     users: data.users || [],
