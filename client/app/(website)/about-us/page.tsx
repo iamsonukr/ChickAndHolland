@@ -193,7 +193,7 @@ export default function BrandPage() {
             className="flex flex-col items-center gap-2 text-center opacity-0 translate-y-10 transition-all duration-700 ease-out"
           >
             <h2 className="font-adornstoryserif text-4xl text-[#C9A39A] 3xl:text-3xl 4xl:text-5xl">
-              CRAFTMANSHIP
+              CRAFTSMANSHIP
             </h2>
             <p
               style={{ wordSpacing: "4px" }}

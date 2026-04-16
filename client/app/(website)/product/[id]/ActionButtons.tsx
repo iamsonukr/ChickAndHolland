@@ -916,7 +916,7 @@ const ActionButtons = ({
       </Sheet>
 
       <Dialog open={colorChatDialog} onOpenChange={setColorChartDialog}>
-        <DialogContent className="w-full min-w-[70%]">
+        <DialogContent className="w-full min-w-[70%] !border-0 !shadow-none">
           <DialogHeader>
             <DialogTitle>Color Chart</DialogTitle>
           </DialogHeader>
@@ -939,12 +939,13 @@ const ActionButtons = ({
             )}
 
 
-            <div className="rounded-xl overflow-hidden shadow-lg border border-gray-200 ">
+            <div className="overflow-hidden">
               <CustomizedImage
                 src={colorChart}
                 alt="Color Chart"
                 unoptimized
                 className="w-full max-h-[80vh] object-contain bg-white"
+                style={{ clipPath: "inset(2px)" }}
               />
             </div>
           </div>
@@ -956,119 +957,3 @@ const ActionButtons = ({
 
 export default ActionButtons;
 
-
-                        {/* {watch[index].addLining && (
-                          <>
-                            <FormField
-                              control={form.control}
-                              name={`productDetails.${index}.lining`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Lining</FormLabel>
-                                  <Select
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select Lining" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value={productDetails.lining}>
-                                        SAS ({productDetails.lining})
-                                      </SelectItem>
-                                      {lining
-                                        .filter(
-                                          (i) => i !== productDetails.lining,
-                                        )
-                                        .map((item) => (
-                                          <SelectItem value={item}>
-                                            {item}
-                                          </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                  </Select>
-
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`productDetails.${index}.liningColor`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Lining Color </FormLabel>
-                                  <Select
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select Lining Color" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem
-                                        value={productDetails.lining_color}
-                                      >
-                                        <div className="flex gap-1">
-                                          SAS (
-                                          <div className="flex items-center">
-                                            <p
-                                              className="mx-1 h-4 w-4 rounded-full"
-                                              style={{
-                                                backgroundColor:
-                                                  productDetails.lining_color,
-
-                                                border: "1px solid #000",
-                                              }}
-                                            ></p>{" "}
-                                            {getColourBasedOnhex(
-                                              productDetails.lining_color,
-                                            )}
-                                          </div>
-                                          )
-                                        </div>
-                                      </SelectItem>
-                                      {colors
-                                        .filter(
-                                          (i: any) =>
-                                            i.hexcode !=
-                                            productDetails.lining_color,
-                                        )
-                                        .map((colour: any) => (
-                                          <SelectItem
-                                            key={colour.id}
-                                            value={getColourBasedOnId(
-                                              colour.id,
-                                            )}
-                                          >
-                                            <div className="flex items-center">
-                                              <div
-                                                className="h-4 w-4 rounded-full"
-                                                style={{
-                                                  backgroundColor:
-                                                    getColourBasedOnId(
-                                                      colour.id,
-                                                    ),
-                                                  border: "1px solid #000",
-                                                }}
-                                              />
-                                              <span className="ml-2">
-                                                {colour.name}
-                                              </span>
-                                            </div>
-                                          </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                  </Select>
-
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </>
-                        )}  */}

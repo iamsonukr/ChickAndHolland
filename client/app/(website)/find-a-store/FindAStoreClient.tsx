@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import SearchAddressBox from "@/components/custom/map/SearchAddressBox";
 import AllMaps from "@/components/custom/map/AllMaps";
 
@@ -10,6 +10,9 @@ export default function FindAStoreClient({ clientsData }) {
     clientsData.mapClients
   );
   const [selectedStore, setSelectedStore] = useState(null);
+
+  // ✅ cache for pincode → lat/lng
+  const pincodeCache = useRef({});
 
   const getGoogleMapsUrl = (store) => {
     const addressParts = [
@@ -28,34 +31,50 @@ export default function FindAStoreClient({ clientsData }) {
     )}`;
   };
 
+  // ✅ Haversine formula (optimized)
   const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const toRad = (val) => (val * Math.PI) / 180;
+
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
 
     const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) ** 2;
 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
   };
 
+  // ✅ improved pincode search
   const handlePincodeSearch = async (pincode) => {
     try {
-      const res = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${pincode}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
-      );
+      let location;
 
-      const data = await res.json();
-      if (!data.results?.length) return;
+      // 🔥 use cache first
+      if (pincodeCache.current[pincode]) {
+        location = pincodeCache.current[pincode];
+      } else {
+        const res = await fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?address=${pincode}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+        );
 
-      const location = data.results[0].geometry.location;
+        const data = await res.json();
+
+        if (!data.results?.length) {
+          console.warn("No location found for pincode");
+          return;
+        }
+
+        location = data.results[0].geometry.location;
+        pincodeCache.current[pincode] = location;
+      }
+
       setSearchLocation(location);
 
+      // ✅ ALWAYS show nearest stores (no empty UI)
       const nearby = clientsData.mapClients
         .map((store) => {
           const distance = getDistanceInKm(
@@ -70,32 +89,36 @@ export default function FindAStoreClient({ clientsData }) {
             distance: Number(distance.toFixed(1)),
           };
         })
-        .filter((s) => s.distance <= 100)
-        .sort((a, b) => a.distance - b.distance);
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 10); // 🔥 top 10 nearest
 
       setFilteredStores(nearby);
 
-      if (nearby.length) setSelectedStore(nearby[0]);
+      if (nearby.length) {
+        setSelectedStore(nearby[0]);
+      }
     } catch (err) {
       console.error("Pincode search failed", err);
     }
   };
 
-  const handleFilter = async (text) => {
+  const handleFilter = (text) => {
     if (!text) {
       setFilteredStores(clientsData.mapClients);
       setSelectedStore(null);
       return;
     }
 
-    const isPincode = /^\d{6}$/.test(text.trim());
+    const value = text.trim();
 
-    if (isPincode) {
-      handlePincodeSearch(text);
+    // ✅ detect pincode
+    if (/^\d{6}$/.test(value)) {
+      handlePincodeSearch(value);
       return;
     }
 
-    const t = text.toLowerCase();
+    const t = value.toLowerCase();
+
     const results = clientsData.mapClients.filter((s) =>
       `${s.name} ${s.address} ${s.city_name} ${s.country}`
         .toLowerCase()
@@ -105,36 +128,41 @@ export default function FindAStoreClient({ clientsData }) {
     setFilteredStores(results);
   };
 
-const handleStoreSelect = (store) => {
-  const el = document.getElementById("mapArea");
+  const handleStoreSelect = (store) => {
+    const el = document.getElementById("mapArea");
 
-  if (el) {
-    const y = el.getBoundingClientRect().top + window.pageYOffset - 100;
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.pageYOffset - 100;
 
-    window.scrollTo({
-      top: y,
-      behavior: "smooth",
+      window.scrollTo({
+        top: y,
+        behavior: "smooth",
+      });
+    }
+
+    setSelectedStore(store);
+
+    // ✅ move map to selected store
+    setSearchLocation({
+      lat: parseFloat(store.latitude),
+      lng: parseFloat(store.longitude),
     });
-  }
+  };
 
-  setSelectedStore(store);
-  setSearchLocation({
-    lat: parseFloat(store.latitude),
-    lng: parseFloat(store.longitude),
-  });
-};
   return (
-    <div     id="mapArea" className="w-full  bg-gradient-to-br from-slate-50 to-gray-50 min-h-screen mt-5">
+    <div
+      id="mapArea"
+      className="w-full bg-gradient-to-br from-slate-50 to-gray-50 min-h-screen mt-5"
+    >
       {/* HEADER */}
       <div className="pt-3 pb-3 text-center bg-white shadow-sm">
-        <h1  className="text-3xl sm:text-4xl font-bold font-adornstoryserif text-black">
+        <h1 className="text-3xl sm:text-4xl font-bold font-adornstoryserif text-black">
           OUR RETAILERS
         </h1>
       </div>
 
       {/* MAIN WRAPPER */}
       <div
-  
         className="
           mt-6
           grid
@@ -190,7 +218,7 @@ const handleStoreSelect = (store) => {
             {filteredStores.length === 1 ? "store" : "stores"}
           </div>
 
-          {/* STORE LIST (SCROLLABLE FIXED) */}
+          {/* STORE LIST */}
           <div className="flex-1 overflow-y-auto min-h-0">
             <div className="p-4 space-y-3">
               {filteredStores.map((store, index) => (
