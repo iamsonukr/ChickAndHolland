@@ -29,6 +29,7 @@ import { cookies } from "next/headers";
 import SearchBar from "../Search";
 import HeaderFavouritesIcon from "@/components/custom/website/HeaderFavouritesIcon";
 import RetailerAuthButton from "@/components/custom/website/RetailerAuthButton";
+import HomeReloadLink from "@/components/custom/website/HomeReloadLink";
 
 const Header = async () => {
   const isLoggedIn = !!(await cookies()).get("token")?.value;
@@ -70,12 +71,12 @@ const Header = async () => {
                 <Menu className="bg-black font-bold text-[#C9A39A]" />
               </MenubarTrigger>
               <MenubarContent className="mt-6 !w-screen border-none bg-black max-h-[80vh] overflow-y-auto">                <MenubarItem className="!w-full" asChild>
-                <Link
+                <HomeReloadLink
                   href={"/"}
                   className="font-brandon w-full text-xl  text-[#C9A39A]"
                 >
                   HOME
-                </Link>
+                </HomeReloadLink>
               </MenubarItem>
                 <MenubarItem className="!w-full" asChild>
                   <Link
@@ -187,7 +188,7 @@ const Header = async () => {
           </Menubar>
         </div>
 
-        <Link
+        <HomeReloadLink
           href={"/"}
           className="logo-ios-se logo-ios-standard logo-ios-x-series logo-ios-plus logo-ios-pro-max logo-ios-15-pro-max logo-android-fallback flex w-4/12 justify-center sm:w-3/12 md:ml-0 md:inline-block md:w-fit"
         >
@@ -196,7 +197,7 @@ const Header = async () => {
             alt="Chic & Holland"
             className="w-[110px] md:w-[75px] 2xl:w-[80px] 3xl:w-[100px] 4xl:w-[105px]"
           />
-        </Link>
+        </HomeReloadLink>
 
         <div className="flex items-center  gap-6 pb-2 4xl:pb-5">
           {/* desktop view */}
@@ -204,8 +205,13 @@ const Header = async () => {
             <NavigationMenuList>
 
               <NavigationMenuItem>
-                <NavigationMenuLink href="/" className={`${navigationMenuTriggerStyle()} font-brandon`}>
+                <NavigationMenuLink asChild>
+                  <HomeReloadLink
+                    href="/"
+                    className={`${navigationMenuTriggerStyle()} font-brandon`}
+                  >
                   HOME
+                  </HomeReloadLink>
                 </NavigationMenuLink>
               </NavigationMenuItem>
 

@@ -314,7 +314,7 @@ export default function Home() {
             </div>
           </div>
           {/* <div className="flex w-full items-center justify-center md:w-1/2"> */}
-          <div className="flex w-full items-center justify-center m-auto md:w-1/2">
+          <div className="m-auto flex w-full items-center justify-center md:w-1/2">
             <LazyHlsVideo
               src={`${BASE_HLS}/Sequence%2001_5/hls/playlist.m3u8`}
               fallbackSrc="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001%205.mp4"
@@ -327,7 +327,8 @@ export default function Home() {
               posterAlt="300 Hours couture campaign video"
               imageSizes={HALF_SECTION_IMAGE_SIZES}
               rootMargin="250px"
-              className="h-full mx-auto w-full object-cover p-0 md:h-[30%] md:max-w-[505px]"
+              wrapperClassName="mx-auto aspect-[9/16] w-full max-w-[505px] bg-black"
+              className="h-full w-full object-contain bg-black p-0"
             />
           </div>
         </div>
