@@ -83,19 +83,38 @@ const getVariantSizeText = (item: any) => {
   return `${sizeCountry} ${size}`;
 };
 
+// const getSizeSummary = (items: any[]) => {
+//   const sizeCounts = new Map<string, number>();
+
+//   items.forEach((item) => {
+//     const label = getVariantSizeText(item);
+//     const quantity = Number(item.quantity);
+//     const pieceCount = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+//     sizeCounts.set(label, (sizeCounts.get(label) ?? 0) + pieceCount);
+//   });
+
+//   return Array.from(sizeCounts.entries())
+//     .map(([label, count]) => (count > 1 ? `${label} x ${count}` : label))
+//     .join(", ");
+// };
+
 const getSizeSummary = (items: any[]) => {
   const sizeCounts = new Map<string, number>();
 
   items.forEach((item) => {
-    const label = getVariantSizeText(item);
+    let label = getVariantSizeText(item);
+    const sizeCountry = String(item.size_country ?? "").trim();
+    if (sizeCountry && label.startsWith(`${sizeCountry} `)) {
+      label = label.slice(sizeCountry.length + 1);
+    }
     const quantity = Number(item.quantity);
     const pieceCount = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
     sizeCounts.set(label, (sizeCounts.get(label) ?? 0) + pieceCount);
   });
 
   return Array.from(sizeCounts.entries())
-    .map(([label, count]) => (count > 1 ? `${label} x ${count}` : label))
-    .join(", ");
+  .map(([label, count]) => (label.includes("/") || count === 1 ? label : `${label}/${count}`))
+  .join(", ");
 };
 
 const getCommentsSummary = (variants: any[], fallback?: string) => {
@@ -288,7 +307,7 @@ const GroupedOrderPdf = ({
 
               <View style={styles.pageVariantOverlay} wrap={false}>
                 <View style={styles.variantOverlay}>
-                  <Text style={styles.variantOverlayTitle}>Size / 2D Barcode Details</Text>
+                  <Text style={styles.variantOverlayTitle}>Size 1/ 2D Barcode Details</Text>
                   <View style={styles.variantGrid}>
                     {variants.map((variant: any, variantIndex: number) => {
                       const normalizedBarcode = normalizeBarcodeValue(variant.barcode);

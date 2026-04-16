@@ -56,9 +56,7 @@ const Header = async () => {
       subCategories: [...category.subCategories].sort(
         (a: any, b: any) => a.priority - b.priority
       ),
-    }
-    )
-    );
+    }));
   // console.log("These are sorted categories", sortedCategories)
 
   return (
@@ -84,7 +82,7 @@ const Header = async () => {
                     href={"/about-us"}
                     className="font-brandon text-xl  text-[#C9A39A]"
                   >
-                    AB
+                    ABOUT US
                   </Link>
                 </MenubarItem>
 

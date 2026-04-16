@@ -105,19 +105,23 @@ export default function FindAStoreClient({ clientsData }) {
     setFilteredStores(results);
   };
 
-  const handleStoreSelect = (store) => {
-    setSelectedStore(store);
-    setSearchLocation({
-      lat: parseFloat(store.latitude),
-      lng: parseFloat(store.longitude),
-    });
-  };
+const handleStoreSelect = (store) => {
+  const el = document.getElementById("mapArea");
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
+  setSelectedStore(store);
+  setSearchLocation({
+    lat: parseFloat(store.latitude),
+    lng: parseFloat(store.longitude),
+  });
+};
   return (
     <div className="w-full bg-gradient-to-br from-slate-50 to-gray-50 min-h-screen mt-5">
       {/* HEADER */}
       <div className="pt-3 pb-3 text-center bg-white shadow-sm">
-        <h1 className="text-3xl sm:text-4xl font-bold font-adornstoryserif text-black">
+        <h1 id="mapArea" className="text-3xl sm:text-4xl font-bold font-adornstoryserif text-black">
           OUR RETAILERS
         </h1>
       </div>
