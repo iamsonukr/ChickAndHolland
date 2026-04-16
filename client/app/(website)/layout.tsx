@@ -4,6 +4,7 @@ import "../globals.css";
 import { cn } from "@/lib/utils";
 import Header from "@/components/custom/website/Header";
 import Footer from "@/components/custom/website/Footer";
+import DynamicCanonical from "@/components/custom/website/DynamicCanonical";
 import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner";
 import ScrollToTop from "@/components/custom/ScrollToTop";
@@ -56,9 +57,6 @@ export const metadata: Metadata = {
   title: "Chic & Holland | Designer Couture Dresses & Evening Gowns",
   description:
     "Discover Chic & Holland, a luxury couture fashion brand creating handcrafted evening gowns and designer dresses.",
-  alternates: {
-    canonical: "https://www.chicandholland.com/",
-  },
 };
 
 const structuredData = {
@@ -128,6 +126,7 @@ export default function RootLayout({
       </head>
 
       <body className="bg-background font-poppins antialiased">
+        <DynamicCanonical />
         <ScrollToTop />
         <Header />
         <main className="w-full">{children}</main>
