@@ -74,7 +74,7 @@ export default function BrandPage() {
   };
 
   return (
-    <div className="bg-black text-white">
+    <div className="overflow-x-hidden bg-black text-white">
       {/* Hero Section */}
       <div>
         <div className="container max-w-6xl mx-auto relative flex flex-col justify-between gap-8 py-8 md:flex-row px-4">
@@ -85,12 +85,13 @@ export default function BrandPage() {
               <span className="text-6xl text-[#876355] mb-6 leading-none">❝</span>
 
               {/* Quote Text */}
-              <p 
-  className="text-2xl md:text-3xl font-brandon lg:text-4xl text-center text-gray-300 italic leading-relaxed transform transition-all duration-700"
-  style={{ fontWeight: 100  }}
->
-  "Every dress tells a story of elegance, craftsmanship, and the dreams of the woman who wears it."
-</p>
+              <p
+                className="text-2xl md:text-3xl font-brandon lg:text-4xl text-center text-gray-300 italic leading-relaxed transform transition-all duration-700"
+                style={{ fontWeight: 100 }}
+              >
+                &quot;Every dress tells a story of elegance, craftsmanship, and
+                the dreams of the woman who wears it.&quot;
+              </p>
 
               {/* Author */}
               <p className="font-adornstoryserif text-2xl text-[#C9A39A] 3xl:text-3xl 4xl:text-5xl">
@@ -124,7 +125,7 @@ export default function BrandPage() {
               style={{ wordSpacing: "4px" }}
               className="max-w-6xl mx-auto text-lg md:text-xl text-gray-300 font-brandon tracking-wide leading-relaxed relative z-10 transform transition-all duration-1000"
             >
-              Women's wear label headquartered in the Netherlands that
+              Women&apos;s wear label headquartered in the Netherlands that
               creates, manufactures, and distributes hand-crafted, high-end
               gowns for special events. Chic{" "}
               <span className="font-adornstoryserif font-bold">&</span>{" "}
@@ -277,7 +278,7 @@ export default function BrandPage() {
             ref={addToSectionsRef}
             className="flex flex-col gap-8 md:flex-row md:justify-between opacity-0"
           >
-            <div className="md:w-[50%] opacity-0 -translate-x-10 transition-all duration-800 ease-out">
+            <div className="about-slide-left md:w-[50%] opacity-0 transition-all duration-800 ease-out">
               <CustomizedImage
                 src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/brand_page/41749c84-03e6-4a9e-894a-ecdfde95f634.jpeg"
                 alt="Chic & Holland - Brand page images"
@@ -330,7 +331,7 @@ export default function BrandPage() {
                 </p>
               ))}
             </div>
-            <div className="md:w-[50%] opacity-0 translate-x-10 transition-all duration-800 ease-out order-1 md:order-2">
+            <div className="about-slide-right order-1 md:order-2 md:w-[50%] opacity-0 transition-all duration-800 ease-out">
               <CustomizedImage
                 src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/brand_page/0C4A5447%20copy.jpg"
                 alt="Chic & Holland - Brand page images"
@@ -346,7 +347,7 @@ export default function BrandPage() {
             ref={addToSectionsRef}
             className="flex flex-col gap-8 md:flex-row md:justify-between opacity-0"
           >
-            <div className="md:w-[50%] opacity-0 -translate-x-10 transition-all duration-800 ease-out">
+            <div className="about-slide-left md:w-[50%] opacity-0 transition-all duration-800 ease-out">
               <CustomizedImage
                 src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/brand_page/0C4A5809%20copy.jpg"
                 alt="Chic & Holland - Brand page images"
@@ -398,7 +399,7 @@ export default function BrandPage() {
                 </p>
               ))}
             </div>
-            <div className="md:w-[50%] opacity-0 translate-x-10 transition-all duration-800 ease-out order-1 md:order-2">
+            <div className="about-slide-right order-1 md:order-2 md:w-[50%] opacity-0 transition-all duration-800 ease-out">
               <CustomizedImage
                 src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/brand_page/0C4A5674%20copy.jpg"
                 alt="Chic & Holland - Brand page images"
@@ -431,8 +432,23 @@ export default function BrandPage() {
           transform: translateY(0) !important;
         }
 
-        .animate-in .-translate-x-10,
-        .animate-in .translate-x-10 {
+        .about-slide-left,
+        .about-slide-right {
+          transform: translateY(2rem);
+        }
+
+        @media (min-width: 768px) {
+          .about-slide-left {
+            transform: translateX(-2.5rem);
+          }
+
+          .about-slide-right {
+            transform: translateX(2.5rem);
+          }
+        }
+
+        .animate-in .about-slide-left,
+        .animate-in .about-slide-right {
           transform: translateX(0) !important;
         }
 

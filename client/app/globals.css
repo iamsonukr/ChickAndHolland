@@ -102,6 +102,19 @@
   }
 }
 
+.safari-media-frame {
+  isolation: isolate;
+  background-color: #000;
+}
+
+.safari-media-layer {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  will-change: opacity;
+}
+
 /* ::-webkit-scrollbar {
   height: 4px;
   background: rgb(0, 0, 0);

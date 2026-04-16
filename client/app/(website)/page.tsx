@@ -390,7 +390,7 @@ export default function Home() {
             <Link href="/product/1201" className="block">
               <div className="relative aspect-[2/3] w-full overflow-hidden">
                 <Image
-                  src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/PH120116B.jpg"
+                  src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/PH120116B-LossyC.jpg"
                   alt="Chic & Holland dress"
                   fill
                   sizes={HALF_SECTION_IMAGE_SIZES}

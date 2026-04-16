@@ -10,6 +10,7 @@ export interface HlsVideoProps extends React.VideoHTMLAttributes<HTMLVideoElemen
   maxBufferLength?: number;
   backBufferLength?: number;
   lowLatencyMode?: boolean;
+  shouldPlay?: boolean;
 }
 
 export default function HlsVideo({
@@ -19,6 +20,7 @@ export default function HlsVideo({
   maxBufferLength = 15,
   backBufferLength = 30,
   lowLatencyMode = false,
+  shouldPlay,
   ...videoProps
 }: HlsVideoProps) {
   const {
@@ -39,11 +41,17 @@ export default function HlsVideo({
   const hlsRef = useRef<Hls | null>(null);
   const [useFallback, setUseFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const shouldManagePlayback = shouldPlay ?? autoPlay;
+  const shouldManagePlaybackRef = useRef(shouldManagePlayback);
 
   useEffect(() => {
     setUseFallback(false);
     setError(null);
   }, [src, fallbackSrc]);
+
+  useEffect(() => {
+    shouldManagePlaybackRef.current = shouldManagePlayback;
+  }, [shouldManagePlayback]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -65,7 +73,9 @@ export default function HlsVideo({
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (autoPlay) video.play().catch(() => {});
+        if (autoPlay && shouldManagePlaybackRef.current) {
+          video.play().catch(() => {});
+        }
       });
 
       hls.on(Hls.Events.ERROR, (_, data) => {
@@ -75,7 +85,9 @@ export default function HlsVideo({
 
         if (data.details === "bufferStalledError") {
           hls.startLoad();
-          video.play().catch(() => {});
+          if (shouldManagePlaybackRef.current) {
+            video.play().catch(() => {});
+          }
           return;
         }
 
@@ -100,7 +112,9 @@ export default function HlsVideo({
 
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       const handleLoadedMetadata = () => {
-        if (autoPlay) video.play().catch(() => {});
+        if (autoPlay && shouldManagePlaybackRef.current) {
+          video.play().catch(() => {});
+        }
       };
 
       const handleError = () => {
@@ -141,6 +155,18 @@ export default function HlsVideo({
     lowLatencyMode,
   ]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !autoPlay) return;
+
+    if (shouldManagePlayback) {
+      video.play().catch(() => {});
+      return;
+    }
+
+    video.pause();
+  }, [autoPlay, shouldManagePlayback, useFallback]);
+
   if (error) {
     return (
       <div
@@ -155,6 +181,7 @@ export default function HlsVideo({
     return (
       <video
         {...restProps}
+        ref={videoRef}
         className={className}
         autoPlay={autoPlay}
         muted={muted}

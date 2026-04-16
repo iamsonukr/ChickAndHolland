@@ -48,8 +48,12 @@ export default function HomeHeroVideo({
     return () => window.clearTimeout(timeoutHandle);
   }, []);
 
+  const handleVideoReady = () => {
+    setIsVideoReady(true);
+  };
+
   return (
-    <>
+    <div className="safari-media-frame relative h-full w-full overflow-hidden">
       <Image
         src={posterSrc}
         alt={posterAlt}
@@ -58,7 +62,7 @@ export default function HomeHeroVideo({
         priority
         sizes="100vw"
         className={cn(
-          "h-full w-full object-cover transition-opacity duration-500",
+          "safari-media-layer h-full w-full object-cover transition-opacity duration-500",
           shouldLoadVideo && isVideoReady ? "opacity-0" : "opacity-100",
         )}
       />
@@ -73,14 +77,15 @@ export default function HomeHeroVideo({
           controlsList="nodownload"
           poster={posterSrc}
           className={cn(
-            "absolute inset-0 h-full w-full object-cover transition-opacity duration-500",
+            "safari-media-layer absolute inset-0 h-full w-full object-cover transition-opacity duration-500",
             isVideoReady ? "opacity-100" : "opacity-0",
           )}
-          onLoadedData={() => setIsVideoReady(true)}
+          onLoadedData={handleVideoReady}
+          onCanPlay={handleVideoReady}
         >
           <source src={src} type="video/mp4" />
         </video>
       )}
-    </>
+    </div>
   );
 }
