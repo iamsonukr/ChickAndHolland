@@ -188,13 +188,30 @@ const ActionButtons = ({
   });
   const [alreadyFavourite, setAlreadyFavourite] = useState(false);
 
-  const { executeAsync: addFavourites, loading: addFavouritesLoading } =
-    useHttp(`/favourites`);
-
-  const { executeAsync: removeFavourites, loading: removeFavouritesLoading } =
-    useHttp(`/favourites`, "DELETE");
+  // Cart entry — the only write action retailers need on the product page
+  const { executeAsync: addToCart, loading: addToCartLoading } =
+    useHttp(`/cart`);
 
   const router = useRouter();
+
+  const customerWithOutLog = () => {
+    const productCode = productDetails.productCode;
+    const current = Array.isArray(favourites) ? favourites : [];
+    const exists = current.includes(productCode);
+    const updated = exists
+      ? current.filter((code: string) => code !== productCode)
+      : [...current, productCode];
+
+    document.cookie = `favourites=${JSON.stringify(updated)}; path=/`;
+    setAlreadyFavourite(!exists);
+    toast.success(
+      exists
+        ? "Removed from favorites"
+        : "Added to favorites",
+    );
+    router.refresh();
+  };
+
 
   const addColorQuantity = () => {
     append({
@@ -214,71 +231,59 @@ const ActionButtons = ({
 
   const watch = form.watch("productDetails");
 
-  const action = form.handleSubmit(async (data: any, e: any) => {
-    console.log("✅ action fired");
-    e.preventDefault();
-    console.log("📋 Raw form data:", JSON.stringify(data, null, 2));
+  const action = form.handleSubmit(
+    async (data: any, e: any) => {
+      e.preventDefault();
 
-    if (data.lining === "No Lining") {
-      data.liningColor = "No Color"
-    }
-
-    const formData = new FormData();
-
-    formData.append("retailerId", retailerId || "");
-    formData.append("productId", productDetails.id);
-    console.log("🛒 retailerId:", retailerId);
-    console.log("🆔 productId:", productDetails.id);
-
-    const productDetailsWithoutFiles = data.productDetails.map(
-      (detail: any) => ({
-        size: detail.size,
-        color: detail.color,
-        Quantity: detail.Quantity,
-        size_country: detail.size_country,
-        customization: detail.customization,
-        mesh: detail.mesh,
-        beading: detail.beading,
-        lining: detail.lining,
-        liningColor: detail.liningColor,
-        addLining: detail.addLining,
-      }),
-    );
-    console.log("📦 productDetailsWithoutFiles:", JSON.stringify(productDetailsWithoutFiles, null, 2));
-    formData.append("productDetails", JSON.stringify(productDetailsWithoutFiles));
-
-    data.productDetails.forEach((detail: any, index: number) => {
-      if (detail.files && detail.files.length > 0) {
-        detail.files.forEach((file: any, fileIndex: number) => {
-          console.log(`📎 Appending file[${index}][${fileIndex}]:`, file.name, file.size);
-          formData.append(`files[${index}][]`, file);
-        });
+      if (data.lining === "No Lining") {
+        data.liningColor = "No Color";
       }
-    });
 
-    console.log("📤 Sending FormData to /favourites...");
-    const response = await addFavourites(formData, {}, () => {
-      console.error("❌ addFavourites error callback fired");
-      toast.error("Add to favourites failed", {
-        description: "Something went wrong, please try again later",
+      const formData = new FormData();
+      formData.append("retailerId", retailerId || "");
+      formData.append("productId", productDetails.id);
+
+      const productDetailsWithoutFiles = data.productDetails.map(
+        (detail: any) => ({
+          size: detail.size,
+          color: detail.color,
+          Quantity: detail.Quantity,
+          size_country: detail.size_country,
+          customization: detail.customization,
+          mesh: detail.mesh,
+          beading: detail.beading,
+          lining: detail.lining,
+          liningColor: detail.liningColor,
+          addLining: detail.addLining,
+        }),
+      );
+      formData.append("productDetails", JSON.stringify(productDetailsWithoutFiles));
+
+      data.productDetails.forEach((detail: any, index: number) => {
+        if (detail.files && detail.files.length > 0) {
+          detail.files.forEach((file: any) => {
+            formData.append(`files[${index}][]`, file);
+          });
+        }
       });
-    });
 
-    console.log("📥 Response:", JSON.stringify(response, null, 2));
+      const response = await addToCart(formData, {}, () => {
+        toast.error("Failed to add to Cart", {
+          description: "Something went wrong, please try again later",
+        });
+      });
 
-    if (response.success) {
-      toast.success("Successfully Added to favourites");
-    } else {
-      console.warn("⚠️ Response success=false:", response);
-    }
-    form.reset();
-    setOpen(false);
-    router.refresh();
-  },
-  (errors) => {
-    console.error("❌ Form validation errors:", JSON.stringify(errors, null, 2));
-    toast.error("Form validation failed", { description: "Check console for field errors" });
-  });
+      if (response.success) {
+        toast.success("Successfully added to Cart");
+      }
+      form.reset();
+      setOpen(false);
+      router.refresh();
+    },
+    () => {
+      toast.error("Please fill in all required fields before submitting.");
+    },
+  );
 
   const getColourBasedOnId = (id: number) => {
     return colors.find((colour: any) => colour.id === id)?.hexcode;
@@ -294,21 +299,19 @@ const ActionButtons = ({
     setColors(colours.productColours);
   };
 
+  // alreadyFavourite only tracks the guest cookie-based wishlist
   useEffect(() => {
-    if (isLoggedIn && isRetailer) {
-      setAlreadyFavourite(
-        favourites.map((fv) => fv.product.id).includes(productDetails.id),
-      );
-    } else {
-      setAlreadyFavourite(favourites.includes(productDetails.productCode));
-    }
+    setAlreadyFavourite(
+      Array.isArray(favourites) && favourites.includes(productDetails.productCode),
+    );
     getcolors();
-  }, [isLoggedIn, isRetailer, favourites, productDetails.id, open]);
+  }, [favourites, productDetails.productCode, open]);
 
   // console.log(form.formState.errors, "ERROR");
 
   return (
     <div className="mt-4 flex flex-col gap-2">
+      {/* Guests: cookie-based wishlist + enquiry */}
       {!isLoggedIn && (
         <>
           <EnquireProducts
@@ -318,16 +321,15 @@ const ActionButtons = ({
           />
           <Button
             className="!p-8 md:!p-0"
-            onClick={() => {
-              customerWithOutLog();
-            }}
+            onClick={customerWithOutLog}
             variant={"default"}
-            disabled={addFavouritesLoading || removeFavouritesLoading}
           >
-            Add to my Favorites
+            {alreadyFavourite ? "Remove from my Favorites" : "Add to my Favorites"}
           </Button>
         </>
       )}
+
+      {/* Retailers: only the Add to Cart sheet below — no separate Favorites */}
 
       {/* {isRetailer && <PlaceOrder productId={productDetails.id} />} */}
 
@@ -338,7 +340,7 @@ const ActionButtons = ({
               className="!p-8 md:!p-0"
               onClick={() => form.reset()}
               variant={"default"}
-              disabled={addFavouritesLoading}
+              disabled={addToCartLoading}
             >
               Add to my Cart
             </Button>
@@ -346,7 +348,7 @@ const ActionButtons = ({
         </SheetTrigger>
         <SheetContent className="!min-w-[90%] !max-w-[90%] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Add Cart</SheetTitle>
+            <SheetTitle>Add to Cart</SheetTitle>
             <SheetDescription asChild>
               <div className="flex justify-between">
                 <div className="text-sm text-muted-foreground space-y-1">

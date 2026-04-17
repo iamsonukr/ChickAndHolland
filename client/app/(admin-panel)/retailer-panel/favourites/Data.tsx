@@ -3,8 +3,7 @@ import ProductCard from "@/components/custom/ProductCard";
 import { useEffect, useState } from "react";
 import ActionButtons from "./ActionButtons";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, ShoppingBag } from "lucide-react";
-import { EmptyState } from "@/app/(website)/my-favourites/ShowMyFavourites";
+import { CheckCircle, ShoppingBag, ShoppingCart } from "lucide-react";
 import useHttp from "@/lib/hooks/usePost";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -177,7 +176,20 @@ const Data = ({
           </div>
         </>
       ) : (
-        <EmptyState />
+        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center">
+          <ShoppingCart className="h-16 w-16 text-muted-foreground/40" />
+          <h2 className="text-2xl font-semibold">Your cart is empty</h2>
+          <p className="max-w-md text-muted-foreground">
+            Browse our collections and add products to your cart using the
+            &ldquo;Add to my Cart&rdquo; button on any product page.
+          </p>
+          <Link
+            href="/collections/72/80"
+            className="mt-2 inline-flex items-center gap-2 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Browse Collections
+          </Link>
+        </div>
       )}
     </div>
   );

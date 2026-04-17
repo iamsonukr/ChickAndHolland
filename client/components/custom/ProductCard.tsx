@@ -69,7 +69,7 @@ const ProductCard = ({
   const pathname = usePathname();
 
   const { executeAsync: changeQuantity } = useHttp(
-    `/favourites/quantity`,
+    `/cart/quantity`,
     "PATCH",
   );
 

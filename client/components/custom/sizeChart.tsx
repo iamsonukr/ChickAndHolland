@@ -20,7 +20,7 @@ export function SizeChartDialog() {
           Size Chart
         </Button>
       </DialogTrigger>
-    <DialogContent className="">
+    <DialogContent className="border-none p-0 overflow-hidden">
   <DialogHeader>
     <DialogTitle className="sr-only">Size Chart</DialogTitle>
   </DialogHeader>

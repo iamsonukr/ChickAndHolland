@@ -466,7 +466,6 @@ export const getFavourites = async (customerId: number) => {
   });
 
   const responseJson = await response.json();
-  console.log("FAVOURITES RESPONSE:", responseJson);
 
   if (!response.ok || !responseJson.success) {
     return { favourites: [] };
@@ -477,6 +476,36 @@ export const getFavourites = async (customerId: number) => {
   );
 
   return { ...responseJson, favourites: sortedFavourites };
+};
+
+/**
+ * Fetches retailer cart items from /api/cart/customer/:id.
+ * Cart items are fully-configured entries (size, colour, quantity, etc.)
+ * created when a retailer clicks "Add to Cart" on a product page.
+ */
+export const getCart = async (retailerId: number) => {
+  const headers = {
+    Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
+  };
+
+  const response = await fetch(`${API_URL}/cart/customer/${retailerId}`, {
+    headers,
+    cache: "no-store",
+  });
+
+  const responseJson = await response.json();
+
+  if (!response.ok || !responseJson.success) {
+    return { favourites: [] };
+  }
+
+  // CartController returns { cart: [...] } — normalise to { favourites: [...] }
+  // so existing Data.tsx / page.tsx consumers need minimal change.
+  const sorted = [...(responseJson.cart ?? [])].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  return { favourites: sorted };
 };
 
 export const getRetailersOrders = async ({

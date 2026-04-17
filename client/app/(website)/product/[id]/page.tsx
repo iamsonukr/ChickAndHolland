@@ -1,4 +1,4 @@
-import { getFavourites, getProductDetails } from "@/lib/data";
+import { getProductDetails } from "@/lib/data";
 import ImageCarousel from "./ImageCarousel";
 import { cookies } from "next/headers";
 import ProductDetails from "./ProductDetails";
@@ -48,10 +48,9 @@ const ProductDetailsPage = async ({ params }: PageProps) => {
     currencyId ? Number(currencyId) : undefined,
   );
 
-  const favourites =
-    isLoggedIn && isRetailer
-      ? await getFavourites(Number(retailerId))
-      : { favourites: localFavourites };
+  // Favourites are only relevant for the guest cookie-based wishlist.
+  // Retailers use the Cart flow exclusively — no favourites fetch needed.
+  const favourites = isRetailer ? [] : localFavourites;
 
   return (
     <div className="md:my-14 my-4"> 
@@ -77,7 +76,7 @@ const ProductDetailsPage = async ({ params }: PageProps) => {
               isRetailer={isRetailer}
               isLoggedIn={isLoggedIn}
               retailerId={retailerId}
-              favourites={favourites?.favourites}
+              favourites={favourites}
               userType={userType}
             />
             <SizeChartDialog />

@@ -50,7 +50,7 @@ const normalizeRoleKey = (value?: string | null) =>
 
 const normalizeStageKey = (value?: string | null) =>
   String(value ?? "")
-    .trim()
+    .trim() 
     .toLowerCase()
     .replace(/[\s_]+/g, "-");
 

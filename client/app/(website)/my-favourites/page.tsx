@@ -1,32 +1,29 @@
 import { cookies } from "next/headers";
 import ShowMyFavourites from "./ShowMyFavourites";
-import { getFavourites } from "@/lib/data";
 import { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 const MyFavourites = async () => {
-  const isLoggedIn = (await cookies()).get("token")?.value ? true : false;
-  const isRetailer = (await cookies()).get("userType")?.value === "RETAILER";
-  const retailerId = (await cookies()).get("retailerId")?.value;
-  const localFavourites = JSON.parse(
-    (await cookies()).get("favourites")?.value || "[]",
-  );
+  const cookieStore = await cookies();
+  const isRetailer = cookieStore.get("userType")?.value === "RETAILER";
 
-  let favourites: any = {};
-
-  if (isLoggedIn && isRetailer) {
-    favourites = await getFavourites(Number(retailerId));
-  } else {
-    favourites = { favourites: localFavourites };
+  // Retailers have a dedicated Cart — send them there
+  if (isRetailer) {
+    redirect("/retailer-panel/favourites");
   }
+
+  const localFavourites = JSON.parse(
+    cookieStore.get("favourites")?.value || "[]",
+  );
 
   return (
     <div>
       <ShowMyFavourites
-        favourites={favourites?.favourites}
-        isLoggedIn={isLoggedIn}
-        isRetailer={isRetailer}
-        retailerId={retailerId as string}
-        rr={favourites.rr}
+        favourites={localFavourites}
+        isLoggedIn={false}
+        isRetailer={false}
+        retailerId={""}
+        rr={[]}
       />
     </div>
   );
