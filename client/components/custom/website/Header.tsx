@@ -61,7 +61,7 @@ const Header = async () => {
   // console.log("These are sorted categories", sortedCategories)
 
   return (
-    <div className="sticky top-0 z-10 h-[90px] max-h-[120px] w-full bg-background shadow-md lg:h-[120px] 2xl:h-[120px] 2xl:max-h-[120px] 3xl:h-[125px] 3xl:max-h-[150px] 4xl:h-[150px] 4xl:max-h-[150px]">
+    <div className="sticky top-0 z-20 h-[90px] max-h-[120px] w-full bg-background shadow-md lg:h-[120px] 2xl:h-[120px] 2xl:max-h-[120px] 3xl:h-[125px] 3xl:max-h-[150px] 4xl:h-[150px] 4xl:max-h-[150px]">
       <header className="flex h-[90px] md:h-[130px] flex-row items-center justify-around bg-black md:justify-between md:px-[2rem] lg:flex-col 3xl:h-[150px]">
         {/* tablet/mobile view */}
         <div className="lg:hidden">

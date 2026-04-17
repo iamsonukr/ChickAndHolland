@@ -58,6 +58,9 @@ const EnquireProducts = ({
   const { executeAsync, isExecuting } = useAction(submitEnquiryForm);
 
   const onSubmit = async (values: EnquireNowForm) => {
+
+    console.log("Form values before submission:", values);
+    // return;
     const res = await executeAsync(values);
 
     enquireNowForm.reset();
