@@ -1,7 +1,13 @@
 import { fresh } from "@/lib/utils";
 import { build2dBarcodeUrl, normalizeBarcodeValue } from "@/lib/barcodes";
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import {
+  formatEuSizeSummary,
+  formatEuSizeText,
+  PDF_DISPLAY_SIZE_UNIT,
+} from "@/lib/sizeConversion";
+import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import dayjs from "dayjs";
+import { styles } from "./PDFStyle";
 
 const chunkItems = <T,>(items: T[], size: number) => {
   const chunks: T[][] = [];
@@ -26,7 +32,7 @@ const buildGroupKey = (item: any) =>
     item.liningColor ?? "",
     item.comments ?? "",
     item.image ?? "",
-    item.size_country ?? "",
+    PDF_DISPLAY_SIZE_UNIT,
     normalizeImages(item.refImg).join("|"),
   ]);
 
@@ -59,63 +65,9 @@ const getGroupQuantity = (items: any[]) =>
     return total + (Number.isFinite(quantity) ? quantity : 0);
   }, 0);
 
-const getVariantSizeText = (item: any) => {
-  if (item.admin_us_size) {
-    return `US ${item.admin_us_size} (${item.size_country} ${item.size})`;
-  }
+const getVariantSizeText = (item: any) => formatEuSizeText(item);
 
-  const size = String(item.size ?? "").trim();
-
-  if (!size) {
-    return "-";
-  }
-
-  const sizeCountry = String(item.size_country ?? "").trim();
-
-  if (
-    !sizeCountry ||
-    size.startsWith(`${sizeCountry} `) ||
-    size.includes(`(${sizeCountry})`)
-  ) {
-    return size;
-  }
-
-  return `${sizeCountry} ${size}`;
-};
-
-// const getSizeSummary = (items: any[]) => {
-//   const sizeCounts = new Map<string, number>();
-
-//   items.forEach((item) => {
-//     const label = getVariantSizeText(item);
-//     const quantity = Number(item.quantity);
-//     const pieceCount = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
-//     sizeCounts.set(label, (sizeCounts.get(label) ?? 0) + pieceCount);
-//   });
-
-//   return Array.from(sizeCounts.entries())
-//     .map(([label, count]) => (count > 1 ? `${label} x ${count}` : label))
-//     .join(", ");
-// };
-
-const getSizeSummary = (items: any[]) => {
-  const sizeCounts = new Map<string, number>();
-
-  items.forEach((item) => {
-    let label = getVariantSizeText(item);
-    const sizeCountry = String(item.size_country ?? "").trim();
-    if (sizeCountry && label.startsWith(`${sizeCountry} `)) {
-      label = label.slice(sizeCountry.length + 1);
-    }
-    const quantity = Number(item.quantity);
-    const pieceCount = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
-    sizeCounts.set(label, (sizeCounts.get(label) ?? 0) + pieceCount);
-  });
-
-  return Array.from(sizeCounts.entries())
-  .map(([label, count]) => (label.includes("/") || count === 1 ? label : `${label}/${count}`))
-  .join(", ");
-};
+const getSizeSummary = (items: any[]) => formatEuSizeSummary(items);
 
 const getCommentsSummary = (variants: any[], fallback?: string) => {
   const uniqueComments = Array.from(
@@ -147,8 +99,7 @@ const GroupedOrderPdf = ({
     <Document>
       {groupedPages.map(({ baseItem, groupItems, pageIndex, totalPages, variants }, index) => {
         const referenceImages = getReferenceImages(groupItems);
-        const sizeCountry =
-          baseItem?.size_country ?? orderData?.details?.[0]?.size_country ?? "-";
+        const sizeCountry = PDF_DISPLAY_SIZE_UNIT;
 
         return (
           <Page
@@ -382,350 +333,6 @@ const GroupedOrderPdf = ({
   );
 };
 
-const styles = StyleSheet.create({
-  page: {
-    flexDirection: "column",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  fullPageContainer: {
-    flex: 1,
-    flexDirection: "column",
-    position: "relative",
-  },
-  topBanner: {
-    backgroundColor: "#FF5698",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 10,
-  },
-  bannerText: {
-    color: "black",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  bannerTexts: {
-    color: "black",
-    fontSize: 25,
-    fontWeight: "bold",
-  },
-  bannerTextPurchaseOrderNo: {
-    color: "black",
-    fontSize: 30,
-    fontWeight: "bold",
-  },
-  contentContainer: {
-    flex: 1,
-    marginTop: 10,
-    flexDirection: "column",
-  },
-  topContentRow: {
-    flex: 1,
-    flexDirection: "row",
-  },
-  detailsSection: {
-    width: "62%",
-    flexDirection: "column",
-    paddingTop: 10,
-    paddingBottom: 10,
-    paddingRight: 8,
-  },
-  tableContainer: {
-    border: "1px solid #000",
-    borderRadius: 4,
-    width: "100%",
-    marginBottom: 15,
-  },
-  tableTitleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: "#FFD1E6",
-    borderBottom: "1px solid #000",
-    alignItems: "center",
-  },
-  tableTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    padding: 4,
-    textAlign: "left",
-    flex: 1,
-  },
-  orderTypeText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    padding: 4,
-    color: "#0000FF",
-    textAlign: "center",
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottom: "1px solid #ccc",
-  },
-  mergedContainer: {
-    flexDirection: "row",
-    borderBottom: "1px solid #ccc",
-  },
-  leftMergedContainer: {
-    width: "40%",
-    flexDirection: "row",
-  },
-  rightStackedContainer: {
-    width: "60%",
-    flexDirection: "column",
-  },
-  stackedRowTop: {
-    flexDirection: "row",
-    borderBottom: "1px solid #ccc",
-  },
-  stackedRowBottom: {
-    flexDirection: "row",
-  },
-  leftSection: {
-    width: "40%",
-    flexDirection: "row",
-  },
-  rightSection: {
-    width: "60%",
-    flexDirection: "row",
-  },
-  tableHeaderCell: {
-    width: "40%",
-    padding: 4,
-    backgroundColor: "#FF5698",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  tableDataCell: {
-    width: "60%",
-    padding: 4,
-    backgroundColor: "#FFE6F2",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  sizeHeaderCell: {
-    width: "40%",
-    padding: 4,
-    backgroundColor: "#FF5698",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  sizeDataCell: {
-    width: "60%",
-    padding: 4,
-    backgroundColor: "#FFE6F2",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  stackedHeaderCell: {
-    width: "40%",
-    padding: 4,
-    backgroundColor: "#FF5698",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  stackedDataCell: {
-    width: "60%",
-    padding: 4,
-    backgroundColor: "#FFE6F2",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  headerText: {
-    fontSize: 15,
-    fontWeight: "bold",
-    color: "#ffffff",
-  },
-  dataText: {
-    fontSize: 13,
-    width: "100%",
-    hyphens: "none",
-    wordBreak: "normal",
-  },
-  customizationContainer: {
-    flexDirection: "column",
-    marginTop: 5,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    textDecoration: "underline",
-    marginBottom: 8,
-    color: "#FF5698",
-  },
-  commentsBox: {
-    border: "1px solid #ccc",
-    borderRadius: 4,
-    padding: 8,
-    backgroundColor: "#f9f9f9",
-    minHeight: 60,
-  },
-  commentsText: {
-    fontSize: 12,
-    lineHeight: 1.4,
-    hyphens: "none",
-    wordBreak: "normal",
-  },
-  extraImagesContainer: {
-    flexDirection: "column",
-    marginTop: 10,
-  },
-  extraImagesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  additionalImage: {
-    width: "48%",
-    height: 120,
-    objectFit: "contain",
-    borderRadius: 4,
-    border: "1px solid #ccc",
-    marginBottom: 8,
-    marginRight: "2%",
-  },
-  rightPanel: {
-    width: "38%",
-    paddingTop: 10,
-    paddingBottom: 10,
-    paddingLeft: 8,
-    flexDirection: "column",
-  },
-  mainImageFrame: {
-    flex: 1,
-    border: "1px solid #999",
-    borderRadius: 4,
-    padding: 6,
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  mainImagePlaceholder: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 12,
-  },
-  mainImagePlaceholderText: {
-    fontSize: 11,
-    color: "#666",
-    textAlign: "center",
-  },
-  mainImage: {
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
-    borderRadius: 4,
-  },
-  pageVariantOverlay: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    width: "38%",
-    paddingLeft: 8,
-    paddingBottom: 4,
-  },
-  variantOverlay: {
-    paddingHorizontal: 8,
-    paddingTop: 7,
-    paddingBottom: 8,
-    borderRadius: 4,
-    border: "1px solid #999",
-  },
-  variantOverlayTitle: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#FF5698",
-    marginBottom: 6,
-    textAlign: "center",
-  },
-  variantGrid: {
-    flexDirection: "row",
-    flexWrap: "nowrap",
-    alignItems: "stretch",
-  },
-  variantCard: {
-    width: "24%",
-    border: "1px solid #000",
-    borderRadius: 4,
-    paddingTop: 6,
-    paddingBottom: 6,
-    minHeight: 156,
-    backgroundColor: "#ffffff",
-    justifyContent: "space-between",
-  },
-  variantCardSpaced: {
-    marginRight: "1.333%",
-  },
-  variantCardLast: {
-    marginRight: 0,
-  },
-  variantCardTop: {
-    paddingHorizontal: 5,
-  },
-  variantTitle: {
-    fontSize: 9.5,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  variantInfoGroup: {
-    borderWidth: 1,
-    borderColor: "#d4d4d8",
-    borderRadius: 3,
-  },
-  variantInfoRow: {
-    flexDirection: "row",
-    paddingHorizontal: 2,
-    paddingVertical: 1,
-    alignItems: "flex-start", // ✅ FIXED: top-align so label sits at top when colors stack
-    justifyContent: "space-between",
-  },
-  variantInfoRowBorder: {
-    borderTop: "1px solid #d4d4d8",
-  },
-  variantInfoLabel: {
-    minWidth: 28,
-    fontSize: 7,
-    fontWeight: "bold",
-    color: "#444",
-  },
-  variantInfoValue: {
-    flex: 1,
-    fontSize: 7,
-    textAlign: "left",
-    marginLeft: 4,
-    hyphens: "none",
-    wordBreak: "normal",
-  },
-  colorValuesRow: {
-    paddingHorizontal: 2,
-    paddingVertical: 2,
-    flexDirection: "column",
-  },
-  colorDetail: {
-    fontSize: 7,
-    textAlign: "left",
-    hyphens: "none",
-    wordBreak: "normal",
-    lineHeight: 1.4,
-  },
-  variantBarcodeSection: {
-    borderTop: "1px solid #d4d4d8",
-    marginTop: 6,
-    paddingTop: 5,
-    paddingHorizontal: 5,
-    alignItems: "center",
-  },
-  variantBarcode: {
-    width: 56,
-    height: 56,
-    alignSelf: "center",
-    marginBottom: 3,
-  },
-  variantCodeText: {
-    fontSize: 6.5,
-    textAlign: "center",
-    wordBreak: "break-all",
-  },
-});
+
 
 export default GroupedOrderPdf;

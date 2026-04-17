@@ -1,5 +1,10 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import dayjs from "dayjs";
+import {
+  formatEuSizeSummary,
+  formatEuSizeText,
+  PDF_DISPLAY_SIZE_UNIT,
+} from "../lib/sizeConversion";
 
 const fresh = "Fresh Order";
 
@@ -28,7 +33,7 @@ const buildGroupKey = (item: any) =>
     item.liningColor ?? "",
     item.comments ?? "",
     item.image ?? "",
-    item.size_country ?? "",
+    PDF_DISPLAY_SIZE_UNIT,
     normalizeImages(item.refImg).join("|"),
   ]);
 
@@ -47,6 +52,7 @@ const buildGroupedPages = (details: any[] = []) => {
 
     return pages.map((variants, pageIndex) => ({
       baseItem: groupItems[0],
+      groupItems,
       pageIndex,
       totalPages: pages.length,
       variants,
@@ -54,22 +60,15 @@ const buildGroupedPages = (details: any[] = []) => {
   });
 };
 
-const getPageQuantity = (variants: any[]) =>
-  variants.reduce((total, item) => {
+const getGroupQuantity = (items: any[]) =>
+  items.reduce((total, item) => {
     const quantity = Number(item.quantity);
     return total + (Number.isFinite(quantity) ? quantity : 0);
   }, 0);
 
-const getVariantSizeText = (item: any) => {
-  if (item.admin_us_size) {
-    return `US ${item.admin_us_size} (${item.size_country} ${item.size})`;
-  }
+const getVariantSizeText = (item: any) => formatEuSizeText(item);
 
-  return item.size ?? "-";
-};
-
-const getSizeSummary = (variants: any[]) =>
-  variants.map((item) => getVariantSizeText(item)).join(", ");
+const getSizeSummary = (items: any[]) => formatEuSizeSummary(items);
 
 const getCommentsSummary = (variants: any[], fallback?: string) => {
   const uniqueComments = Array.from(
@@ -118,10 +117,9 @@ const GroupedOrderPdf = ({
 
   return (
     <Document>
-      {groupedPages.map(({ baseItem, pageIndex, totalPages, variants }, index) => {
-        const referenceImages = getReferenceImages(variants);
-        const sizeCountry =
-          baseItem?.size_country ?? orderData?.details?.[0]?.size_country ?? "-";
+      {groupedPages.map(({ baseItem, groupItems, pageIndex, totalPages, variants }, index) => {
+        const referenceImages = getReferenceImages(groupItems);
+        const sizeCountry = PDF_DISPLAY_SIZE_UNIT;
 
         return (
           <Page
@@ -190,7 +188,7 @@ const GroupedOrderPdf = ({
                             <Text style={styles.headerText}>Quantity</Text>
                           </View>
                           <View style={styles.tableDataCell}>
-                            <Text style={styles.dataText}>{getPageQuantity(variants)}</Text>
+                            <Text style={styles.dataText}>{getGroupQuantity(groupItems)}</Text>
                           </View>
                         </View>
                         <View style={styles.rightSection}>
@@ -210,7 +208,7 @@ const GroupedOrderPdf = ({
                           </View>
                           <View style={styles.sizeDataCell}>
                             <Text style={styles.dataText} wrap>
-                              {getSizeSummary(variants)}
+                              {getSizeSummary(groupItems)}
                             </Text>
                           </View>
                         </View>

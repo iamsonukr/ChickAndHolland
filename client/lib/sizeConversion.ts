@@ -238,7 +238,3 @@ export const formatEuSizeSummary = (
     .map(([size, count]) => (count > 1 ? `${size}/${count}` : size))
     .join(", ") || "-";
 };
-
-export function convertToUSSize(size: any, country: string): string {
-  return convertToEuSize(size, country) || "N/A";
-}
