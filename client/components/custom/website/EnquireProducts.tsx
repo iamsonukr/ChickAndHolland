@@ -81,12 +81,6 @@ const EnquireProducts = ({
   };
 
   useEffect(() => {
-    if (enquireModelOpen) {
-      enquireNowForm.reset();
-    }
-  }, []);
-
-  useEffect(() => {
     enquireNowForm.setValue("productCodes", productCodes);
   }, [productCodes]);
 
