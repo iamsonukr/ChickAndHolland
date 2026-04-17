@@ -73,6 +73,24 @@ import RetailerPdf from "./RetailerPdf";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
 import { UploadedFileType } from "@/hooks/useCreateOrder";
 
+const formatOriginalSizeDisplay = (item: {
+  original_size?: unknown;
+  product_size?: unknown;
+  size?: unknown;
+  size_country?: unknown;
+}) => {
+  const size = String(
+    item?.original_size ?? item?.product_size ?? item?.size ?? "",
+  ).trim();
+  const sizeCountry = String(item?.size_country ?? "").trim();
+
+  if (!size) {
+    return sizeCountry;
+  }
+
+  return sizeCountry ? `${size} (${sizeCountry})` : size;
+};
+
 const getTrailingPoNumber = (poNumber?: string | null) => {
   const match = poNumber?.match(/(\d+)\s*$/);
   return match ? Number(match[1]) : 0;
@@ -213,9 +231,7 @@ const FreshOrdersAcceptedForm = ({
 
       const arrayData = data.map((it: any) => ({
         styleNo: it.productCode ?? it.styleNo ?? "", customColor: it.color,
-        size: it.admin_us_size
-          ? `${it.admin_us_size}`
-          : `${it.size} (${it.size_country})`,
+        size: formatOriginalSizeDisplay(it),
         quantity: it.quantity,
         comments: it.comments,
         amount: Number(it.price),
@@ -1255,11 +1271,7 @@ const FreshOrdersAcceptedForm = ({
                                   <Input
                                     placeholder="Size"
                                     readOnly
-                                    value={
-                                      details[index]?.admin_us_size
-                                        ? `US ${details[index].admin_us_size}`
-                                        : `${details[index].size_country} ${details[index].size}`
-                                    }
+                                    value={formatOriginalSizeDisplay(details[index])}
                                   />
                                 </FormControl>
                                 <FormMessage />

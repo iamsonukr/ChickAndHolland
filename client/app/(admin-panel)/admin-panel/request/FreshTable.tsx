@@ -27,6 +27,49 @@ import useHttp from "@/lib/hooks/usePost";
 import { toast } from "sonner";
 import dayjs from "dayjs";
 
+const splitCsvValues = (value: unknown) =>
+  String(value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const formatSizeWithCountry = (size: string, sizeCountry?: string) => {
+  if (!sizeCountry) {
+    return size;
+  }
+
+  if (size.includes(`(${sizeCountry})`) || size.startsWith(`${sizeCountry} `)) {
+    return size;
+  }
+
+  return `${size} (${sizeCountry})`;
+};
+
+const formatFreshTableSize = (invoice: {
+  original_size?: unknown;
+  product_size?: unknown;
+  size?: unknown;
+  size_country?: unknown;
+}) => {
+  const sizes = splitCsvValues(
+    invoice.original_size ?? invoice.product_size ?? invoice.size ?? "",
+  );
+  const sizeCountries = splitCsvValues(invoice.size_country);
+  const fallbackCountry = sizeCountries.length === 1 ? sizeCountries[0] : "";
+
+  if (!sizes.length) {
+    return "N/A";
+  }
+
+  const formattedSizes = sizes
+    .map((size, index) =>
+      formatSizeWithCountry(size, sizeCountries[index] || fallbackCountry),
+    )
+    .filter((value, index, values) => values.indexOf(value) === index);
+
+  return formattedSizes.join(", ");
+};
+
 export function FreshTable({ data }: { data: any[] }) {
   const { loading, error, executeAsync } = useHttp(
     "/retailer-orders/admin/fresh-order/reject",
@@ -78,18 +121,7 @@ export function FreshTable({ data }: { data: any[] }) {
             </TableCell>
             <TableCell className="text-center">{invoice.customer_name}</TableCell>
             <TableCell className="max-w-[150px] truncate text-center">
-              {invoice.admin_us_size
-                ? ` ${invoice.admin_us_size
-                  .split(",")
-                  .filter((v, i, a) => a.indexOf(v) === i)
-                  .join(", ")}`
-                : invoice.product_size
-                  ? `${invoice.size_country.split(",")[0]} ${invoice.product_size
-                    .split(",")
-                    .filter((v, i, a) => a.indexOf(v) === i)
-                    .join(", ")
-                  }`
-                  : "N/A"}
+              {formatFreshTableSize(invoice)}
             </TableCell>
 
 
