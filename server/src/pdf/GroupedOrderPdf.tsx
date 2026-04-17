@@ -1,20 +1,20 @@
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { build2dBarcodeUrl, normalizeBarcodeValue } from "../lib/barcodes";
+import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import dayjs from "dayjs";
 import {
   formatEuSizeSummary,
   formatEuSizeText,
   PDF_DISPLAY_SIZE_UNIT,
 } from "../lib/sizeConversion";
+import { styles } from "./PDFStyle";
 
 const fresh = "Fresh Order";
 
 const chunkItems = <T,>(items: T[], size: number) => {
   const chunks: T[][] = [];
-
   for (let index = 0; index < items.length; index += size) {
     chunks.push(items.slice(index, index + size));
   }
-
   return chunks;
 };
 
@@ -84,27 +84,6 @@ const getCommentsSummary = (variants: any[], fallback?: string) => {
 
 const getReferenceImages = (variants: any[]) =>
   Array.from(new Set(variants.flatMap((item) => normalizeImages(item.refImg))));
-
-const normalizeBarcodeValue = (barcode?: string | null) => {
-  const normalizedBarcode = String(barcode ?? "").trim();
-
-  if (!normalizedBarcode) return "";
-  if (["N/A", "NA", "NULL", "UNDEFINED"].includes(normalizedBarcode.toUpperCase())) {
-    return "";
-  }
-
-  return normalizedBarcode;
-};
-
-const getVariantBarcodeUrl = (barcode?: string | null) => {
-  const normalizedBarcode = normalizeBarcodeValue(barcode);
-
-  if (!normalizedBarcode) return "";
-
-  return `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(
-    normalizedBarcode,
-  )}&scale=2&height=8&includetext=false`;
-};
 
 const GroupedOrderPdf = ({
   orderData,
@@ -275,10 +254,9 @@ const GroupedOrderPdf = ({
                 </View>
               </View>
 
-{/* bar code details starts */}
               <View style={styles.pageVariantOverlay} wrap={false}>
                 <View style={styles.variantOverlay}>
-                  <Text style={styles.variantOverlayTitle}>Size / Barcode Details</Text>
+                  <Text style={styles.variantOverlayTitle}>Size 1/ 2D Barcode Details</Text>
                   <View style={styles.variantGrid}>
                     {variants.map((variant: any, variantIndex: number) => {
                       const normalizedBarcode = normalizeBarcodeValue(variant.barcode);
@@ -293,27 +271,51 @@ const GroupedOrderPdf = ({
                               : styles.variantCardLast,
                           ]}
                         >
-                          <Text style={styles.variantTitle}>{variant.styleNo}</Text>
-                          <Text style={styles.variantValue} wrap>
-                            {getVariantSizeText(variant)}
-                          </Text>
-                          <Text style={styles.variantMeta}>Qty: {variant.quantity}</Text>
+                          <View style={styles.variantCardTop}>
+                            <Text style={styles.variantTitle}>{variant.styleNo}</Text>
+                            <View style={styles.variantInfoGroup}>
+                              <View style={styles.variantInfoRow}>
+                                <Text style={styles.variantInfoLabel}>Size:</Text>
+                                <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text>
+                              </View>
+                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
+                                <Text style={styles.variantInfoLabel}>QTY:</Text>
+                                <Text style={styles.variantInfoValue}>{variant.quantity ?? "-"}</Text>
+                              </View>
+                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
+                                <Text style={styles.variantInfoLabel}>Color:</Text>
+                              </View>
+                              <View style={[styles.colorValuesRow, styles.variantInfoRowBorder]}>
+                                {variant.color ? (
+                                  <Text style={styles.colorDetail}>{variant.color}</Text>
+                                ) : null}
+                                {variant.meshColor ? (
+                                  <Text style={styles.colorDetail}>{variant.meshColor}</Text>
+                                ) : null}
+                                {!variant.color && !variant.meshColor ? (
+                                  <Text style={styles.colorDetail}>-</Text>
+                                ) : null}
+                              </View>
+                            </View>
 
-                          {normalizedBarcode ? (
-                            <>
-                              <Image
-                                src={getVariantBarcodeUrl(normalizedBarcode)}
-                                style={styles.variantBarcode}
-                              />
-                              <Text style={styles.variantCodeText}>
-                                {normalizedBarcode}
-                              </Text>
-                            </>
-                          ) : (
-                            <Text style={styles.variantCodeText}>
-                              Barcode unavailable
-                            </Text>
-                          )}
+                            <View style={styles.variantBarcodeSection}>
+                              {normalizedBarcode ? (
+                                <>
+                                  <Image
+                                    src={build2dBarcodeUrl(normalizedBarcode, 120)}
+                                    style={styles.variantBarcode}
+                                  />
+                                  <Text style={styles.variantCodeText}>
+                                    {normalizedBarcode}
+                                  </Text>
+                                </>
+                              ) : (
+                                <Text style={styles.variantCodeText}>
+                                  Barcode unavailable
+                                </Text>
+                              )}
+                            </View>
+                          </View>
                         </View>
                       );
                     })}
@@ -327,321 +329,5 @@ const GroupedOrderPdf = ({
     </Document>
   );
 };
-
-const styles = StyleSheet.create({
-  page: {
-    flexDirection: "column",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  fullPageContainer: {
-    flex: 1,
-    flexDirection: "column",
-    position: "relative",
-  },
-  topBanner: {
-    backgroundColor: "#FF5698",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 10,
-  },
-  bannerText: {
-    color: "black",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  bannerTexts: {
-    color: "black",
-    fontSize: 25,
-    fontWeight: "bold",
-  },
-  bannerTextPurchaseOrderNo: {
-    color: "black",
-    fontSize: 30,
-    fontWeight: "bold",
-  },
-  contentContainer: {
-    flex: 1,
-    marginTop: 10,
-    flexDirection: "column",
-  },
-  topContentRow: {
-    flex: 1,
-    flexDirection: "row",
-  },
-  detailsSection: {
-    width: "62%",
-    flexDirection: "column",
-    paddingTop: 10,
-    paddingBottom: 10,
-    paddingRight: 8,
-  },
-  tableContainer: {
-    border: "1px solid #000",
-    borderRadius: 4,
-    width: "100%",
-    marginBottom: 15,
-  },
-  tableTitleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: "#FFD1E6",
-    borderBottom: "1px solid #000",
-    alignItems: "center",
-  },
-  tableTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    padding: 4,
-    textAlign: "left",
-    flex: 1,
-  },
-  orderTypeText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    padding: 4,
-    color: "#0000FF",
-    textAlign: "center",
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottom: "1px solid #ccc",
-  },
-  mergedContainer: {
-    flexDirection: "row",
-    borderBottom: "1px solid #ccc",
-  },
-  leftMergedContainer: {
-    width: "40%",
-    flexDirection: "row",
-  },
-  rightStackedContainer: {
-    width: "60%",
-    flexDirection: "column",
-  },
-  stackedRowTop: {
-    flexDirection: "row",
-    borderBottom: "1px solid #ccc",
-  },
-  stackedRowBottom: {
-    flexDirection: "row",
-  },
-  leftSection: {
-    width: "40%",
-    flexDirection: "row",
-  },
-  rightSection: {
-    width: "60%",
-    flexDirection: "row",
-  },
-  tableHeaderCell: {
-    width: "40%",
-    padding: 4,
-    backgroundColor: "#FF5698",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  tableDataCell: {
-    width: "60%",
-    padding: 4,
-    backgroundColor: "#FFE6F2",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  sizeHeaderCell: {
-    width: "40%",
-    padding: 4,
-    backgroundColor: "#FF5698",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  sizeDataCell: {
-    width: "60%",
-    padding: 4,
-    backgroundColor: "#FFE6F2",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  stackedHeaderCell: {
-    width: "40%",
-    padding: 4,
-    backgroundColor: "#FF5698",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  stackedDataCell: {
-    width: "60%",
-    padding: 4,
-    backgroundColor: "#FFE6F2",
-    justifyContent: "center",
-    borderRight: "1px solid #ccc",
-  },
-  headerText: {
-    fontSize: 15,
-    fontWeight: "bold",
-    color: "#ffffff",
-  },
-  dataText: {
-    fontSize: 13,
-    width: "100%",
-  },
-  customizationContainer: {
-    flexDirection: "column",
-    marginTop: 5,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    textDecoration: "underline",
-    marginBottom: 8,
-    color: "#FF5698",
-  },
-  commentsBox: {
-    border: "1px solid #ccc",
-    borderRadius: 4,
-    padding: 8,
-    backgroundColor: "#f9f9f9",
-    minHeight: 60,
-  },
-  commentsText: {
-    fontSize: 12,
-    lineHeight: 1.4,
-  },
-  extraImagesContainer: {
-    flexDirection: "column",
-    marginTop: 10,
-  },
-  extraImagesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  additionalImage: {
-    width: "48%",
-    height: 120,
-    objectFit: "contain",
-    borderRadius: 4,
-    border: "1px solid #ccc",
-    marginBottom: 8,
-    marginRight: "2%",
-  },
-  rightPanel: {
-    width: "38%",
-    paddingTop: 10,
-    paddingBottom: 10,
-    paddingLeft: 8,
-    flexDirection: "column",
-  },
-  mainImageFrame: {
-    flex: 1,
-    border: "1px solid #999",
-    borderRadius: 4,
-    padding: 6,
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  mainImagePlaceholder: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 12,
-  },
-  mainImagePlaceholderText: {
-    fontSize: 11,
-    color: "#666",
-    textAlign: "center",
-  },
-  mainImage: {
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
-    borderRadius: 4,
-  },
-
-  // ── Variant / Barcode overlay ──────────────────────────────────────────────
-  pageVariantOverlay: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    // Widened to 42% so 4 cards have breathing room
-    width: "42%",
-    paddingLeft: 8,
-    paddingBottom: 10,
-  },
-  variantOverlay: {
-    paddingHorizontal: 8,
-    paddingTop: 6,
-    paddingBottom: 8,
-    backgroundColor: "rgba(255,255,255,0.97)",
-    borderRadius: 4,
-    border: "1px solid #999",
-  },
-  variantOverlayTitle: {
-    fontSize: 11,
-    fontWeight: "bold",
-    color: "#FF5698",
-    marginBottom: 6,
-    textAlign: "center",
-  },
-  variantGrid: {
-    flexDirection: "row",
-    flexWrap: "nowrap",
-    alignItems: "stretch",
-    // gap replaces the fragile %-margin trick
-    gap: 4,
-  },
-  variantCard: {
-    // flex:1 distributes width evenly across however many cards exist (up to 4)
-    flex: 1,
-    border: "1px solid #000",
-    borderRadius: 4,
-    paddingVertical: 5,
-    paddingHorizontal: 4,
-    minHeight: 100,
-    backgroundColor: "#ffffff",
-    justifyContent: "flex-start",
-    alignItems: "center",
-    overflow: "hidden",
-  },
-  variantCardSpaced: {
-    // spacing now handled by gap on the grid, keep empty for API compat
-    marginRight: 0,
-  },
-  variantCardLast: {
-    marginRight: 0,
-  },
-  variantTitle: {
-    fontSize: 9,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 3,
-  },
-  variantValue: {
-    fontSize: 8,
-    textAlign: "center",
-    marginBottom: 3,
-    lineHeight: 1.3,
-  },
-  variantMeta: {
-    fontSize: 8,
-    textAlign: "center",
-    marginBottom: 2,
-  },
-  variantBarcode: {
-    // percentage width keeps it inside the card regardless of card size
-    width: "95%",
-    height: 22,
-    alignSelf: "center",
-    marginTop: 5,
-    marginBottom: 3,
-  },
-  variantCodeText: {
-    fontSize: 6,
-    textAlign: "center",
-    // prevent long barcodes from stretching the card
-    maxWidth: "100%",
-    overflow: "hidden",
-  },
-});
 
 export default GroupedOrderPdf;
