@@ -267,7 +267,7 @@ export default function Home() {
         <div className="mx-auto mb-12 max-w-4xl px-4 text-center">
           <div className="bg-[#F3F4F6] px-10 py-14 text-center font-brandon text-[14px] text-gray-400 md:px-10 md:text-[16px] md:leading-10 2xl:px-14 2xl:text-[16px] 2xl:leading-6 3xl:px-20 3xl:!leading-[32px] 4xl:px-28 4xl:text-4xl 4xl:!leading-[40px]">
             <p>
-              <span className="inline-block">Chic &amp; Holland</span> unveiled
+              <h1 className="inline-block">Chic &amp; Holland</h1> unveiled
               its SS26 &quot;300 Hours&quot; couture collection at Dubai Fashion
               Week, celebrating a decade of craftsmanship and artistry. Each
               look showcased our signature hand-embellished detailing, sculpted

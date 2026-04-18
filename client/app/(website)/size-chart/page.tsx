@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import { CustomizedImage } from "@/components/custom/CustomizedImage";
+
+export const metadata: Metadata = {
+  title: "Size Chart | Chic & Holland",
+  description:
+    "Find your perfect size with our comprehensive Chic & Holland sizing guide.",
+};
 
 const SizeChart = () => {
   return (

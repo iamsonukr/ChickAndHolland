@@ -1,7 +1,14 @@
 "use client";
 
+import type { Metadata } from "next";
 import { useState, useEffect, useRef } from "react";
 import ContactForm from "./Form";
+
+const metadata: Metadata = {
+  title: "Contact Us | Chic & Holland",
+  description:
+    "Get in touch with Chic & Holland for inquiries about our couture collections and fashion designs.",
+};
 
 const ContactUs = () => {
   const [isVisible, setIsVisible] = useState(true); // ✅ Start visible, never blank

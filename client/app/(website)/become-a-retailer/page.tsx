@@ -1,7 +1,14 @@
 "use client";
 
+import type { Metadata } from "next";
 import { useState, useEffect, useRef } from "react";
 import ContactForm from "../contact-us/Form";
+
+const metadata: Metadata = {
+  title: "Become a Retailer | Chic & Holland",
+  description:
+    "Partner with Chic & Holland as a retailer. Join our network of luxury fashion boutiques.",
+};
 
 const BecomeARetailer = () => {
   const [isVisible, setIsVisible] = useState(false);

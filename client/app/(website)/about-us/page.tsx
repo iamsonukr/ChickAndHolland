@@ -1,10 +1,19 @@
 "use client";
 
+import type { Metadata } from "next";
 import { CustomizedImage } from "@/components/custom/CustomizedImage";
 import { getSponsors } from "@/lib/data";
 import SponserImages from "./SponserImages";
 import HeroAnimated from "./HeroAnimated";
 import { useState, useEffect, useRef } from "react";
+
+// Note: This Metadata export is for build-time metadata
+// Client-side updates are handled by DynamicMeta component
+const metadata: Metadata = {
+  title: "About Chic & Holland | Luxury Couture Fashion Brand",
+  description:
+    "Learn about Chic & Holland's heritage, commitment to handcrafted luxury fashion, and our story of timeless elegance.",
+};
 
 export default function BrandPage() {
   const sectionsRef = useRef<(HTMLDivElement | null)[]>([]);

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import Header from "@/components/custom/website/Header";
 import Footer from "@/components/custom/website/Footer";
 import DynamicCanonical from "@/components/custom/website/DynamicCanonical";
+import DynamicMeta from "@/components/custom/website/DynamicMeta";
 import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner";
 import ScrollToTop from "@/components/custom/ScrollToTop";
@@ -127,6 +128,7 @@ export default function RootLayout({
 
       <body className="bg-background font-poppins antialiased">
         <DynamicCanonical />
+        <DynamicMeta />
         <ScrollToTop />
         <Header />
         <main className="w-full">{children}</main>

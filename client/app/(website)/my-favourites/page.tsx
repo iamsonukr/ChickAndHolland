@@ -1,7 +1,12 @@
 import { cookies } from "next/headers";
+import type { Metadata } from "next";
 import ShowMyFavourites from "./ShowMyFavourites";
-import { Metadata } from "next";
 import { redirect } from "next/navigation";
+
+export const metadata: Metadata = {
+  title: "My Favourites | Chic & Holland",
+  description: "View your saved favorite items from Chic & Holland.",
+};
 
 const MyFavourites = async () => {
   const cookieStore = await cookies();
@@ -30,8 +35,3 @@ const MyFavourites = async () => {
 };
 
 export default MyFavourites;
-
-export const metadata: Metadata = {
-  title: "Chic & Holland - My Favourites",
-  description: "Favourites page of Chic & Holland",
-};

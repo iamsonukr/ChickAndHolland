@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy | Chic & Holland",
+  description:
+    "Read our privacy policy and learn how Chic & Holland protects your personal information.",
+};
+
 const PrivacyPolicy = () => {
   const lastUpdated = new Date().toLocaleDateString();
 

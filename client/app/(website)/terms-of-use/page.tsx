@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import React from 'react';
+
+export const metadata: Metadata = {
+  title: "Terms of Use | Chic & Holland",
+  description: "Review the terms and conditions for using Chic & Holland website.",
+};
 
 const TermsOfUse = () => {
   const lastUpdated = new Date().toLocaleDateString();
