@@ -45,7 +45,6 @@ const RelatedProducts = ({
                 product.imageUrl ||
                 product.name ||
                 "/placeholder.png";
-
               return (
                 <CarouselItem
                   key={product.productId}

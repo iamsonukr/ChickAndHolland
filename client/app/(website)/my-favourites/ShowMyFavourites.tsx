@@ -48,6 +48,15 @@ const ShowMyFavourites = ({
   const [isLoading, setIsLoading] = useState(true);
   const [enquireNowProducts, setEnquireNowProducts] = useState<number[]>([]);
   const router = useRouter();
+  const favoriteProductCodes = Array.from(
+    new Set(favoriteDetails.map((item: any) => item.productCode))
+  );
+  const isAllSelected =
+    favoriteProductCodes.length > 0 &&
+    favoriteProductCodes.every((productCode) =>
+      enquireNowProducts.includes(productCode)
+    );
+  const hasSomeSelected = enquireNowProducts.length > 0;
 
   const {
     executeAsync: fetchFavorites,
@@ -59,6 +68,7 @@ const ShowMyFavourites = ({
     setFavoriteIds(favourites || []);
   }, [favourites]);
 
+  // `fetchFavorites` is recreated by the custom hook; adding it here would refetch on every render.
   useEffect(() => {
     const fetchFavoriteDetails = async () => {
       if (favoriteIds.length === 0) {
@@ -84,7 +94,42 @@ const ShowMyFavourites = ({
     };
 
     fetchFavoriteDetails();
-  }, [favoriteIds]);
+  }, [favoriteIds]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setEnquireNowProducts((prev) => {
+      const availableProductCodes = new Set(
+        favoriteDetails.map((item: any) => item.productCode)
+      );
+      const nextSelected = prev.filter((productCode) =>
+        availableProductCodes.has(productCode)
+      );
+
+      return nextSelected.length === prev.length ? prev : nextSelected;
+    });
+  }, [favoriteDetails]);
+
+  const handleToggleSelectAll = (checked: boolean | string) => {
+    if (checked) {
+      setEnquireNowProducts(favoriteProductCodes);
+      return;
+    }
+
+    setEnquireNowProducts([]);
+  };
+
+  const handleToggleProduct = (productCode: number, checked: boolean | string) => {
+    if (checked) {
+      setEnquireNowProducts((prev) =>
+        prev.includes(productCode) ? prev : [...prev, productCode]
+      );
+      return;
+    }
+
+    setEnquireNowProducts((prev) =>
+      prev.filter((selectedCode) => selectedCode !== productCode)
+    );
+  };
 
   const handleRemoveFavorite = (product: any) => {
     try {
@@ -133,7 +178,22 @@ const ShowMyFavourites = ({
 
   return (
     <div className="container my-4 space-y-4">
-      <div className="z-1 md:mt-10 rounded-xl border bg-background/95 p-3 backdrop-blur">
+      <div className="z-1 md:mt-10 flex flex-col gap-3 rounded-xl border bg-background/95 p-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex items-center gap-3 text-sm font-medium">
+          <Checkbox
+            checked={
+              hasSomeSelected && !isAllSelected ? "indeterminate" : isAllSelected
+            }
+            onCheckedChange={handleToggleSelectAll}
+            disabled={favoriteProductCodes.length === 0}
+          />
+          <span>
+            {isAllSelected
+              ? "Deselect all products"
+              : `Select all products${favoriteProductCodes.length > 0 ? ` (${favoriteProductCodes.length})` : ""}`}
+          </span>
+        </label>
+
         <EnquireProducts
           buttonText={
             enquireNowProducts.length > 0
@@ -162,20 +222,9 @@ const ShowMyFavourites = ({
                   <Checkbox
                     className="h-4 w-4 rounded-full border-none p-0"
                     checked={enquireNowProducts.includes(item.productCode)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setEnquireNowProducts((prev) => [
-                          ...prev,
-                          item.productCode,
-                        ]);
-                      } else {
-                        setEnquireNowProducts((prev) =>
-                          prev.filter(
-                            (productCode) => productCode !== item.productCode
-                          )
-                        );
-                      }
-                    }}
+                    onCheckedChange={(checked) =>
+                      handleToggleProduct(item.productCode, checked)
+                    }
                   />
                 </Button>
 
