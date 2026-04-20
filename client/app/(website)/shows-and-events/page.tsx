@@ -1,13 +1,6 @@
 "use client";
 
-import type { Metadata } from "next";
 import React, { useEffect, useRef, useState } from 'react';
-
-export const metadata: Metadata = {
-  title: "Shows & Events | Chic & Holland",
-  description:
-    "Discover upcoming shows and events featuring Chic & Holland couture collections.",
-};
 
 export default function ShowsAndEvents() {
   const modalRef = useRef(null);
