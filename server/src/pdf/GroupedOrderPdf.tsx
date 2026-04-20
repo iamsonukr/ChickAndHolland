@@ -68,7 +68,8 @@ const getGroupQuantity = (items: any[]) =>
 
 const getVariantSizeText = (item: any) => formatEuSizeText(item);
 
-const getSizeSummary = (items: any[]) => formatEuSizeSummary(items);
+const getSizeSummary = (items: any[]) =>
+  formatEuSizeSummary(items, { alwaysShowCount: true });
 
 const getCommentsSummary = (variants: any[], fallback?: string) => {
   const uniqueComments = Array.from(
@@ -167,7 +168,7 @@ const GroupedOrderPdf = ({
                             <Text style={styles.headerText}>Quantity</Text>
                           </View>
                           <View style={styles.tableDataCell}>
-                            <Text style={styles.dataText}>{getGroupQuantity(groupItems)}</Text>
+                            <Text style={styles.dataText}>{getGroupQuantity(variants)}</Text>
                           </View>
                         </View>
                         <View style={styles.rightSection}>
@@ -187,7 +188,7 @@ const GroupedOrderPdf = ({
                           </View>
                           <View style={styles.sizeDataCell}>
                             <Text style={styles.dataText} wrap>
-                              {getSizeSummary(groupItems)}
+                              {getSizeSummary(variants)}
                             </Text>
                           </View>
                         </View>

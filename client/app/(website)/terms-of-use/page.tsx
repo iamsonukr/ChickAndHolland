@@ -62,7 +62,7 @@ const TermsOfUse = () => {
               Business data, including information from QuickBooks Online, is to be used solely for authorized business operations and in accordance with our Privacy Policy.
             </p>
           </section>
-
+          
           <section className="mb-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">6. Intellectual Property</h2>
             <p className="text-gray-700 mb-4">

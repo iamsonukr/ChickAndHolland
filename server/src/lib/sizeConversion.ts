@@ -209,6 +209,7 @@ export const formatEuSizeSummary = (
     size?: unknown;
     size_country?: unknown;
   }> = [],
+  options?: { alwaysShowCount?: boolean },
 ) => {
   const sizeCounts = new Map<string, number>();
 
@@ -235,7 +236,9 @@ export const formatEuSizeSummary = (
 
   return Array.from(sizeCounts.entries())
     .sort(sortEuSizes)
-    .map(([size, count]) => (count > 1 ? `${size}/${count}` : size))
+    .map(([size, count]) =>
+      options?.alwaysShowCount || count > 1 ? `${size}/${count}` : size,
+    )
     .join(", ") || "-";
 };
 

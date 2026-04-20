@@ -67,7 +67,8 @@ const getGroupQuantity = (items: any[]) =>
 
 const getVariantSizeText = (item: any) => formatEuSizeText(item);
 
-const getSizeSummary = (items: any[]) => formatEuSizeSummary(items);
+const getSizeSummary = (items: any[]) =>
+  formatEuSizeSummary(items, { alwaysShowCount: true });
 
 const getCommentsSummary = (variants: any[], fallback?: string) => {
   const uniqueComments = Array.from(
@@ -123,7 +124,8 @@ const GroupedOrderPdf = ({
                     Order Received Date:{" "}
                     {dayjs(orderData.orderReceivedDate).format("DD MMM YYYY")}
                   </Text>
-                  {showShippingDate && orderData.orderCancellationDate && (
+                  { orderData.orderCancellationDate && (
+                  // {showShippingDate && orderData.orderCancellationDate && (
                     <Text style={styles.bannerText}>
                       Order Shipping Date:{" "}
                       {dayjs(orderData.orderCancellationDate).format("DD MMM YYYY")}
@@ -168,7 +170,7 @@ const GroupedOrderPdf = ({
                             <Text style={styles.headerText}>Quantity</Text>
                           </View>
                           <View style={styles.tableDataCell}>
-                            <Text style={styles.dataText}>{getGroupQuantity(groupItems)}</Text>
+                            <Text style={styles.dataText}>{getGroupQuantity(variants)}</Text>
                           </View>
                         </View>
                         <View style={styles.rightSection}>
@@ -188,7 +190,7 @@ const GroupedOrderPdf = ({
                           </View>
                           <View style={styles.sizeDataCell}>
                             <Text style={styles.dataText} wrap>
-                              {getSizeSummary(groupItems)}
+                              {getSizeSummary(variants)}
                             </Text>
                           </View>
                         </View>
@@ -258,7 +260,7 @@ const GroupedOrderPdf = ({
 
               <View style={styles.pageVariantOverlay} wrap={false}>
                 <View style={styles.variantOverlay}>
-                  <Text style={styles.variantOverlayTitle}>Size 1/ 2D Barcode Details</Text>
+                  {/* <Text style={styles.variantOverlayTitle}>Size 1/ 2D Barcode Details</Text> */}
                   <View style={styles.variantGrid}>
                     {variants.map((variant: any, variantIndex: number) => {
                       const normalizedBarcode = normalizeBarcodeValue(variant.barcode);
@@ -277,8 +279,8 @@ const GroupedOrderPdf = ({
                           <Text style={styles.variantTitle}>{variant.styleNo}</Text>
                           <View style={styles.variantInfoGroup}>
                               <View style={styles.variantInfoRow}>
-                                <Text style={styles.variantInfoLabel}>Size:</Text>
-                                <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text>
+                                <Text style={styles.variantInfoLabel}>Size: {getVariantSizeText(variant)}</Text>
+                                {/* <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text> */}
                               </View>
                               <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
                                 <Text style={styles.variantInfoLabel}>QTY:</Text>
@@ -306,7 +308,7 @@ const GroupedOrderPdf = ({
                               <>
                                 <Image
                                   alt=""
-                                  src={build2dBarcodeUrl(normalizedBarcode, 120)}
+                                  src={build2dBarcodeUrl(normalizedBarcode, 80)}
                                   style={styles.variantBarcode}
                                 />
                                 <Text style={styles.variantCodeText}>

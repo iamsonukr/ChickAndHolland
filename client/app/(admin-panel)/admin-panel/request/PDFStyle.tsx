@@ -334,8 +334,8 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
   variantBarcode: {
-    width: 56,
-    height: 56,
+    width: 36,
+    height: 36,
     alignSelf: "center",
     marginBottom: 3,
   },
