@@ -7,7 +7,6 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
-import { HoverCard, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   Collapsible,
   CollapsibleContent,
@@ -48,7 +47,7 @@ const Header = async () => {
   }
 
   const categories = await getCategories();
-  // console.log("categories received at header.tsx", categories)
+  console.log("categories received at header.tsx", categories)
 
   const sortedCategories = [...(categories ?? [])]
     .sort((a: any, b: any) => a.priority - b.priority)
@@ -58,6 +57,7 @@ const Header = async () => {
         (a: any, b: any) => a.priority - b.priority
       ),
     }));
+  console.log("sortedCategories", sortedCategories)
   // console.log("These are sorted categories", sortedCategories)
 
   return (
@@ -227,28 +227,24 @@ const Header = async () => {
                     COLLECTIONS
                   </p>
                 </NavigationMenuTrigger>
-                <NavigationMenuContent className="flex min-w-[100vw] max-w-[100vw] flex-row justify-evenly px-8">
+                <NavigationMenuContent className="grid min-w-[100vw] max-w-[100vw] grid-cols-[repeat(auto-fit,minmax(180px,1fr))] items-start gap-x-8 gap-y-6 px-8 py-4 2xl:px-12">
                   {sortedCategories.map((category: any) => (
-                    <HoverCard key={category.id} closeDelay={200}>
-                      <HoverCardTrigger asChild className="cursor-pointer">
-                        <div>
-                          <p className="!mb-4 !mt-3 w-fit border-b-[3px] border-[#C9A39A] pb-1 font-adornstoryserif text-xl font-bold md:text-2xl 2xl:text-3xl 3xl:text-3xl">
-                            {category.name}
+                    <div key={category.id} className="min-w-0">
+                      <p className="!mb-4 !mt-3 border-b-[3px] border-[#C9A39A] pb-1 font-adornstoryserif text-xl font-bold md:text-2xl 2xl:text-3xl 3xl:text-3xl">
+                        {category.name}
+                      </p>
+                      {category.subCategories.map((subcategory: any) => (
+                        <Link
+                          key={subcategory.id}
+                          className="block cursor-pointer"
+                          href={`/collections/${category.id}/${subcategory.id}`}
+                        >
+                          <p className="!my-3 whitespace-normal break-words font-mysi text-base transition-all hover:text-blue-500 md:text-xl 2xl:text-2xl 3xl:text-3xl">
+                            {subcategory.name}
                           </p>
-                          {category.subCategories.map((subcategory: any) => (
-                            <Link
-                              key={subcategory.id}
-                              className="cursor-pointer"
-                              href={`/collections/${category.id}/${subcategory.id}`}
-                            >
-                              <p className="!my-3 font-mysi text-base transition-all hover:text-blue-500 md:text-xl 2xl:text-2xl 3xl:text-3xl">
-                                {subcategory.name}
-                              </p>
-                            </Link>
-                          ))}
-                        </div>
-                      </HoverCardTrigger>
-                    </HoverCard>
+                        </Link>
+                      ))}
+                    </div>
                   ))}
                 </NavigationMenuContent>
               </NavigationMenuItem>
