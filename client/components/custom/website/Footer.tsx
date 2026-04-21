@@ -60,10 +60,14 @@ export default function Footer() {
         </div>
 
         {/* Optional: Copyright Section */}
-        <div className="mt-8 text-[10px] md:text-xs tracking-[0.2em] opacity-50">
-          © {new Date().getFullYear()} CHIC & HOLLAND. ALL RIGHTS RESERVED.
+    <div className="flex justify-between gap-10 items-center">
+  <div className="mt-8 text-[10px] md:text-xs tracking-[0.2em] opacity-50">
+    © {new Date().getFullYear()} CHIC & HOLLAND. ALL RIGHTS RESERVED.
+  </div>
+  <div className="mt-8 text-[10px] md:text-xs tracking-[0.2em] opacity-50">Designed and Developed by Jaikvik Technology</div>
+</div>
+      
         </div>
-      </div>
     </footer>
   );
 }

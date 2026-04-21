@@ -124,6 +124,8 @@ const ProductCard = ({
           <Link
             href={`/product/${isLoggedIn ? (product.product ? product.product.id : product?.id) : product?.id}`}
             target={openInDifferentTab ? "_blank" : "_self"}
+              className="block w-full"  // add this
+
           >
             <CustomizedImage
               src={productImage || ""}

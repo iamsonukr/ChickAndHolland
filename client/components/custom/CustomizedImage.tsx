@@ -54,8 +54,9 @@ const CustomizedImage = ({
           src={props.src || "/placeholder.png"}
           alt={props.alt || "Image"}
           sizes={imageSizes}
+            style={{ width: "100%", height: "auto" }}  // ← add this
           className={cn(
-            "h-full w-full max-w-full object-cover transition-opacity duration-300",
+            "w-full max-w-full object-cover transition-opacity duration-300",
             !isLoaded && "opacity-0",
             className,
           )}

@@ -93,7 +93,7 @@ export default async function CollectionProducts(props: {
   const categoryName = initialProductData.categoryDetails?.name || "";
 
   return (
-    <div className="  flex flex-center flex-col justify-center content-center item-center" >
+<div className="flex flex-col w-full">
       {/* Hero section */}
       <TopSection
         name={categoryName}
@@ -105,7 +105,7 @@ export default async function CollectionProducts(props: {
         {categoryName}
       </h1>
 
-      <div className="mx-2 md:mx-8 mb-8 mt-8 flex flex-col gap-2 md:p-4 p-2 !mx-auto ">
+      <div className="mx-1 md:mx-2 mb-8 mt-8 flex flex-col gap-2 md:p-2 p-1  ">
         {/* Server-rendered initial products with videos */}
         {initialGroups.map((group, i) => (
           <div
