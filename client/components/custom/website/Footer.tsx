@@ -37,37 +37,43 @@ export default function Footer() {
 
         {/* --- MIDDLE LOGO --- */}
         <div className="mb-4">
-          <Link href = "/">
-          <img
-            src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/brand_page/CH%20Monogram_Rose%20Gold.png"
-            className="w-[100px] md:w-[200px] lg:w-[250px] object-contain"
-            alt="Chic & Holland Monogram"
-          />
+          <Link href="/">
+            <img
+              src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/brand_page/CH%20Monogram_Rose%20Gold.png"
+              className="w-[100px] md:w-[200px] lg:w-[250px] object-contain"
+              alt="Chic & Holland Monogram"
+            />
           </Link>
-          
+
         </div>
 
         {/* --- MAIN BRAND TITLE --- */}
         <div className="w-full flex justify-center">
           <Link href="/" >
             <img
-            src="/brand-logo.png"
-            className="w-[250px] md:w-[500px] lg:w-[700px] object-contain"
-            alt="Chic & Holland Full Logo"
-          />
+              src="/brand-logo.png"
+              className="w-[250px] md:w-[500px] lg:w-[700px] object-contain"
+              alt="Chic & Holland Full Logo"
+            />
           </Link>
-          
+
         </div>
 
         {/* Optional: Copyright Section */}
-    <div className="flex justify-between gap-10 items-center">
-  <div className="mt-8 text-[10px] md:text-xs tracking-[0.2em] opacity-50">
-    © {new Date().getFullYear()} CHIC & HOLLAND. ALL RIGHTS RESERVED.
-  </div>
-  <div className="mt-8 text-[10px] md:text-xs tracking-[0.2em] opacity-50">Designed and Developed by Jaikvik Technology</div>
-</div>
-      
+        <div className="flex hidden md:flex justify-between gap-10 items-center">
+          <div className="mt-8 text-[10px] md:text-xs tracking-[0.2em] opacity-50">
+            © {new Date().getFullYear()} CHIC & HOLLAND. ALL RIGHTS RESERVED.
+          </div>
+          <div className="mt-8 text-[10px] md:text-xs tracking-[0.2em] opacity-50">Designed and Developed by <a href="https://www.jaikviktechnology.com/"  target="_blank" >Jaikvik Technology India</a></div>
         </div>
+
+        <div className="mt-6 flex md:hidden flex-col justify-between items-center text-center">
+          <span className="text-[10px] md:text-xs tracking-[0.2em] opacity-50">
+            © {new Date().getFullYear()} CHIC & HOLLAND. ALL RIGHTS RESERVED.
+          </span>
+          <span className="text-[10px] md:text-xs tracking-[0.2em] opacity-50">Designed and Developed by <a href="https://www.jaikviktechnology.com/" target="_blank" className="font-bold opacity-100">Jaikvik Technology India</a></span>
+        </div>
+      </div>
     </footer>
   );
 }
