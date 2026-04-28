@@ -31,13 +31,18 @@ const enquireNowFormSchema = z.object({
   productCodes: z.string().min(1, {
     message: "Product Code is required",
   }),
+  humanCheck: z.literal(true, {
+    errorMap: () => ({
+      message: "Please confirm you are not a robot",
+    }),
+  }),
 });
 
 export const submitEnquiryForm = actionClient
   .schema(enquireNowFormSchema)
   .action(async ({ parsedInput: values }) => {
     try {
-      await fetch(`${API_URL}/products/enquiry-email`, {
+      const response = await fetch(`${API_URL}/products/enquiry-email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -45,9 +50,18 @@ export const submitEnquiryForm = actionClient
         body: JSON.stringify(values),
       });
 
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        return {
+          success: false,
+          message: data.message || "Something went wrong",
+        };
+      }
+
       return {
         success: true,
-        message: "Enquiry submitted successfully",
+        message: data.message || "Enquiry submitted successfully",
       };
     } catch (error) {
       console.error(error);

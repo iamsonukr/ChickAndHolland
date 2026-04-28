@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { EnquireNowForm, enquireNowFormSchema } from "@/lib/formSchemas";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,6 +51,7 @@ const EnquireProducts = ({
       city: "",
       country: "",
       productCodes: productCodes,
+      humanCheck: false,
       // categoryName: productDetails.subCategory.name
     },
   });
@@ -200,6 +203,35 @@ const EnquireProducts = ({
                   <FormControl>
                     <Textarea placeholder="Message" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={enquireNowForm.control}
+              name="humanCheck"
+              render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <div className="flex items-start gap-3 rounded-md border px-4 py-3">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(checked) =>
+                          field.onChange(checked === true)
+                        }
+                        className="mt-1"
+                      />
+                    </FormControl>
+                    <div className="space-y-1">
+                      <FormLabel className="cursor-pointer">
+                        I&apos;m not a robot
+                      </FormLabel>
+                      <FormDescription>
+                        Please confirm before sending your product enquiry.
+                      </FormDescription>
+                    </div>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

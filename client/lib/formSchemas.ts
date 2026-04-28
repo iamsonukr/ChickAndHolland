@@ -78,11 +78,16 @@ export const enquireNowFormSchema = z.object({
   productCodes: z.string().min(1, {
     message: "Product Code is required",
   }),
+  humanCheck: z.literal(true, {
+    errorMap: () => ({
+      message: "Please confirm you are not a robot",
+    }),
+  }),
   // categoryName: z.string().min(1, {
   //   message: "Category Name is required"
   // })
 });
-export type EnquireNowForm = z.infer<typeof enquireNowFormSchema>;
+export type EnquireNowForm = z.input<typeof enquireNowFormSchema>;
 
 export const loginFormSchema = z.object({
   userName: z.string().min(1, {
@@ -810,7 +815,7 @@ export const contactUsFormSchema = z.object({
     }),
   }),
 });
-export type ContactUsForm = z.infer<typeof contactUsFormSchema>;
+export type ContactUsForm = z.input<typeof contactUsFormSchema>;
 
 export const addProductCategoryFormSchema = z.object({
   name: z.string().min(1, {

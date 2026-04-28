@@ -721,6 +721,17 @@ router.post(
       productCodes,
       page,
     } = req.body;
+
+    const isHumanCheckValid =
+      req.body?.humanCheck === true || req.body?.humanCheck === "true";
+
+    if (!isHumanCheckValid) {
+      return res.status(400).json({
+        success: false,
+        message: "Please confirm you are not a robot",
+      });
+    }
+
     if (page !== "favourites") {
       mail({
         html: enquiryEmailTemplate({
@@ -1659,8 +1670,7 @@ router.post(
 
     res.json({
       success: true,
-      message: "sup, mail sent",
-
+      message: "Enquiry submitted successfully",
     });
   })
 );
