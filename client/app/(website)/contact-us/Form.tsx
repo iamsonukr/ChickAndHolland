@@ -18,8 +18,13 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput } from "@/components/custom/phone-input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
+import dynamic from "next/dynamic";
+
+const GoogleRecaptcha = dynamic(
+  () => import("@/components/custom/website/GoogleRecaptcha"),
+  { ssr: false },
+);
 
 const ContactForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,7 +39,7 @@ const ContactForm = () => {
       message: "",
       country: "",
       state: "",
-      humanCheck: false,
+      recaptchaToken: "",
     },
   });
 
@@ -197,25 +202,19 @@ const ContactForm = () => {
 
         <FormField
           control={form.control}
-          name="humanCheck"
+          name="recaptchaToken"
           render={({ field }) => (
             <FormItem className="luxury-form-item">
-              <div className="flex items-start gap-3 rounded-md border border-white/15 bg-white/5 px-4 py-3">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={(checked) => field.onChange(checked === true)}
-                    className="mt-1 border-white/50 data-[state=checked]:border-primary data-[state=checked]:bg-primary"
-                  />
-                </FormControl>
+              <div className="space-y-3 rounded-md border border-white/15 bg-white/5 px-4 py-3">
                 <div className="space-y-1">
-                  <FormLabel className="luxury-form-label cursor-pointer">
-                    I&apos;m not a robot
-                  </FormLabel>
+                  <FormLabel className="luxury-form-label">Security Check</FormLabel>
                   <FormDescription className="luxury-form-description">
-                    Please confirm before sending your message.
+                    Complete Google reCAPTCHA before sending your message.
                   </FormDescription>
                 </div>
+                <FormControl>
+                  <GoogleRecaptcha value={field.value} onChange={field.onChange} />
+                </FormControl>
               </div>
               <FormMessage className="luxury-form-message" />
             </FormItem>

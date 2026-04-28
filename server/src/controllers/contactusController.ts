@@ -3,58 +3,19 @@ import asyncHandler from "../middleware/AsyncHandler";
 import { mail } from "../lib/Utils";
 import Contactus from "../models/contactus";
 import { contactUsEmailTemplate } from "../lib/contactUsEmailTemplate";
+import {
+  getClientIp,
+  getRateLimitViolation,
+  isDisposableEmail,
+} from "../lib/spamProtection";
+import { verifyRecaptchaToken } from "../lib/recaptcha";
 
 const router = Router();
-const RES_NAME = "Contactus";
 const CONTACT_US_RATE_LIMITS = {
-  minute: { windowMs: 60 * 1000, max: 3, label: "minute" },
-  hour: { windowMs: 60 * 60 * 1000, max: 10, label: "hour" },
-  day: { windowMs: 24 * 60 * 60 * 1000, max: 20, label: "day" },
+  minute: { windowMs: 60 * 1000, max: 3 },
+  hour: { windowMs: 60 * 60 * 1000, max: 10 },
+  day: { windowMs: 24 * 60 * 60 * 1000, max: 20 },
 } as const;
-const contactUsRequestLog = new Map<string, number[]>();
-
-const getClientIp = (req: Request) => {
-  const forwardedFor = req.headers["x-forwarded-for"];
-  const forwardedIp = Array.isArray(forwardedFor)
-    ? forwardedFor[0]
-    : forwardedFor?.split(",")[0];
-  const rawIp =
-    forwardedIp?.trim() || req.ip || req.socket.remoteAddress || "unknown";
-
-  return rawIp.replace(/^::ffff:/, "");
-};
-
-const getRateLimitViolation = (ip: string, now: number) => {
-  const timestamps = contactUsRequestLog.get(ip) ?? [];
-  const activeTimestamps = timestamps.filter(
-    (timestamp) => now - timestamp < CONTACT_US_RATE_LIMITS.day.windowMs,
-  );
-
-  contactUsRequestLog.set(ip, activeTimestamps);
-
-  for (const limit of Object.values(CONTACT_US_RATE_LIMITS)) {
-    const matchingRequests = activeTimestamps.filter(
-      (timestamp) => now - timestamp < limit.windowMs,
-    );
-
-    if (matchingRequests.length >= limit.max) {
-      const retryAfterSeconds = Math.max(
-        1,
-        Math.ceil((matchingRequests[0] + limit.windowMs - now) / 1000),
-      );
-
-      return {
-        retryAfterSeconds,
-        message: `Too many contact requests from this IP. Limit is ${CONTACT_US_RATE_LIMITS.minute.max} per minute, ${CONTACT_US_RATE_LIMITS.hour.max} per hour, and ${CONTACT_US_RATE_LIMITS.day.max} per day. Please try again later.`,
-      };
-    }
-  }
-
-  activeTimestamps.push(now);
-  contactUsRequestLog.set(ip, activeTimestamps);
-
-  return null;
-};
 
 /**
  * CREATE CONTACT MESSAGE
@@ -64,7 +25,13 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const now = Date.now();
     const clientIp = getClientIp(req);
-    const rateLimitViolation = getRateLimitViolation(clientIp, now);
+    const rateLimitViolation = getRateLimitViolation({
+      bucket: "contactus",
+      ip: clientIp,
+      now,
+      limits: CONTACT_US_RATE_LIMITS,
+      resourceLabel: "contact",
+    });
 
     if (rateLimitViolation) {
       return res.status(429).json({
@@ -74,18 +41,28 @@ router.post(
       });
     }
 
-    const isHumanCheckValid =
-      req.body?.humanCheck === true || req.body?.humanCheck === "true";
+    const recaptchaResult = await verifyRecaptchaToken({
+      token: String(req.body?.recaptchaToken ?? ""),
+    });
 
-    if (!isHumanCheckValid) {
+    if (!recaptchaResult.success) {
       return res.status(400).json({
         success: false,
-        message: "Please confirm you are not a robot",
+        message: "reCAPTCHA verification failed. Please try again.",
+        errorCodes: recaptchaResult.errorCodes,
       });
     }
 
     const { name, email, phoneNumber, subject, message, state, country } =
       req.body;
+
+    if (isDisposableEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please use a business or personal email address. Temporary email services are not allowed.",
+      });
+    }
 
     const contact = Contactus.create({
       name,

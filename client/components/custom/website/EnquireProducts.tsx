@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { EnquireNowForm, enquireNowFormSchema } from "@/lib/formSchemas";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +27,11 @@ import { useEffect, useState } from "react";
 import { useAction } from "next-safe-action/hooks";
 import { submitEnquiryForm } from "@/lib/actions";
 import { toast } from "sonner";
+import dynamic from "next/dynamic";
+
+const GoogleRecaptcha = dynamic(() => import("./GoogleRecaptcha"), {
+  ssr: false,
+});
 
 const EnquireProducts = ({
   productCodes,
@@ -51,7 +55,7 @@ const EnquireProducts = ({
       city: "",
       country: "",
       productCodes: productCodes,
-      humanCheck: false,
+      recaptchaToken: "",
       // categoryName: productDetails.subCategory.name
     },
   });
@@ -210,27 +214,22 @@ const EnquireProducts = ({
 
             <FormField
               control={enquireNowForm.control}
-              name="humanCheck"
+              name="recaptchaToken"
               render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <div className="flex items-start gap-3 rounded-md border px-4 py-3">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={(checked) =>
-                          field.onChange(checked === true)
-                        }
-                        className="mt-1"
-                      />
-                    </FormControl>
+                  <div className="space-y-3 rounded-md border px-4 py-3">
                     <div className="space-y-1">
-                      <FormLabel className="cursor-pointer">
-                        I&apos;m not a robot
-                      </FormLabel>
+                      <FormLabel>Security Check</FormLabel>
                       <FormDescription>
-                        Please confirm before sending your product enquiry.
+                        Complete Google reCAPTCHA before sending your product enquiry.
                       </FormDescription>
                     </div>
+                    <FormControl>
+                      <GoogleRecaptcha
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
                   </div>
                   <FormMessage />
                 </FormItem>

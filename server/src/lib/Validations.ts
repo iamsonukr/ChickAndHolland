@@ -590,9 +590,9 @@ export const enquiryEmailValidator = [
   body("country").notEmpty().withMessage("Country is Required"),
   body("message").notEmpty().withMessage("Message is Required"),
   body("productCodes").notEmpty().withMessage("Product Codes is Required"),
-  body("humanCheck")
-    .custom((value) => value === true || value === "true")
-    .withMessage("Please confirm you are not a robot"),
+  body("recaptchaToken")
+    .notEmpty()
+    .withMessage("Please complete the reCAPTCHA verification"),
   // body("categoryName").notEmpty().withMessage("Category Name is Required"),
 ];
 

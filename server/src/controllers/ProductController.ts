@@ -39,8 +39,19 @@ import ProductCurrencyPricing from "../models/ProductCurrencyPricing";
 import Currency from "../models/Currency";
 import AppDataSource from "../db";
 import Favourites from "../models/Favourites";
+import {
+  getClientIp,
+  getRateLimitViolation,
+  isDisposableEmail,
+} from "../lib/spamProtection";
+import { verifyRecaptchaToken } from "../lib/recaptcha";
 
 const router = Router();
+const ENQUIRY_RATE_LIMITS = {
+  minute: { windowMs: 60 * 1000, max: 3 },
+  hour: { windowMs: 60 * 60 * 1000, max: 10 },
+  day: { windowMs: 24 * 60 * 60 * 1000, max: 20 },
+} as const;
 
 /**
  * There will be a chain of validators for every post or patch requests
@@ -710,6 +721,24 @@ router.post(
   "/enquiry-email",
   validate(enquiryEmailValidator),
   asyncHandler(async (req: Request, res: Response) => {
+    const now = Date.now();
+    const clientIp = getClientIp(req);
+    const rateLimitViolation = getRateLimitViolation({
+      bucket: "product-enquiry",
+      ip: clientIp,
+      now,
+      limits: ENQUIRY_RATE_LIMITS,
+      resourceLabel: "product enquiry",
+    });
+
+    if (rateLimitViolation) {
+      return res.status(429).json({
+        success: false,
+        message: rateLimitViolation.message,
+        retryAfterSeconds: rateLimitViolation.retryAfterSeconds,
+      });
+    }
+
     const {
       firstName,
       lastName,
@@ -722,13 +751,23 @@ router.post(
       page,
     } = req.body;
 
-    const isHumanCheckValid =
-      req.body?.humanCheck === true || req.body?.humanCheck === "true";
+    const recaptchaResult = await verifyRecaptchaToken({
+      token: String(req.body?.recaptchaToken ?? ""),
+    });
 
-    if (!isHumanCheckValid) {
+    if (!recaptchaResult.success) {
       return res.status(400).json({
         success: false,
-        message: "Please confirm you are not a robot",
+        message: "reCAPTCHA verification failed. Please try again.",
+        errorCodes: recaptchaResult.errorCodes,
+      });
+    }
+
+    if (isDisposableEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please use a business or personal email address. Temporary email services are not allowed.",
       });
     }
 

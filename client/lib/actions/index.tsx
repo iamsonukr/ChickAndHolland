@@ -6,6 +6,37 @@ import { LoginForm } from "../formSchemas";
 import { actionClient } from "./safe-action";
 import z from "zod";
 
+const disposableEmailDomains = [
+  "10minutemail.com",
+  "dispostable.com",
+  "fakeinbox.com",
+  "getnada.com",
+  "grr.la",
+  "guerrillamail.com",
+  "guerrillamail.net",
+  "maildrop.cc",
+  "mailinator.com",
+  "mailnesia.com",
+  "moakt.com",
+  "sharklasers.com",
+  "temp-mail.org",
+  "tempail.com",
+  "tempmail.com",
+  "tempmailo.com",
+  "throwawaymail.com",
+  "yopmail.com",
+  "yopmail.net",
+] as const;
+
+const isDisposableEmailDomain = (email: string) => {
+  const [, domain = ""] = email.trim().toLowerCase().split("@");
+
+  return disposableEmailDomains.some(
+    (blockedDomain) =>
+      domain === blockedDomain || domain.endsWith(`.${blockedDomain}`),
+  );
+};
+
 const enquireNowFormSchema = z.object({
   firstName: z.string().min(1, {
     message: "First Name is required",
@@ -18,6 +49,9 @@ const enquireNowFormSchema = z.object({
   }),
   email: z.string().email({
     message: "Invalid Email Address",
+  }).refine((value) => !isDisposableEmailDomain(value), {
+    message:
+      "Please use a business or personal email address. Temporary email services are not allowed.",
   }),
   city: z.string().min(1, {
     message: "City is required",
@@ -31,10 +65,8 @@ const enquireNowFormSchema = z.object({
   productCodes: z.string().min(1, {
     message: "Product Code is required",
   }),
-  humanCheck: z.literal(true, {
-    errorMap: () => ({
-      message: "Please confirm you are not a robot",
-    }),
+  recaptchaToken: z.string().min(1, {
+    message: "Please complete the reCAPTCHA verification",
   }),
 });
 
