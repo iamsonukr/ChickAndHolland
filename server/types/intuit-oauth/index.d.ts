@@ -16,63 +16,36 @@ declare module 'intuit-oauth' {
 
   class Token implements TokenData {
     latency: number;
-
     realmId: string;
-
     token_type: string;
-
     access_token: string;
-
     refresh_token: string;
-
     expires_in: number;
-
     x_refresh_token_expires_in: number;
-
     id_token: string;
-
     createdAt: string;
-
     accessToken(): string;
-
     refreshToken(): string;
-
     tokenType(): string;
-
     getToken(): TokenData;
-
     setToken(tokenData: TokenData): Token;
-
     clearToken(): Token;
-
     isAccessTokenValid(): boolean;
-
     isRefreshTokenValid(): boolean;
   }
 
   class AuthResponse {
     constructor(params: AuthResponse.AuthResponseParams);
-
     processResponse(response: Record<string, unknown>): void;
-
     getToken(): Token;
-
     text(): string;
-
     status(): number;
-
     headers(): Record<string, unknown>;
-
     valid(): boolean;
-
     getJson(): Record<string, unknown>;
-
     get_intuit_tid(): string;
-
     isContentType(): boolean;
-
     getContentType(): string;
-
     isJson(): boolean;
   }
 

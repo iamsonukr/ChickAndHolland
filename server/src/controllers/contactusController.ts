@@ -6,6 +6,55 @@ import { contactUsEmailTemplate } from "../lib/contactUsEmailTemplate";
 
 const router = Router();
 const RES_NAME = "Contactus";
+const CONTACT_US_RATE_LIMITS = {
+  minute: { windowMs: 60 * 1000, max: 3, label: "minute" },
+  hour: { windowMs: 60 * 60 * 1000, max: 10, label: "hour" },
+  day: { windowMs: 24 * 60 * 60 * 1000, max: 20, label: "day" },
+} as const;
+const contactUsRequestLog = new Map<string, number[]>();
+
+const getClientIp = (req: Request) => {
+  const forwardedFor = req.headers["x-forwarded-for"];
+  const forwardedIp = Array.isArray(forwardedFor)
+    ? forwardedFor[0]
+    : forwardedFor?.split(",")[0];
+  const rawIp =
+    forwardedIp?.trim() || req.ip || req.socket.remoteAddress || "unknown";
+
+  return rawIp.replace(/^::ffff:/, "");
+};
+
+const getRateLimitViolation = (ip: string, now: number) => {
+  const timestamps = contactUsRequestLog.get(ip) ?? [];
+  const activeTimestamps = timestamps.filter(
+    (timestamp) => now - timestamp < CONTACT_US_RATE_LIMITS.day.windowMs,
+  );
+
+  contactUsRequestLog.set(ip, activeTimestamps);
+
+  for (const limit of Object.values(CONTACT_US_RATE_LIMITS)) {
+    const matchingRequests = activeTimestamps.filter(
+      (timestamp) => now - timestamp < limit.windowMs,
+    );
+
+    if (matchingRequests.length >= limit.max) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((matchingRequests[0] + limit.windowMs - now) / 1000),
+      );
+
+      return {
+        retryAfterSeconds,
+        message: `Too many contact requests from this IP. Limit is ${CONTACT_US_RATE_LIMITS.minute.max} per minute, ${CONTACT_US_RATE_LIMITS.hour.max} per hour, and ${CONTACT_US_RATE_LIMITS.day.max} per day. Please try again later.`,
+      };
+    }
+  }
+
+  activeTimestamps.push(now);
+  contactUsRequestLog.set(ip, activeTimestamps);
+
+  return null;
+};
 
 /**
  * CREATE CONTACT MESSAGE
@@ -13,6 +62,28 @@ const RES_NAME = "Contactus";
 router.post(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
+    const now = Date.now();
+    const clientIp = getClientIp(req);
+    const rateLimitViolation = getRateLimitViolation(clientIp, now);
+
+    if (rateLimitViolation) {
+      return res.status(429).json({
+        success: false,
+        message: rateLimitViolation.message,
+        retryAfterSeconds: rateLimitViolation.retryAfterSeconds,
+      });
+    }
+
+    const isHumanCheckValid =
+      req.body?.humanCheck === true || req.body?.humanCheck === "true";
+
+    if (!isHumanCheckValid) {
+      return res.status(400).json({
+        success: false,
+        message: "Please confirm you are not a robot",
+      });
+    }
+
     const { name, email, phoneNumber, subject, message, state, country } =
       req.body;
 

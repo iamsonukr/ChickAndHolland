@@ -804,6 +804,11 @@ export const contactUsFormSchema = z.object({
   country: z.string().min(1, {
     message: "Country is required",
   }),
+  humanCheck: z.literal(true, {
+    errorMap: () => ({
+      message: "Please confirm you are not a robot",
+    }),
+  }),
 });
 export type ContactUsForm = z.infer<typeof contactUsFormSchema>;
 

@@ -93,6 +93,7 @@ const foldersToCreate = [
 // Express App Setup
 const port = CONFIG.PORT;
 const app = express();
+app.set("trust proxy", true);
 
 app.post(
   "/api/payment/webhook",

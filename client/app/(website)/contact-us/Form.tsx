@@ -18,7 +18,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput } from "@/components/custom/phone-input";
-import { useState, useEffect } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useState } from "react";
 
 const ContactForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,6 +34,7 @@ const ContactForm = () => {
       message: "",
       country: "",
       state: "",
+      humanCheck: false,
     },
   });
 
@@ -41,18 +43,16 @@ const ContactForm = () => {
   const onSubmit = async (data: ContactUsForm) => {
     setIsSubmitting(true);
     try {
-      const response = await executeAsync(data, {}, (error) => {
-        return toast.error("Failed to submit form, please try again");
-      });
+      const response = await executeAsync(data);
 
       form.reset();
       toast.success(response.message ?? "Form submitted successfully", {
         description:
           "We have received your message and will get back to you ASAP",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error("Failed to submit form, please try again");
+      toast.error(error?.message ?? "Failed to submit form, please try again");
     } finally {
       setIsSubmitting(false);
     }
@@ -190,6 +190,33 @@ const ContactForm = () => {
                   className="luxury-textarea min-h-[120px]"
                 />
               </FormControl>
+              <FormMessage className="luxury-form-message" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="humanCheck"
+          render={({ field }) => (
+            <FormItem className="luxury-form-item">
+              <div className="flex items-start gap-3 rounded-md border border-white/15 bg-white/5 px-4 py-3">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={(checked) => field.onChange(checked === true)}
+                    className="mt-1 border-white/50 data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+                  />
+                </FormControl>
+                <div className="space-y-1">
+                  <FormLabel className="luxury-form-label cursor-pointer">
+                    I&apos;m not a robot
+                  </FormLabel>
+                  <FormDescription className="luxury-form-description">
+                    Please confirm before sending your message.
+                  </FormDescription>
+                </div>
+              </div>
               <FormMessage className="luxury-form-message" />
             </FormItem>
           )}
