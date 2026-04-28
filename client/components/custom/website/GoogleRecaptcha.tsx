@@ -29,6 +29,27 @@ type GoogleRecaptchaProps = {
 
 const scriptId = "google-recaptcha-api";
 
+const cleanupDetachedChallengeFrames = () => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const challengeFrames = document.querySelectorAll<HTMLElement>(
+    'iframe[src*="recaptcha/api2/bframe"], iframe[title*="recaptcha challenge"]',
+  );
+
+  challengeFrames.forEach((frame) => {
+    const wrapper = frame.parentElement;
+
+    if (wrapper) {
+      wrapper.remove();
+      return;
+    }
+
+    frame.remove();
+  });
+};
+
 const GoogleRecaptcha = ({
   value,
   onChange,
@@ -56,6 +77,16 @@ const GoogleRecaptcha = ({
       if (pollTimerRef.current) {
         clearTimeout(pollTimerRef.current);
       }
+
+      if (widgetIdRef.current !== null && window.grecaptcha?.reset) {
+        try {
+          window.grecaptcha.reset(widgetIdRef.current);
+        } catch (error) {
+          console.error("Failed to reset Google reCAPTCHA during cleanup:", error);
+        }
+      }
+
+      cleanupDetachedChallengeFrames();
     };
   }, []);
 
@@ -133,7 +164,7 @@ const GoogleRecaptcha = ({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" style={{ pointerEvents: "auto", position: "relative", zIndex: 50 }}>
       <Script
         id={scriptId}
         src="https://www.google.com/recaptcha/api.js?render=explicit"
@@ -145,7 +176,7 @@ const GoogleRecaptcha = ({
           )
         }
       />
-      <div id={stableId} ref={containerRef} className="min-h-[78px]" />
+      <div id={stableId} ref={containerRef} className="min-h-[90px]" style={{ pointerEvents: "auto" }} />
       {renderError ? (
         <p className="text-sm text-destructive">{renderError}</p>
       ) : null}

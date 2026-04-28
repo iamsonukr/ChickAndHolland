@@ -1549,6 +1549,17 @@ html {
   transition: all 0.3s ease;
 }
 
+/* reCAPTCHA v2 Interactive Fix */
+.g-recaptcha {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 50;
+}
+
+.g-recaptcha iframe {
+  pointer-events: auto !important;
+}
+
 .stat-card:hover {
   background: rgba(135, 99, 85, 0.08);
   transform: translateY(-2px);

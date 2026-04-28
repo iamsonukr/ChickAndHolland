@@ -64,6 +64,24 @@ const EnquireProducts = ({
 
   const { executeAsync, isExecuting } = useAction(submitEnquiryForm);
 
+  const handleOpenChange = (open: boolean) => {
+    setEnquireModelOpen(open);
+
+    if (!open) {
+      enquireNowForm.reset({
+        firstName: "",
+        lastName: "",
+        email: "",
+        contactNumber: "",
+        message: "",
+        city: "",
+        country: "",
+        productCodes,
+        recaptchaToken: "",
+      });
+    }
+  };
+
   const onSubmit = async (values: EnquireNowForm) => {
 
     console.log("Form values before submission:", values);
@@ -92,7 +110,11 @@ const EnquireProducts = ({
   }, [productCodes]);
 
   return (
-    <Dialog open={enquireModelOpen} onOpenChange={setEnquireModelOpen}>
+    <Dialog
+      open={enquireModelOpen}
+      onOpenChange={handleOpenChange}
+      modal={false}
+    >
       <DialogTrigger asChild>
         <Button disabled={disabled} className="w-full !p-4">
           {buttonText}
