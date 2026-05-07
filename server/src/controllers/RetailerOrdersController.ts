@@ -375,7 +375,6 @@ router.get(
       LEFT JOIN currencies curr ON curr.id = rf.currencyId
       LEFT JOIN stock_currency_pricing scp ON scp.stockId = s.id AND scp.currencyId = rf.currencyId
       WHERE rf.id = ? AND rf.retailerId = ?
-      group by rf.id
     `;
 
     // Execute the raw SQL query using positional parameters
