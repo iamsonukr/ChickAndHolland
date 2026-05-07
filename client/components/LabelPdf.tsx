@@ -126,6 +126,7 @@ const styles = StyleSheet.create({
   },
 
   /* ROW */
+/* ROW */
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -135,6 +136,7 @@ const styles = StyleSheet.create({
 
   box: {
     width: "48%",
+    minHeight: 30,           // ← ensures equal height
     border: "1px solid #000000",
     paddingVertical: 4,
     paddingHorizontal: 3,
@@ -147,6 +149,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "bold",
     textAlign: "center",
+    textDecoration: "none",  // ← prevents accidental strikethrough
   },
 
   /* COLOR */
@@ -172,7 +175,8 @@ const styles = StyleSheet.create({
   poBlock: {
     marginHorizontal: 6,
     marginBottom: 6,
-    border: "1px solid #000000",
+    margninTop: 4,
+    // border: "1px solid #000000",
     paddingVertical: 4,
     paddingHorizontal: 2,
     alignItems: "center",

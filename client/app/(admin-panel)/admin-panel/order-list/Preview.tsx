@@ -47,10 +47,12 @@ const Preview = ({
   id,
   type,
   order,
+  showShippingDate = true,
 }: {
   id: number;
   type: string;
   order: any;
+  showShippingDate?: boolean;
 }) => {
   const [data, setData] = useState<any>(null);
 
@@ -259,7 +261,7 @@ const Preview = ({
                 </a>
               ) : (
                 <PDFDownloadLink
-                  document={<RetailerPdf orderData={data} />}
+                  document={<RetailerPdf orderData={data} showShippingDate={showShippingDate} />}
                   fileName={`${data.purchaseOrderNo}.pdf`}
                 >
                   <Button className="bg-blue-600 text-white">Download PDF</Button>
@@ -289,7 +291,7 @@ const Preview = ({
               )
             ) : (
               <PDFViewer className="mt-4 h-[75vh] w-full" showToolbar={false}>
-                <RetailerPdf orderData={data} />
+                <RetailerPdf orderData={data} showShippingDate={showShippingDate} />
               </PDFViewer>
             )}
           </>
