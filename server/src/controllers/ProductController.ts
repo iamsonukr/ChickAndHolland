@@ -20,7 +20,7 @@ import { productUpload } from "../lib/upload";
 import CONFIG from "../config";
 import { NotFound } from "../errors/Errors";
 import ProductImage from "../models/ProductImage";
-import { In, Like, Not, IsNull } from "typeorm";
+import { Brackets, In, Like, Not, IsNull } from "typeorm";
 import fs from "fs";
 import path from "path";
 import db from "../db";
@@ -1795,43 +1795,168 @@ router.post(
 // );
 
 let PAGE_SIZE = 50;
+
+const decodeProductSearchQuery = (query: unknown) => {
+  const rawQuery = String(query ?? "").replace(/\+/g, " ");
+
+  try {
+    return decodeURIComponent(rawQuery);
+  } catch {
+    return rawQuery;
+  }
+};
+
+const normalizeProductSearchTokens = (query: unknown) => {
+  const normalizedQuery = decodeProductSearchQuery(query)
+    .trim()
+    .toLowerCase();
+
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  return Array.from(
+    new Set([
+      normalizedQuery,
+
+      ...normalizedQuery
+        .split(/[\s,;:/\\|._#-]+/)
+        .map((token) => token.trim())
+        .filter((token) => token.length > 1), // was > 2, now catches "of", "or" etc.
+    ]),
+  );
+};
+
+const escapeLikeToken = (token: string) =>
+  token.replace(/[\\%_]/g, (match) => `\\${match}`);
+
 router.get(
   "/new",
   asyncHandler(async (req: Request, res: Response) => {
-    const { page = "1", query = "" }: { page?: string; query?: string } =
-      req.query;
- 
+    const {
+      page = "1",
+      query = "",
+    }: {
+      page?: string;
+      query?: string;
+    } = req.query;
+
     const pageNumber = Math.max(1, Number(page));
     const skip = (pageNumber - 1) * PAGE_SIZE;
-    const likeQuery = `%${query}%`;
- 
-    const whereConditions = query
-      ? [
-          { productCode: Like(likeQuery), deletedAt: IsNull() },
-          { category: { name: Like(likeQuery) }, deletedAt: IsNull() },
-          { subCategory: { name: Like(likeQuery) }, deletedAt: IsNull() },
-        ]
-      : { deletedAt: IsNull() };
- 
-    // Single query instead of separate find() + count()
-    const [products, totalCount] = await Product.findAndCount({
-      where: whereConditions,
-      relations: [
-        "images",
-        "category",
-        "subCategory",
-        "currencyPricing",
-        "currencyPricing.currency",
-      ],
-      take: PAGE_SIZE || 20,
-      skip,
-      order: { id: "DESC" },
+
+    const searchTokens = normalizeProductSearchTokens(query);
+
+    const searchableFields = [
+      "product.productCode",
+      "product.description",
+      "product.mesh_color",
+      "product.beading_color",
+      "product.lining",
+      "product.lining_color",
+      "category.name",
+      "subCategory.name",
+    ];
+
+    // Step 1: paginate on IDs only (avoids TypeORM join + pagination bug)
+    const idQueryBuilder = Product.createQueryBuilder("product")
+      .select("product.id")
+      .leftJoin("product.category", "category")
+      .leftJoin("product.subCategory", "subCategory")
+      .where("product.deletedAt IS NULL")
+      .orderBy("product.id", "DESC")
+      .skip(skip)
+      .take(PAGE_SIZE);
+
+    if (searchTokens.length) {
+      idQueryBuilder.andWhere(
+        new Brackets((qb) => {
+          searchTokens.forEach((token, tokenIndex) => {
+            const parameterName = `search${tokenIndex}`;
+
+            searchableFields.forEach((field) => {
+              qb.orWhere(
+                `
+                REPLACE(
+                  LOWER(COALESCE(${field}, '')),
+                  ' ',
+                  ''
+                ) LIKE :${parameterName}
+                `,
+                {
+                  [parameterName]: `%${escapeLikeToken(
+                    token.replace(/\s+/g, "")
+                  )}%`,
+                }
+              );
+            });
+          });
+        })
+      );
+    }
+
+    // Step 2: count query (separate, no pagination)
+    const countQueryBuilder = Product.createQueryBuilder("product")
+      .leftJoin("product.category", "category")
+      .leftJoin("product.subCategory", "subCategory")
+      .where("product.deletedAt IS NULL");
+
+    if (searchTokens.length) {
+      countQueryBuilder.andWhere(
+        new Brackets((qb) => {
+          searchTokens.forEach((token, tokenIndex) => {
+            const parameterName = `searchCount${tokenIndex}`;
+
+            searchableFields.forEach((field) => {
+              qb.orWhere(
+                `
+                REPLACE(
+                  LOWER(COALESCE(${field}, '')),
+                  ' ',
+                  ''
+                ) LIKE :${parameterName}
+                `,
+                {
+                  [parameterName]: `%${escapeLikeToken(
+                    token.replace(/\s+/g, "")
+                  )}%`,
+                }
+              );
+            });
+          });
+        })
+      );
+    }
+
+    const [paginatedIds, totalCount] = await Promise.all([
+      idQueryBuilder.getMany(),
+      countQueryBuilder.getCount(),
+    ]);
+
+    const ids = paginatedIds.map((p) => p.id);
+
+    // Step 3: fetch full product data only for the paginated IDs
+    const products =
+      ids.length > 0
+        ? await Product.createQueryBuilder("product")
+            .leftJoinAndSelect("product.images", "images")
+            .leftJoinAndSelect("product.category", "category")
+            .leftJoinAndSelect("product.subCategory", "subCategory")
+            .leftJoinAndSelect("product.currencyPricing", "currencyPricing")
+            .leftJoinAndSelect("currencyPricing.currency", "currency")
+            .where("product.id IN (:...ids)", { ids })
+            .orderBy("product.id", "DESC")
+            .getMany()
+        : [];
+
+    return res.json({
+      success: true,
+      products,
+      totalCount,
+      currentPage: pageNumber,
+      totalPages: Math.ceil(totalCount / PAGE_SIZE),
     });
- 
-    return res.json({ products, totalCount });
   })
 );
-
 
 router.delete(
   "/:id",

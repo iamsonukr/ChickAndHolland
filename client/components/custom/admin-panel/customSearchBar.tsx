@@ -22,8 +22,15 @@ const CustomSearchBar = ({
       className="flex w-full flex-col gap-2 sm:flex-row sm:items-center"
       onSubmit={(e) => {
         e.preventDefault();
-        const newParams = new URLSearchParams(searchParams);
-        newParams.set("q", encodeURIComponent(searchQuery));
+        const newParams = new URLSearchParams(searchParams?.toString());
+        const trimmedQuery = searchQuery.trim();
+
+        if (trimmedQuery) {
+          newParams.set("q", trimmedQuery);
+        } else {
+          newParams.delete("q");
+        }
+
         newParams.delete("cPage");
         router.push(`?${newParams.toString()}`, { scroll: false });
       }}
