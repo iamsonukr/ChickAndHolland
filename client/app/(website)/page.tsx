@@ -323,7 +323,7 @@ export default function Home() {
               loop
               playsInline
               preload="metadata"
-              posterSrc="/section3-img/Chic-Holland-HC-S26-044.jpg"
+              posterSrc="/section3-img/sec1.jpg"
               posterAlt="300 Hours couture campaign video"
               imageSizes={HALF_SECTION_IMAGE_SIZES}
               rootMargin="250px"

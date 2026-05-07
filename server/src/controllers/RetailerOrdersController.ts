@@ -370,7 +370,13 @@ router.get(
       FROM retailer_stock_orders AS rf
       INNER JOIN stock AS s ON s.id = rf.stockId
       INNER JOIN products AS p ON p.id = s.styleNo
-      INNER JOIN productimages AS pm ON pm.productId = p.id
+      LEFT JOIN productimages AS pm ON pm.id = (
+        SELECT pm2.id
+        FROM productimages AS pm2
+        WHERE pm2.productId = p.id
+        ORDER BY pm2.isMain DESC, pm2.id ASC
+        LIMIT 1
+      )
       LEFT JOIN product_colours AS c ON c.id = s.colors
       LEFT JOIN currencies curr ON curr.id = rf.currencyId
       LEFT JOIN stock_currency_pricing scp ON scp.stockId = s.id AND scp.currencyId = rf.currencyId
