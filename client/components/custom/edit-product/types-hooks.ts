@@ -8,6 +8,7 @@ export const LINING_OPTIONS = [
   "Full Separate Lining",
   "Separate Short Lining",
   "Waist to Hips Stitched Lining",
+  "Waist to floor Stitched Lining",
 ] as const;
 
 // ---------------------------------------------------------------------------

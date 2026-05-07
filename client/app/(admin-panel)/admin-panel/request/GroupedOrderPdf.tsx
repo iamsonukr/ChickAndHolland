@@ -114,7 +114,7 @@ const GroupedOrderPdf = ({
               <View style={styles.topBanner}>
                 <Text style={styles.bannerTexts}>
                   {baseItem?.styleNo}
-                  {totalPages > 1 ? ` (${pageIndex + 1}/${totalPages})` : ""}
+                  {/* {totalPages > 1 ? ` (${pageIndex + 1}/${totalPages})` : ""} */}
                 </Text>
                 <Text style={styles.bannerTextPurchaseOrderNo}>
                   {orderData.purchaseOrderNo}
@@ -124,8 +124,7 @@ const GroupedOrderPdf = ({
                     Order Received Date:{" "}
                     {dayjs(orderData.orderReceivedDate).format("DD MMM YYYY")}
                   </Text>
-                  { orderData.orderCancellationDate && (
-                  // {showShippingDate && orderData.orderCancellationDate && (
+                  {showShippingDate && orderData.orderCancellationDate && (
                     <Text style={styles.bannerText}>
                       Order Shipping Date:{" "}
                       {dayjs(orderData.orderCancellationDate).format("DD MMM YYYY")}

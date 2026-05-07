@@ -108,12 +108,20 @@ Clientrouter.get(
 
     const allClients = await Clients.find({
       where: { isDeleted: false },
+      relations: ["customer"],
     });
 
-    const clashingStatus = allClients.map((client) => ({
-      ...client,
-      isClashing: false,
-    }));
+    const clashingStatus = allClients.map((client: any) => {
+      const { customer, ...clientData } = client;
+      const phoneNumber = customer?.phoneNumber || null;
+
+      return {
+        ...clientData,
+        phone: phoneNumber,
+        phoneNumber,
+        isClashing: false,
+      };
+    });
 
     for (let i = 0; i < clashingStatus.length; i++) {
       const clientA = clashingStatus[i];

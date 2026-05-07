@@ -55,6 +55,8 @@ const lining = [
   "Full Separate Lining",
   "Separate Short Lining",
   "Waist to Hips Stitched Lining",
+  "Waist to floor Stitched Lining",
+
 ];
 
 const formSchema = z.object({

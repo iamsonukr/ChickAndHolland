@@ -384,6 +384,22 @@ const Details = ({
 
     // ❌ Payment check ONLY for Shipped
 if (data.status === "Shipped" && billAmount.balance !== 0) {
+  const newTrackingId =
+    typeof data.id === "string" ? data.id.trim() : "";
+  const currentTrackingId =
+    typeof retailerDetails?.trackingNo === "string"
+      ? retailerDetails.trackingNo.trim()
+      : "";
+
+  if (newTrackingId && newTrackingId !== currentTrackingId) {
+    await statusChange({
+      track_id: newTrackingId,
+    });
+    toast.success("Tracking ID Updated");
+    fetchData();
+    router.refresh();
+  }
+
   toast.error("Payment is not paid yet. Cannot ship order.");
   return;
 }

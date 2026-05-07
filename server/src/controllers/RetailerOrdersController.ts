@@ -1894,6 +1894,25 @@ router.post(
     if (!order)
       return res.json({ success: false, msg: "Order Not Found" });
 
+    if (track_id) order.trackingNo = String(track_id).trim();
+
+    if (shipping > 0) {
+      const base =
+        Number(order.purchaseAmount) -
+        Number(order.shippingAmount);
+      order.shippingAmount = shipping;
+      order.purchaseAmount = base + shipping;
+    }
+
+    if (!status) {
+      await order.save();
+
+      return res.json({
+        success: true,
+        msg: "Tracking ID Updated Successfully",
+      });
+    }
+
     // /* ------------------------------------------
     //    🔥 PAYMENT VALIDATION BEFORE STATUS UPDATE
     // ------------------------------------------ */
@@ -1990,16 +2009,6 @@ router.post(
         order.shippingDate = now;
         order.status_id = 1;
         break;
-    }
-
-    if (track_id) order.trackingNo = track_id;
-
-    if (shipping > 0) {
-      const base =
-        Number(order.purchaseAmount) -
-        Number(order.shippingAmount);
-      order.shippingAmount = shipping;
-      order.purchaseAmount = base + shipping;
     }
 
     /* ------------------------------------------

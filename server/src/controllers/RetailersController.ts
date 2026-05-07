@@ -246,6 +246,7 @@ router.get(
       LEFT JOIN retailers r ON r.id = ro.retailerId
       LEFT JOIN customers c ON c.id = r.customerId
       WHERE ro.retailerId = ?
+        AND ro.status = 0
     `;
 
     const yearReport = await db.query(

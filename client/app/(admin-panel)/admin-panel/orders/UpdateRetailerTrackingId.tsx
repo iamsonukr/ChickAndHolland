@@ -56,18 +56,18 @@ const UpdateRetailerTrackingId = ({ orderData }: { orderData: any }) => {
   );
   const statusUpdate = async (data: any) => {
     try {
-      if (data.status == "Delivered" && data.id == "") {
+      if (!data.id?.trim()) {
         return toast.error("Tracking Id is Required");
       }
       await statusChange({
-        track_id: data.id,
+        track_id: data.id.trim(),
       });
-      toast.success("Order Status Updated");
+      toast.success("Tracking ID Updated");
 
       router.refresh();
       setOpen(false);
     } catch (error) {
-      toast.error("Error at Order Status Payment");
+      toast.error("Error Updating Tracking ID");
     }
   };
 
@@ -77,7 +77,7 @@ const UpdateRetailerTrackingId = ({ orderData }: { orderData: any }) => {
         <div
           className="cursor-pointer"
           onClick={() => {
-            updateForm.setValue("id", orderData.trackingNo);
+            updateForm.setValue("id", orderData.trackingNo || "");
           }}>
           {orderData.trackingNo
             ? orderData.trackingNo
@@ -86,9 +86,9 @@ const UpdateRetailerTrackingId = ({ orderData }: { orderData: any }) => {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Update Order Status</DialogTitle>
+          <DialogTitle>Update Tracking ID</DialogTitle>
           <DialogDescription>
-            Update Order Status for order: {orderData.purchaeOrderNo}
+            Update tracking ID for order: {orderData.purchaeOrderNo}
           </DialogDescription>
         </DialogHeader>
 

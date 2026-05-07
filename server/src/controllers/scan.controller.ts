@@ -76,9 +76,13 @@ async function getLowestStage(orderId: number) {
 ------------------------------------------ */
 const STOCK_FLOW = [
   "Pattern",
+  "Khaka",
+  "Issue Beading",
   "Beading",
+  "Zarkan",
   "Stitching",
   "Ready To Delivery",
+  "Balance Pending",
   "Shipped",
 ];
 
@@ -90,6 +94,7 @@ const STOCK_GUARD_FLOW = [
   "Zarkan",
   "Stitching",
   "Ready To Delivery",
+  "Balance Pending",
   "Shipped",
 ];
 
@@ -324,8 +329,6 @@ if (
   }
 }
 
-
-
 // 🟡 Admin Ready To Delivery → message only
 if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
   return res.json({
@@ -336,12 +339,6 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
     nextAction: "CONFIRM_SHIP",
   });
 }
-
-
-
-
-
-
     /* --------- CURRENT STAGE --------- */
     const last = await StyleProgress.findOne({
       where: { barcode },

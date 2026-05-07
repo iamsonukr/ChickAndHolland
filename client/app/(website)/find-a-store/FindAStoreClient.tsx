@@ -31,6 +31,9 @@ export default function FindAStoreClient({ clientsData }) {
     )}`;
   };
 
+  const getStorePhone = (store) =>
+    store.phone || store.phoneNumber || store.customer?.phoneNumber || "";
+
   // ✅ Haversine formula (optimized)
   const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
@@ -221,7 +224,9 @@ export default function FindAStoreClient({ clientsData }) {
           {/* STORE LIST */}
           <div className="flex-1 overflow-y-auto min-h-0">
             <div className="p-4 space-y-3">
-              {filteredStores.map((store, index) => (
+              {filteredStores.map((store, index) => {
+                const phone = getStorePhone(store);
+                return (
                 <div
                   key={index}
                   onClick={() => handleStoreSelect(store)}
@@ -250,6 +255,16 @@ export default function FindAStoreClient({ clientsData }) {
                     {store.city_name}, {store.country}
                   </p>
 
+                  {phone && (
+                    <a
+                      href={`tel:${phone}`}
+                      className="mt-1 block text-sm font-medium text-gray-800 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Phone: {phone}
+                    </a>
+                  )}
+
                   {store.distance !== undefined && (
                     <p className="mt-2 text-sm font-medium text-blue-600">
                       📍 {store.distance} km away
@@ -271,7 +286,8 @@ export default function FindAStoreClient({ clientsData }) {
                     View on Map →
                   </button>
                 </div>
-              ))}
+                );
+              })}
 
               {filteredStores.length === 0 && (
                 <div className="text-center py-10 text-gray-500">
