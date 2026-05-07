@@ -1646,6 +1646,7 @@ PublicStoreRoutes.get(
         s.barcode,
 
         s.size,
+        s.sizeCountry AS size_country,
         s.quantity,
 
         o.purchaeOrderNo,
@@ -1687,6 +1688,7 @@ PublicStoreRoutes.get(
 
         // ✅ LABEL DATA
         size: row.size,
+        size_country: row.size_country,
         quantity: row.quantity,
         meshColor: row.meshColor,
         purchaseOrderNo: row.purchaeOrderNo,

@@ -7,6 +7,7 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import { build2dBarcodeUrl } from "@/lib/barcodes";
+import { formatEuSizeSummary, PDF_DISPLAY_SIZE_UNIT } from "@/lib/sizeConversion";
 
 /* ======================================================
    MESH COLOR FORMATTER
@@ -36,6 +37,7 @@ const formatMeshColor = (meshColor?: string): string[] => {
 ====================================================== */
 export default function LabelPdf({ item }: { item: any }) {
   const colorLines = formatMeshColor(item.meshColor || item.color);
+  const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
 
   return (
     <Document>
@@ -53,7 +55,7 @@ export default function LabelPdf({ item }: { item: any }) {
             {/* SIZE */}
             <View style={styles.box}>
               <Text style={styles.sizeText}>
-                EU {item.size}/{item.quantity}
+                {sizeText}
               </Text>
             </View>
 

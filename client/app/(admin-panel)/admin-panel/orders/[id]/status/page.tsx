@@ -14,29 +14,24 @@ import LabelPdf1 from "@/components/LabelBox";
 import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
 import { normalizeBarcodeValue } from "@/lib/barcodes";
 import GoBackButton from "@/components/GoBackButton";
+import { formatEuSizeText } from "@/lib/sizeConversion";
 
 const formatReportValue = (value: unknown) =>
   String(value ?? "").trim() || "-";
 
-const formatReportSize = (item: any) => {
-  const size = String(item?.size ?? "").trim();
-  if (!size) return "-";
+const formatReportSize = (item: any) =>
+  formatEuSizeText(item, { includeUnit: false });
 
-  const sizeCountry = String(item?.size_country ?? "").trim();
-  const quantity = item?.quantity;
-  const prefixedSize = sizeCountry ? `${sizeCountry} ${size}` : size;
+const getCommentsSummary = (variants: any[], fallback?: string) => {
+  const uniqueComments = Array.from(
+    new Set(
+      variants
+        .map((item) => String(item.comments ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
 
-  if (
-    prefixedSize.includes("/") ||
-    prefixedSize.includes(",") ||
-    quantity === undefined ||
-    quantity === null ||
-    quantity === ""
-  ) {
-    return prefixedSize;
-  }
-
-  return `${prefixedSize} / ${quantity}`;
+  return uniqueComments.join("\n") || fallback || "-";
 };
 
 type ReportType = "RETAILER" | "STORE" | "STOCK";

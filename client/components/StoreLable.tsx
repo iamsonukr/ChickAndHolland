@@ -1,6 +1,7 @@
 "use client";
 
 import { build2dBarcodeUrl } from "@/lib/barcodes";
+import { formatEuSizeSummary, PDF_DISPLAY_SIZE_UNIT } from "@/lib/sizeConversion";
 
 /* ================= COLOR MASTER (DB MIRROR) ================= */
 
@@ -89,6 +90,7 @@ export default function StatusLabelBox1({ item, orderType }: { item: any; orderT
 const { name: colorName, hex: colorHex } = resolveColor(
   item.meshColor || item.color
 );
+const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
 
   return (
     <div className="w-[210px] border-2 border-gray-800 bg-gradient-to-b from-white to-gray-50 rounded-lg shadow-lg overflow-hidden">
@@ -117,7 +119,7 @@ const { name: colorName, hex: colorHex } = resolveColor(
               SIZE
             </div>
             <div className="text-lg font-bold text-gray-800 bg-gray-100 py-1 px-3 rounded-md border border-gray-300">
-              EU {item.size}{item.quantity}
+              {sizeText}
             </div>
           </div>
 

@@ -3,7 +3,6 @@ import { Router, Request, Response } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
 import StyleProgress from "../models/StyleProgress";
 import db from "../db";
-import { convertToUSSize } from "../lib/sizeConversion";
 
 const router = Router();
 
@@ -25,6 +24,7 @@ router.get(
         ros.styleNo       AS styleNo,
         ros.barcode       AS barcode,
         ros.size          AS size,
+        ros.size_country  AS size_country,
         ros.quantity      AS quantity,
         ro.purchaeOrderNo AS purchaseOrderNo,
         CONCAT(
@@ -95,6 +95,7 @@ router.get(
 
         // ✅ LABEL DATA (RAW)
         size: row.size,
+        size_country: row.size_country,
         quantity: row.quantity ?? 1,
         color: row.color,
         purchaseOrderNo: row.purchaseOrderNo,
@@ -186,7 +187,8 @@ ORDER BY sos.id ASC;
         barcode: row.barcode,
 
         // ✅ CORRECT FIX
-        size: convertToUSSize(row.size, row.size_country),
+        size: row.size,
+        size_country: row.size_country,
 
         quantity: row.quantity ?? 1,
         color: row.color,

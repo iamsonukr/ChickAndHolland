@@ -1,10 +1,12 @@
 "use client";
 
 import { build2dBarcodeUrl } from "@/lib/barcodes";
+import { formatEuSizeSummary, PDF_DISPLAY_SIZE_UNIT } from "@/lib/sizeConversion";
 
 /* ================= LABEL COMPONENT ================= */
 
 export default function StatusLabelBox({ item, orderType }: { item: any; orderType?: string }) {
+  const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
 
 
   return (
@@ -34,7 +36,7 @@ export default function StatusLabelBox({ item, orderType }: { item: any; orderTy
               SIZE
             </div>
             <div className="text-lg font-bold text-gray-800 bg-gray-100 py-1 px-3 rounded-md border border-gray-300">
-              EU {item.size}/{item.quantity}
+              {sizeText}
             </div>
           </div>
 
