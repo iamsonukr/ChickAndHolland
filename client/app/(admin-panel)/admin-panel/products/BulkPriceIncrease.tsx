@@ -128,7 +128,7 @@ export default function BulkPriceIncrease({
               onChange={(e) => setPercentage(e.target.value)}
             />
             <p className="text-sm text-muted-foreground">
-              Prices will be rounded to the nearest 5 or 10.
+              Prices will be rounded upward to the nearest multiple of 5 for every currency.
             </p>
           </div>
 

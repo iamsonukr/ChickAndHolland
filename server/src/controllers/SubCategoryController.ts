@@ -16,12 +16,36 @@ import {
 } from "../lib/Validations";
 import { CLIENT_OBJ_NAMES, TABLE_NAMES } from "../constants";
 import Category from "../models/Category";
-import { Like } from "typeorm";
+import { In, Like } from "typeorm";
 import Product from "../models/Product";
+import ProductCurrencyPricing from "../models/ProductCurrencyPricing";
+import db from "../db";
+import { CacheController } from "./CacheController";
 
 const router = Router();
 
 const RES_NAME = "Sub Category";
+const PRICE_ROUNDING_INCREMENT = 5;
+const ROUNDING_EPSILON = 1e-9;
+
+const roundPriceUpToNearestFive = (price: number): number => {
+  if (!Number.isFinite(price)) {
+    return 0;
+  }
+
+  return (
+    Math.ceil((price - ROUNDING_EPSILON) / PRICE_ROUNDING_INCREMENT) *
+    PRICE_ROUNDING_INCREMENT
+  );
+};
+
+const getBulkIncreasedPrice = (
+  currentPrice: number | string | null | undefined,
+  percentage: number
+): number => {
+  const numericPrice = Number(currentPrice) || 0;
+  return roundPriceUpToNearestFive(numericPrice * (1 + percentage / 100));
+};
 
 router.get(
   "/dropdown",
@@ -234,57 +258,98 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { subcategoryIds, percentage } = req.body;
 
-    if (!subcategoryIds || !Array.isArray(subcategoryIds) || subcategoryIds.length === 0) {
+    if (
+      !subcategoryIds ||
+      !Array.isArray(subcategoryIds) ||
+      subcategoryIds.length === 0
+    ) {
       res.status(400).json({ msg: "Subcategory IDs are required" });
       return;
     }
 
-    if (!percentage || percentage <= 0) {
+    const percentageNumber = Number(percentage);
+
+    if (!Number.isFinite(percentageNumber) || percentageNumber <= 0) {
       res.status(400).json({ msg: "Valid percentage is required" });
       return;
     }
 
+    const parsedSubcategoryIds = subcategoryIds.map((id) => Number(id));
+
+    if (parsedSubcategoryIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+      res.status(400).json({ msg: "Valid subcategory IDs are required" });
+      return;
+    }
+
+    const uniqueSubcategoryIds = [...new Set(parsedSubcategoryIds)];
+    const queryRunner = db.createQueryRunner();
+
     try {
-      // Helper function to round to nearest 5 or 10
-      const roundPrice = (price: number): number => {
-        const rounded = Math.round(price);
-        const lastDigit = rounded % 10;
-        
-        if (lastDigit <= 2) {
-          return rounded - lastDigit;
-        } else if (lastDigit <= 7) {
-          return rounded - lastDigit + 5;
-        } else {
-          return rounded - lastDigit + 10;
-        }
-      };
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
 
-      // Update prices for each subcategory
-      for (const subcategoryId of subcategoryIds) {
-        const productsToUpdate = await Product.find({
-          where: {
-            subCategory: {
-              id: subcategoryId
-            }
-          }
-        });
+      const productsToUpdate = await queryRunner.manager.find(Product, {
+        where: {
+          subCategory: {
+            id: In(uniqueSubcategoryIds),
+          },
+        },
+        relations: ["currencyPricing"],
+      });
 
-        for (const product of productsToUpdate) {
-          const currentPrice = product.price || 0;
-          const newPrice = currentPrice * (1 + percentage / 100);
-          const roundedPrice = roundPrice(newPrice);
-          
-          await Product.update(product.id, { price: roundedPrice });
-        }
+      const productPriceUpdates = productsToUpdate.map((product) =>
+        queryRunner.manager.create(Product, {
+          id: product.id,
+          price: getBulkIncreasedPrice(product.price, percentageNumber),
+        })
+      );
+
+      const currencyPriceUpdates = productsToUpdate.flatMap((product) =>
+        (product.currencyPricing || []).map((pricing) =>
+          queryRunner.manager.create(ProductCurrencyPricing, {
+            id: pricing.id,
+            price: getBulkIncreasedPrice(pricing.price, percentageNumber),
+          })
+        )
+      );
+
+      if (productPriceUpdates.length > 0) {
+        await queryRunner.manager.save(Product, productPriceUpdates);
+      }
+
+      if (currencyPriceUpdates.length > 0) {
+        await queryRunner.manager.save(
+          ProductCurrencyPricing,
+          currencyPriceUpdates
+        );
+      }
+
+      await queryRunner.commitTransaction();
+
+      try {
+        CacheController.clearCacheByName("products");
+        CacheController.clearCacheByName("search");
+      } catch (cacheError) {
+        console.error("Error clearing price caches:", cacheError);
       }
 
       res.json({
         success: true,
-        message: `Prices updated successfully for ${subcategoryIds.length} subcategories with ${percentage}% increase`,
+        message: `Prices updated successfully for ${uniqueSubcategoryIds.length} subcategories with ${percentageNumber}% increase`,
+        updatedProducts: productPriceUpdates.length,
+        updatedCurrencyPrices: currencyPriceUpdates.length,
       });
     } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+
       console.error("Error updating prices:", error);
       res.status(500).json({ msg: "Error updating prices" });
+    } finally {
+      if (!queryRunner.isReleased) {
+        await queryRunner.release();
+      }
     }
   })
 );
