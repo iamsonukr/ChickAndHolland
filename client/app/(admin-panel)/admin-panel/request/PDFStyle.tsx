@@ -330,7 +330,7 @@ export const styles = StyleSheet.create({
     borderTop: "1px solid #d4d4d8",
     marginTop: 6,
     paddingTop: 5,
-    paddingHorizontal: 5,
+    // paddingHorizontal: 5,
     alignItems: "center",
   },
   variantBarcode: {

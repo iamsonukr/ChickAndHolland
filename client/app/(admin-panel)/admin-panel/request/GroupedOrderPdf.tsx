@@ -310,9 +310,11 @@ const GroupedOrderPdf = ({
                                   src={build2dBarcodeUrl(normalizedBarcode, 80)}
                                   style={styles.variantBarcode}
                                 />
-                                <Text style={styles.variantCodeText}>
-                                  {normalizedBarcode}
-                                </Text>
+                               <Text style={styles.variantCodeText}>
+  {normalizedBarcode?.split("-")[0]}
+  {"\n"}-
+  {normalizedBarcode?.split("-")[1]}
+</Text>
                               </>
                             ) : (
                               <Text style={styles.variantCodeText}>
