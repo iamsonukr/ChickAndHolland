@@ -60,16 +60,11 @@ const SCANNER_ROLE_STAGE_RULES: Record<string, string[]> = {
   "pattern-master": ["Pattern"],
   "khaka-master": ["Khaka"],
   "issue-beading-master": ["Issue Beading"],
-  "issuebeading-master": ["Issue Beading"],
   "beading-master": ["Beading"],
   "zarkan-master": ["Zarkan"],
-  "zarkar-master": ["Zarkan"],
   "stitching-master": ["Stitching"],
   "balance-pending-master": ["Balance Pending"],
-  "balancepending-master": ["Balance Pending"],
   "ready-to-delivery-master": ["Ready To Delivery"],
-  "readytodelivery-master": ["Ready To Delivery"],
-  "shipped-master": ["Shipped"],
   "shipping-master": ["Shipped"],
 };
 
@@ -317,7 +312,15 @@ export const requireScannerRoleStageAccess =
       const allowedStages = getScannerRoleAllowedStages(scanner.scannerRoleName);
 
       if (!allowedStages?.length) {
-        return next();
+        return res.status(403).json({
+          success: false,
+          code: "SCANNER_STAGE_FORBIDDEN",
+          message: `Your role ${scanner.scannerRoleName || "is not mapped"} is not allowed to move QR scan stages.`,
+          scannerRole: scanner.scannerRoleName,
+          allowedStages: [],
+          currentStage: accessContext?.currentStage ?? null,
+          nextStage: targetStage,
+        });
       }
 
       const isAllowed = allowedStages.some(

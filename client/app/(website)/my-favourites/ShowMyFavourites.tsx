@@ -195,6 +195,7 @@ const ShowMyFavourites = ({
         </label>
 
         <EnquireProducts
+          page="favourites"
           buttonText={
             enquireNowProducts.length > 0
               ? `Enquire Now (${enquireNowProducts.length})`

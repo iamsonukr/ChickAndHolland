@@ -42,7 +42,7 @@ export interface MailOptions {
 /**
  * Send email via Resend
  */
-export const mail = async (config: MailOptions): Promise<void> => {
+export const mail = async (config: MailOptions): Promise<any> => {
   try {
     const emailPayload = {
       from: `Chic & Holland <${process.env.RESEND_FROM_EMAIL}>`,
@@ -68,6 +68,7 @@ export const mail = async (config: MailOptions): Promise<void> => {
     }
 
     console.log("✅ Email sent:", data?.id);
+    return data;
   } catch (error: any) {
     console.error("❌ Failed to send email:", error.message);
 

@@ -1,114 +1,290 @@
-import { API_URL } from "../../../../lib/constants";
+import { getApiUrl } from "../../../../lib/constants";
 import { cookies } from "next/headers";
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
-import { MarkAsReadButton } from "./mark-as-read-button.tsx";
+import { MarkAsReadButton } from "./mark-as-read-button";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
 import { MessageModal } from "./message-modal";
 
 type FilterType = "all" | "unread" | "today";
+type QueryTab = "contact" | "product";
 
-async function getContacts(filter: FilterType, search: string = "") {
-  const token = (await cookies()).get("token")?.value || "";
+interface QueryItem {
+  id: string | number;
+  queryType: QueryTab;
+  name: string;
+  email: string;
+  phoneNumber?: string;
+  subject: string;
+  message: string;
+  createdAt: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  productCodes?: string;
+  page?: string | null;
+  isRead: boolean;
+}
 
-  const res = await fetch(`${API_URL}/contactus`, {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+interface FetchResult {
+  items: QueryItem[];
+  error?: string;
+}
+
+const queryTabLabels: Record<QueryTab, string> = {
+  contact: "Contact Page Queries",
+  product: "Product Queries",
+};
+
+const normalizeContactQuery = (query: any): QueryItem => ({
+  id: query.id,
+  queryType: "contact",
+  name: query.name || "Unknown",
+  email: query.email || "",
+  phoneNumber: query.phoneNumber || "",
+  subject: query.subject || "Contact page query",
+  message: query.message || "",
+  createdAt: query.createdAt,
+  country: query.country || "",
+  state: query.state || "",
+  isRead: Boolean(query.isRead),
+});
+
+const normalizeProductQuery = (query: any): QueryItem => {
+  const name = [query.firstName, query.lastName].filter(Boolean).join(" ");
+
+  return {
+    id: query.id,
+    queryType: "product",
+    name: name || "Unknown",
+    email: query.email || "",
+    phoneNumber: query.contactNumber || "",
+    subject: query.productCodes
+      ? `Product query: ${query.productCodes}`
+      : "Product query",
+    message: query.message || "",
+    createdAt: query.createdAt,
+    country: query.country || "",
+    city: query.city || "",
+    productCodes: query.productCodes || "",
+    page: query.page || "product",
+    isRead: Boolean(query.isRead),
+  };
+};
+
+const fetchQueryItems = async (
+  endpoint: string,
+  token: string,
+  normalize: (query: any) => QueryItem
+): Promise<FetchResult> => {
+  try {
+    const requestUrl = getApiUrl(endpoint);
+    console.log("Dashboard Fetch API Request:", {
+      endpoint,
+      requestUrl,
+    });
+
+    const response = await fetch(requestUrl, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       cache: "no-store",
-    },
-  });
+    });
 
-  const data = await res.json();
-  let contacts = Array.isArray(data) ? data : data.data ?? [];
+    const data = await response.json().catch(() => null);
+    console.log("Dashboard Fetch API Response:", {
+      endpoint,
+      status: response.status,
+      ok: response.ok,
+      data,
+    });
 
-  // 🔍 Search (screenshot style)
-  if (search) {
-    const q = search.toLowerCase();
-    contacts = contacts.filter(
-      (c: any) =>
-        c.name?.toLowerCase().includes(q) ||
-        c.email?.toLowerCase().includes(q) ||
-        c.subject?.toLowerCase().includes(q) ||
-        c.message?.toLowerCase().includes(q)
+    if (!response.ok) {
+      console.error("Dashboard Fetch API Error Response:", {
+        endpoint,
+        status: response.status,
+        data,
+      });
+
+      return {
+        items: [],
+        error: data?.message || data?.msg || "Unable to load queries",
+      };
+    }
+
+    const rows = Array.isArray(data) ? data : data?.data ?? [];
+    return {
+      items: rows.map(normalize),
+    };
+  } catch (error) {
+    console.error("Dashboard Fetch API Catch Error:", {
+      endpoint,
+      error,
+    });
+    return {
+      items: [],
+      error: "Unable to load queries",
+    };
+  }
+};
+
+const applySearch = (queries: QueryItem[], search: string) => {
+  if (!search) return queries;
+
+  const normalizedSearch = search.toLowerCase();
+
+  return queries.filter((query) =>
+    [
+      query.name,
+      query.email,
+      query.phoneNumber,
+      query.subject,
+      query.message,
+      query.country,
+      query.state,
+      query.city,
+      query.productCodes,
+      query.page || "",
+    ].some((value) => value?.toLowerCase().includes(normalizedSearch))
+  );
+};
+
+const applyFilter = (queries: QueryItem[], filter: FilterType) => {
+  if (filter === "unread") return queries.filter((query) => !query.isRead);
+
+  if (filter === "today") {
+    return queries.filter(
+      (query) =>
+        new Date(query.createdAt).toDateString() === new Date().toDateString()
     );
   }
 
-  if (filter === "unread") return contacts.filter((c: any) => !c.isRead);
-  if (filter === "today")
-    return contacts.filter(
-      (c: any) =>
-        new Date(c.createdAt).toDateString() === new Date().toDateString()
-    );
+  return queries;
+};
 
-  return contacts;
-}
+const formatDate = (createdAt: string) =>
+  new Date(createdAt).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
-// Fix for dynamic API usage - use this export
-export const dynamic = 'force-dynamic';
+const formatTime = (createdAt: string) =>
+  new Date(createdAt).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 interface ContactUsPageProps {
   searchParams: Promise<{
     filter?: string;
     q?: string;
+    tab?: string;
   }>;
 }
 
 export default async function ContactUsPage(props: ContactUsPageProps) {
-  // Await the searchParams promise
   const searchParams = await props.searchParams;
   const filter: FilterType = (searchParams.filter as FilterType) || "all";
   const q = searchParams.q ? decodeURIComponent(searchParams.q) : "";
+  const activeTab: QueryTab =
+    searchParams.tab === "product" ? "product" : "contact";
+  const token = (await cookies()).get("token")?.value || "";
 
-  const allContacts = await getContacts("all", q);
-  const displayedContacts = await getContacts(filter, q);
+  const [contactResult, productResult] = await Promise.all([
+    fetchQueryItems("/contactus", token, normalizeContactQuery),
+    fetchQueryItems("/product-queries", token, normalizeProductQuery),
+  ]);
 
-  const unreadCount = allContacts.filter((c) => !c.isRead).length;
-  const todayCount = allContacts.filter(
-    (c) => new Date(c.createdAt).toDateString() === new Date().toDateString()
+  const queryGroups: Record<QueryTab, QueryItem[]> = {
+    contact: contactResult.items,
+    product: productResult.items,
+  };
+
+  const activeError =
+    activeTab === "contact" ? contactResult.error : productResult.error;
+  const activeQueries = applySearch(queryGroups[activeTab], q);
+  const displayedQueries = applyFilter(activeQueries, filter);
+  const unreadCount = activeQueries.filter((query) => !query.isRead).length;
+  const todayCount = activeQueries.filter(
+    (query) =>
+      new Date(query.createdAt).toDateString() === new Date().toDateString()
   ).length;
-  const buildFilterHref = (tab: FilterType) => {
-    const params = new URLSearchParams();
-    params.set("filter", tab);
-    if (q) params.set("q", encodeURIComponent(q));
-    return `?${params.toString()}`;
+
+  const buildHref = (params: Partial<{ tab: QueryTab; filter: FilterType }>) => {
+    const nextParams = new URLSearchParams();
+    nextParams.set("tab", params.tab || activeTab);
+    nextParams.set("filter", params.filter || filter);
+    if (q) nextParams.set("q", q);
+    return `?${nextParams.toString()}`;
   };
 
   return (
-    <ContentLayout title="Enquiries">
-      
+    <ContentLayout title="Query Management">
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="p-4 md:p-6">
-          <div className="max-w-7xl mx-auto">
-
-             {/* Search Bar */}
-            <div className="w-full mb-6">
-              <CustomSearchBar query={q} placeholder="Search enquiries..." />
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-6 rounded-lg border border-gray-200 bg-white p-1 shadow dark:border-gray-700 dark:bg-gray-800">
+              <div className="grid gap-1 md:grid-cols-2">
+                {(["contact", "product"] as QueryTab[]).map((tab) => (
+                  <a
+                    key={tab}
+                    href={buildHref({ tab, filter: "all" })}
+                    className={`rounded-md px-4 py-3 text-center text-sm font-medium transition-colors ${
+                      activeTab === tab
+                        ? "bg-gray-800 text-white dark:bg-gray-700"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+                    }`}
+                  >
+                    {queryTabLabels[tab]}
+                    <span
+                      className={`ml-2 text-xs ${
+                        activeTab === tab
+                          ? "text-gray-300"
+                          : "text-gray-500 dark:text-gray-500"
+                      }`}
+                    >
+                      ({queryGroups[tab].length})
+                    </span>
+                  </a>
+                ))}
+              </div>
             </div>
-            
-            {/* Filter Tabs - Mobile */}
-            <div className="lg:hidden mb-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-1 shadow border border-gray-200 dark:border-gray-700">
+
+            <div className="mb-6 w-full">
+              <CustomSearchBar query={q} placeholder="Search queries..." />
+            </div>
+
+            <div className="mb-6 lg:hidden">
+              <div className="rounded-lg border border-gray-200 bg-white p-1 shadow dark:border-gray-700 dark:bg-gray-800">
                 <div className="grid grid-cols-3 gap-1">
                   {[
-                    { key: "all", label: "All", count: allContacts.length },
+                    { key: "all", label: "All", count: activeQueries.length },
                     { key: "unread", label: "New", count: unreadCount },
                     { key: "today", label: "Today", count: todayCount },
                   ].map((tab) => (
                     <a
                       key={tab.key}
-                      href={buildFilterHref(tab.key as FilterType)}
-                      className={`flex-1 text-center py-2 px-1 rounded-md font-medium transition-colors ${
+                      href={buildHref({ filter: tab.key as FilterType })}
+                      className={`flex-1 rounded-md px-1 py-2 text-center font-medium transition-colors ${
                         filter === tab.key
                           ? "bg-gray-800 text-white dark:bg-gray-700"
-                          : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                          : "text-gray-600 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
                       }`}
                     >
                       {tab.label}
-                        <span className={`block text-[10px] ${
-                          filter === tab.key ? "text-gray-300" : "text-gray-500 dark:text-gray-500"
-                        }`}>
-                          ({tab.count})
+                      <span
+                        className={`block text-[10px] ${
+                          filter === tab.key
+                            ? "text-gray-300"
+                            : "text-gray-500 dark:text-gray-500"
+                        }`}
+                      >
+                        ({tab.count})
                       </span>
                     </a>
                   ))}
@@ -116,33 +292,42 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
               </div>
             </div>
 
-            {/* Table Container */}
-            <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-              
-              {/* Table Header */}
-              <div className="bg-gray-800 dark:bg-gray-900 text-white p-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between">
+            {activeError && (
+              <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                {activeError}
+              </div>
+            )}
+
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+              <div className="bg-gray-800 p-4 text-white dark:bg-gray-900">
+                <div className="flex flex-col justify-between md:flex-row md:items-center">
                   <div className="mb-4 md:mb-0">
-                    <p className="text-gray-300 text-sm">
-                      Showing <span className="font-semibold">{displayedContacts.length}</span> of{" "}
-                      <span className="font-semibold">{allContacts.length}</span> messages
+                    <p className="text-sm text-gray-300">
+                      Showing{" "}
+                      <span className="font-semibold">
+                        {displayedQueries.length}
+                      </span>{" "}
+                      of{" "}
+                      <span className="font-semibold">
+                        {activeQueries.length}
+                      </span>{" "}
+                      {queryTabLabels[activeTab].toLowerCase()}
                     </p>
                   </div>
-                  
-                  {/* Filter Tabs - Desktop */}
-                  <div className="hidden lg:flex space-x-2">
+
+                  <div className="hidden space-x-2 lg:flex">
                     {[
-                      { key: "all", label: "All Messages" },
-                      { key: "unread", label: "New Messages" },
+                      { key: "all", label: "All Queries" },
+                      { key: "unread", label: "New Queries" },
                       { key: "today", label: "Today" },
                     ].map((tab) => (
                       <a
                         key={tab.key}
-                        href={buildFilterHref(tab.key as FilterType)}
-                        className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                        href={buildHref({ filter: tab.key as FilterType })}
+                        className={`rounded-md px-4 py-2 font-medium transition-colors ${
                           filter === tab.key
                             ? "bg-white text-gray-800"
-                            : "text-gray-300 hover:text-white hover:bg-gray-700"
+                            : "text-gray-300 hover:bg-gray-700 hover:text-white"
                         }`}
                       >
                         {tab.label}
@@ -152,198 +337,195 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
                 </div>
               </div>
 
-              {/* Table */}
               <div className="overflow-x-auto">
                 <table className="min-w-full">
                   <thead>
-                    <tr className="bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-                      <th className="p-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                    <tr className="border-b border-gray-200 bg-gray-100 dark:border-gray-600 dark:bg-gray-700">
+                      <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                         Contact
                       </th>
-                      <th className="p-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                         Date
                       </th>
-                      <th className="p-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
-                        Message Details
+                      <th className="hidden p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 md:table-cell">
+                        Query Details
                       </th>
-                      <th className="p-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
+                      <th className="hidden p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 lg:table-cell">
                         Location
                       </th>
-                      <th className="p-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                         Status
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {displayedContacts.map((c: any, index: number) => (
-                      <tr 
-                        key={c.id} 
-                        className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-                          !c.isRead ? 'bg-blue-200 dark:bg-blue-900/10 border-l-2 border-l-blue-500' : ''
+                    {displayedQueries.map((query) => (
+                      <tr
+                        key={`${query.queryType}-${query.id}`}
+                        className={`transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
+                          !query.isRead
+                            ? "border-l-2 border-l-blue-500 bg-blue-200 dark:bg-blue-900/10"
+                            : ""
                         }`}
                       >
-                        {/* Contact Name */}
                         <td className="p-3">
                           <div className="flex items-center space-x-3">
-                            {/* Avatar */}
                             <div className="relative">
-                              <div className="w-8 h-8 bg-gray-800 dark:bg-gray-700 rounded-md flex items-center justify-center">
-                                <span className="font-bold text-sm text-white">
-                                  {c.name.charAt(0).toUpperCase()}
+                              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-800 dark:bg-gray-700">
+                                <span className="text-sm font-bold text-white">
+                                  {(query.name || "?").charAt(0).toUpperCase()}
                                 </span>
                               </div>
-                              
-                              {/* Unread Notification Dot */}
-                              {!c.isRead && (
-                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></div>
+                              {!query.isRead && (
+                                <div className="absolute -right-1 -top-1 h-2 w-2 rounded-full border border-white bg-red-500" />
                               )}
                             </div>
 
-                            {/* Contact Info */}
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center justify-between">
-                                <p className={`font-medium text-sm truncate ${
-                                  !c.isRead 
-                                    ? 'text-blue-600 dark:text-blue-400' 
-                                    : 'text-gray-800 dark:text-gray-200'
-                                }`}>
-                                  {c.name}
+                                <p
+                                  className={`truncate text-sm font-medium ${
+                                    !query.isRead
+                                      ? "text-blue-600 dark:text-blue-400"
+                                      : "text-gray-800 dark:text-gray-200"
+                                  }`}
+                                >
+                                  {query.name}
                                 </p>
-                                {/* Mobile Phone */}
-                                <span className="md:hidden text-xs text-gray-500 dark:text-gray-400">
-                                  {c.phoneNumber || "No phone"}
+                                <span className="text-xs text-gray-500 dark:text-gray-400 md:hidden">
+                                  {query.phoneNumber || "No phone"}
                                 </span>
                               </div>
-                              <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-0.5">
-                                {c.email}
+                              <p className="mt-0.5 truncate text-xs text-gray-600 dark:text-gray-400">
+                                {query.email}
                               </p>
-                              <p className="text-xs font-medium text-gray-800 dark:text-gray-300 truncate mt-0.5">
-                                {c.subject}
+                              <p className="mt-0.5 truncate text-xs font-medium text-gray-800 dark:text-gray-300">
+                                {query.subject}
                               </p>
                             </div>
                           </div>
                         </td>
 
-                        {/* Date Column */}
                         <td className="p-3">
                           <div className="flex flex-col">
-                            <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-0.5">
-                              {new Date(c.createdAt).toLocaleDateString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}
+                            <p className="mt-0.5 truncate text-xs text-gray-600 dark:text-gray-400">
+                              {formatDate(query.createdAt)}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {new Date(c.createdAt).toLocaleTimeString([], { 
-                                hour: '2-digit', 
-                                minute: '2-digit',
-                                hour12: true 
-                              })}
+                              {formatTime(query.createdAt)}
                             </p>
                           </div>
                         </td>
 
-                        {/* Desktop Message Details */}
-                        <td className="p-3 hidden md:table-cell">
+                        <td className="hidden p-3 md:table-cell">
                           <div className="space-y-1">
-                            {/* Phone Number */}
                             <div className="flex items-center space-x-2">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">📱</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                Phone
+                              </span>
                               <p className="text-sm text-gray-700 dark:text-gray-300">
-                                {c.phoneNumber || "No phone provided"}
+                                {query.phoneNumber || "No phone provided"}
                               </p>
                             </div>
-                            
-                            {/* Message Preview */}
+                            {query.productCodes && (
+                              <div className="max-w-xs">
+                                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                  Product Codes
+                                </p>
+                                <p className="truncate text-xs text-gray-600 dark:text-gray-400">
+                                  {query.productCodes}
+                                </p>
+                              </div>
+                            )}
                             <div className="max-w-xs">
-                              <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
-                                {c.message}
+                              <p className="line-clamp-2 text-xs text-gray-600 dark:text-gray-400">
+                                {query.message}
                               </p>
-                              {c.message.length > 100 && (
+                              {query.message.length > 100 && (
                                 <button
                                   type="button"
-                                  data-message-id={c.id}
-                                  className="message-view-button text-xs font-medium mt-1 text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                  data-message-id={query.id}
+                                  className="message-view-button mt-1 cursor-pointer text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
                                 >
-                                  View full message →
+                                  View full message
                                 </button>
                               )}
                             </div>
                           </div>
                         </td>
 
-                        {/* Desktop Location */}
-                        <td className="p-3 hidden lg:table-cell">
+                        <td className="hidden p-3 lg:table-cell">
                           <div className="flex flex-wrap gap-1">
-                            {c.country ? (
-                              <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded border border-gray-300 dark:border-gray-600">
-                                {c.country}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-gray-400 dark:text-gray-500 italic">
-                                No country
-                              </span>
-                            )}
-                            
-                            {c.state && (
-                              <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded border border-gray-300 dark:border-gray-600">
-                                {c.state}
+                            {[query.city, query.state, query.country]
+                              .filter(Boolean)
+                              .map((value) => (
+                                <span
+                                  key={value}
+                                  className="rounded border border-gray-300 bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                >
+                                  {value}
+                                </span>
+                              ))}
+                            {![query.city, query.state, query.country].some(
+                              Boolean
+                            ) && (
+                              <span className="text-xs italic text-gray-400 dark:text-gray-500">
+                                No location
                               </span>
                             )}
                           </div>
                         </td>
 
-                        {/* Status Column */}
                         <td className="p-3">
                           <div className="flex flex-col items-start space-y-2">
-                            {/* Status Badge */}
-                            {!c.isRead ? (
+                            {!query.isRead ? (
                               <div className="flex items-center space-x-2">
-                                <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs rounded-full font-medium">
+                                <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-300">
                                   NEW
                                 </span>
-                                <MarkAsReadButton contactId={c.id} />
+                                <MarkAsReadButton
+                                  queryId={query.id}
+                                  queryType={query.queryType}
+                                />
                               </div>
                             ) : (
                               <div className="flex items-center space-x-2">
-                                <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full font-medium">
+                                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">
                                   Read
                                 </span>
                                 <button
                                   type="button"
-                                  data-message-id={c.id}
-                                  className="message-view-button text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer"
+                                  data-message-id={query.id}
+                                  className="message-view-button cursor-pointer text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                                 >
                                   View
                                 </button>
                               </div>
                             )}
-                            
-                            {/* Mobile Location Badges */}
+
                             <div className="flex flex-wrap gap-1 md:hidden">
-                              {c.country && (
-                                <span className="px-1.5 py-0.5 text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded border border-gray-300 dark:border-gray-600">
-                                  {c.country}
-                                </span>
-                              )}
-                              {c.state && (
-                                <span className="px-1.5 py-0.5 text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded border border-gray-300 dark:border-gray-600">
-                                  {c.state}
-                                </span>
-                              )}
+                              {[query.city, query.state, query.country]
+                                .filter(Boolean)
+                                .map((value) => (
+                                  <span
+                                    key={value}
+                                    className="rounded border border-gray-300 bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                  >
+                                    {value}
+                                  </span>
+                                ))}
                             </div>
-                            
-                            {/* Mobile Message Preview */}
-                            <div className="md:hidden mt-1">
+
+                            <div className="mt-1 md:hidden">
                               <p className="text-xs text-gray-600 dark:text-gray-400">
-                                {c.message.substring(0, 50)}...
+                                {query.message.substring(0, 50)}
+                                {query.message.length > 50 ? "..." : ""}
                               </p>
-                              {c.message.length > 50 && (
+                              {query.message.length > 50 && (
                                 <button
                                   type="button"
-                                  data-message-id={c.id}
-                                  className="message-view-button text-xs font-medium mt-1 text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                  data-message-id={query.id}
+                                  className="message-view-button mt-1 cursor-pointer text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
                                 >
                                   View full message
                                 </button>
@@ -357,40 +539,37 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
                 </table>
               </div>
 
-              {/* Empty State */}
-              {displayedContacts.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="inline-block mb-4">
-                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                      <span className="text-2xl">📭</span>
+              {displayedQueries.length === 0 && (
+                <div className="py-12 text-center">
+                  <div className="mb-4 inline-block">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
+                      <span className="text-2xl">?</span>
                     </div>
                   </div>
-                  <h3 className="text-lg font-medium text-gray-600 dark:text-gray-400 mb-2">
-                    No Messages Found
+                  <h3 className="mb-2 text-lg font-medium text-gray-600 dark:text-gray-400">
+                    No Queries Found
                   </h3>
-                  <p className="text-gray-500 dark:text-gray-500 max-w-md mx-auto text-sm">
-                    {filter === "all" 
-                      ? "The inbox is currently empty. New customer inquiries will appear here." 
-                      : `No ${filter} messages found.`}
+                  <p className="mx-auto max-w-md text-sm text-gray-500 dark:text-gray-500">
+                    {filter === "all"
+                      ? `No ${queryTabLabels[
+                          activeTab
+                        ].toLowerCase()} are available yet.`
+                      : `No ${filter} queries found.`}
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Footer */}
             <div className="mt-6 text-center">
-              <div className="inline-flex items-center space-x-2 text-gray-500 dark:text-gray-400 text-xs">
-                <span>•</span>
+              <div className="inline-flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
                 <span>Last updated: {new Date().toLocaleString()}</span>
-                <span>•</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Client-side Message Modal Component */}
-      <MessageModal contacts={displayedContacts} />
+      <MessageModal contacts={displayedQueries} />
     </ContentLayout>
   );
 }

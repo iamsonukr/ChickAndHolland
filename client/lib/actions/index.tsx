@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { API_URL } from "../constants";
+import { API_URL, getApiUrl } from "../constants";
 import { LoginForm } from "../formSchemas";
 import { actionClient } from "./safe-action";
 import z from "zod";
@@ -65,6 +65,7 @@ const enquireNowFormSchema = z.object({
   productCodes: z.string().min(1, {
     message: "Product Code is required",
   }),
+  page: z.string().optional(),
   recaptchaToken: z.string().min(1, {
     message: "Please complete the reCAPTCHA verification",
   }),
@@ -74,7 +75,11 @@ export const submitEnquiryForm = actionClient
   .schema(enquireNowFormSchema)
   .action(async ({ parsedInput: values }) => {
     try {
-      const response = await fetch(`${API_URL}/products/enquiry-email`, {
+      const requestUrl = getApiUrl("/products/enquiry-email");
+      console.log("Product Query API Request URL:", requestUrl);
+      console.log("Product Query API Request Payload:", values);
+
+      const response = await fetch(requestUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,24 +87,57 @@ export const submitEnquiryForm = actionClient
         body: JSON.stringify(values),
       });
 
-      const data = await response.json();
+      console.log("Product Query API Response Status:", {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+      });
+
+      const rawResponse = await response.text();
+      let data: any = null;
+
+      try {
+        data = rawResponse ? JSON.parse(rawResponse) : null;
+      } catch (parseError) {
+        console.error("Product Query API Response Parse Error:", parseError);
+        console.log("Product Query API Raw Response:", rawResponse);
+      }
+
+      console.log("Product Query API Response Body:", data);
 
       if (!response.ok || !data.success) {
+        const validationMessage = Array.isArray(data?.msg)
+          ? data.msg
+              .map((error: any) => `${error.path}: ${error.msg}`)
+              .join(", ")
+          : "";
+
         return {
           success: false,
-          message: data.message || "Something went wrong",
+          status: response.status,
+          message:
+            data?.message ||
+            validationMessage ||
+            data?.msg ||
+            response.statusText ||
+            "Something went wrong",
+          error: data,
         };
       }
 
       return {
         success: true,
+        status: response.status,
         message: data.message || "Enquiry submitted successfully",
+        queryId: data.queryId,
+        emailSent: data.emailSent,
       };
     } catch (error) {
-      console.error(error);
+      console.error("Product Query API Error:", error);
       return {
         success: false,
-        message: "Something went wrong",
+        message:
+          error instanceof Error ? error.message : "Something went wrong",
       };
     }
   });

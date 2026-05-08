@@ -1503,14 +1503,6 @@ PublicStoreRoutes.post(
 
     const nextStage = getNextStatus(currentStage);
 
-    // 🔒 STORE cannot mark Ready To Delivery
-    if (nextStage === OrderStatus.Ready_To_Delivery) {
-      return res.json({
-        success: false,
-        message: "Ready To Delivery can be done only by Admin",
-      });
-    }
-
     // 🔒 BLOCK SHIP IF BALANCE PENDING
     if (
       nextStage === OrderStatus.Shipped &&
@@ -1570,6 +1562,7 @@ const STORE_STATUS_FLOW = [
   OrderStatus.Zarkan,
   OrderStatus.Stitching,
   OrderStatus.Balance_Pending,
+  OrderStatus.Ready_To_Delivery,
   OrderStatus.Shipped,
 ];
 
@@ -1612,10 +1605,6 @@ async function resolveStoreScannerStage(req: Request) {
     ? (lastProgress.status as OrderStatus)
     : null;
   const nextStage = getNextStatus(currentStage);
-
-  if (nextStage === OrderStatus.Ready_To_Delivery) {
-    return null;
-  }
 
   if (
     nextStage === OrderStatus.Shipped &&

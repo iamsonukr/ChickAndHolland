@@ -19,6 +19,7 @@ const FLOW = [
   "Beading",
   "Zarkan",
   "Stitching",
+  "Balance Pending",
   "Ready To Delivery",
   "Shipped",
 ];
@@ -115,6 +116,9 @@ router.post(
           break;
         case "Stitching":
           order.stitching = now;
+          break;
+        case "Balance Pending":
+          order.balance_pending = now;
           break;
         case "Ready To Delivery":
           order.ready_to_delivery = now;

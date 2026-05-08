@@ -32,6 +32,7 @@ import Product from "./models/Product";
 import ProductColours from "./models/ProductColours";
 import ProductCountryPricing from "./models/ProductCountryPricing";
 import ProductCurrencyPricing from "./models/ProductCurrencyPricing";
+import ProductQuery from "./models/ProductQuery";
 import ProductImage from "./models/ProductImage";
 import QuickBookLoginHistory from "./models/QuickBookLoginHistory";
 import QuickBooksToken from "./models/QuickBooksToken";
@@ -67,7 +68,7 @@ const db = new DataSource({
         Employee, Expense, ExpenseType, Favourites, Inventory,
         NewUserRoles, Order, OrderItem, OrderPayments,
         OrderStyle, PageActions, Payer, Permission, Product,
-        ProductColours, ProductCountryPricing, ProductCurrencyPricing,
+        ProductColours, ProductCountryPricing, ProductCurrencyPricing, ProductQuery,
         ProductImage, QuickBookLoginHistory, QuickBooksToken,
         ReailerFavouritesOrder, Retailer, RetailerBank, RetailerOrder,
         RetailerOrderStyles, RetailerPaymentModal, RetailerStockOrders,

@@ -11,18 +11,40 @@ export const validate = (validationChain: ValidationChain[]) => {
       const errors = validationResult(req);
 
       if (errors.isEmpty()) {
+        if (req.originalUrl.includes("/products/enquiry-email")) {
+          console.log("Product Query Validation Step:", {
+            success: true,
+            path: req.originalUrl,
+          });
+        }
         next();
         return;
       }
+      const formattedErrors = errors.array().map((err: any) => {
+        return {
+          path: err.path,
+          msg: err.msg,
+        };
+      });
+
+      if (req.originalUrl.includes("/products/enquiry-email")) {
+        console.error("Product Query Validation Step:", {
+          success: false,
+          path: req.originalUrl,
+          errors: formattedErrors,
+          body: req.body,
+        });
+      }
+
       return res.status(400).json({
-        msg: errors.array().map((err: any) => {
-          return {
-            path: err.path,
-            msg: err.msg,
-          };
-        }),
+        success: false,
+        message: "Validation failed",
+        msg: formattedErrors,
       });
     } catch (error: any) {
+      if (req.originalUrl.includes("/products/enquiry-email")) {
+        console.error("Product Query Validation Error:", error);
+      }
       res.status(500).json({ msg: error.message });
     }
   };

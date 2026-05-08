@@ -1,4 +1,12 @@
-export const API_URL =  process.env.NEXT_PUBLIC_API_URL || "https://api.chicandholland.com/api/";
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://api.chicandholland.com/api/";
+
+export const getApiUrl = (path = "") => {
+  const baseUrl = API_URL.replace(/\/+$/, "");
+  const normalizedPath = path.replace(/^\/+/, "");
+
+  return normalizedPath ? `${baseUrl}/${normalizedPath}` : baseUrl;
+};
 
 export const GOOGLE_MAPS_API_KEY =
   process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ??

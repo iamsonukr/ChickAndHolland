@@ -580,7 +580,7 @@ export const cartAndWishlistValidator = [
 export const enquiryEmailValidator = [
   body("firstName").notEmpty().withMessage("First Name is Required"),
   body("lastName").notEmpty().withMessage("Last Name is Required"),
-  body("contactNumber").notEmpty().withMessage("First Name is Required"),
+  body("contactNumber").notEmpty().withMessage("Contact Number is Required"),
   body("email")
     .notEmpty()
     .withMessage("Email is required")

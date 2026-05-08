@@ -2,13 +2,30 @@
 "use client";
 
 import { useState } from "react";
-import { API_URL } from "../../../../lib/constants";
+import { getApiUrl } from "../../../../lib/constants";
 
-export function MarkAsReadButton({ contactId }: { contactId: string }) {
+type QueryType = "contact" | "product";
+
+export function MarkAsReadButton({
+  contactId,
+  queryId,
+  queryType = "contact",
+}: {
+  contactId?: string | number;
+  queryId?: string | number;
+  queryType?: QueryType;
+}) {
   const [isLoading, setIsLoading] = useState(false);
   const [isMarked, setIsMarked] = useState(false);
+  const id = queryId ?? contactId;
+  const endpoint =
+    queryType === "product"
+      ? getApiUrl(`/product-queries/${id}/read`)
+      : getApiUrl(`/contactus/${id}/read`);
 
   const handleMarkAsRead = async () => {
+    if (!id) return;
+
     setIsLoading(true);
     try {
       const token = document.cookie
@@ -16,18 +33,28 @@ export function MarkAsReadButton({ contactId }: { contactId: string }) {
         .find(row => row.startsWith('token='))
         ?.split('=')[1] || '';
 
-      const response = await fetch(`${API_URL}/contactus/${contactId}/read`, {
+      const response = await fetch(endpoint, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
       });
+      const data = await response.json().catch(() => null);
+      console.log("Product Query Mark As Read API Response:", {
+        queryType,
+        id,
+        status: response.status,
+        ok: response.ok,
+        data,
+      });
 
       if (response.ok) {
         setIsMarked(true);
         // Refresh the page to update the status
         setTimeout(() => window.location.reload(), 1000);
+      } else {
+        console.error('Failed to mark query as read', data);
       }
     } catch (error) {
       console.error('Error marking as read:', error);

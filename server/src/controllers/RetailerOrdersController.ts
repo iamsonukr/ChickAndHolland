@@ -24,10 +24,64 @@ import RetailerOrderStyles from "../models/RetailerOrderStyles";
 import StockOrderStyles from "../models/StockOrderStyles";
 import express from "express";
 import StyleProgress from "../models/StyleProgress";
+import {
+  requireScannerIdentity,
+  requireScannerRoleStageAccess,
+} from "../lib/scanGuard";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 const router = Router();
+
+const RETAILER_QR_STATUS_FLOW = [
+  OrderStatus.Pattern,
+  OrderStatus.Khaka,
+  OrderStatus.Issue_Beading,
+  OrderStatus.Beading,
+  OrderStatus.Zarkan,
+  OrderStatus.Stitching,
+  OrderStatus.Balance_Pending,
+  OrderStatus.Ready_To_Delivery,
+  OrderStatus.Shipped,
+];
+
+const getNextRetailerQrStatus = (currentStatus: OrderStatus) => {
+  const currentIndex = RETAILER_QR_STATUS_FLOW.indexOf(currentStatus);
+  if (currentIndex === -1) return null;
+  return RETAILER_QR_STATUS_FLOW[currentIndex + 1] || null;
+};
+
+async function resolveRetailerOrderQrStage(req: Request) {
+  const order = await RetailerOrder.findOne({
+    where: { id: Number(req.params.id), status: 0 },
+  });
+
+  if (!order) {
+    return null;
+  }
+
+  const currentStage = order.orderStatus as OrderStatus;
+
+  if (currentStage === OrderStatus.Ready_To_Delivery) {
+    return req.body?.confirmShip === true
+      ? {
+          currentStage,
+          targetStage: OrderStatus.Shipped,
+          flowStages: RETAILER_QR_STATUS_FLOW,
+        }
+      : null;
+  }
+
+  const targetStage = getNextRetailerQrStatus(currentStage);
+
+  return targetStage
+    ? {
+        currentStage,
+        targetStage,
+        flowStages: RETAILER_QR_STATUS_FLOW,
+      }
+    : null;
+}
 
 const normalizeAcceptedStyleSize = (
   rawSize: unknown,
@@ -2442,6 +2496,8 @@ router.get(
 
 router.put(
   "/qr-scan-update/:id",
+  requireScannerIdentity,
+  requireScannerRoleStageAccess(resolveRetailerOrderQrStage),
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
@@ -2456,42 +2512,12 @@ router.put(
       });
     }
 
-    const workflow = [
-      OrderStatus.Pattern,
-      OrderStatus.Khaka,
-      OrderStatus.Issue_Beading,
-      OrderStatus.Beading,
-      OrderStatus.Zarkan,
-      OrderStatus.Stitching,
-      OrderStatus.Balance_Pending,
-    ];
+    const workflow = RETAILER_QR_STATUS_FLOW;
 
     const currentStatus: OrderStatus = order.orderStatus as OrderStatus;
 
     const currentIndex = workflow.indexOf(order.orderStatus);
     const now = new Date();
-    // ⛔ QR STOP — Balance Pending
-    if (currentStatus === OrderStatus.Balance_Pending) {
-      return res.json({
-        success: false,
-        code: "WAIT_ADMIN",
-        message:
-          "Order Balance Pending hai. Admin ne Ready To Delivery nahi kiya.",
-        nextAction: "WAIT_ADMIN_READY",
-      });
-    }
-
-    // 🟡 Admin Ready To Delivery kar chuka hai
-    if (currentStatus === OrderStatus.Ready_To_Delivery) {
-      return res.json({
-        success: true,
-        code: "READY_FOR_SHIP",
-        message:
-          "Admin ne Ready To Delivery kar diya hai. Last scan karke Shipped karein.",
-        nextAction: "SHIP",
-      });
-    }
-
     // ❌ Already shipped
     if (order.orderStatus === OrderStatus.Shipped) {
       return res.json({
@@ -2503,7 +2529,7 @@ router.put(
     // 🚚 FINAL QR CONFIRM → SHIP ORDER
     if (
       order.orderStatus === OrderStatus.Ready_To_Delivery &&
-      req.body.confirmShip === true
+      req.body?.confirmShip === true
     ) {
       const now = new Date();
 
@@ -2521,6 +2547,17 @@ router.put(
         message: "Order shipped successfully",
         orderStatus: OrderStatus.Shipped,
         shippedAt: now,
+      });
+    }
+
+    // 🟡 Ready To Delivery ho chuka hai
+    if (currentStatus === OrderStatus.Ready_To_Delivery) {
+      return res.json({
+        success: true,
+        code: "READY_FOR_SHIP",
+        message:
+          "Ready To Delivery ho chuka hai. Shipping master last scan karke Shipped karein.",
+        nextAction: "SHIP",
       });
     }
 
@@ -2543,6 +2580,7 @@ router.put(
 
 
     const field = nextStatus.toLowerCase().replace(/\s+/g, "_");
+    order.orderStatus = nextStatus;
     (order as any)[field] = now;
 
     // If shipped update shipping fields too

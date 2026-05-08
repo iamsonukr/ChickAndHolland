@@ -29,6 +29,7 @@ import ExpenseTypeRouter from "./controllers/ExpenseTypeController";
 import ExpenseRouter from "./controllers/ExpenseController";
 import InventoryRouter from "./controllers/InventoryController";
 import ProductRouter from "./controllers/ProductController";
+import ProductQueryRouter from "./controllers/ProductQueryController";
 import EmployeeRouter from "./controllers/EmployeeController";
 import OrderRouter,{ PublicStoreRoutes } from "./controllers/OrderController";
 import ReportRouter from "./controllers/ReportController";
@@ -75,6 +76,7 @@ import reportController from "./controllers/report.controller";
 import retailerScanRoute from "./routes/RetailerScanRoute";
 import stockScanRoute from "./routes/StockScanRoute";
 import stripeWebhookHandler from "./routes/webhook";
+import { ensureProductQueriesTable } from "./utils/ensureProductQueriesTable";
 
 const router = Router();
 
@@ -142,6 +144,7 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
     
   await db.initialize();
 BaseEntity.useDataSource(db);
+await ensureProductQueriesTable();
 console.log("✅ Database connected");
 
 if (process.env.RUN_SEEDER === "true") {
@@ -218,6 +221,7 @@ app.use("/api/subcategories", SubCategoryRouter);
 app.use("/api/employees", EmployeeRouter);
 app.use("/api/contactus", ContactusRouter);
 app.use("/api/products", ProductRouter);
+app.use("/api/product-queries", ProductQueryRouter);
 app.use("/api/payers", PayerRouter);
 app.use("/api/expensetypes", ExpenseTypeRouter);
 app.use("/api/expenses", ExpenseRouter);

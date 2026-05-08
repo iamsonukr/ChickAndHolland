@@ -17,6 +17,10 @@ export const memberAuthHandler = async (
   res: Response,
   next: NextFunction
 ) => {
+  const isPublicContactSubmission =
+    (req.path === "/api/contactus" || req.path === "/api/contactus/") &&
+    req.method === "POST";
+
   if (req.path.includes("login")) {
     return next();
   }
@@ -35,7 +39,7 @@ export const memberAuthHandler = async (
     req.path.includes("subcategories") ||
     req.path.includes("products/filter") ||
     req.path.includes("products") ||
-    req.path.includes("contactus") ||
+    isPublicContactSubmission ||
     // this is temporary
     req.path.includes("retailers") ||
     req.path.includes("stock-details") ||

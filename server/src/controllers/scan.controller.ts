@@ -30,6 +30,7 @@ const RETAILER_FLOW = [
   "Zarkan",
   "Stitching",
   "Balance Pending",
+  "Ready To Delivery",
 ];
 /* -----------------------------------------
    ORDER STAGE INDEX FOR LOWEST STAGE LOGIC
@@ -81,8 +82,8 @@ const STOCK_FLOW = [
   "Beading",
   "Zarkan",
   "Stitching",
-  "Ready To Delivery",
   "Balance Pending",
+  "Ready To Delivery",
   "Shipped",
 ];
 
@@ -93,8 +94,8 @@ const STOCK_GUARD_FLOW = [
   "Beading",
   "Zarkan",
   "Stitching",
-  "Ready To Delivery",
   "Balance Pending",
+  "Ready To Delivery",
   "Shipped",
 ];
 
@@ -116,19 +117,21 @@ async function resolveRetailerScannerStage(req: Request) {
 
   const order = style.retailerOrder;
 
-  if ((order.orderStatus as OrderStatus) === OrderStatus.Balance_Pending) {
-    return null;
-  }
+  const last = await StyleProgress.findOne({
+    where: { barcode },
+    order: { createdAt: "DESC" },
+  });
+
+  const currentStage =
+    last?.stage ||
+    ((order.orderStatus as OrderStatus) !== OrderStatus.Pattern
+      ? (order.orderStatus as OrderStatus)
+      : null);
 
   if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
-    const last = await StyleProgress.findOne({
-      where: { barcode },
-      order: { createdAt: "DESC" },
-    });
-
     return req.body?.confirmShip === true
       ? {
-          currentStage: last?.stage || null,
+          currentStage,
           targetStage: OrderStatus.Shipped,
           flowStages: [...RETAILER_FLOW, OrderStatus.Shipped],
         }
@@ -139,17 +142,19 @@ async function resolveRetailerScannerStage(req: Request) {
     (req as any).scannerIdentity?.scannerRoleName,
   );
 
+  if (
+    (order.orderStatus as OrderStatus) === OrderStatus.Balance_Pending &&
+    targetStage !== OrderStatus.Ready_To_Delivery
+  ) {
+    return null;
+  }
+
   if (!targetStage || !RETAILER_FLOW.includes(targetStage)) {
     return null;
   }
 
-  const last = await StyleProgress.findOne({
-    where: { barcode },
-    order: { createdAt: "DESC" },
-  });
-
   return {
-    currentStage: last?.stage || null,
+    currentStage,
     targetStage,
     flowStages: [...RETAILER_FLOW, OrderStatus.Shipped],
   };
@@ -265,17 +270,23 @@ router.post(
 
     // const paid = payments.reduce((sum, p) => sum + p.amount, 0);
     // const remaining = Number(order.purchaseAmount) - paid;
+    const scannerTargetStage = getScannerRolePrimaryStage(
+      (req as any).scannerIdentity?.scannerRoleName,
+    );
 
    /* ------------------------------------
    🔒 BARCODE FLOW CONTROL (FINAL)
 ------------------------------------- */
 
-if ((order.orderStatus as OrderStatus) === OrderStatus.Balance_Pending) {
+if (
+  (order.orderStatus as OrderStatus) === OrderStatus.Balance_Pending &&
+  scannerTargetStage !== OrderStatus.Ready_To_Delivery
+) {
   return res.json({
     success: false,
     code: "WAIT_ADMIN",
     message:
-      "Balance Pending hai. Admin ne Ready To Delivery nahi kiya.",
+      "Balance Pending hai. Ready To Delivery scan pending hai.",
   });
 }
 
@@ -335,7 +346,7 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
     success: true,
     code: "READY_FOR_SHIP",
     message:
-      "Admin ne Ready To Delivery kar diya hai. Last scan karke Shipped karein.",
+      "Ready To Delivery ho chuka hai. Shipping master last scan karke Shipped karein.",
     nextAction: "CONFIRM_SHIP",
   });
 }
@@ -351,7 +362,7 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
       req.body.confirmShip === true;
     const targetStage = isShippingScan
       ? OrderStatus.Shipped
-      : getScannerRolePrimaryStage((req as any).scannerIdentity?.scannerRoleName);
+      : scannerTargetStage;
 
     if (!targetStage) {
       return res.status(403).json({

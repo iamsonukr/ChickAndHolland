@@ -86,7 +86,7 @@ import {
   getAdminRetailersFreshOrders,
   getAdminRetailersStockOrders,
 } from "@/lib/data";
-import { API_URL } from "@/lib/constants";
+import { getApiUrl } from "@/lib/constants";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -133,20 +133,56 @@ export default async function RootLayout({
 
 
   const unreadEnquiryCount = async () => {
-  const token = (await cookies()).get("token")?.value || "";
-
-  const res = await fetch(`${API_URL}/contactus`, {
-    headers: {
+    const token = (await cookies()).get("token")?.value || "";
+    const headers = {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
+    };
 
-  const data = await res.json();
-  const contacts = Array.isArray(data) ? data : data.data ?? [];
-  return contacts.filter((c: any) => !c.isRead).length;
-};
+    const fetchQueries = async (path: string) => {
+      try {
+        const requestUrl = getApiUrl(path);
+        console.log("Dashboard Unread Query Fetch Request:", {
+          path,
+          requestUrl,
+        });
+
+        const res = await fetch(requestUrl, {
+          headers,
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => []);
+        console.log("Dashboard Unread Query Fetch Response:", {
+          path,
+          status: res.status,
+          ok: res.ok,
+          data,
+        });
+        if (!res.ok) {
+          console.error("Dashboard Unread Query Fetch Error Response:", {
+            path,
+            status: res.status,
+            data,
+          });
+        }
+        return res.ok ? (Array.isArray(data) ? data : data.data ?? []) : [];
+      } catch (error) {
+        console.error("Dashboard Unread Query Fetch Catch Error:", {
+          path,
+          error,
+        });
+        return [];
+      }
+    };
+
+    const [contacts, productQueries] = await Promise.all([
+      fetchQueries("/contactus"),
+      fetchQueries("/product-queries"),
+    ]);
+
+    return [...contacts, ...productQueries].filter((c: any) => !c.isRead)
+      .length;
+  };
 
 const unreadCount = await unreadEnquiryCount();
 

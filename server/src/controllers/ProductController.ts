@@ -1,4 +1,4 @@
-import e, { raw, Request, Response, Router } from "express";
+import e, { raw, NextFunction, Request, Response, Router } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
 import { enquiryEmailTemplate } from "../lib/enquiryEmailTemplate";
 import {
@@ -36,6 +36,7 @@ import { CacheController } from "./CacheController";
 import ProductCountryPricing from "../models/ProductCountryPricing";
 import Country from "../models/Country";
 import ProductCurrencyPricing from "../models/ProductCurrencyPricing";
+import ProductQuery from "../models/ProductQuery";
 import Currency from "../models/Currency";
 import AppDataSource from "../db";
 import Favourites from "../models/Favourites";
@@ -52,6 +53,8 @@ const ENQUIRY_RATE_LIMITS = {
   hour: { windowMs: 60 * 60 * 1000, max: 10 },
   day: { windowMs: 24 * 60 * 60 * 1000, max: 20 },
 } as const;
+const PRODUCT_QUERY_ADMIN_EMAIL =
+  process.env.PRODUCT_QUERY_ADMIN_EMAIL || "info@chicandholland.com";
 
 /**
  * There will be a chain of validators for every post or patch requests
@@ -719,8 +722,17 @@ router.patch(
 
 router.post(
   "/enquiry-email",
+  (req: Request, _res: Response, next: NextFunction) => {
+    console.log("Product Query Validation Step: Starting");
+    console.log("Product Query Request Body:", req.body);
+    next();
+  },
   validate(enquiryEmailValidator),
   asyncHandler(async (req: Request, res: Response) => {
+    console.log("Product Query Controller Entry");
+    console.log("Product Query Request Body:", req.body);
+
+    try {
     const now = Date.now();
     const clientIp = getClientIp(req);
     const rateLimitViolation = getRateLimitViolation({
@@ -730,8 +742,14 @@ router.post(
       limits: ENQUIRY_RATE_LIMITS,
       resourceLabel: "product enquiry",
     });
+    console.log("Product Query Rate Limit Check:", {
+      clientIp,
+      blocked: Boolean(rateLimitViolation),
+      retryAfterSeconds: rateLimitViolation?.retryAfterSeconds,
+    });
 
     if (rateLimitViolation) {
+      console.error("Product Query Rate Limited:", rateLimitViolation);
       return res.status(429).json({
         success: false,
         message: rateLimitViolation.message,
@@ -754,8 +772,13 @@ router.post(
     const recaptchaResult = await verifyRecaptchaToken({
       token: String(req.body?.recaptchaToken ?? ""),
     });
+    console.log("Product Query reCAPTCHA Validation Result:", {
+      success: recaptchaResult.success,
+      errorCodes: recaptchaResult.errorCodes,
+    });
 
     if (!recaptchaResult.success) {
+      console.error("Product Query reCAPTCHA Failed:", recaptchaResult);
       return res.status(400).json({
         success: false,
         message: "reCAPTCHA verification failed. Please try again.",
@@ -764,6 +787,7 @@ router.post(
     }
 
     if (isDisposableEmail(email)) {
+      console.error("Product Query Disposable Email Blocked:", email);
       return res.status(400).json({
         success: false,
         message:
@@ -771,8 +795,28 @@ router.post(
       });
     }
 
+    const productQuery = ProductQuery.create({
+      firstName,
+      lastName,
+      contactNumber,
+      city,
+      country,
+      message,
+      email,
+      productCodes,
+      page: page || "product",
+    });
+
+    console.log("Saving Product Query:", productQuery);
+    const savedQuery = await productQuery.save();
+    console.log("Saved Product Query:", savedQuery);
+
+    let emailSent = false;
+    let emailErrorMessage = "";
+    try {
+    console.log("Sending Product Query Email...");
     if (page !== "favourites") {
-      mail({
+      const emailResponse = await mail({
         html: enquiryEmailTemplate({
           firstName,
           lastName,
@@ -782,18 +826,19 @@ router.post(
           message,
           email,
           productCodes,
-          page: "",      // or whatever page this enquiry is from
+          page: page || "product",
           subject: "",   // or a relevant subject
           state: "",     // or req.body.state if available
         }),
-        to: "info@chicandholland.com",
+        to: PRODUCT_QUERY_ADMIN_EMAIL,
         // to: "rehan@ymtsindia.org",
-        subject: `New Contact US Form Submission - ${new Date().toLocaleDateString()}`,
+        subject: `New Product Enquiry Form Submission - ${new Date().toLocaleDateString()}`,
         replyTo: email,
         // inReplyTo: email,
       });
+      console.log("Product Query Email Response:", emailResponse);
     } else {
-      mail({
+      const emailResponse = await mail({
         html: `<!DOCTYPE html>
         <html
           lang="en"
@@ -1699,18 +1744,57 @@ router.post(
           </body>
         </html>
         `,
-        to: "info@chicandholland.com",
+        to: PRODUCT_QUERY_ADMIN_EMAIL,
         // to: "rehan@ymtsindia.org",
         subject: `New Wishlist page enquiry form Submission - ${new Date().toLocaleDateString()}`,
         replyTo: email,
         // inReplyTo: email,
       });
+      console.log("Product Query Email Response:", emailResponse);
     }
+      emailSent = true;
+      console.log("Email Sent Successfully");
+    } catch (emailError: any) {
+      emailErrorMessage = emailError?.message || "Unknown email error";
+      console.error(
+        "Product Query Email Error:",
+        emailErrorMessage
+      );
+      console.error(
+        "Failed Product Query Email Context:",
+        {
+          queryId: savedQuery.id,
+          email,
+          productCodes,
+          page: page || "product",
+          adminEmail: PRODUCT_QUERY_ADMIN_EMAIL,
+        }
+      );
+    }
+
+    console.log("Product Query Response:", {
+      status: 200,
+      queryId: savedQuery.id,
+      emailSent,
+    });
 
     res.json({
       success: true,
-      message: "Enquiry submitted successfully",
+      message: emailSent
+        ? "Enquiry submitted successfully"
+        : "Enquiry saved, but email notification failed",
+      queryId: savedQuery.id,
+      emailSent,
+      ...(emailErrorMessage && { emailError: emailErrorMessage }),
     });
+    } catch (error: any) {
+      console.error("Product Query Error:", error);
+      return res.status(500).json({
+        success: false,
+        message:
+          error?.message || "Product query submission failed. Please try again.",
+      });
+    }
   })
 );
 

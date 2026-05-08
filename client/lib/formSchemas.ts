@@ -109,6 +109,7 @@ export const enquireNowFormSchema = z.object({
   productCodes: z.string().min(1, {
     message: "Product Code is required",
   }),
+  page: z.string().optional(),
   recaptchaToken: z.string().min(1, {
     message: "Please complete the reCAPTCHA verification",
   }),

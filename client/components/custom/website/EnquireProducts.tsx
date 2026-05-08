@@ -34,11 +34,13 @@ const GoogleRecaptcha = dynamic(() => import("./GoogleRecaptcha"), {
 
 const EnquireProducts = ({
   productCodes,
+  page = "product",
   buttonText = "Enquire Now",
   disabled = false,
   callback = () => {},
 }: {
   productCodes: string;
+  page?: string;
   buttonText?: string;
   disabled?: boolean;
   callback?: () => void;
@@ -54,6 +56,7 @@ const EnquireProducts = ({
       city: "",
       country: "",
       productCodes: productCodes,
+      page,
       recaptchaToken: "",
       // categoryName: productDetails.subCategory.name
     },
@@ -76,37 +79,71 @@ const EnquireProducts = ({
         city: "",
         country: "",
         productCodes,
+        page,
         recaptchaToken: "",
       });
     }
   };
 
   const onSubmit = async (values: EnquireNowForm) => {
+    console.log("Product Query Frontend Form Submission:", values);
+    console.log("Product Query Frontend Product Codes:", productCodes);
+    console.log("Product Query Frontend Source Page:", page);
 
-    console.log("Form values before submission:", values);
-    // return;
-    const res = await executeAsync(values);
+    try {
+      console.log("Submitting Product Query via server action...");
+      const res = await executeAsync(values);
+      console.log("Product Query Frontend Action Response:", res);
 
-    enquireNowForm.reset();
-    setEnquireModelOpen(false);
-    console.log(res);
-    if(res?.data?.success) {
-    toast("Enquiry submitted successfully", {
-      description:
-        "We have received your enquiry and will get back to you soon.",
-    });
-    } else {
+      const actionData = ((res as any)?.data ?? res) as {
+        success?: boolean;
+        emailSent?: boolean;
+        message?: string;
+      };
+
+      if (actionData?.success) {
+        enquireNowForm.reset();
+        setEnquireModelOpen(false);
+
+        if (actionData.emailSent === false) {
+          console.error("Product Query Email Failed After Save:", actionData);
+          toast("Enquiry saved, email notification failed", {
+            description:
+              actionData.message ||
+              "Your enquiry was saved, but the admin email could not be sent.",
+          });
+        } else {
+          toast("Enquiry submitted successfully", {
+            description:
+              "We have received your enquiry and will get back to you soon.",
+          });
+        }
+
+        callback?.();
+        return;
+      }
+
+      console.error("Product Query Frontend Failure:", actionData);
       toast("Failed to submit enquiry", {
         description:
+          actionData?.message ||
           "There was an error submitting your enquiry. Please try again later.",
       });
+    } catch (error) {
+      console.error("Product Query Error:", error);
+      toast("Failed to submit enquiry", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "There was an error submitting your enquiry. Please try again later.",
+      });
     }
-    callback?.();
   };
 
   useEffect(() => {
     enquireNowForm.setValue("productCodes", productCodes);
-  }, [productCodes]);
+    enquireNowForm.setValue("page", page);
+  }, [productCodes, page]);
 
   return (
     <Dialog
@@ -131,7 +168,7 @@ const EnquireProducts = ({
         <Form {...enquireNowForm}>
           <form
             onSubmit={enquireNowForm.handleSubmit(onSubmit, (errors) => {
-              console.log(errors);
+              console.error("Product Query Form Validation Errors:", errors);
             })}
             className="grid grid-cols-2 gap-2"
           >

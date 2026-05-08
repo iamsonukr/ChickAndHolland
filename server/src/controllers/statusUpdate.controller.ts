@@ -21,6 +21,7 @@ const RETAILER_STATUS_FLOW = [
   "Zarkan",
   "Stitching",
   "Balance Pending",
+  "Ready To Delivery",
 ];
 
 
@@ -51,20 +52,28 @@ async function resolveRetailerStatusUpdateStage(req: Request) {
 
   const order = style.retailerOrder;
 
-  if (order.orderStatus === "Balance Pending") {
-    return null;
-  }
-
-  if (order.orderStatus === "Ready To Delivery") {
-    return "Shipped";
-  }
-
   const lastProgress = await StyleProgress.findOne({
     where: { barcode },
     order: { createdAt: "DESC" },
   });
 
-  return getNextRetailerStatus(lastProgress?.stage || null);
+  const currentStage =
+    lastProgress?.stage ||
+    (order.orderStatus !== "Pattern" ? order.orderStatus : null);
+
+  if (order.orderStatus === "Ready To Delivery") {
+    return {
+      currentStage,
+      targetStage: "Shipped",
+      flowStages: [...RETAILER_STATUS_FLOW, "Shipped"],
+    };
+  }
+
+  return {
+    currentStage,
+    targetStage: getNextRetailerStatus(currentStage),
+    flowStages: [...RETAILER_STATUS_FLOW, "Shipped"],
+  };
 }
 
 /**
@@ -103,7 +112,11 @@ router.post(
       order: { createdAt: "DESC" },
     });
 
-    const currentStage = lastProgress?.stage || null;
+    const currentStage =
+      lastProgress?.stage ||
+      (style.retailerOrder.orderStatus !== "Pattern"
+        ? style.retailerOrder.orderStatus
+        : null);
 
     // 🔥 AUTO NEXT STAGE
     const nextStage = getNextRetailerStatus(currentStage);
@@ -113,10 +126,10 @@ router.post(
     // ===============================
     const order = style.retailerOrder;
     // ⛔ STOP barcode at Balance Pending (wait for admin)
-if (order.orderStatus === "Balance Pending") {
+if (order.orderStatus === "Balance Pending" && nextStage !== "Ready To Delivery") {
   return res.json({
     success: false,
-    message: "Waiting for admin approval (Ready To Delivery)",
+    message: "Waiting for Ready To Delivery scan",
   });
 }
 // ✅ Admin already marked Ready → barcode can SHIP
@@ -211,6 +224,9 @@ switch (nextStage) {
     break;
   case "Balance Pending":
     order.balance_pending = now;
+    break;
+  case "Ready To Delivery":
+    order.ready_to_delivery = now;
     break;
 }
 
