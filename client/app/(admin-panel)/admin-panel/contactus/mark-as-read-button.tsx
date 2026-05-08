@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { getApiUrl } from "../../../../lib/constants";
 
 type QueryType = "contact" | "product";
@@ -15,6 +16,7 @@ export function MarkAsReadButton({
   queryId?: string | number;
   queryType?: QueryType;
 }) {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isMarked, setIsMarked] = useState(false);
   const id = queryId ?? contactId;
@@ -51,8 +53,7 @@ export function MarkAsReadButton({
 
       if (response.ok) {
         setIsMarked(true);
-        // Refresh the page to update the status
-        setTimeout(() => window.location.reload(), 1000);
+        router.refresh();
       } else {
         console.error('Failed to mark query as read', data);
       }

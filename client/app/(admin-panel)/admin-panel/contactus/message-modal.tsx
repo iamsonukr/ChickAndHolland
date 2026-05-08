@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getApiUrl } from "../../../../lib/constants";
 
 interface Message {
   id: string | number;
@@ -24,8 +26,51 @@ interface MessageModalProps {
 }
 
 export function MessageModal({ contacts }: MessageModalProps) {
+  const router = useRouter();
+  const markingReadIds = useRef<Set<string>>(new Set());
   const [isOpen, setIsOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+
+  const markMessageAsRead = useCallback(async (message: Message) => {
+    if (message.isRead) return;
+
+    const key = `${message.queryType || "contact"}-${message.id}`;
+    if (markingReadIds.current.has(key)) return;
+    markingReadIds.current.add(key);
+
+    try {
+      const token =
+        document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("token="))
+          ?.split("=")[1] || "";
+      const endpoint =
+        message.queryType === "product"
+          ? getApiUrl(`/product-queries/${message.id}/read`)
+          : getApiUrl(`/contactus/${message.id}/read`);
+
+      const response = await fetch(endpoint, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        setSelectedMessage((current) =>
+          current && current.id.toString() === message.id.toString()
+            ? { ...current, isRead: true }
+            : current,
+        );
+        router.refresh();
+      }
+    } catch (error) {
+      console.error("Error marking opened message as read:", error);
+    } finally {
+      markingReadIds.current.delete(key);
+    }
+  }, [router]);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -41,6 +86,7 @@ export function MessageModal({ contacts }: MessageModalProps) {
       if (message) {
         setSelectedMessage(message);
         setIsOpen(true);
+        void markMessageAsRead(message);
       }
     };
 
@@ -57,7 +103,7 @@ export function MessageModal({ contacts }: MessageModalProps) {
       document.removeEventListener("click", handleClick);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [contacts, isOpen]);
+  }, [contacts, isOpen, markMessageAsRead]);
 
   const formatMessage = (message: string) =>
     message.split("\n").map((line, index, lines) => (

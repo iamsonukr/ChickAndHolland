@@ -31,8 +31,8 @@ interface FetchResult {
 }
 
 const queryTabLabels: Record<QueryTab, string> = {
-  contact: "Contact Page Queries",
-  product: "Product Queries",
+  contact: "Enquiry Emails",
+  product: "Product Emails",
 };
 
 const normalizeContactQuery = (query: any): QueryItem => ({
@@ -204,6 +204,10 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
     contact: contactResult.items,
     product: productResult.items,
   };
+  const unreadCountsByTab: Record<QueryTab, number> = {
+    contact: queryGroups.contact.filter((query) => !query.isRead).length,
+    product: queryGroups.product.filter((query) => !query.isRead).length,
+  };
 
   const activeError =
     activeTab === "contact" ? contactResult.error : productResult.error;
@@ -241,15 +245,11 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
                     }`}
                   >
                     {queryTabLabels[tab]}
-                    <span
-                      className={`ml-2 text-xs ${
-                        activeTab === tab
-                          ? "text-gray-300"
-                          : "text-gray-500 dark:text-gray-500"
-                      }`}
-                    >
-                      ({queryGroups[tab].length})
-                    </span>
+                    {unreadCountsByTab[tab] > 0 && (
+                      <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white shadow-sm">
+                        {unreadCountsByTab[tab]}
+                      </span>
+                    )}
                   </a>
                 ))}
               </div>
