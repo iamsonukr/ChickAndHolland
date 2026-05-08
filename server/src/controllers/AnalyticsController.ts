@@ -36,10 +36,10 @@ router.get(
 
     const [subCategories] = await db.query(
       `CALL ${PRC_NAMES.SALES_BY_SUB_CATEGORY}(? , ? , ?)`,
-      [subCategory, startDate, endDate]
+      [subCategory, startDate, endDate],
     );
     res.json(subCategories);
-  })
+  }),
 );
 
 router.get(
@@ -59,10 +59,10 @@ router.get(
 
     const [salesSummary] = await db.query(
       `CALL ${PRC_NAMES.SALES_SUMMARY}(? , ?, ?)`,
-      [startDate, endDate, dateFormat]
+      [startDate, endDate, dateFormat],
     );
     res.json(salesSummary);
-  })
+  }),
 );
 
 // analytics - world map
@@ -77,10 +77,10 @@ router.get(
 
     const [salesSummary] = await db.query(
       `CALL ${PRC_NAMES.SALES_BY_REGION}(?)`,
-      [region]
+      [region],
     );
     res.json(salesSummary);
-  })
+  }),
 );
 
 router.get(
@@ -96,7 +96,7 @@ router.get(
       endDate,
     ]);
     res.json(orders);
-  })
+  }),
 );
 
 router.get(
@@ -107,10 +107,10 @@ router.get(
 
     const [orders] = await db.query(
       `CALL ${PRC_NAMES.RECENT_DASHBOARD}(? , ? , ?)`,
-      [10, 0, status]
+      [10, 0, status],
     );
     res.json(orders);
-  })
+  }),
 );
 
 const getDateRange = (period: string, date?: string) => {
@@ -322,11 +322,11 @@ const parseJSON = (jsonString: string) => {
 const calculateTotalQuantity = (orderStyle: any) => {
   if (orderStyle.colorType === "Custom") {
     const customSizesQuantity: CustomSizeQuantity[] = parseJSON(
-      orderStyle.customSizesQuantity
+      orderStyle.customSizesQuantity,
     );
     return customSizesQuantity.reduce(
       (total, item) => total + parseInt(item.quantity, 10),
-      0
+      0,
     );
   }
   return parseInt(orderStyle.quantity, 10) || 0;
@@ -341,7 +341,7 @@ const processOrderStyle = (orderStyle: any) => {
   const sizes =
     orderStyle.size === "Custom"
       ? parseJSON(orderStyle.customSizesQuantity).map(
-          (item: CustomSizeQuantity) => `${item.size} (${item.quantity})`
+          (item: CustomSizeQuantity) => `${item.size} (${item.quantity})`,
         )
       : [`${orderStyle.size} (${orderStyle.quantity})`];
 
@@ -391,12 +391,18 @@ router.get(
 ;`;
 
     const [total] = await db.query(totalsQa, [
-      startDate, endDate,
-      startDate, endDate,
-      startDate, endDate,
-      startDate, endDate,
-      startDate, endDate,
-      startDate, endDate,
+      startDate,
+      endDate,
+      startDate,
+      endDate,
+      startDate,
+      endDate,
+      startDate,
+      endDate,
+      startDate,
+      endDate,
+      startDate,
+      endDate,
     ]);
 
     const graphDataQA = `SELECT 
@@ -420,8 +426,10 @@ router.get(
     `;
 
     const graphData = await db.query(graphDataQA, [
-      startDate, endDate,
-      startDate, endDate,
+      startDate,
+      endDate,
+      startDate,
+      endDate,
     ]);
 
     const productsQa = `
@@ -459,55 +467,95 @@ router.get(
     `;
 
     const productData = await db.query(productsQa, [
-      startDate, endDate,
-      startDate, endDate,
+      startDate,
+      endDate,
+      startDate,
+      endDate,
     ]);
 
+    const salesByCurrencyQuery = `
+      SELECT
+        curr.id AS currencyId,
+        curr.code AS currencyCode,
+        curr.name AS currencyName,
+        curr.symbol AS currencySymbol,
+        COALESCE(sales.totalSales, 0) AS totalSales,
+        COALESCE(sales.orderCount, 0) AS orderCount
+      FROM currencies curr
+      LEFT JOIN (
+        SELECT
+          confirmedOrders.currencyId,
+          SUM(confirmedOrders.purchaseAmount) AS totalSales,
+          COUNT(confirmedOrders.orderId) AS orderCount
+        FROM (
+          SELECT
+            ro.id AS orderId,
+            ro.purchaseAmount,
+            COALESCE(
+              rso.currencyId,
+              fav.currencyId,
+              c.currencyId,
+              defaultCurrency.id,
+              firstCurrency.id
+            ) AS currencyId
+          FROM retailer_orders ro
+          LEFT JOIN retailer_stock_orders rso ON rso.id = ro.stockOrderId
+          LEFT JOIN retailer_favourites_orders rfo ON rfo.id = ro.favouriteOrderId
+          LEFT JOIN (
+            SELECT
+              rfo.id AS favOrderId,
+              MAX(f.currencyId) AS currencyId
+            FROM retailer_favourites_orders rfo
+            JOIN favourites f ON FIND_IN_SET(f.id, rfo.favourite_ids) > 0
+            GROUP BY rfo.id
+          ) fav ON fav.favOrderId = rfo.id
+          LEFT JOIN retailers r ON r.id = ro.retailerId
+          LEFT JOIN customers c ON c.id = r.customerId
+          LEFT JOIN (
+            SELECT id FROM currencies WHERE isDefault = 1 ORDER BY id LIMIT 1
+          ) defaultCurrency ON 1 = 1
+          LEFT JOIN (
+            SELECT id FROM currencies ORDER BY id LIMIT 1
+          ) firstCurrency ON 1 = 1
+          WHERE ro.orderReceivedDate BETWEEN ? AND ?
+            AND ro.status = 0
+            AND (
+              ro.isApproved = 1
+              OR ro.status_id = 1
+              OR ro.orderStatus = 'Shipped'
+              OR ro.shippingStatus = 'Shipped'
+              OR rfo.is_approved = 1
+              OR rso.is_approved = 1
+            )
+        ) confirmedOrders
+        WHERE confirmedOrders.currencyId IS NOT NULL
+        GROUP BY confirmedOrders.currencyId
+      ) sales ON sales.currencyId = curr.id
+      ORDER BY curr.isDefault DESC, curr.code ASC;
+    `;
 
-// ✅ REAL PAID AMOUNT
-const paidQuery = `
-  SELECT COALESCE(SUM(amount), 0) AS paid
-  FROM retailer_order_payments
-`;
+    const salesByCurrencyRows = await db.query(salesByCurrencyQuery, [
+      startDate,
+      endDate,
+    ]);
 
-const [paidResult] = await db.query(paidQuery);
-const paidRevenue = Number(paidResult?.paid || 0);
+    const salesByCurrency = salesByCurrencyRows.map((row: any) => ({
+      currencyId: Number(row.currencyId),
+      currencyCode: row.currencyCode,
+      currencyName: row.currencyName,
+      currencySymbol: row.currencySymbol,
+      totalSales: Number(row.totalSales || 0),
+      orderCount: Number(row.orderCount || 0),
+    }));
 
-// ✅ REAL PENDING AMOUNT
-const pendingQuery = `
-  SELECT 
-    COALESCE(SUM(ro.purchaseAmount - IFNULL(p.total_paid, 0)), 0) AS pending
-  FROM retailer_orders ro
-  LEFT JOIN (
-    SELECT orderId, SUM(amount) AS total_paid
-    FROM retailer_order_payments
-    GROUP BY orderId
-  ) p ON p.orderId = ro.id
-`;
-
-const [pendingResult] = await db.query(pendingQuery);
-const pendingRevenue = Number(pendingResult?.pending || 0);
-
-// ✅ TOTAL
-const totalRevenue = paidRevenue + pendingRevenue;
-
-
-// 🔥 response me include 
-res.json({
-  success: true,
-  productData,
-  total,
-  graphData,
-  revenue: {
-    paid: paidRevenue,
-    pending: pendingRevenue,
-    total: totalRevenue,
-  },
-});
-
-   
-  })
+    res.json({
+      success: true,
+      productData,
+      total,
+      graphData,
+      salesByCurrency,
+    });
+  }),
 );
-
 
 export default router;

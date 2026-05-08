@@ -27,13 +27,14 @@ export const fetchWrapper = async (
   return response.json();
 };
 
-
 export const getCategories = async () => {
   try {
-    const response = await fetch(`${API_URL}/categories`, { cache: "no-store" });
+    const response = await fetch(`${API_URL}/categories`, {
+      cache: "no-store",
+    });
     const data = await response.json();
 
-    console.log("Categories received at data.ts ", data)
+    console.log("Categories received at data.ts ", data);
 
     // 🧠 Handle different API shapes gracefully
     if (Array.isArray(data)) {
@@ -52,7 +53,6 @@ export const getCategories = async () => {
   }
 };
 
-
 // Add page + limit to the function signature — everything else is unchanged
 export const getProducts = async ({
   categoryId,
@@ -69,10 +69,10 @@ export const getProducts = async ({
 }) => {
   // ─── Build URL with optional pagination params ────────────────────────────
   const url = new URL(`${API_URL}/products/filter`);
-  url.searchParams.set("categoryId",    String(categoryId));
+  url.searchParams.set("categoryId", String(categoryId));
   url.searchParams.set("subCategoryId", String(subCategoryId));
   if (currencyId) url.searchParams.set("currencyId", String(currencyId));
-  if (page  !== undefined) url.searchParams.set("page",  String(page));
+  if (page !== undefined) url.searchParams.set("page", String(page));
   if (limit !== undefined) url.searchParams.set("limit", String(limit));
 
   const response = await fetch(url.toString(), {
@@ -83,9 +83,11 @@ export const getProducts = async ({
   // Backend now returns { products, totalCount, hasMore }
   // Falls back gracefully if backend hasn't deployed yet (plain array)
   const json = await response.json();
-  const productsData: any[] = Array.isArray(json) ? json : (json.products ?? []);
-  const totalCount: number  = json.totalCount ?? productsData.length;
-  const hasMore: boolean    = json.hasMore    ?? false;
+  const productsData: any[] = Array.isArray(json)
+    ? json
+    : (json.products ?? []);
+  const totalCount: number = json.totalCount ?? productsData.length;
+  const hasMore: boolean = json.hasMore ?? false;
 
   // ─── Everything below is your original logic — untouched ─────────────────
   const categoryDetails = await getSubCategoryDetails(subCategoryId);
@@ -120,12 +122,14 @@ export const getProducts = async ({
       if (fullProductData) {
         return { ...fullProductData, ...hardcodedProduct };
       }
-      console.warn(`Product ${hardcodedProduct.productCode} not found in API response`);
+      console.warn(
+        `Product ${hardcodedProduct.productCode} not found in API response`,
+      );
       return hardcodedProduct;
     });
   };
 
-  let products: any[]             = [];
+  let products: any[] = [];
   let productsWithoutVideo: any[] = [];
 
   const doesSubCategoryExist = videosForThisPage.find(
@@ -149,8 +153,8 @@ export const getProducts = async ({
     });
 
     if (categoryId == 71 && subCategoryId == 44) {
-      let initial     = 0;
-      let final       = 4;
+      let initial = 0;
+      let final = 4;
       const loopValue = Math.trunc(productsData.length / 4);
 
       for (let i = 0; i < loopValue; i++) {
@@ -159,17 +163,17 @@ export const getProducts = async ({
           products: productsData.slice(initial, final),
         });
         initial = final;
-        final  += 4;
+        final += 4;
       }
 
-      products             = tempVidieos;
+      products = tempVidieos;
       productsWithoutVideo = productsData.slice(loopValue * 4);
     } else {
       const loopValue = Math.trunc(productsData.length / 4);
 
       if (loopValue !== 0) {
         let initial = 0;
-        let final   = 4;
+        let final = 4;
 
         for (let i = 0; i < loopValue; i++) {
           tempVidieos.push({
@@ -177,10 +181,10 @@ export const getProducts = async ({
             products: productsData.slice(initial, final),
           });
           initial = final;
-          final  += 4;
+          final += 4;
         }
 
-        products             = tempVidieos;
+        products = tempVidieos;
         productsWithoutVideo = productsData.slice(loopValue * 4);
       } else {
         productsWithoutVideo = productsData;
@@ -229,14 +233,13 @@ export const getSubCategoryDetails = async (id: number) => {
   return {
     id,
     name: "Unknown Collection",
-    category: { name: "" }
+    category: { name: "" },
   };
 };
 
-
 export const getProductDetails = async (id: number, currencyId?: number) => {
   const response = await fetch(
-    `${API_URL}/products/${id}${currencyId ? `?currencyId=${currencyId}` : ''}`
+    `${API_URL}/products/${id}${currencyId ? `?currencyId=${currencyId}` : ""}`,
   );
 
   return response.json();
@@ -293,9 +296,9 @@ export const getStock = async ({
   };
 
   const queryParams = new URLSearchParams();
-  if (page) queryParams.append('page', page.toString());
-  if (query) queryParams.append('query', query);
-  if (currencyId) queryParams.append('currencyId', currencyId.toString());
+  if (page) queryParams.append("page", page.toString());
+  if (query) queryParams.append("query", query);
+  if (currencyId) queryParams.append("currencyId", currencyId.toString());
 
   const response = await fetch(`${API_URL}/stock?${queryParams.toString()}`, {
     headers,
@@ -385,12 +388,11 @@ export const getRetailerStoreOrders = async ({
     {
       headers,
       cache: "no-store",
-    }
+    },
   );
 
   return res.json();
 };
-
 
 export const getExpenses = async ({
   page,
@@ -472,7 +474,7 @@ export const getFavourites = async (customerId: number) => {
   }
 
   const sortedFavourites = [...responseJson.favourites].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
   return { ...responseJson, favourites: sortedFavourites };
@@ -502,7 +504,7 @@ export const getCart = async (retailerId: number) => {
   // CartController returns { cart: [...] } — normalise to { favourites: [...] }
   // so existing Data.tsx / page.tsx consumers need minimal change.
   const sorted = [...(responseJson.cart ?? [])].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
   return { favourites: sorted };
@@ -580,7 +582,10 @@ export const getAcceptedRetailersOrders = async ({
   return response.json();
 };
 
-export async function getRetailerOrderWithBarcode(orderId: number, status: number = 1) {
+export async function getRetailerOrderWithBarcode(
+  orderId: number,
+  status: number = 1,
+) {
   const token = (await cookies()).get("token")?.value;
 
   const res = await fetch(
@@ -590,7 +595,7 @@ export async function getRetailerOrderWithBarcode(orderId: number, status: numbe
         Authorization: `Bearer ${token}`,
       },
       cache: "no-store",
-    }
+    },
   );
 
   const json = await res.json();
@@ -601,8 +606,6 @@ export async function getRetailerOrderWithBarcode(orderId: number, status: numbe
 
   return json;
 }
-
-
 
 export const getAdminRetailersStockOrders = async ({
   retailerId,
@@ -709,7 +712,7 @@ export const getRetailerAdminFreshOrderDetails = async (
     {
       headers,
       cache: "no-store",
-    }
+    },
   );
 
   const responseJson = await response.json();
@@ -721,7 +724,6 @@ export const getRetailerAdminFreshOrderDetails = async (
 
   return responseJson;
 };
-
 
 export const getRetailerOrderDetails = async (
   id: number,
@@ -808,7 +810,7 @@ export const getAdminStockOrderPreview = async (id: number) => {
 
   const res = await fetch(
     `${API_URL}/retailer-orders/admin/stock-order/preview/${id}`,
-    { headers }
+    { headers },
   );
 
   const json = await res.json();
@@ -875,24 +877,23 @@ export const getProductsNew = async ({
   query?: string;
 }) => {
   const token = (await cookies()).get("token")?.value;
- 
+
   const params = new URLSearchParams({
     page: String(page),
     query,
   });
- 
+
   const response = await fetch(`${API_URL}/products/new?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
- 
+
   if (!response.ok) {
     throw new Error(`Failed to fetch products: ${response.statusText}`);
   }
- 
+
   return response.json();
 };
-
 
 // export const getClients = async ({
 //   page,
@@ -922,7 +923,6 @@ export const getProductsNew = async ({
 
 //   return response.json();
 // };
-
 
 export const getClients = async ({ page, query }) => {
   const headers = {
@@ -954,12 +954,11 @@ export const getUserRoles = async ({ page, query }) => {
 
   const response = await fetch(
     `${API_URL}/user-roles${queryParams.toString() ? `?${queryParams.toString()}` : ""}`,
-    { headers }
+    { headers },
   );
 
   return response.json();
 };
-
 
 export const getColorChart = async () => {
   const res = await fetch(`${API_URL}/color-chart`, {
@@ -967,7 +966,6 @@ export const getColorChart = async () => {
   });
   return res.json();
 };
-
 
 export const getUsers = async ({
   page,
@@ -994,7 +992,6 @@ export const getUsers = async ({
   };
 };
 
-
 export const searchStyleNumbers = async (query: string) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
@@ -1019,6 +1016,7 @@ export const getDashboardData = async (startDate: string, endDate: string) => {
     `${API_URL}/analytics/dashboard?startDate=${startDate}&endDate=${endDate}`,
     {
       headers,
+      cache: "no-store",
     },
   );
 
@@ -1063,8 +1061,7 @@ export const getAdminOrders = async (retailerId: number) => {
 
   console.log("🟦 FETCHING ADMIN ORDERS FOR:", retailerId);
 
-  const url = `${API_URL}/retailer-orders/retailer/admin-orders?retailerId=${retailerId}`
-    ;
+  const url = `${API_URL}/retailer-orders/retailer/admin-orders?retailerId=${retailerId}`;
   console.log("🟦 REQUEST URL:", url);
 
   const res = await fetch(url, {
@@ -1081,14 +1078,13 @@ export const getAdminOrders = async (retailerId: number) => {
   return data;
 };
 
-
-
-
-
 export async function getRetailerOrderPayments(orderId: number) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/history/${orderId}`, {
-    cache: "no-store",
-  });
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/payments/history/${orderId}`,
+    {
+      cache: "no-store",
+    },
+  );
   return res.json();
 }
 
@@ -1133,13 +1129,10 @@ export const getProductColours = async ({
   return response.json();
 };
 
-
 export const getStockByProductId = async (productId: number) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
-
-
 
   const response = await fetch(
     `${API_URL}/stock/stock-by-productid/${productId}`,
@@ -1158,9 +1151,7 @@ export const getRetailerDetails = async (retailerId: number) => {
 
   const response = await fetch(`${API_URL}/retailers/${retailerId}`, {
     headers,
-
   });
-
 
   return response.json();
 };
@@ -1322,27 +1313,28 @@ export const getAdminBankDetails = async () => {
   const responseJson = await response.json();
 
   if (!response.ok || responseJson.success === false) {
-    return { success: false, data: [], msg: responseJson.msg || "No Data Found" };
+    return {
+      success: false,
+      data: [],
+      msg: responseJson.msg || "No Data Found",
+    };
   }
 
   return responseJson;
 };
-
 
 export const getAdminBankRetailerDetails = async (retailerId: number) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
 
-  const response = await fetch(
-    `${API_URL}/admin-bank/retailer/${retailerId}`,
-    { headers }
-  );
+  const response = await fetch(`${API_URL}/admin-bank/retailer/${retailerId}`, {
+    headers,
+  });
 
   const json = await response.json();
   return json;
 };
-
 
 export const getCustomizationDetails = async (id: number) => {
   const headers = {
@@ -1391,12 +1383,9 @@ export const getOrderStatusDatesStockDetails = async (id: number) => {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
 
-  const response = await fetch(
-    `${API_URL}/orders/order/status/${id}`,
-    {
-      headers,
-    },
-  );
+  const response = await fetch(`${API_URL}/orders/order/status/${id}`, {
+    headers,
+  });
 
   const responseJson = await response.json();
 
@@ -1412,9 +1401,12 @@ export const getDates = async (id: number) => {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
 
-  const response = await fetch(`${API_URL}/orders/retailer-order/status/${id}`, {
-    headers,
-  });
+  const response = await fetch(
+    `${API_URL}/orders/retailer-order/status/${id}`,
+    {
+      headers,
+    },
+  );
 
   const responseJson = await response.json();
 
@@ -1481,10 +1473,9 @@ export const getLatestFreshPO = async () => {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
 
-  const response = await fetch(
-    `${API_URL}/retailer-orders/latest-po`,
-    { headers }
-  );
+  const response = await fetch(`${API_URL}/retailer-orders/latest-po`, {
+    headers,
+  });
 
   return response.json();
 };
@@ -1507,7 +1498,6 @@ export const getCustomerDetails = async (customerId: number) => {
 
   return resJson.data;
 };
-
 
 export const getProductColorsCheck = async (id: number) => {
   const headers = {
@@ -1544,7 +1534,6 @@ export const getProductColorsCheck = async (id: number) => {
 //   const res = await fetchWrapper("currencies");
 //   return res.currencies || [];
 // };
-
 
 // export async function getCustomers(params?: { page?: number; query?: string }) {
 //   const search = new URLSearchParams();
@@ -1597,8 +1586,6 @@ export const getProductColorsCheck = async (id: number) => {
 //   }
 // };
 
-
-
 // ✅ Always include token for protected endpoints
 async function authorizedFetch(path: string) {
   const token = (await cookies()).get("token")?.value;
@@ -1641,7 +1628,6 @@ export async function getCountries() {
     return [];
   }
 }
-
 
 // ✅ Currencies
 export async function getCurrencies() {

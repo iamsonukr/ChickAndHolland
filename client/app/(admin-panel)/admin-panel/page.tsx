@@ -35,7 +35,6 @@
 // export default Dashboard;
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import { DateRangeForm } from "./DateRangeForm";
-import { StatsDisplay } from "./StatsDisplay";
 import { getDashboardData } from "@/lib/data";
 import DashboardCharts from "@/app/(admin-panel)/admin-panel/DashboardCharts";
 import DashboardClient from "./DashboardClient";
@@ -65,4 +64,3 @@ const Dashboard = async ({ searchParams }: any) => {
 };
 
 export default Dashboard;
-
