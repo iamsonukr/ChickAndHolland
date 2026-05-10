@@ -23,6 +23,8 @@ import ScanSuccessOverlay from "@/components/ScanSuccessOverlay";
 
 type ScanOrderType = "RETAILER" | "STOCK" | "STORE";
 
+const SUCCESS_OVERLAY_MS = 2200;
+
 type ScanOutcome = {
   success: boolean;
   orderType: ScanOrderType | "UNKNOWN";
@@ -72,6 +74,7 @@ export default function GlobalQrScanPage() {
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scanLockRef = useRef(false); // mirror of scanLock for use inside the ZXing callback closure
+  const successTimerRef = useRef<number | null>(null);
   const { cameraError, toggleTorch, torchOn, videoRef } = useQrCodeScanner({
     active: true,
     onScan: (text) => {
@@ -93,12 +96,20 @@ export default function GlobalQrScanPage() {
     scanLockRef.current = scanLock;
   }, [scanLock]);
 
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        window.clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
+
   // ── Scan processing ──────────────────────────────────────────────────────
-  const unlockScannerSoon = () => {
+  const unlockScannerSoon = (delay = 1200) => {
     window.setTimeout(() => {
       setScanLock(false);
       scanLockRef.current = false;
-    }, 1200);
+    }, delay);
   };
 
   const loadStoreDetails = async (code: string) => {
@@ -184,6 +195,7 @@ export default function GlobalQrScanPage() {
     setScanLock(true);
     scanLockRef.current = true;
     setBarcode(code);
+    let unlockDelay = 1200;
 
     try {
       if (pendingRetailerShipBarcode && pendingRetailerShipBarcode !== code) {
@@ -207,10 +219,15 @@ export default function GlobalQrScanPage() {
       if (nextResult.statusTone === "warning") {
         toast.warning(nextResult.message);
       } else if (nextResult.success) {
+        unlockDelay = SUCCESS_OVERLAY_MS + 100;
+        if (successTimerRef.current) {
+          window.clearTimeout(successTimerRef.current);
+        }
         setShowSuccessScreen(true);
-        setTimeout(() => {
+        successTimerRef.current = window.setTimeout(() => {
           setShowSuccessScreen(false);
-        }, 2200);
+          successTimerRef.current = null;
+        }, SUCCESS_OVERLAY_MS);
       } else {
         toast.error(nextResult.message);
       }
@@ -222,7 +239,7 @@ export default function GlobalQrScanPage() {
     } finally {
       setBarcode("");
       inputRef.current?.focus();
-      unlockScannerSoon();
+      unlockScannerSoon(unlockDelay);
     }
   };
 

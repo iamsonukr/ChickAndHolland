@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, ScanLine, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { API_URL } from "@/lib/constants";
@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import ScanSuccessScreen from "@/components/ScanSuccessScreen";
 
 type StatusScanOrderType = "RETAILER" | "STORE" | "STOCK";
+
+const SUCCESS_SCREEN_MS = 2200;
 
 interface StatusScannerButtonProps {
   barcode?: string | null;
@@ -42,6 +44,15 @@ export default function StatusScannerButton({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scanLockRef = useRef(false); // mirrors scanLock for use inside ZXing callback closure
+  const successTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        window.clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
 
   const { cameraError, toggleTorch, torchOn, videoRef } = useQrCodeScanner({
     active: cameraActive,
@@ -66,14 +77,25 @@ export default function StatusScannerButton({
   const showSuccessScreen = (
     message: string,
     stage?: string,
+    onComplete?: () => void | Promise<void>,
   ) => {
+    if (successTimerRef.current) {
+      window.clearTimeout(successTimerRef.current);
+    }
+
     setSuccessMessage(message);
     setSuccessStage(stage || "");
     setSuccessOpen(true);
 
-    setTimeout(() => {
+    successTimerRef.current = window.setTimeout(() => {
       setSuccessOpen(false);
-    }, 2200);
+      successTimerRef.current = null;
+      if (onComplete) {
+        void Promise.resolve(onComplete()).catch(() => {
+          toast.error("Failed to refresh scan report");
+        });
+      }
+    }, SUCCESS_SCREEN_MS);
   };
 
   const resetDialogState = () => {
@@ -81,6 +103,9 @@ export default function StatusScannerButton({
     setScanLock(false);
     scanLockRef.current = false;
     setReadyForShip(false);
+    setSuccessOpen(false);
+    setSuccessMessage("");
+    setSuccessStage("");
   };
 
 
@@ -100,10 +125,13 @@ export default function StatusScannerButton({
     }
   };
 
-  const handleSuccessfulScan = async (message?: string) => {
-    if (message) toast.success(message);
-    await onScanned?.();
-    handleOpenChange(false);
+  const handleSuccessfulScan = (message = "Scan successful", stage?: string) => {
+    toast.success(message);
+    setCameraActive(false);
+    showSuccessScreen(message, stage, async () => {
+      handleOpenChange(false);
+      await onScanned?.();
+    });
   };
 
   // ── API calls ────────────────────────────────────────────────────────────
@@ -118,11 +146,10 @@ export default function StatusScannerButton({
       toast.error(json.message || "Store scan failed");
       return;
     }
-    await handleSuccessfulScan(
-      json.nextStage
-        ? `Store status updated to ${json.nextStage}`
-        : json.message || "Store scan successful"
-    );
+    const message = json.nextStage
+      ? `Store status updated to ${json.nextStage}`
+      : json.message || "Store scan successful";
+    handleSuccessfulScan(message, json.nextStage);
   };
 
   const processRetailerOrStockBarcode = async (code: string) => {
@@ -151,18 +178,17 @@ export default function StatusScannerButton({
       return;
     }
     if (isRetailer && json.code === "SHIPPED") {
-      await handleSuccessfulScan(json.message || "Order shipped successfully");
+      handleSuccessfulScan(json.message || "Order shipped successfully", "Shipped");
       return;
     }
     if (!json.success) {
       toast.error(json.message || "Scan failed");
       return;
     }
-    await handleSuccessfulScan(
-      json.nextStage
-        ? `Status updated to ${json.nextStage}`
-        : json.message || "Scan successful"
-    );
+    const message = json.nextStage
+      ? `Status updated to ${json.nextStage}`
+      : json.message || "Scan successful";
+    handleSuccessfulScan(message, json.nextStage);
   };
 
   // ── Main scan handler ────────────────────────────────────────────────────
@@ -350,14 +376,12 @@ export default function StatusScannerButton({
               </Button>
             </div>
           </div>
-          <div className="relative flex h-full w-full flex-col sm:h-auto">
-            <ScanSuccessScreen
-              open={successOpen}
-              title="Success"
-              subtitle={successMessage}
-              stage={successStage}
-            />
-          </div>
+          <ScanSuccessScreen
+            open={successOpen}
+            title="Success"
+            subtitle={successMessage}
+            stage={successStage}
+          />
 
         </div>
       </DialogContent>
