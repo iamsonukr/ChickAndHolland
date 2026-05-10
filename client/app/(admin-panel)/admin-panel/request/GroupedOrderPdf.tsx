@@ -274,9 +274,9 @@ const GroupedOrderPdf = ({
                               : styles.variantCardLast,
                           ]}
                         >
-                        <View style={styles.variantCardTop}>
-                          <Text style={styles.variantTitle}>{variant.styleNo}</Text>
-                          <View style={styles.variantInfoGroup}>
+                          <View style={styles.variantCardTop}>
+                            <Text style={styles.variantTitle}>{variant.styleNo}</Text>
+                            <View style={styles.variantInfoGroup}>
                               <View style={styles.variantInfoRow}>
                                 <Text style={styles.variantInfoLabel}>Size: {getVariantSizeText(variant)}</Text>
                                 {/* <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text> */}
@@ -310,11 +310,11 @@ const GroupedOrderPdf = ({
                                   src={build2dBarcodeUrl(normalizedBarcode, 80)}
                                   style={styles.variantBarcode}
                                 />
-                               <Text style={styles.variantCodeText}>
-  {normalizedBarcode?.split("-")[0]}
-  {"\n"}-
-  {normalizedBarcode?.split("-")[1]}
-</Text>
+                                <Text style={styles.variantCodeText}>
+                                  {normalizedBarcode?.split("-")[0]}
+                                  {"\n"}-
+                                  {normalizedBarcode?.split("-")[1]}
+                                </Text>
                               </>
                             ) : (
                               <Text style={styles.variantCodeText}>
@@ -335,7 +335,5 @@ const GroupedOrderPdf = ({
     </Document>
   );
 };
-
-
 
 export default GroupedOrderPdf;

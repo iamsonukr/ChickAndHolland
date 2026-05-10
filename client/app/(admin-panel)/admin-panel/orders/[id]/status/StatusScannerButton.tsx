@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import ScanSuccessScreen from "@/components/ScanSuccessScreen";
 
 type StatusScanOrderType = "RETAILER" | "STORE" | "STOCK";
 
@@ -34,7 +35,10 @@ export default function StatusScannerButton({
   const [barcode, setBarcode] = useState("");
   const [scanLock, setScanLock] = useState(false);
   const [readyForShip, setReadyForShip] = useState(false);
-const [cameraActive, setCameraActive] = useState(false); // ← add this
+  const [cameraActive, setCameraActive] = useState(false); // ← add this
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [successStage, setSuccessStage] = useState("");
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scanLockRef = useRef(false); // mirrors scanLock for use inside ZXing callback closure
@@ -49,12 +53,27 @@ const [cameraActive, setCameraActive] = useState(false); // ← add this
     delayBetweenScanSuccess: 1500,
   });
 
+
+
   // ── Helpers ──────────────────────────────────────────────────────────────
   const unlockScannerSoon = () => {
     window.setTimeout(() => {
       setScanLock(false);
       scanLockRef.current = false;
     }, 1500);
+  };
+
+  const showSuccessScreen = (
+    message: string,
+    stage?: string,
+  ) => {
+    setSuccessMessage(message);
+    setSuccessStage(stage || "");
+    setSuccessOpen(true);
+
+    setTimeout(() => {
+      setSuccessOpen(false);
+    }, 2200);
   };
 
   const resetDialogState = () => {
@@ -64,22 +83,22 @@ const [cameraActive, setCameraActive] = useState(false); // ← add this
     setReadyForShip(false);
   };
 
- 
-const handleOpenChange = (next: boolean) => {
-  setOpen(next);
-  if (next) {
-    // Delay activating the camera by one frame so DialogContent
-    // has time to mount the <video> element into the DOM first
-    requestAnimationFrame(() => {
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) {
+      // Delay activating the camera by one frame so DialogContent
+      // has time to mount the <video> element into the DOM first
       requestAnimationFrame(() => {
-        setCameraActive(true);
+        requestAnimationFrame(() => {
+          setCameraActive(true);
+        });
       });
-    });
-  } else {
-    setCameraActive(false);
-    resetDialogState();
-  }
-};
+    } else {
+      setCameraActive(false);
+      resetDialogState();
+    }
+  };
 
   const handleSuccessfulScan = async (message?: string) => {
     if (message) toast.success(message);
@@ -330,6 +349,14 @@ const handleOpenChange = (next: boolean) => {
                 Process QR
               </Button>
             </div>
+          </div>
+          <div className="relative flex h-full w-full flex-col sm:h-auto">
+            <ScanSuccessScreen
+              open={successOpen}
+              title="Success"
+              subtitle={successMessage}
+              stage={successStage}
+            />
           </div>
 
         </div>

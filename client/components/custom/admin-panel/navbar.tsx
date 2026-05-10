@@ -31,7 +31,7 @@ export function Navbar({ title, userDetails }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 w-full bg-background/95 shadow backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:shadow-secondary">
       <div className="mx-3 flex h-14 min-w-0 items-center justify-between gap-2 sm:mx-4 lg:mx-6">
-        
+
         {/* Left Side: Mobile Menu & Title */}
         <div className="flex min-w-0 items-center gap-2 sm:gap-4 lg:gap-6">
           <SheetMenu userDetails={userDetails} />
@@ -43,20 +43,20 @@ export function Navbar({ title, userDetails }: NavbarProps) {
         {/* Right Side: Theme, User Info, & Avatar */}
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          
+
           <div className="hidden max-w-[180px] flex-col items-end text-right sm:flex">
             {/* Added 'capitalize' class here to fix "sonu" -> "Sonu" */}
-            <span className="truncate text-sm font-semibold capitalize">
-              {user.name}
+            <span className="truncate text-sm font-semibold">
+              Hi, {user?.name?.split(" ")[0] || "User"}
             </span>
-            
+
             {showUsername && (
               <span className="truncate text-xs text-muted-foreground capitalize">
                 {user.username}
               </span>
             )}
           </div>
-          
+
           <UserNav user={user} />
         </div>
       </div>

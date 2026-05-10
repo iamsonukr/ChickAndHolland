@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { CircleDollarSign, Package, ShoppingCart, Users } from "lucide-react";
+import { useState } from "react";
 
 type SalesByCurrency = {
   currencyId?: number;
@@ -80,6 +81,12 @@ const formatCurrency = (
 
 export const StatsDisplay = ({ data }: { data: any }) => {
   const salesByCurrency = getSalesByCurrency(data);
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+
+  const selectedSale =
+    salesByCurrency.find(
+      (sale) => sale.currencyCode === selectedCurrency,
+    ) || salesByCurrency[0];
 
   return (
     <div className="space-y-6">
@@ -129,31 +136,73 @@ export const StatsDisplay = ({ data }: { data: any }) => {
           </CardContent>
         </Card>
 
-        {salesByCurrency.map((sale) => (
-          <Card
-            key={sale.currencyId ?? sale.currencyCode}
-            className="bg-gradient-to-br from-amber-50 to-white hover:shadow-lg"
-          >
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+
+        <Card className="bg-gradient-to-br from-amber-50 to-white hover:shadow-lg">
+          <CardHeader className="flex flex-row items-start justify-between pb-2">
+            <div>
               <CardTitle className="text-sm font-semibold text-amber-700">
-                Total Sales ({sale.currencyCode})
+                Revenue Summary
               </CardTitle>
-              <CircleDollarSign className="h-5 w-5 text-amber-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="break-words text-3xl font-extrabold text-amber-900">
-                {formatCurrency(
-                  sale.totalSales,
-                  sale.currencyCode,
-                  sale.currencySymbol,
-                )}
-              </div>
+
               <p className="mt-1 text-xs text-amber-600">
-                {sale.orderCount || 0} confirmed orders
+                Currency based sales overview
               </p>
-            </CardContent>
-          </Card>
-        ))}
+            </div>
+
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-lg font-bold text-amber-700">
+              {selectedSale.currencySymbol ||
+                selectedSale.currencyCode}
+            </div>          </CardHeader>
+
+          <CardContent className="space-y-4">
+            {/* Currency Selector */}
+            <div>
+              <select
+                value={selectedCurrency}
+                onChange={(e) => setSelectedCurrency(e.target.value)}
+                className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-medium text-amber-700 outline-none focus:border-amber-400"
+              >
+                {salesByCurrency.map((sale) => (
+                  <option
+                    key={sale.currencyCode}
+                    value={sale.currencyCode}
+                  >
+                    {sale.currencyCode} — {sale.currencyName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Revenue */}
+            <div>
+              <h2 className="break-words text-3xl font-extrabold text-amber-900">
+                {formatCurrency(
+                  selectedSale.totalSales,
+                  selectedSale.currencyCode,
+                  selectedSale.currencySymbol,
+                )}
+              </h2>
+
+              <p className="mt-1 text-xs text-amber-600">
+                Total Revenue
+              </p>
+            </div>
+
+            {/* Stats */}
+            <div className="border-t border-amber-100 pt-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">
+                  Confirmed Orders
+                </span>
+
+                <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                  {selectedSale.orderCount || 0}
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
 
       <Card className="border-none shadow-xl">

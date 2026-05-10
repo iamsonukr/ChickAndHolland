@@ -202,10 +202,13 @@ export function MessageModal({ contacts }: MessageModalProps) {
                 </p>
               )}
               {selectedMessage.productCodes && (
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Product Codes:</span>{" "}
-                  {selectedMessage.productCodes}
-                </p>
+                <div className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-medium">Product Codes:</span>
+
+                  <div className="mt-1 break-words whitespace-pre-wrap rounded-md bg-gray-100 p-2 text-xs dark:bg-gray-800">
+                    {selectedMessage.productCodes}
+                  </div>
+                </div>
               )}
               {selectedMessage.page && (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -216,11 +219,10 @@ export function MessageModal({ contacts }: MessageModalProps) {
               <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
                 <span className="font-medium">Status:</span>{" "}
                 <span
-                  className={`ml-2 rounded-full px-2 py-1 text-xs ${
-                    selectedMessage.isRead
+                  className={`ml-2 rounded-full px-2 py-1 text-xs ${selectedMessage.isRead
                       ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
                       : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                  }`}
+                    }`}
                 >
                   {selectedMessage.isRead ? "Read" : "Unread"}
                 </span>

@@ -235,11 +235,12 @@ export const styles = StyleSheet.create({
   },
   pageVariantOverlay: {
     position: "absolute",
+    top: 50,
     right: 0,
     bottom: 0,
     width: "38%",
     paddingLeft: 8,
-    paddingBottom: 4,
+    paddingTop: 4,
   },
   variantOverlay: {
     paddingHorizontal: 8,

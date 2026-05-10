@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import ScanSuccessOverlay from "@/components/ScanSuccessOverlay";
 
 type ScanOrderType = "RETAILER" | "STOCK" | "STORE";
 
@@ -68,7 +69,7 @@ export default function GlobalQrScanPage() {
   const [scanLock, setScanLock] = useState(false);
   const [pendingRetailerShipBarcode, setPendingRetailerShipBarcode] = useState<string | null>(null);
   const [result, setResult] = useState<ScanOutcome | null>(null);
-
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scanLockRef = useRef(false); // mirror of scanLock for use inside the ZXing callback closure
   const { cameraError, toggleTorch, torchOn, videoRef } = useQrCodeScanner({
@@ -203,9 +204,17 @@ export default function GlobalQrScanPage() {
 
       setResult(nextResult);
 
-      if (nextResult.statusTone === "warning") toast.warning(nextResult.message);
-      else if (nextResult.success) toast.success(nextResult.message);
-      else toast.error(nextResult.message);
+      if (nextResult.statusTone === "warning") {
+        toast.warning(nextResult.message);
+      } else if (nextResult.success) {
+        setShowSuccessScreen(true);
+        setTimeout(() => {
+          setShowSuccessScreen(false);
+        }, 2200);
+      } else {
+        toast.error(nextResult.message);
+      }
+      
     } catch {
       const errorResult: ScanOutcome = { success: false, orderType: "UNKNOWN", barcode: code, message: "Something went wrong while scanning this QR code.", statusTone: "error" };
       setResult(errorResult);
@@ -436,6 +445,14 @@ export default function GlobalQrScanPage() {
           </Card>
         </div>
       </div>
+      <ScanSuccessOverlay
+        open={showSuccessScreen}
+        title="Scan Completed"
+        message={result?.message}
+        previousStage={result?.currentStage}
+        nextStage={result?.nextStage}
+        orderType={result?.orderType}
+      />
     </div>
   );
 }
