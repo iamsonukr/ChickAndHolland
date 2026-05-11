@@ -354,7 +354,7 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
                         Location
                       </th>
                       <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                        Status
+                        Actions
                       </th>
                     </tr>
                   </thead>
@@ -445,6 +445,7 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
                                 <button
                                   type="button"
                                   data-message-id={query.id}
+                                  data-message-type={query.queryType}
                                   className="message-view-button mt-1 cursor-pointer text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
                                 >
                                   View full message
@@ -496,12 +497,22 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
                                 <button
                                   type="button"
                                   data-message-id={query.id}
+                                  data-message-type={query.queryType}
                                   className="message-view-button cursor-pointer text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                                 >
                                   View
                                 </button>
                               </div>
                             )}
+
+                            <button
+                              type="button"
+                              data-message-id={query.id}
+                              data-message-type={query.queryType}
+                              className="query-reply-button rounded bg-gray-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300"
+                            >
+                              Reply
+                            </button>
 
                             <div className="flex flex-wrap gap-1 md:hidden">
                               {[query.city, query.state, query.country]
@@ -525,6 +536,7 @@ export default async function ContactUsPage(props: ContactUsPageProps) {
                                 <button
                                   type="button"
                                   data-message-id={query.id}
+                                  data-message-type={query.queryType}
                                   className="message-view-button mt-1 cursor-pointer text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
                                 >
                                   View full message

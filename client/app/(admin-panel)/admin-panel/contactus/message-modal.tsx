@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { getApiUrl } from "../../../../lib/constants";
 
 interface Message {
@@ -25,11 +26,36 @@ interface MessageModalProps {
   contacts: Message[];
 }
 
+interface ReplyForm {
+  to: string;
+  subject: string;
+  message: string;
+}
+
+const getToken = () =>
+  document.cookie
+    .split("; ")
+    .find((row) => row.startsWith("token="))
+    ?.split("=")[1] || "";
+
+const createReplyForm = (message: Message): ReplyForm => ({
+  to: message.email || "",
+  subject: `Re: ${message.subject || "Query"}`,
+  message: `Dear ${message.name || "Customer"},\n\n`,
+});
+
 export function MessageModal({ contacts }: MessageModalProps) {
   const router = useRouter();
   const markingReadIds = useRef<Set<string>>(new Set());
   const [isOpen, setIsOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [mode, setMode] = useState<"details" | "reply">("details");
+  const [replyForm, setReplyForm] = useState<ReplyForm>({
+    to: "",
+    subject: "",
+    message: "",
+  });
+  const [isSending, setIsSending] = useState(false);
 
   const markMessageAsRead = useCallback(async (message: Message) => {
     if (message.isRead) return;
@@ -39,11 +65,7 @@ export function MessageModal({ contacts }: MessageModalProps) {
     markingReadIds.current.add(key);
 
     try {
-      const token =
-        document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("token="))
-          ?.split("=")[1] || "";
+      const token = getToken();
       const endpoint =
         message.queryType === "product"
           ? getApiUrl(`/product-queries/${message.id}/read`)
@@ -72,21 +94,37 @@ export function MessageModal({ contacts }: MessageModalProps) {
     }
   }, [router]);
 
+  const openModal = useCallback(
+    (message: Message, nextMode: "details" | "reply") => {
+      setSelectedMessage(message);
+      setMode(nextMode);
+      if (nextMode === "reply") setReplyForm(createReplyForm(message));
+      setIsOpen(true);
+      void markMessageAsRead(message);
+    },
+    [markMessageAsRead],
+  );
+
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      const button = target.closest(".message-view-button") as HTMLElement | null;
+      const viewButton = target.closest(".message-view-button") as HTMLElement | null;
+      const replyButton = target.closest(".query-reply-button") as HTMLElement | null;
+      const button = viewButton || replyButton;
 
       if (!button) return;
 
       event.preventDefault();
       const messageId = button.getAttribute("data-message-id");
-      const message = contacts.find((item) => item.id.toString() === messageId);
+      const messageType = button.getAttribute("data-message-type");
+      const message = contacts.find(
+        (item) =>
+          item.id.toString() === messageId &&
+          (!messageType || (item.queryType || "contact") === messageType),
+      );
 
       if (message) {
-        setSelectedMessage(message);
-        setIsOpen(true);
-        void markMessageAsRead(message);
+        openModal(message, replyButton ? "reply" : "details");
       }
     };
 
@@ -103,7 +141,59 @@ export function MessageModal({ contacts }: MessageModalProps) {
       document.removeEventListener("click", handleClick);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [contacts, isOpen, markMessageAsRead]);
+  }, [contacts, isOpen, openModal]);
+
+  const handleReplyChange =
+    (field: keyof ReplyForm) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setReplyForm((current) => ({
+        ...current,
+        [field]: event.target.value,
+      }));
+    };
+
+  const handleSendReply = async () => {
+    if (!selectedMessage) return;
+
+    if (!replyForm.to.trim() || !replyForm.subject.trim() || !replyForm.message.trim()) {
+      toast.error("Recipient, subject and message are required");
+      return;
+    }
+
+    const toastId = toast.loading("Sending reply...");
+    setIsSending(true);
+
+    try {
+      const response = await fetch(
+        getApiUrl(`/admin/query/reply/${selectedMessage.id}`),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getToken()}`,
+          },
+          body: JSON.stringify({
+            queryType: selectedMessage.queryType || "contact",
+            to: replyForm.to,
+            subject: replyForm.subject,
+            message: replyForm.message,
+          }),
+        },
+      );
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || data?.success === false) {
+        throw new Error(data?.message || data?.msg || "Failed to send reply");
+      }
+
+      toast.success(data?.message || "Reply sent successfully", { id: toastId });
+      setIsOpen(false);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to send reply", { id: toastId });
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const formatMessage = (message: string) =>
     message.split("\n").map((line, index, lines) => (
@@ -134,13 +224,15 @@ export function MessageModal({ contacts }: MessageModalProps) {
         <div className="border-b border-gray-700 bg-gray-800 p-4 text-white dark:bg-gray-900">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold">Query Details</h2>
+              <h2 className="text-xl font-semibold">
+                {mode === "reply" ? "Reply to Query" : "Query Details"}
+              </h2>
               <p className="mt-1 text-sm text-gray-300">
                 {selectedMessage.subject}
               </p>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => !isSending && setIsOpen(false)}
               className="rounded p-1 text-gray-300 hover:bg-gray-700 hover:text-white"
               aria-label="Close modal"
             >
@@ -161,101 +253,172 @@ export function MessageModal({ contacts }: MessageModalProps) {
           </div>
         </div>
 
-        <div className="max-h-[70vh] space-y-4 overflow-y-auto p-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/30">
-              <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Sender
-              </h3>
-              <p className="font-medium text-gray-800 dark:text-white">
-                {selectedMessage.name}
-              </p>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                {selectedMessage.email}
-              </p>
-              {selectedMessage.phoneNumber && (
+        {mode === "details" ? (
+          <div className="max-h-[70vh] space-y-4 overflow-y-auto p-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/30">
+                <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Sender
+                </h3>
+                <p className="font-medium text-gray-800 dark:text-white">
+                  {selectedMessage.name}
+                </p>
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  Phone: {selectedMessage.phoneNumber}
+                  {selectedMessage.email}
                 </p>
-              )}
+                {selectedMessage.phoneNumber && (
+                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    Phone: {selectedMessage.phoneNumber}
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/30">
+                <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Details
+                </h3>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-medium">Date:</span>{" "}
+                  {new Date(selectedMessage.createdAt).toLocaleDateString()}
+                </p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-medium">Time:</span>{" "}
+                  {new Date(selectedMessage.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
+                </p>
+                {location && (
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">Location:</span> {location}
+                  </p>
+                )}
+                {selectedMessage.productCodes && (
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">Product Codes:</span>
+
+                    <div className="mt-1 break-words whitespace-pre-wrap rounded-md bg-gray-100 p-2 text-xs dark:bg-gray-800">
+                      {selectedMessage.productCodes}
+                    </div>
+                  </div>
+                )}
+                {selectedMessage.page && (
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">Source:</span>{" "}
+                    {selectedMessage.page}
+                  </p>
+                )}
+                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-medium">Status:</span>{" "}
+                  <span
+                    className={`ml-2 rounded-full px-2 py-1 text-xs ${
+                      selectedMessage.isRead
+                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                        : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                    }`}
+                  >
+                    {selectedMessage.isRead ? "Read" : "Unread"}
+                  </span>
+                </p>
+              </div>
             </div>
 
             <div className="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/30">
-              <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Details
-              </h3>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-medium">Date:</span>{" "}
-                {new Date(selectedMessage.createdAt).toLocaleDateString()}
-              </p>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-medium">Time:</span>{" "}
-                {new Date(selectedMessage.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
-              </p>
-              {location && (
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Location:</span> {location}
-                </p>
-              )}
-              {selectedMessage.productCodes && (
-                <div className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Product Codes:</span>
-
-                  <div className="mt-1 break-words whitespace-pre-wrap rounded-md bg-gray-100 p-2 text-xs dark:bg-gray-800">
-                    {selectedMessage.productCodes}
-                  </div>
-                </div>
-              )}
-              {selectedMessage.page && (
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Source:</span>{" "}
-                  {selectedMessage.page}
-                </p>
-              )}
-              <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-medium">Status:</span>{" "}
-                <span
-                  className={`ml-2 rounded-full px-2 py-1 text-xs ${selectedMessage.isRead
-                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                      : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                    }`}
-                >
-                  {selectedMessage.isRead ? "Read" : "Unread"}
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-semibold text-gray-800 dark:text-white">
+                  Message
+                </h3>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {selectedMessage.message.length} characters
                 </span>
-              </p>
-            </div>
-          </div>
+              </div>
 
-          <div className="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/30">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800 dark:text-white">
-                Message
-              </h3>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {selectedMessage.message.length} characters
-              </span>
-            </div>
-
-            <div className="rounded border border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-800">
-              <div className="whitespace-pre-wrap break-words leading-relaxed text-gray-700 dark:text-gray-300">
-                {formatMessage(selectedMessage.message)}
+              <div className="rounded border border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-800">
+                <div className="whitespace-pre-wrap break-words leading-relaxed text-gray-700 dark:text-gray-300">
+                  {formatMessage(selectedMessage.message)}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="max-h-[70vh] space-y-4 overflow-y-auto p-6">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Recipient Email
+              </label>
+              <input
+                type="email"
+                value={replyForm.to}
+                onChange={handleReplyChange("to")}
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Subject
+              </label>
+              <input
+                type="text"
+                value={replyForm.subject}
+                onChange={handleReplyChange("subject")}
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Message
+              </label>
+              <textarea
+                value={replyForm.message}
+                onChange={handleReplyChange("message")}
+                rows={10}
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm leading-6 text-gray-800 outline-none focus:border-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/30">
           <div className="flex flex-wrap justify-end gap-2">
-            <button
-              onClick={() => setIsOpen(false)}
-              className="rounded bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500"
-            >
-              Close
-            </button>
+            {mode === "details" ? (
+              <>
+                <button
+                  onClick={() => {
+                    setReplyForm(createReplyForm(selectedMessage));
+                    setMode("reply");
+                  }}
+                  className="rounded bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300"
+                >
+                  Reply
+                </button>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="rounded bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500"
+                >
+                  Close
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setMode("details")}
+                  disabled={isSending}
+                  className="rounded bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleSendReply}
+                  disabled={isSending}
+                  className="rounded bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300"
+                >
+                  {isSending ? "Sending..." : "Send Reply"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
