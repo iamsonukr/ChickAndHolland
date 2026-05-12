@@ -152,7 +152,7 @@ const normalizeScannerIdentity = async (
   };
 };
 
-async function ensureScanGuardTable() {
+export async function ensureScanGuardTable() {
   if (!ensureScanGuardTablePromise) {
     ensureScanGuardTablePromise = (async () => {
       await db.query(`

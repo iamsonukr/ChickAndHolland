@@ -366,6 +366,7 @@ export const getOrders = async ({
     `${API_URL}/orders?page=${page}&query=${query}&orderType=${orderType}`,
     {
       headers,
+      cache: "no-store",
     },
   );
 

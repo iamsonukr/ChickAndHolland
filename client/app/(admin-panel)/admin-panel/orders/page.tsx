@@ -17,6 +17,7 @@ import Delete, { DeleteButton, ItemsProvider } from "./Delete";
 import OrderDetailsSheet from "./OrderDetails";
 import AdjustSequenceButton from "./AdjustSequenceButton";
 import { Button } from "@/components/ui/button";
+import ResetScanButton from "./ResetScanButton";
 
 const statusToDbField: Record<string, string | null> = {
   "Pattern/Khaka":     "pattern",
@@ -227,7 +228,7 @@ const OrdersPage = async (props: {
 
             {/* Table */}
             <div className="w-full overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[1120px] border-collapse text-sm">
+              <table className="w-full min-w-[1240px] border-collapse text-sm">
                 <thead className="bg-muted/50">
                   <tr className="whitespace-nowrap [&>th]:align-middle">
                     <th className={cn(tableHeadClassName, "w-12 text-center")}>
@@ -242,7 +243,7 @@ const OrdersPage = async (props: {
                     <th className={cn(tableHeadClassName, "w-[220px]")}>Address</th>
                     <th className={cn(tableHeadClassName, "w-[140px]")}>Phone</th>
                     <th className={cn(tableHeadClassName, "w-[170px]")}>Tracking ID</th>
-                    <th className={cn(tableHeadClassName, "w-[170px] text-center")}>Actions</th>
+                    <th className={cn(tableHeadClassName, "w-[260px] text-center")}>Actions</th>
                   </tr>
                 </thead>
 
@@ -339,6 +340,7 @@ const OrdersPage = async (props: {
                             <div className="flex items-center justify-center gap-2">
                               <OrderDetailsSheet orderDetails={order} />
                               <TableActions data={order} />
+                              <ResetScanButton order={order} />
                             </div>
                           </td>
 

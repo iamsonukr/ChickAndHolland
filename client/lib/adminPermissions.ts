@@ -3,6 +3,7 @@ const ADMIN_PERMISSION_ROUTES = [
   "/admin-panel/bank",
   "/admin-panel/users",
   "/admin-panel/user-roles",
+  "/admin-panel/settings",
   "/admin-panel/contactus",
   "/admin-panel/orders",
   "/admin-panel/orders/qr-scan",
@@ -24,6 +25,7 @@ const ADMIN_PERMISSION_ROUTES = [
 
 const ADMIN_PERMISSION_INHERITANCE: Record<string, readonly string[]> = {
   "/admin-panel/orders/qr-scan": ["/admin-panel/orders"],
+  "/admin-panel/settings": ["/admin-panel/users", "/admin-panel/user-roles"],
 };
 
 const normalizeRoute = (route: string) => {

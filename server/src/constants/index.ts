@@ -39,6 +39,7 @@ export const TABLE_NAMES = {
   RETAILERORDERSPAYMENT: "retailer_order_payments",
   RETAILERBANK: "retailer_bank",
   ADMINBANK: "admin_bank",
+  ADMIN_SETTINGS: "admin_settings",
   COUNTRY: "country",
   PRODUCT_COUNTRY_PRICING: "product_country_pricing",
   CURRENCIES: "currencies",

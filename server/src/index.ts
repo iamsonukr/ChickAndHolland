@@ -56,6 +56,8 @@ import CurrencyRouter from "./controllers/CurrencyController";
 import PageActions from "./controllers/PageActions";
 import { CacheController } from "./controllers/CacheController";
 import WorkerController from "./controllers/WorkerController";
+import AdminScanController from "./controllers/AdminScanController";
+import AdminSettingsController from "./controllers/AdminSettingsController";
 
 // import StripeRouter from './routes/stripe.routes'
 // Middleware
@@ -78,6 +80,7 @@ import retailerScanRoute from "./routes/RetailerScanRoute";
 import stockScanRoute from "./routes/StockScanRoute";
 import stripeWebhookHandler from "./routes/webhook";
 import { ensureProductQueriesTable } from "./utils/ensureProductQueriesTable";
+import { ensureAdminSettingsTable } from "./services/resetPassword.service";
 
 const router = Router();
 
@@ -146,6 +149,7 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
   await db.initialize();
 BaseEntity.useDataSource(db);
 await ensureProductQueriesTable();
+await ensureAdminSettingsTable();
 console.log("✅ Database connected");
 
 if (process.env.RUN_SEEDER === "true") {
@@ -228,6 +232,8 @@ app.use("/api/payers", PayerRouter);
 app.use("/api/expensetypes", ExpenseTypeRouter);
 app.use("/api/expenses", ExpenseRouter);
 app.use("/api/inventory", InventoryRouter);
+app.use("/api/admin-scan", AdminScanController);
+app.use("/api/admin-settings", AdminSettingsController);
 
 // app.use("/api/stripe", StripeRouter);
 

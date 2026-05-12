@@ -88,6 +88,13 @@ export function getMenuList(pathname: string, userType: any): Group[] {
             submenus: [],
           },
           {
+            href: "/admin-panel/settings",
+            label: "Settings",
+            active: pathname.includes("/settings"),
+            icon: Cog,
+            submenus: [],
+          },
+          {
   href: "/admin-panel/contactus",
   label: "Enquiries",
   active: pathname.includes("/contactus"),
