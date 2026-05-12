@@ -69,6 +69,9 @@ router.post(
       message: "Retailer logged in successfully",
       token,
       retailerId: retailer.id,
+      name: retailer.customer.name,
+      storeName: retailer.customer.storeName,
+      username: retailer.username,
       countryId: retailer.customer.countryId,
       currencyId: retailer.customer.currencyId,
       phoneNumber: retailer.customer.phoneNumber,   // <-- ADD THIS

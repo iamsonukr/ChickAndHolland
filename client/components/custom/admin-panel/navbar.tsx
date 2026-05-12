@@ -21,6 +21,7 @@ export function Navbar({ title, userDetails }: NavbarProps) {
   const user = {
     name: userDetails?.name || "Admin",
     username: userDetails?.username || "admin",
+    storeName: userDetails?.storeName || "Store",
   };
 
   // Logic to hide username if it's identical to the display name
@@ -50,11 +51,12 @@ export function Navbar({ title, userDetails }: NavbarProps) {
               Hi, {user?.name?.split(" ")[0] || "User"}
             </span>
 
-            {showUsername && (
+            {(
               <span className="truncate text-xs text-muted-foreground capitalize">
-                {user.username}
+                {/* {user.username} */}
               </span>
             )}
+            {user.storeName}
           </div>
 
           <UserNav user={user} />
