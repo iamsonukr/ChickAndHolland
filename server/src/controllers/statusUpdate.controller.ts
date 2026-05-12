@@ -1,10 +1,14 @@
-
 import { Router, Request, Response } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
 import RetailerOrderStyles from "../models/RetailerOrderStyles";
 import StyleProgress from "../models/StyleProgress";
-import { ShippingStatus } from "../models/Order"; // ✅ IMPORTANT
+import { ShippingStatus } from "../models/Order";
 import {
+  DEFAULT_SCAN_STAGE,
+  SCAN_STAGE_FLOW,
+  getScannerRoleTargetStage,
+  getStageDateField,
+  isShippingStage,
   releaseReservedBarcodeScan,
   requireScannerIdentity,
   requireScannerRoleStageAccess,
@@ -13,26 +17,7 @@ import {
 
 const router = Router();
 
-const RETAILER_STATUS_FLOW = [
-  "Pattern",
-  "Khaka",
-  "Issue Beading",
-  "Beading",
-  "Zarkan",
-  "Stitching",
-  "Balance Pending",
-  "Ready To Delivery",
-];
-
-
-function getNextRetailerStatus(current: string | null): string {
-  if (!current) return RETAILER_STATUS_FLOW[0];
-
-  const index = RETAILER_STATUS_FLOW.indexOf(current);
-  if (index === -1) return RETAILER_STATUS_FLOW[0];
-
-  return RETAILER_STATUS_FLOW[index + 1] || RETAILER_STATUS_FLOW[index];
-}
+const RETAILER_STATUS_FLOW = SCAN_STAGE_FLOW;
 
 async function resolveRetailerStatusUpdateStage(req: Request) {
   const barcode = String(req.body?.barcode ?? "").trim();
@@ -50,34 +35,26 @@ async function resolveRetailerStatusUpdateStage(req: Request) {
     return null;
   }
 
-  const order = style.retailerOrder;
-
   const lastProgress = await StyleProgress.findOne({
     where: { barcode },
     order: { createdAt: "DESC" },
   });
 
-  const currentStage =
-    lastProgress?.stage ||
-    (order.orderStatus !== "Pattern" ? order.orderStatus : null);
-
-  if (order.orderStatus === "Ready To Delivery") {
-    return {
-      currentStage,
-      targetStage: "Shipped",
-      flowStages: [...RETAILER_STATUS_FLOW, "Shipped"],
-    };
-  }
-
   return {
-    currentStage,
-    targetStage: getNextRetailerStatus(currentStage),
-    flowStages: [...RETAILER_STATUS_FLOW, "Shipped"],
+    currentStage:
+      lastProgress?.stage ||
+      style.retailerOrder.orderStatus ||
+      DEFAULT_SCAN_STAGE,
+    targetStage: getScannerRoleTargetStage(
+      (req as any).scannerIdentity?.scannerRoleName,
+      RETAILER_STATUS_FLOW,
+    ),
+    flowStages: RETAILER_STATUS_FLOW,
   };
 }
 
 /**
- * 🔥 Update status of RETAILER barcode (AUTO FLOW)
+ * Update status of RETAILER barcode.
  */
 router.post(
   "/update-status",
@@ -93,7 +70,6 @@ router.post(
       });
     }
 
-    // 🔎 Find retailer style
     const style = await RetailerOrderStyles.findOne({
       where: { barcode },
       relations: ["retailerOrder"],
@@ -106,7 +82,6 @@ router.post(
       });
     }
 
-    // 🔥 LAST COMPLETED STAGE
     const lastProgress = await StyleProgress.findOne({
       where: { barcode },
       order: { createdAt: "DESC" },
@@ -114,70 +89,20 @@ router.post(
 
     const currentStage =
       lastProgress?.stage ||
-      (style.retailerOrder.orderStatus !== "Pattern"
-        ? style.retailerOrder.orderStatus
-        : null);
+      style.retailerOrder.orderStatus ||
+      DEFAULT_SCAN_STAGE;
+    const nextStage = getScannerRoleTargetStage(
+      (req as any).scannerIdentity?.scannerRoleName,
+      RETAILER_STATUS_FLOW,
+    );
 
-    // 🔥 AUTO NEXT STAGE
-    const nextStage = getNextRetailerStatus(currentStage);
-
-    // ===============================
-    // ✅ UPDATE RETAILER ORDER
-    // ===============================
-    const order = style.retailerOrder;
-    // ⛔ STOP barcode at Balance Pending (wait for admin)
-if (order.orderStatus === "Balance Pending" && nextStage !== "Ready To Delivery") {
-  return res.json({
-    success: false,
-    message: "Waiting for Ready To Delivery scan",
-  });
-}
-// ✅ Admin already marked Ready → barcode can SHIP
-if (order.orderStatus === "Ready To Delivery") {
-  const scanReservation = await reserveUniqueBarcodeScan(
-    req,
-    "RETAILER",
-    barcode,
-  );
-
-  if (!scanReservation.success) {
-    return res.status(409).json(scanReservation);
-  }
-
-  try {
-  // ⚠️ payment check yahan hona chahiye
-  // (agar payment logic yahan available ho to)
-  
-  const now = new Date();
-
-  order.orderStatus = "Shipped" as any;
-  order.shipped = now;
-  order.shippingStatus = ShippingStatus.Shipped;
-  order.shippingDate = now;
-  order.status_id = 1;
-
-  await order.save();
-
-  const progress = new StyleProgress();
-  progress.barcode = barcode;
-  progress.stage = "Shipped" as any;
-  progress.qty = qty;
-  await progress.save();
-
-  return res.json({
-    success: true,
-    message: "Order shipped successfully",
-    data: {
-      barcode,
-      previousStage: "Ready To Delivery",
-      currentStage: "Shipped",
-    },
-  });
-  } catch (error) {
-    await releaseReservedBarcodeScan(scanReservation.scanId);
-    throw error;
-  }
-}
+    if (!nextStage) {
+      return res.status(403).json({
+        success: false,
+        code: "SCANNER_STAGE_FORBIDDEN",
+        message: "Your scanner login is not mapped to a stage.",
+      });
+    }
 
     const scanReservation = await reserveUniqueBarcodeScan(
       req,
@@ -190,63 +115,43 @@ if (order.orderStatus === "Ready To Delivery") {
     }
 
     try {
-      // ===============================
-      // ✅ SAVE PROGRESS (TYPEORM SAFE)
-      // ===============================
       const progress = new StyleProgress();
       progress.barcode = barcode;
-      progress.stage = nextStage as any; // enum safe
+      progress.stage = nextStage as any;
       progress.qty = qty;
       await progress.save();
 
+      const order = style.retailerOrder;
+      const now = new Date();
 
-    const now = new Date();
+      order.orderStatus = nextStage as any;
+      const dateField = getStageDateField(nextStage);
+      if (dateField) {
+        (order as any)[dateField] = now;
+      }
 
-    order.orderStatus = nextStage as any;
-switch (nextStage) {
-  case "Pattern":
-    order.pattern = now;
-    break;
-  case "Khaka":
-    order.khaka = now;
-    break;
-  case "Issue Beading":
-    order.issue_beading = now;
-    break;
-  case "Beading":
-    order.beading = now;
-    break;
-  case "Zarkan":
-    order.zarkan = now;
-    break;
-  case "Stitching":
-    order.stitching = now;
-    break;
-  case "Balance Pending":
-    order.balance_pending = now;
-    break;
-  case "Ready To Delivery":
-    order.ready_to_delivery = now;
-    break;
-}
+      if (isShippingStage(nextStage)) {
+        order.shippingStatus = ShippingStatus.Shipped;
+        order.shippingDate = now;
+        order.status_id = 1;
+      }
 
+      await order.save();
 
-    await order.save();
-
-    return res.json({
-      success: true,
-      message: `Moved to ${nextStage}`,
-      data: {
-        barcode,
-        previousStage: currentStage,
-        currentStage: nextStage,
-      },
-    });
+      return res.json({
+        success: true,
+        message: `Moved to ${nextStage}`,
+        data: {
+          barcode,
+          previousStage: currentStage,
+          currentStage: nextStage,
+        },
+      });
     } catch (error) {
       await releaseReservedBarcodeScan(scanReservation.scanId);
       throw error;
     }
-  })
+  }),
 );
 
 export default router;

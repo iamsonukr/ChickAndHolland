@@ -10,7 +10,11 @@ import RetailerOrdersPayment from "../models/RetailerPaymentModal";
 
 import { OrderStatus, ShippingStatus } from "../models/Order";
 import {
-  getScannerRolePrimaryStage,
+  DEFAULT_SCAN_STAGE,
+  SCAN_STAGE_FLOW,
+  getScannerRoleTargetStage,
+  getStageDateField,
+  isShippingStage,
   releaseReservedBarcodeScan,
   requireScannerIdentity,
   requireScannerRoleStageAccess,
@@ -22,30 +26,17 @@ const router = Router();
 /* -----------------------------------------
    🔵 FRESH ORDER STATUS FLOW
 ------------------------------------------ */
-const RETAILER_FLOW = [
-  "Pattern",
-  "Khaka",
-  "Issue Beading",
-  "Beading",
-  "Zarkan",
-  "Stitching",
-  "Balance Pending",
-  "Ready To Delivery",
-];
+const RETAILER_FLOW = SCAN_STAGE_FLOW;
 /* -----------------------------------------
    ORDER STAGE INDEX FOR LOWEST STAGE LOGIC
 ------------------------------------------ */
-const STAGE_INDEX: any = {
-  "Pattern": 1,
-  "Khaka": 2,
-  "Issue Beading": 3,
-  "Beading": 4,
-  "Zarkan": 5,
-  "Stitching": 6,
-  "Balance Pending": 7,
-  "Ready To Delivery": 8,
-  "Shipped": 9,
-};
+const STAGE_INDEX = SCAN_STAGE_FLOW.reduce<Record<string, number>>(
+  (stageIndex, stage, index) => {
+    stageIndex[stage] = index + 1;
+    return stageIndex;
+  },
+  {},
+);
 
 /* --------- FUNCTION : Lowest Stage Finder --------- */
 async function getLowestStage(orderId: number) {
@@ -61,7 +52,7 @@ async function getLowestStage(orderId: number) {
       order: { id: "DESC" },
     });
 
-    const currentStage = last?.stage || "Pattern";
+    const currentStage = last?.stage || DEFAULT_SCAN_STAGE;
 
     if (STAGE_INDEX[currentStage] < STAGE_INDEX[lowestStage]) {
       lowestStage = currentStage;
@@ -75,29 +66,8 @@ async function getLowestStage(orderId: number) {
 /* -----------------------------------------
    🔵 STOCK ORDER STATUS FLOW
 ------------------------------------------ */
-const STOCK_FLOW = [
-  "Pattern",
-  "Khaka",
-  "Issue Beading",
-  "Beading",
-  "Zarkan",
-  "Stitching",
-  "Balance Pending",
-  "Ready To Delivery",
-  "Shipped",
-];
-
-const STOCK_GUARD_FLOW = [
-  "Pattern",
-  "Khaka",
-  "Issue Beading",
-  "Beading",
-  "Zarkan",
-  "Stitching",
-  "Balance Pending",
-  "Ready To Delivery",
-  "Shipped",
-];
+const STOCK_FLOW = SCAN_STAGE_FLOW;
+const STOCK_GUARD_FLOW = SCAN_STAGE_FLOW;
 
 async function resolveRetailerScannerStage(req: Request) {
   const barcode = String(req.body?.barcode ?? "").trim();
@@ -123,40 +93,20 @@ async function resolveRetailerScannerStage(req: Request) {
   });
 
   const currentStage =
-    last?.stage ||
-    ((order.orderStatus as OrderStatus) !== OrderStatus.Pattern
-      ? (order.orderStatus as OrderStatus)
-      : null);
-
-  if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
-    return req.body?.confirmShip === true
-      ? {
-          currentStage,
-          targetStage: OrderStatus.Shipped,
-          flowStages: [...RETAILER_FLOW, OrderStatus.Shipped],
-        }
-      : null;
-  }
-
-  const targetStage = getScannerRolePrimaryStage(
+    last?.stage || (order.orderStatus as OrderStatus) || DEFAULT_SCAN_STAGE;
+  const targetStage = getScannerRoleTargetStage(
     (req as any).scannerIdentity?.scannerRoleName,
+    RETAILER_FLOW,
   );
 
-  if (
-    (order.orderStatus as OrderStatus) === OrderStatus.Balance_Pending &&
-    targetStage !== OrderStatus.Ready_To_Delivery
-  ) {
-    return null;
-  }
-
-  if (!targetStage || !RETAILER_FLOW.includes(targetStage)) {
+  if (!targetStage) {
     return null;
   }
 
   return {
     currentStage,
     targetStage,
-    flowStages: [...RETAILER_FLOW, OrderStatus.Shipped],
+    flowStages: RETAILER_FLOW,
   };
 }
 
@@ -192,11 +142,12 @@ async function resolveStockScannerStage(req: Request) {
     return null;
   }
 
-  const targetStage = getScannerRolePrimaryStage(
+  const targetStage = getScannerRoleTargetStage(
     (req as any).scannerIdentity?.scannerRoleName,
+    STOCK_FLOW,
   );
 
-  if (!targetStage || !STOCK_FLOW.includes(targetStage)) {
+  if (!targetStage) {
     return null;
   }
 
@@ -206,7 +157,7 @@ async function resolveStockScannerStage(req: Request) {
   });
 
   return {
-    currentStage: last?.stage || null,
+    currentStage: last?.stage || DEFAULT_SCAN_STAGE,
     targetStage,
     flowStages: STOCK_GUARD_FLOW,
   };
@@ -270,9 +221,18 @@ router.post(
 
     // const paid = payments.reduce((sum, p) => sum + p.amount, 0);
     // const remaining = Number(order.purchaseAmount) - paid;
-    const scannerTargetStage = getScannerRolePrimaryStage(
+    const scannerTargetStage = getScannerRoleTargetStage(
       (req as any).scannerIdentity?.scannerRoleName,
+      RETAILER_FLOW,
     );
+
+    if (!scannerTargetStage) {
+      return res.status(403).json({
+        success: false,
+        code: "SCANNER_STAGE_FORBIDDEN",
+        message: "Your scanner login is not mapped to a stage.",
+      });
+    }
 
    /* ------------------------------------
    🔒 BARCODE FLOW CONTROL (FINAL)
@@ -280,7 +240,8 @@ router.post(
 
 if (
   (order.orderStatus as OrderStatus) === OrderStatus.Balance_Pending &&
-  scannerTargetStage !== OrderStatus.Ready_To_Delivery
+  scannerTargetStage !== OrderStatus.Ready_To_Delivery &&
+  scannerTargetStage !== OrderStatus.Shipped
 ) {
   return res.json({
     success: false,
@@ -299,7 +260,8 @@ if (
 if (
   (order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery
  &&
-  req.body.confirmShip === true
+  req.body.confirmShip === true &&
+  scannerTargetStage === OrderStatus.Shipped
 ) {
   const scanReservation = await reserveUniqueBarcodeScan(
     req,
@@ -341,7 +303,10 @@ if (
 }
 
 // 🟡 Admin Ready To Delivery → message only
-if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
+if (
+  (order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery &&
+  scannerTargetStage !== OrderStatus.Shipped
+) {
   return res.json({
     success: true,
     code: "READY_FOR_SHIP",
@@ -356,7 +321,7 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
       order: { createdAt: "DESC" },
     });
 
-    const currentStage = last?.stage || null;
+    const currentStage = last?.stage || DEFAULT_SCAN_STAGE;
     const isShippingScan =
       (order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery &&
       req.body.confirmShip === true;
@@ -412,10 +377,12 @@ if ((order.orderStatus as OrderStatus) === OrderStatus.Ready_To_Delivery) {
 
       order.orderStatus = targetStage as any;
 
-      const field = targetStage.toLowerCase().replace(/\s+/g, "_");
-      (order as any)[field] = now;
+      const field = getStageDateField(targetStage);
+      if (field) {
+        (order as any)[field] = now;
+      }
 
-      if (targetStage === "Shipped") {
+      if (isShippingStage(targetStage)) {
         order.shippingStatus = ShippingStatus.Shipped;
         order.shippingDate = now;
         order.status_id = 1;
@@ -494,9 +461,10 @@ router.post(
       order: { createdAt: "DESC" },
     });
 
-    const currentStage = last?.stage || null;
-    const targetStage = getScannerRolePrimaryStage(
+    const currentStage = last?.stage || DEFAULT_SCAN_STAGE;
+    const targetStage = getScannerRoleTargetStage(
       (req as any).scannerIdentity?.scannerRoleName,
+      STOCK_FLOW,
     );
 
     if (!targetStage) {

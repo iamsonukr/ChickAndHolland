@@ -25,6 +25,12 @@ import StockOrderStyles from "../models/StockOrderStyles";
 import express from "express";
 import StyleProgress from "../models/StyleProgress";
 import {
+  SCAN_STAGE_FLOW,
+  getScanStageIndex,
+  getScanStageLabel,
+  getScannerRoleTargetStage,
+  getStageDateField,
+  isShippingStage,
   requireScannerIdentity,
   requireScannerRoleStageAccess,
 } from "../lib/scanGuard";
@@ -33,23 +39,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 const router = Router();
 
-const RETAILER_QR_STATUS_FLOW = [
-  OrderStatus.Pattern,
-  OrderStatus.Khaka,
-  OrderStatus.Issue_Beading,
-  OrderStatus.Beading,
-  OrderStatus.Zarkan,
-  OrderStatus.Stitching,
-  OrderStatus.Balance_Pending,
-  OrderStatus.Ready_To_Delivery,
-  OrderStatus.Shipped,
-];
-
-const getNextRetailerQrStatus = (currentStatus: OrderStatus) => {
-  const currentIndex = RETAILER_QR_STATUS_FLOW.indexOf(currentStatus);
-  if (currentIndex === -1) return null;
-  return RETAILER_QR_STATUS_FLOW[currentIndex + 1] || null;
-};
+const RETAILER_QR_STATUS_FLOW = SCAN_STAGE_FLOW as OrderStatus[];
 
 async function resolveRetailerOrderQrStage(req: Request) {
   const order = await RetailerOrder.findOne({
@@ -62,17 +52,10 @@ async function resolveRetailerOrderQrStage(req: Request) {
 
   const currentStage = order.orderStatus as OrderStatus;
 
-  if (currentStage === OrderStatus.Ready_To_Delivery) {
-    return req.body?.confirmShip === true
-      ? {
-          currentStage,
-          targetStage: OrderStatus.Shipped,
-          flowStages: RETAILER_QR_STATUS_FLOW,
-        }
-      : null;
-  }
-
-  const targetStage = getNextRetailerQrStatus(currentStage);
+  const targetStage = getScannerRoleTargetStage(
+    (req as any).scannerIdentity?.scannerRoleName,
+    RETAILER_QR_STATUS_FLOW,
+  );
 
   return targetStage
     ? {
@@ -2032,6 +2015,43 @@ router.post(
     // Split camelCase or PascalCase into words (IssueBeading → Issue Beading)
     finalStatus = finalStatus?.replace(/([a-z])([A-Z])/g, "$1 $2");
 
+    const normalizedFinalStatus = getScanStageLabel(
+      finalStatus,
+      RETAILER_QR_STATUS_FLOW,
+    ) as OrderStatus | null;
+
+    if (!normalizedFinalStatus) {
+      return res.status(400).json({
+        success: false,
+        msg: "Invalid order status",
+      });
+    }
+
+    const currentStageIndex = getScanStageIndex(
+      order.orderStatus,
+      RETAILER_QR_STATUS_FLOW,
+    );
+    const targetStageIndex = getScanStageIndex(
+      normalizedFinalStatus,
+      RETAILER_QR_STATUS_FLOW,
+    );
+
+    if (
+      currentStageIndex === -1 ||
+      targetStageIndex === -1 ||
+      targetStageIndex <= currentStageIndex
+    ) {
+      return res.status(409).json({
+        success: false,
+        msg:
+          targetStageIndex === currentStageIndex
+            ? `Order is already at ${normalizedFinalStatus}`
+            : "Cannot move order status backward.",
+      });
+    }
+
+    finalStatus = normalizedFinalStatus;
+
     console.log("Converted finalStatus:", finalStatus);
 
     order.orderStatus = finalStatus as OrderStatus;
@@ -2515,6 +2535,10 @@ router.put(
     const workflow = RETAILER_QR_STATUS_FLOW;
 
     const currentStatus: OrderStatus = order.orderStatus as OrderStatus;
+    const targetStatus = getScannerRoleTargetStage(
+      (req as any).scannerIdentity?.scannerRoleName,
+      workflow,
+    ) as OrderStatus | null;
 
     const currentIndex = workflow.indexOf(order.orderStatus);
     const now = new Date();
@@ -2526,10 +2550,19 @@ router.put(
       });
     }
 
+    if (!targetStatus) {
+      return res.status(403).json({
+        success: false,
+        code: "SCANNER_STAGE_FORBIDDEN",
+        message: "Your scanner login is not mapped to a stage.",
+      });
+    }
+
     // 🚚 FINAL QR CONFIRM → SHIP ORDER
     if (
       order.orderStatus === OrderStatus.Ready_To_Delivery &&
-      req.body?.confirmShip === true
+      req.body?.confirmShip === true &&
+      targetStatus === OrderStatus.Shipped
     ) {
       const now = new Date();
 
@@ -2551,7 +2584,10 @@ router.put(
     }
 
     // 🟡 Ready To Delivery ho chuka hai
-    if (currentStatus === OrderStatus.Ready_To_Delivery) {
+    if (
+      currentStatus === OrderStatus.Ready_To_Delivery &&
+      targetStatus !== OrderStatus.Shipped
+    ) {
       return res.json({
         success: true,
         code: "READY_FOR_SHIP",
@@ -2576,15 +2612,17 @@ router.put(
       });
     }
 
-    const nextStatus = workflow[currentIndex + 1];
+    const nextStatus = targetStatus;
 
 
-    const field = nextStatus.toLowerCase().replace(/\s+/g, "_");
+    const field = getStageDateField(nextStatus);
     order.orderStatus = nextStatus;
-    (order as any)[field] = now;
+    if (field) {
+      (order as any)[field] = now;
+    }
 
     // If shipped update shipping fields too
-    if (nextStatus === OrderStatus.Shipped) {
+    if (isShippingStage(nextStatus)) {
       order.shippingStatus = ShippingStatus.Shipped;
       order.shippingDate = now;
       order.status_id = 1; // Mark completed

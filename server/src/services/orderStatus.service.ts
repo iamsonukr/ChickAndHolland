@@ -1,6 +1,7 @@
 import Order, { OrderStatus, ShippingStatus } from "../models/Order";
 import Style from "../models/OrderStyle";
 import StoreStyleProgress from "../models/StoreStyleProgress";
+import { DEFAULT_ORDER_STAGE, getStageIndex } from "../lib/stageFlow";
 
 const STATUS_FIELD_MAP: Record<OrderStatus, keyof Order> = {
   [OrderStatus.Pattern]: "pattern",
@@ -28,13 +29,20 @@ export async function updateOrderByBarcode(
 
   const order = style.order;
   const now = new Date();
+  const latestProgress = await StoreStyleProgress.findOne({
+    where: { barcode: style.barcode },
+    order: { createdAt: "DESC" },
+  });
+  const currentStatus = latestProgress?.status || DEFAULT_ORDER_STAGE;
+  const currentIndex = getStageIndex(currentStatus);
+  const nextIndex = getStageIndex(nextStatus);
 
-  // 🔒 BLOCK SHIP IF BALANCE PENDING
-  if (
-    nextStatus === OrderStatus.Shipped &&
-    order.orderStatus === OrderStatus.Balance_Pending
-  ) {
-    throw new Error("Balance pending. Cannot ship order.");
+  if (currentIndex === -1 || nextIndex === -1 || nextIndex <= currentIndex) {
+    throw new Error(
+      currentIndex === nextIndex
+        ? `Already at ${nextStatus}`
+        : "Cannot move order status backward or to an unknown stage.",
+    );
   }
 
   // 1️⃣ PROGRESS ENTRY

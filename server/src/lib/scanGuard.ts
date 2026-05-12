@@ -3,6 +3,24 @@ import jwt from "jsonwebtoken";
 import CONFIG from "../config";
 import db from "../db";
 import { TABLE_NAMES } from "../constants";
+import {
+  DEFAULT_ORDER_STAGE,
+  ORDER_STAGE_FLOW,
+  getCanonicalStage,
+  getStageIndex,
+  normalizeStageKey,
+  normalizeStageLabel,
+} from "./stageFlow";
+
+export {
+  DEFAULT_ORDER_STAGE as DEFAULT_SCAN_STAGE,
+  ORDER_STAGE_FLOW as SCAN_STAGE_FLOW,
+  getCanonicalStage as getScanStageLabel,
+  getStageDateField,
+  getStageIndex as getScanStageIndex,
+  isShippingStage,
+  normalizeStageKey,
+} from "./stageFlow";
 
 export type ScanFlowType = "RETAILER" | "STOCK" | "STORE";
 
@@ -48,14 +66,6 @@ const normalizeRoleKey = (value?: string | null) =>
     .toLowerCase()
     .replace(/[\s_]+/g, "-");
 
-const normalizeStageKey = (value?: string | null) =>
-  String(value ?? "")
-    .trim() 
-    .toLowerCase()
-    .replace(/[\s_]+/g, "-");
-
-const normalizeStageLabel = (value?: string | null) => String(value ?? "").trim();
-
 const SCANNER_ROLE_STAGE_RULES: Record<string, string[]> = {
   "pattern-master": ["Pattern"],
   "khaka-master": ["Khaka"],
@@ -68,18 +78,6 @@ const SCANNER_ROLE_STAGE_RULES: Record<string, string[]> = {
   "shipping-master": ["Shipped"],
 };
 
-const getFlowStageIndex = (flowStages: string[], stage?: string | null) => {
-  const normalizedStage = normalizeStageKey(stage);
-
-  if (!normalizedStage) {
-    return -1;
-  }
-
-  return flowStages.findIndex(
-    (flowStage) => normalizeStageKey(flowStage) === normalizedStage,
-  );
-};
-
 export const getScannerRoleAllowedStages = (scannerRoleName?: string | null) => {
   const normalizedRole = normalizeRoleKey(scannerRoleName);
   return [...(SCANNER_ROLE_STAGE_RULES[normalizedRole] || [])];
@@ -87,6 +85,14 @@ export const getScannerRoleAllowedStages = (scannerRoleName?: string | null) => 
 
 export const getScannerRolePrimaryStage = (scannerRoleName?: string | null) =>
   getScannerRoleAllowedStages(scannerRoleName)[0] || null;
+
+export const getScannerRoleTargetStage = (
+  scannerRoleName?: string | null,
+  flowStages: string[] = ORDER_STAGE_FLOW,
+) => {
+  const primaryStage = getScannerRolePrimaryStage(scannerRoleName);
+  return getCanonicalStage(primaryStage, flowStages) || primaryStage;
+};
 
 const getScannerRoleName = async (
   scannerId: number,
@@ -303,7 +309,16 @@ export const requireScannerRoleStageAccess =
                 typeof resolvedAccess === "string" ? resolvedAccess : null,
             };
 
-      const targetStage = normalizeStageLabel(accessContext?.targetStage);
+      const flowStages = Array.isArray(accessContext?.flowStages)
+        ? accessContext.flowStages
+            .map((stage: string) => normalizeStageLabel(stage))
+            .filter(Boolean)
+        : [];
+
+      const stageFlow = flowStages.length ? flowStages : ORDER_STAGE_FLOW;
+      const rawTargetStage = normalizeStageLabel(accessContext?.targetStage);
+      const targetStage =
+        getCanonicalStage(rawTargetStage, stageFlow) || rawTargetStage;
 
       if (!targetStage) {
         return next();
@@ -340,47 +355,54 @@ export const requireScannerRoleStageAccess =
         });
       }
 
-      const flowStages = Array.isArray(accessContext?.flowStages)
-        ? accessContext.flowStages
-            .map((stage: string) => normalizeStageLabel(stage))
-            .filter(Boolean)
-        : [];
+      const targetStageIndex = getStageIndex(targetStage, stageFlow);
 
-      if (flowStages.length) {
-        const targetStageIndex = getFlowStageIndex(flowStages, targetStage);
+      if (targetStageIndex === -1) {
+        return res.status(403).json({
+          success: false,
+          code: "SCANNER_STAGE_FORBIDDEN",
+          message: `${targetStage} is not available in this scan flow.`,
+          scannerRole: scanner.scannerRoleName,
+          allowedStages,
+          currentStage: accessContext?.currentStage ?? null,
+          nextStage: targetStage,
+        });
+      }
 
-        if (targetStageIndex === -1) {
-          return res.status(403).json({
-            success: false,
-            code: "SCANNER_STAGE_FORBIDDEN",
-            message: `${targetStage} is not available in this scan flow.`,
-            scannerRole: scanner.scannerRoleName,
-            allowedStages,
-            currentStage: accessContext?.currentStage ?? null,
-            nextStage: targetStage,
-          });
-        }
+      const rawCurrentStage =
+        normalizeStageLabel(accessContext?.currentStage) || DEFAULT_ORDER_STAGE;
+      const currentStage =
+        getCanonicalStage(rawCurrentStage, stageFlow) || rawCurrentStage;
+      const currentStageIndex = getStageIndex(currentStage, stageFlow);
 
-        const currentStage = normalizeStageLabel(accessContext?.currentStage);
-        const currentStageIndex = getFlowStageIndex(flowStages, currentStage);
+      if (currentStageIndex === -1) {
+        return res.status(409).json({
+          success: false,
+          code: "SCANNER_STAGE_UNKNOWN_CURRENT",
+          message: `Current stage ${currentStage} is not available in this scan flow.`,
+          scannerRole: scanner.scannerRoleName,
+          allowedStages,
+          currentStage,
+          nextStage: targetStage,
+        });
+      }
 
-        if (currentStage && currentStageIndex !== -1 && targetStageIndex <= currentStageIndex) {
-          const isSameStage = targetStageIndex === currentStageIndex;
+      if (targetStageIndex <= currentStageIndex) {
+        const isSameStage = targetStageIndex === currentStageIndex;
 
-          return res.status(409).json({
-            success: false,
-            code: isSameStage
-              ? "SCANNER_STAGE_ALREADY_DONE"
-              : "SCANNER_STAGE_REGRESSION",
-            message: isSameStage
-              ? `This item is already at ${targetStage}.`
-              : `This item is already at ${currentStage}. You can only scan forward stages.`,
-            scannerRole: scanner.scannerRoleName,
-            allowedStages,
-            currentStage,
-            nextStage: targetStage,
-          });
-        }
+        return res.status(409).json({
+          success: false,
+          code: isSameStage
+            ? "SCANNER_STAGE_ALREADY_DONE"
+            : "SCANNER_STAGE_REGRESSION",
+          message: isSameStage
+            ? `This item is already at ${targetStage}.`
+            : `This item is already at ${currentStage}. You can only scan forward stages.`,
+          scannerRole: scanner.scannerRoleName,
+          allowedStages,
+          currentStage,
+          nextStage: targetStage,
+        });
       }
 
       return next();

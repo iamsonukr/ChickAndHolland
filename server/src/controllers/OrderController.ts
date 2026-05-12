@@ -23,6 +23,9 @@ import {
   peekGlobalNextPoNumber,
 } from "../utils/generatePO";
 import {
+  DEFAULT_SCAN_STAGE,
+  SCAN_STAGE_FLOW,
+  getScannerRoleTargetStage,
   releaseReservedBarcodeScan,
   requireScannerIdentity,
   requireScannerRoleStageAccess,
@@ -1498,23 +1501,20 @@ PublicStoreRoutes.post(
     const currentStage: OrderStatus | null =
       lastProgress?.status
         ? (lastProgress.status as OrderStatus)
-        : null;
+        : (DEFAULT_SCAN_STAGE as OrderStatus);
+    const nextStage = getScannerRoleTargetStage(
+      (req as any).scannerIdentity?.scannerRoleName,
+      SCAN_STAGE_FLOW,
+    ) as OrderStatus | null;
 
-
-    const nextStage = getNextStatus(currentStage);
-
-    // 🔒 BLOCK SHIP IF BALANCE PENDING
-    if (
-      nextStage === OrderStatus.Shipped &&
-      order.orderStatus === OrderStatus.Balance_Pending
-    ) {
-      return res.json({
+    if (!nextStage) {
+      return res.status(403).json({
         success: false,
-        message: "Balance pending. Cannot ship order.",
+        code: "SCANNER_STAGE_FORBIDDEN",
+        message: "Your scanner login is not mapped to a stage.",
       });
     }
 
-    // ❌ same stage again
     if (currentStage === nextStage) {
       return res.json({
         success: false,
@@ -1554,30 +1554,6 @@ PublicStoreRoutes.post(
 );
 
 
-const STORE_STATUS_FLOW = [
-  OrderStatus.Pattern,
-  OrderStatus.Khaka,
-  OrderStatus.Issue_Beading,
-  OrderStatus.Beading,
-  OrderStatus.Zarkan,
-  OrderStatus.Stitching,
-  OrderStatus.Balance_Pending,
-  OrderStatus.Ready_To_Delivery,
-  OrderStatus.Shipped,
-];
-
-
-function getNextStatus(current: OrderStatus | null): OrderStatus {
-  if (!current) return STORE_STATUS_FLOW[0];
-
-  // 🔒 admin ke baad store sirf ship kare
-  if (current === OrderStatus.Ready_To_Delivery)
-    return OrderStatus.Shipped;
-
-  const index = STORE_STATUS_FLOW.indexOf(current);
-  return STORE_STATUS_FLOW[index + 1] || current;
-}
-
 async function resolveStoreScannerStage(req: Request) {
   const barcode = String(req.body?.barcode ?? "").trim();
 
@@ -1594,8 +1570,6 @@ async function resolveStoreScannerStage(req: Request) {
     return null;
   }
 
-  const order = style.order;
-
   const lastProgress = await StoreStyleProgress.findOne({
     where: { barcode },
     order: { createdAt: "DESC" },
@@ -1603,21 +1577,17 @@ async function resolveStoreScannerStage(req: Request) {
 
   const currentStage = lastProgress?.status
     ? (lastProgress.status as OrderStatus)
-    : null;
-  const nextStage = getNextStatus(currentStage);
+    : (DEFAULT_SCAN_STAGE as OrderStatus);
+  const nextStage = getScannerRoleTargetStage(
+    (req as any).scannerIdentity?.scannerRoleName,
+    SCAN_STAGE_FLOW,
+  );
 
-  if (
-    nextStage === OrderStatus.Shipped &&
-    order.orderStatus === OrderStatus.Balance_Pending
-  ) {
-    return null;
-  }
-
-  if (currentStage === nextStage) {
-    return null;
-  }
-
-  return nextStage;
+  return {
+    currentStage,
+    targetStage: nextStage,
+    flowStages: SCAN_STAGE_FLOW,
+  };
 }
 
 
