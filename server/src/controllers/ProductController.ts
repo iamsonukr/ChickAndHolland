@@ -20,7 +20,7 @@ import { productUpload } from "../lib/upload";
 import CONFIG from "../config";
 import { NotFound } from "../errors/Errors";
 import ProductImage from "../models/ProductImage";
-import { Brackets, In, Like, Not, IsNull } from "typeorm";
+import { Brackets, EntityManager, In, Like, Not, IsNull } from "typeorm";
 import fs from "fs";
 import path from "path";
 import db from "../db";
@@ -63,6 +63,61 @@ const PRODUCT_QUERY_ADMIN_EMAIL =
 
 const RES_NAME = "Product";
 const PRODUCT_IMAGES = "Product Images";
+const PRODUCT_CODE_MAX_LENGTH = 30;
+
+const clearProductCaches = (action: string) => {
+  try {
+    CacheController.clearCacheByName("products");
+    CacheController.clearCacheByName("search");
+  } catch (cacheError) {
+    console.error(`Error clearing product caches after ${action}:`, cacheError);
+  }
+};
+
+const getArchivedProductCode = async (
+  manager: EntityManager,
+  product: Product
+) => {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const suffix =
+      attempt === 0 ? `_D${product.id}` : `_D${product.id}_${attempt}`;
+    const archivedCode =
+      suffix.length >= PRODUCT_CODE_MAX_LENGTH
+        ? suffix.slice(-PRODUCT_CODE_MAX_LENGTH)
+        : `${product.productCode.slice(
+            0,
+            PRODUCT_CODE_MAX_LENGTH - suffix.length
+          )}${suffix}`;
+
+    const conflict = await manager.findOne(Product, {
+      where: { productCode: archivedCode },
+    });
+
+    if (!conflict || conflict.id === product.id) {
+      return archivedCode;
+    }
+  }
+
+  throw new Error("Unable to archive deleted product code");
+};
+
+const archiveDeletedProductCode = async (
+  manager: EntityManager,
+  product: Product
+) => {
+  const archivedProductCode = await getArchivedProductCode(manager, product);
+
+  if (archivedProductCode !== product.productCode) {
+    await manager.update(
+      Product,
+      { id: product.id },
+      { productCode: archivedProductCode }
+    );
+    product.productCode = archivedProductCode;
+  }
+
+  return archivedProductCode;
+};
 
 router.get(
   "/styleNo/:no",
@@ -2067,7 +2122,36 @@ router.delete(
       });
     }
 
-    await Product.update({ id: Number(id) }, { deletedAt: new Date() });
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const deletedAt = new Date();
+      const archivedProductCode = await getArchivedProductCode(
+        queryRunner.manager,
+        product
+      );
+
+      await queryRunner.manager.update(
+        Product,
+        { id: Number(id) },
+        {
+          deletedAt,
+          productCode: archivedProductCode,
+        }
+      );
+
+      await queryRunner.commitTransaction();
+      clearProductCaches("delete");
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
 
     res.json({
       success: true,
@@ -2624,14 +2708,13 @@ router.post(
       currencyBasedPricing = [], // Default to empty array if not provided
     } = req.body;
 
-    // check if product already exists with the same product code
-    const product = await Product.findOne({
+    const existingProduct = await Product.findOne({
       where: {
         productCode,
       },
     });
 
-    if (product) {
+    if (existingProduct && !existingProduct.deletedAt) {
       return res.status(400).json({
         success: false,
         message: "Product with the same code already exists",
@@ -2685,6 +2768,10 @@ router.post(
     await queryRunner.startTransaction();
 
     try {
+      if (existingProduct?.deletedAt) {
+        await archiveDeletedProductCode(queryRunner.manager, existingProduct);
+      }
+
       // Create the main product
       const newProduct = new Product();
       newProduct.productCode = productCode;
@@ -2727,7 +2814,7 @@ router.post(
       // Commit the transaction
       await queryRunner.commitTransaction();
 
-      CacheController.clearCacheByName("products");
+      clearProductCaches("create");
 
       res.json({
         success: true,
@@ -2770,15 +2857,19 @@ router.patch(
       currencyBasedPricing = [], // Default to empty array if not provided
     } = req.body;
     const { id } = req.params;
+    const productId = Number(id);
 
-    // Check if product already exists with the same product code (excluding current product)
-    const existingProduct = await Product.query(
-      `select id from products where id != ${Number(
-        id
-      )} and productCode = '${productCode}'`
-    );
+    const existingProduct = await Product.findOne({
+      where: {
+        productCode,
+      },
+    });
 
-    if (existingProduct.length > 0) {
+    if (
+      existingProduct &&
+      existingProduct.id !== productId &&
+      !existingProduct.deletedAt
+    ) {
       return res.status(400).json({
         success: false,
         message: "Product with the same code already exists",
@@ -2828,7 +2919,7 @@ router.patch(
 
     const patchProduct = await Product.findOne({
       where: {
-        id: Number(id),
+        id: productId,
       },
       relations: ["currencyPricing"], // Load existing currency pricing
     });
@@ -2846,6 +2937,13 @@ router.patch(
     await queryRunner.startTransaction();
 
     try {
+      if (
+        existingProduct?.deletedAt &&
+        existingProduct.id !== patchProduct.id
+      ) {
+        await archiveDeletedProductCode(queryRunner.manager, existingProduct);
+      }
+
       // Update main product fields
       patchProduct.productCode = productCode;
       patchProduct.category = category;
@@ -2863,7 +2961,7 @@ router.patch(
       // Handle currency-based pricing updates
       // First, remove all existing currency pricing for this product
       await queryRunner.manager.delete(ProductCurrencyPricing, {
-        product: { id: Number(id) },
+        product: { id: productId },
       });
 
       // Then, create new currency pricing entries
@@ -2893,7 +2991,7 @@ router.patch(
       // Commit the transaction
       await queryRunner.commitTransaction();
 
-      CacheController.clearCacheByName("products");
+      clearProductCaches("update");
 
       res.json({
         success: true,

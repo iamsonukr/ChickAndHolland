@@ -13,10 +13,13 @@ export async function ContentLayout({ title, children }: ContentLayoutProps) {
   const rolePermissions = cookieStore.get("rolePermissions")?.value;
   const token = cookieStore.get("token")?.value;
   const userId = cookieStore.get("userId")?.value;
+  const retailerId = cookieStore.get("retailerId")?.value;
   let accountDisplayName = cookieStore.get("accountDisplayName")?.value;
   let accountUsername = cookieStore.get("accountUsername")?.value;
+  let accountStoreName = cookieStore.get("accountStoreName")?.value;
   const fallbackName = userType === "RETAILER" ? "Retailer" : "Admin";
   const fallbackUsername = userType === "RETAILER" ? "retailer" : "admin";
+  const fallbackStoreName = userType === "RETAILER" ? "Store" : "Chic & Holland";
 
   if (
     userType === "ADMIN" &&
@@ -39,6 +42,28 @@ export async function ContentLayout({ title, children }: ContentLayoutProps) {
 
         accountDisplayName ||= userData?.name || userData?.username;
         accountUsername ||= userData?.username || accountDisplayName;
+        accountStoreName ||= userData?.storeName;
+      }
+    } catch {}
+  }
+
+  if (userType === "RETAILER" && retailerId && !accountStoreName) {
+    try {
+      const response = await fetch(`${API_URL}/retailers/${retailerId}`, {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const retailerData = data?.retailer ?? data?.data ?? data;
+
+        accountDisplayName ||= retailerData?.name;
+        accountUsername ||= retailerData?.username || accountDisplayName;
+        accountStoreName ||= retailerData?.storeName;
       }
     } catch {}
   }
@@ -48,6 +73,7 @@ export async function ContentLayout({ title, children }: ContentLayoutProps) {
     rolePermissions,
     name: accountDisplayName || fallbackName,
     username: accountUsername || accountDisplayName || fallbackUsername,
+    storeName: accountStoreName || fallbackStoreName,
   };
 
   return (

@@ -168,6 +168,7 @@ export const loginForm = async (values: LoginForm) => {
     const cookieStore = await cookies();
     const accountUsername = data.username || values.userName;
     const accountDisplayName = data.name || accountUsername || "Admin";
+    const accountStoreName = data.storeName || "Chic & Holland";
 
     cookieStore.set("token", token, {
       maxAge: oneDay,
@@ -185,6 +186,9 @@ export const loginForm = async (values: LoginForm) => {
       maxAge: oneDay,
     });
     cookieStore.set("accountUsername", accountUsername, {
+      maxAge: oneDay,
+    });
+    cookieStore.set("accountStoreName", accountStoreName, {
       maxAge: oneDay,
     });
 
@@ -223,6 +227,7 @@ export const retailerLoginForm = async (values: LoginForm) => {
     const accountUsername = data.username || values.userName;
     const accountDisplayName =
       data.name || data.retailerName || accountUsername || "Retailer";
+    const accountStoreName = data.storeName || "Store";
     const cookieStore = await cookies();
 
     cookieStore.set("token", data.token, {
@@ -274,6 +279,13 @@ export const retailerLoginForm = async (values: LoginForm) => {
       path: "/",
     });
 
+    cookieStore.set("accountStoreName", accountStoreName, {
+      httpOnly: false,
+      maxAge: oneDay,
+      sameSite: "lax",
+      path: "/",
+    });
+
     return {
       success: true,
       message: "Login successful",
@@ -299,6 +311,7 @@ export const logout = actionClient.action(async () => {
     cookieStore.delete("currencyId");
     cookieStore.delete("accountDisplayName");
     cookieStore.delete("accountUsername");
+    cookieStore.delete("accountStoreName");
   } catch (error) {
     console.error(error);
     return {
