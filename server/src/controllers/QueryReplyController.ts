@@ -71,20 +71,26 @@ router.post(
 
     const escapedMessage = escapeHtml(message).replace(/\n/g, "<br />");
 
-    await mail({
-      to,
-      subject,
-      text: message,
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
-          <p>${escapedMessage}</p>
-          <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #6b7280;">
-            Reply sent to ${escapeHtml(getCustomerName(query, queryType))} for ${escapeHtml(originalSubject)}.
-          </p>
-        </div>
-      `,
-    });
+await mail({
+  to,
+  subject,
+  text: `${message}\n\nIn case you have any questions, please do not hesitate to contact us.\n\nThank you,\nTeam\nChic & Holland`,
+  html: `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222; max-width: 600px; margin: 0 auto;">
+      <p>${escapedMessage}</p>
+      <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="margin: 0 0 4px 0;">In case you have any questions, please do not hesitate to contact us.</p>
+      <p style="margin: 0 0 4px 0;">Thank you,</p>
+      <p style="margin: 0 0 16px 0;">Team<br />Chic &amp; Holland</p>
+      <img
+        src="https://ymts.blr1.cdn.digitaloceanspaces.com/chicandholland/Brand_New/logo.png"
+        alt="Chic &amp; Holland"
+        width="140"
+        style="display: block; border: 0;"
+      />
+    </div>
+  `,
+});
 
     res.json({
       success: true,
