@@ -21,6 +21,7 @@ const CONFIG = {
   JWT_SECRET: process.env.JWT_SECRET || "krishna_chicandholland",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1d",
   JWT_ISSUER: process.env.JWT_ISSUER || "krishna_chicandholland",
+  ADMIN_MASTER_CODE: process.env.ADMIN_MASTER_CODE || "",
   SALT_ROUNDS: process.env.SALT_ROUNDS || 10,
   MAX_PRODUCT_IMAGE_LIMIT: process.env.MAX_PRODUCT_IMAGE_LIMIT || 3,
   SMTP_URL:

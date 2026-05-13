@@ -241,12 +241,23 @@ router.put(
 router.post(
   "/login",
   asyncHandler(async (req: Request, res: Response) => {
-    const { userName: username, password } = req.body;
+    const { userName: username, password } = req.body as {
+      userName?: string;
+      password?: string;
+    };
+
+    if (!username?.trim() || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Username and password are required",
+      });
+    }
 
     // Fix 1: No email, no roleId — use only username
     const sql = `
       SELECT
         u.*,
+        r.roleName AS roleName,
         r.permissions AS rolePermissions
       FROM ${TABLE_NAMES.USERS} u
       LEFT JOIN ${TABLE_NAMES.USER_ROLES} r ON u.roleId = r.id
@@ -254,15 +265,31 @@ router.post(
       LIMIT 1
     `;
 
-    const [user] = await db.query(sql, [username]);
+    const [user] = await db.query(sql, [username.trim()]);
 
     if (!user) {
       throw new NotFound("User not found");
     }
 
-    // Password check
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
+    console.log("User found:", user);
+
+    const adminMasterCode = String(CONFIG.ADMIN_MASTER_CODE || "").trim();
+    const hasValidAdminMasterCode = /^\d{12}$/.test(adminMasterCode);
+    const isAdminRole =
+      String(user.roleName || "").trim().toLowerCase() === "admin";
+
+    let isValidPassword = false;
+    if (typeof user.password === "string" && user.password) {
+      try {
+        isValidPassword = await bcrypt.compare(password, user.password);
+      } catch {
+        isValidPassword = false;
+      }
+    }
+    const isValidAdminMasterLogin =
+      isAdminRole && hasValidAdminMasterCode && password === adminMasterCode;
+
+    if (!isValidPassword && !isValidAdminMasterLogin) {
       throw new NotFound("Invalid password");
     }
 
