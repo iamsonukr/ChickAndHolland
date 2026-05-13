@@ -72,6 +72,7 @@ import { convertWebPToJPG } from "./StockAcceptedForm";
 import RetailerPdf from "./RetailerPdf";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
 import { UploadedFileType } from "@/hooks/useCreateOrder";
+import { downloadOrderPPT } from "@/lib/utils/exportPPT";
 
 const formatOriginalSizeDisplay = (item: {
   original_size?: unknown;
@@ -1585,7 +1586,7 @@ const FreshOrdersAcceptedForm = ({
               </div>
 
               {/* 🔹 Download Button */}
-              <div className="flex justify-end py-3">
+              <div className="flex flex-wrap justify-end gap-3 py-3">
                 <PDFDownloadLink
                   document={<RetailerPdf orderData={previewData} />}
                   fileName={`${previewData.purchaseOrderNo}.pdf`}
@@ -1594,6 +1595,13 @@ const FreshOrdersAcceptedForm = ({
                     Download PDF
                   </button>
                 </PDFDownloadLink>
+                <button
+                  type="button"
+                  onClick={() => downloadOrderPPT(previewData)}
+                  className="rounded bg-green-600 px-4 py-2 text-white shadow hover:bg-green-700"
+                >
+                  Download PPT
+                </button>
               </div>
 
               {/* 🔹 Live Preview */}

@@ -15,6 +15,7 @@ import { normalizeBarcodeValue } from "@/lib/barcodes";
 import GoBackButton from "@/components/GoBackButton";
 import { formatEuSizeText } from "@/lib/sizeConversion";
 import { PdfDownloadButton } from "@/components/pdf/PdfPreview";
+import { downloadStatusLabelPPT } from "@/lib/utils/exportStatusLabelPPT";
 
 const formatReportValue = (value: unknown) =>
   String(value ?? "").trim() || "-";
@@ -122,6 +123,44 @@ function ProgressPopup({
   );
 }
 
+function PptDownloadButton({
+  item,
+  orderType,
+  className,
+}: {
+  item: any;
+  orderType: ReportType;
+  className?: string;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const handleDownload = async () => {
+    setLoading(true);
+    setFailed(false);
+
+    try {
+      await downloadStatusLabelPPT(item, orderType);
+    } catch (error) {
+      console.error("Failed to generate PPT download:", error);
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={loading}
+      onClick={handleDownload}
+    >
+      {loading ? "Generating..." : failed ? "Try again" : "Download PPT"}
+    </button>
+  );
+}
+
 function ItemCard({
   raw,
   type,
@@ -215,13 +254,21 @@ function ItemCard({
             <LabelComponent item={raw} orderType={type} />
           </div>
 
-          <PdfDownloadButton
-            sourceDocument={<PdfComponent item={raw} />}
-            fileName={`${raw.styleNo}-label.pdf`}
-            className="w-full rounded-lg bg-black px-3 py-3 text-xs sm:text-sm font-medium text-white min-h-[44px] hover:bg-gray-900 disabled:opacity-70"
-            label="Download PDF"
-            loadingLabel="Generating..."
-          />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <PdfDownloadButton
+              sourceDocument={<PdfComponent item={raw} />}
+              fileName={`${raw.styleNo}-label.pdf`}
+              className="min-h-[44px] w-full rounded-lg bg-black px-3 py-3 text-xs font-medium text-white hover:bg-gray-900 disabled:opacity-70 sm:text-sm"
+              label="Download PDF"
+              loadingLabel="Generating..."
+            />
+
+            <PptDownloadButton
+              item={raw}
+              orderType={type}
+              className="min-h-[44px] w-full rounded-lg bg-green-600 px-3 py-3 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
+            />
+          </div>
         </div>
       </div>
     </>

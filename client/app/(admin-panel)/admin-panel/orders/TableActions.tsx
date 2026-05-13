@@ -514,9 +514,8 @@ const fetchDetails = async () => {
   Send Mail <Mail className="ml-2" />
 </Button>
 
-{(!hasUploadedDocument || !isUploadedPdf) && (
+{hasUploadedDocument && !isUploadedPdf && (
   <div className="flex justify-end gap-3 py-3">
-    {hasUploadedDocument ? (
       <a
         href={uploadedDocumentDownloadUrl}
         target="_blank"
@@ -525,14 +524,6 @@ const fetchDetails = async () => {
       >
         Download Uploaded File
       </a>
-    ) : (
-      <button
-        onClick={() => downloadOrderPPT(previewData)}
-        className="rounded bg-green-600 px-4 py-2 text-white"
-      >
-        Download PPT
-      </button>
-    )}
   </div>
 )}
 
@@ -569,6 +560,15 @@ const fetchDetails = async () => {
     fileName={`${previewData.purchaseOrderNo}.pdf`}
     className="mt-4"
     heightClassName="h-[90vh]"
+    extraActions={
+      <button
+        type="button"
+        onClick={() => downloadOrderPPT(previewData)}
+        className="inline-flex min-h-[38px] items-center rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700"
+      >
+        Download PPT
+      </button>
+    }
   />
 )}
 

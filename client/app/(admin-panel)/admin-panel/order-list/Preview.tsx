@@ -24,6 +24,7 @@ import RetailerPdf from "../request/RetailerPdf";
 import { Presentation } from "lucide-react";
 import { API_URL } from "@/lib/constants";
 import PdfPreview from "@/components/pdf/PdfPreview";
+import { downloadOrderPPT } from "@/lib/utils/exportPPT";
 
 const resolveUploadedDocumentUrl = (filePath?: string | null) => {
   if (!filePath) return "";
@@ -302,6 +303,15 @@ const Preview = ({
                 fileName={`${data.purchaseOrderNo}.pdf`}
                 className="mt-4"
                 heightClassName="h-[75vh]"
+                extraActions={
+                  <button
+                    type="button"
+                    onClick={() => downloadOrderPPT(data)}
+                    className="inline-flex min-h-[38px] items-center rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700"
+                  >
+                    Download PPT
+                  </button>
+                }
               />
             )}
           </>

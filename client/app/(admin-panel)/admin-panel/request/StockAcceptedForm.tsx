@@ -68,6 +68,7 @@ import RetailerPdf from "./RetailerPdf";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
 import { UploadedFileType } from "@/hooks/useCreateOrder";
 import { API_URL } from "@/lib/constants";
+import { downloadOrderPPT } from "@/lib/utils/exportPPT";
 
 const getTrailingPoNumber = (poNumber?: string | null) => {
   const match = poNumber?.match(/(\d+)\s*$/);
@@ -1248,7 +1249,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                 </div>
               </div>
             </div>
-            <div className="flex justify-end py-3">
+            <div className="flex flex-wrap justify-end gap-3 py-3">
               <PDFDownloadLink
                 document={<RetailerPdf orderData={previewData} />}
                 fileName={`${previewData?.purchaseOrderNo}.pdf`}
@@ -1257,6 +1258,13 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                   Download PDF
                 </button>
               </PDFDownloadLink>
+              <button
+                type="button"
+                onClick={() => downloadOrderPPT(previewData)}
+                className="rounded bg-green-600 px-4 py-2 text-white shadow hover:bg-green-700"
+              >
+                Download PPT
+              </button>
             </div>
 
             <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>

@@ -173,14 +173,6 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
             <div className="flex-1 rounded-lg border p-2">
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="font-semibold">Preview</h2>
-                <div className="flex items-center gap-3">
-                  <Button
-                    className="bg-blue-600 text-white"
-                    onClick={() => downloadOrderPPT(previewData)}
-                  >
-                    Download PPT
-                  </Button>
-                </div>
               </div>
 
               <PdfPreview
@@ -193,6 +185,15 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
                 }
                 fileName={`${previewData.purchaseOrderNo}.pdf`}
                 heightClassName="h-[75vh]"
+                extraActions={
+                  <Button
+                    type="button"
+                    className="inline-flex min-h-[38px] items-center rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700"
+                    onClick={() => downloadOrderPPT(previewData)}
+                  >
+                    Download PPT
+                  </Button>
+                }
               />
             </div>
           </div>

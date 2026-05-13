@@ -253,10 +253,14 @@ function PdfPageCanvas({
 
         if (!context) throw new Error("Canvas rendering is not available");
 
-        canvas.width = Math.floor(viewport.width * outputScale);
-        canvas.height = Math.floor(viewport.height * outputScale);
-        canvas.style.width = `${Math.floor(viewport.width)}px`;
-        canvas.style.height = `${Math.floor(viewport.height)}px`;
+        const cssWidth = Math.max(1, Math.floor(viewport.width));
+        const cssHeight = Math.max(1, Math.floor(viewport.height));
+
+        canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
+        canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
+        canvas.style.width = `${cssWidth}px`;
+        canvas.style.height = "auto";
+        canvas.style.aspectRatio = `${cssWidth} / ${cssHeight}`;
 
         context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
         context.clearRect(0, 0, viewport.width, viewport.height);
@@ -293,7 +297,7 @@ function PdfPageCanvas({
         <canvas
           ref={canvasRef}
           aria-label={`PDF page ${pageNumber}`}
-          className="max-w-full rounded bg-white shadow-sm"
+          className="block h-auto max-w-full rounded bg-white shadow-sm"
         />
       )}
     </div>
@@ -311,6 +315,7 @@ interface PdfPreviewProps {
   heightClassName?: string;
   showActions?: boolean;
   autoExternalFallback?: boolean;
+  extraActions?: ReactNode;
 }
 
 export default function PdfPreview({
@@ -324,6 +329,7 @@ export default function PdfPreview({
   heightClassName = "h-[75vh]",
   showActions = true,
   autoExternalFallback = true,
+  extraActions,
 }: PdfPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fallbackAttemptedRef = useRef(false);
@@ -353,7 +359,7 @@ export default function PdfPreview({
 
     updateWidth();
 
-    if (!("ResizeObserver" in window)) {
+    if (typeof ResizeObserver === "undefined") {
       window.addEventListener("resize", updateWidth);
       return () => window.removeEventListener("resize", updateWidth);
     }
@@ -425,7 +431,9 @@ export default function PdfPreview({
           if (!cancelled) setResolvedUrl(url);
         }
 
-        loadedDocument = await loadingTask?.promise;
+        if (!loadingTask) return;
+
+        loadedDocument = await loadingTask.promise;
         if (!loadedDocument || cancelled) return;
 
         setPdfDocument(loadedDocument);
@@ -534,8 +542,9 @@ export default function PdfPreview({
               className="inline-flex min-h-[38px] items-center gap-1.5 rounded bg-black px-3 py-2 text-xs font-medium text-white hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download className="h-3.5 w-3.5" />
-              Download
+              Download PDF
             </button>
+            {extraActions}
           </div>
         </div>
       )}
