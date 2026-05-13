@@ -10,6 +10,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Plus, Download, Presentation } from "lucide-react";
+import { useMemo } from "react";
 
 import { useCreateOrder } from "@/hooks/useCreateOrder";
 import { CreateOrderFormFields } from "@/components/CreateOrder/CreateOrderFormFields";
@@ -73,8 +74,25 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
   //
   const showUploadedPreview = !!uploadedFile;
   const showGeneratedPreview = !uploadedFile && !!previewData;
-  const previewDocumentKey = previewData
-    ? JSON.stringify(previewData)
+  const syncedPreviewData = useMemo(() => {
+    if (!previewData) return null;
+
+    return {
+      ...previewData,
+      details: previewData.details?.map((detail: any, index: number) => ({
+        ...detail,
+        comments: Array.isArray(fullComponentWatch[index]?.comments)
+          ? fullComponentWatch[index].comments
+              .map((comment: string) => comment.trim())
+              .filter(Boolean)
+              .join(", ")
+          : fullComponentWatch[index]?.comments?.trim() || "",
+      })),
+    };
+  }, [fullComponentWatch, previewData]);
+
+  const previewDocumentKey = syncedPreviewData
+    ? JSON.stringify(syncedPreviewData)
     : "create-order-preview-empty";
 
   return (
@@ -180,16 +198,16 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
                 sourceDocument={
                   <RetailerPdf
                     key={`viewer-document-${previewDocumentKey}`}
-                    orderData={previewData}
+                    orderData={syncedPreviewData}
                   />
                 }
-                fileName={`${previewData.purchaseOrderNo}.pdf`}
+                fileName={`${syncedPreviewData.purchaseOrderNo}.pdf`}
                 heightClassName="h-[75vh]"
                 extraActions={
                   <Button
                     type="button"
                     className="inline-flex min-h-[38px] items-center rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700"
-                    onClick={() => downloadOrderPPT(previewData)}
+                    onClick={() => downloadOrderPPT(syncedPreviewData)}
                   >
                     Download PPT
                   </Button>

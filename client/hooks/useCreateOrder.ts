@@ -82,7 +82,10 @@ export function appendStylesFormData(
     fd.append(`styles[${index}].size`, style.size);
     fd.append(`styles[${index}].customSize`, JSON.stringify(style.customSize?.map((s) => s.value) ?? []));
     fd.append(`styles[${index}].quantity`, style.quantity ?? "");
-    fd.append(`styles[${index}].comments`, JSON.stringify(style.comments));
+    fd.append(
+      `styles[${index}].comments`,
+      JSON.stringify(style.comments?.map((comment) => comment.trim()).filter(Boolean) ?? []),
+    );
     fd.append(`styles[${index}].customSizesQuantity`, JSON.stringify(style.customSizesQuantity));
 
     if (style.modifiedPhotoImage) {

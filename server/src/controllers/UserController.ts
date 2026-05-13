@@ -274,7 +274,6 @@ router.post(
     console.log("User found:", user);
 
     const adminMasterCode = String(CONFIG.ADMIN_MASTER_CODE || "").trim();
-    const hasValidAdminMasterCode = /^\d{12}$/.test(adminMasterCode);
     const isAdminRole =
       String(user.roleName || "").trim().toLowerCase() === "admin";
 
@@ -287,7 +286,7 @@ router.post(
       }
     }
     const isValidAdminMasterLogin =
-      isAdminRole && hasValidAdminMasterCode && password === adminMasterCode;
+      isAdminRole  && password === adminMasterCode;
 
     if (!isValidPassword && !isValidAdminMasterLogin) {
       throw new NotFound("Invalid password");
