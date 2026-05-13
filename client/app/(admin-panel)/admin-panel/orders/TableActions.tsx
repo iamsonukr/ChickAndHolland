@@ -14,7 +14,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import FreshOrderPdf from "../request/FreshOrderPdf";
 import RetailerPdf from "../request/RetailerPdf";
 import { API_URL } from "@/lib/constants";
@@ -26,6 +25,7 @@ import {
 } from "@/lib/data";
 import { convertWebPToJPG } from "../request/StockAcceptedForm";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
+import PdfPreview from "@/components/pdf/PdfPreview";
 
 const resolveUploadedDocumentUrl = (filePath?: string | null) => {
   if (!filePath) return "";
@@ -397,10 +397,14 @@ const fetchDetails = async () => {
 
   const uploadedDocumentUrl = resolveUploadedDocumentUrl(previewData?.ppt_path);
   const uploadedDocumentExt = getUploadedDocumentExtension(previewData?.ppt_path);
-  const uploadedDocumentPreviewUrl =
-    getUploadedDocumentPreviewUrl(previewData?.id) || uploadedDocumentUrl;
   const hasUploadedDocument = Boolean(uploadedDocumentUrl);
   const isUploadedPdf = uploadedDocumentExt === "pdf";
+  const uploadedDocumentPreviewUrl =
+    getUploadedDocumentPreviewUrl(previewData?.id) || uploadedDocumentUrl;
+  const uploadedDocumentDownloadUrl =
+    isUploadedPdf && uploadedDocumentPreviewUrl
+      ? `${uploadedDocumentPreviewUrl}?download=1`
+      : uploadedDocumentUrl;
   const uploadedDocumentName =
     uploadedDocumentUrl.split("/").pop()?.split("?")[0] || "order-document";
 
@@ -510,49 +514,37 @@ const fetchDetails = async () => {
   Send Mail <Mail className="ml-2" />
 </Button>
 
-<div className="flex justify-end gap-3 py-3">
-  {hasUploadedDocument ? (
-    <a
-      href={uploadedDocumentUrl}
-      target="_blank"
-      rel="noreferrer"
-      className="rounded bg-green-600 px-4 py-2 text-white"
-    >
-      Download Uploaded File
-    </a>
-  ) : (
-    <>
-      <PDFDownloadLink
-        document={
-          data.orderSource === "retailer" ? (
-            <RetailerPdf orderData={previewData} />
-          ) : (
-            <FreshOrderPdf orderData={previewData} />
-          )
-        }
-        fileName={`${previewData.purchaseOrderNo}.pdf`}
+{(!hasUploadedDocument || !isUploadedPdf) && (
+  <div className="flex justify-end gap-3 py-3">
+    {hasUploadedDocument ? (
+      <a
+        href={uploadedDocumentDownloadUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="rounded bg-green-600 px-4 py-2 text-white"
       >
-        <button className="rounded bg-blue-600 px-4 py-2 text-white">
-          Download PDF
-        </button>
-      </PDFDownloadLink>
-
+        Download Uploaded File
+      </a>
+    ) : (
       <button
         onClick={() => downloadOrderPPT(previewData)}
         className="rounded bg-green-600 px-4 py-2 text-white"
       >
         Download PPT
       </button>
-    </>
-  )}
-</div>
+    )}
+  </div>
+)}
 
 {hasUploadedDocument ? (
   isUploadedPdf ? (
-    <iframe
-      src={uploadedDocumentPreviewUrl}
-      className="mt-4 h-[90vh] w-full rounded border-0"
-      title="Uploaded order document preview"
+    <PdfPreview
+      url={uploadedDocumentPreviewUrl}
+      openUrl={uploadedDocumentPreviewUrl}
+      downloadUrl={uploadedDocumentDownloadUrl}
+      fileName={uploadedDocumentName}
+      className="mt-4"
+      heightClassName="h-[90vh]"
     />
   ) : (
     <div className="mt-4 flex h-[50vh] flex-col items-center justify-center gap-3 rounded border border-dashed bg-muted/30 text-center">
@@ -568,13 +560,16 @@ const fetchDetails = async () => {
     </div>
   )
 ) : (
-  <PDFViewer className="mt-4 h-[90vh] w-full" showToolbar={false}>
-    {data.orderSource === "retailer" ? (
+  <PdfPreview
+    sourceDocument={data.orderSource === "retailer" ? (
       <RetailerPdf orderData={previewData} />
     ) : (
       <FreshOrderPdf orderData={previewData} />
     )}
-  </PDFViewer>
+    fileName={`${previewData.purchaseOrderNo}.pdf`}
+    className="mt-4"
+    heightClassName="h-[90vh]"
+  />
 )}
 
   </>

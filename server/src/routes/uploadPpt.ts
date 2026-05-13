@@ -9,7 +9,9 @@ import { storeFileInS3, getFullUrl } from "../lib/s3"; // 👈 tumhara existing 
 const router = Router();
 
 const getDocumentContentType = (fileName: string) => {
-  switch (path.extname(fileName).toLowerCase()) {
+  const cleanFileName = fileName.split("?")[0];
+
+  switch (path.extname(cleanFileName).toLowerCase()) {
     case ".pdf":
       return "application/pdf";
     case ".ppt":
@@ -45,7 +47,7 @@ const findOrderWithDocument = async (orderId: number) => {
 // 🔥 MEMORY storage (NO DISK)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 75 * 1024 * 1024 }, // 75MB
 });
 
 // 📌 Upload PPT → S3 → Save URL in DB
@@ -136,8 +138,16 @@ router.get("/preview/:orderId", async (req: Request, res: Response) => {
     }
 
     const fileUrl = resolveStoredFileUrl(record.ppt_path, req);
-    const upstreamResponse = await axios.get<ArrayBuffer>(fileUrl, {
-      responseType: "arraybuffer",
+    const range = req.headers.range;
+    const upstreamResponse = await axios.get(fileUrl, {
+      responseType: "stream",
+      headers: {
+        "Cache-Control": "no-cache",
+        ...(range ? { Range: range } : {}),
+      },
+      maxRedirects: 5,
+      validateStatus: (status) =>
+        (status >= 200 && status < 300) || status === 304,
     });
 
     if (upstreamResponse.status < 200 || upstreamResponse.status >= 300) {
@@ -147,7 +157,6 @@ router.get("/preview/:orderId", async (req: Request, res: Response) => {
       });
     }
 
-    const fileBuffer = Buffer.from(upstreamResponse.data);
     const safeFileName = getSafeFileName(record.ppt_path);
     const upstreamContentType = upstreamResponse.headers["content-type"];
     const contentType =
@@ -155,13 +164,39 @@ router.get("/preview/:orderId", async (req: Request, res: Response) => {
       upstreamContentType.includes("application/octet-stream")
         ? getDocumentContentType(record.ppt_path)
         : upstreamContentType;
+    const dispositionType = req.query.download === "1" ? "attachment" : "inline";
 
+    res.status(upstreamResponse.status === 206 ? 206 : 200);
     res.setHeader("Content-Type", contentType);
     res.setHeader(
       "Content-Disposition",
-      `inline; filename="${safeFileName}"`,
+      `${dispositionType}; filename="${safeFileName}"`,
     );
-    return res.send(fileBuffer);
+    res.setHeader("Accept-Ranges", "bytes");
+    res.setHeader("Cache-Control", "private, no-store, max-age=0, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+
+    ["content-length", "content-range", "etag", "last-modified"].forEach(
+      (header) => {
+        const value = upstreamResponse.headers[header];
+        if (value) res.setHeader(header, value);
+      },
+    );
+
+    upstreamResponse.data.on("error", (streamError: Error) => {
+      console.error("Uploaded document stream failed:", streamError);
+      if (!res.headersSent) {
+        res.status(502).json({
+          success: false,
+          message: "Failed to stream uploaded document",
+        });
+      } else {
+        res.destroy(streamError);
+      }
+    });
+
+    return upstreamResponse.data.pipe(res);
   } catch (error) {
     console.error("Failed to preview uploaded PPT/PDF:", error);
     return res.status(500).json({

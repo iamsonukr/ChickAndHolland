@@ -9,13 +9,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Plus, Download, Presentation, FileText } from "lucide-react";
-import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
+import { Plus, Download, Presentation } from "lucide-react";
 
 import { useCreateOrder } from "@/hooks/useCreateOrder";
 import { CreateOrderFormFields } from "@/components/CreateOrder/CreateOrderFormFields";
 import RetailerPdf from "../request/RetailerPdf";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
+import PdfPreview from "@/components/pdf/PdfPreview";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -125,26 +125,27 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="font-semibold">Preview</h2>
                 <div className="flex items-center gap-2">
-                  {/* Direct download of the file the user uploaded */}
-                  <a
-                    href={uploadedFileObjectUrl ?? "#"}
-                    download={uploadedFile?.name ?? "order-document"}
-                    className="inline-flex"
-                  >
-                    <Button variant="outline" size="sm" className="gap-1.5">
-                      <Download className="h-3.5 w-3.5" />
-                      Download {uploadedFileType?.toUpperCase()}
-                    </Button>
-                  </a>
+                  {uploadedFileType === "ppt" && (
+                    <a
+                      href={uploadedFileObjectUrl ?? "#"}
+                      download={uploadedFile?.name ?? "order-document"}
+                      className="inline-flex"
+                    >
+                      <Button variant="outline" size="sm" className="gap-1.5">
+                        <Download className="h-3.5 w-3.5" />
+                        Download {uploadedFileType?.toUpperCase()}
+                      </Button>
+                    </a>
+                  )}
                 </div>
               </div>
 
               {/* PDF — render inline */}
               {uploadedFileType === "pdf" && uploadedFileObjectUrl && (
-                <iframe
-                  src={uploadedFileObjectUrl}
-                  className="h-[75vh] w-full rounded border-0"
-                  title="Uploaded PDF preview"
+                <PdfPreview
+                  file={uploadedFile}
+                  fileName={uploadedFile?.name ?? "order-document.pdf"}
+                  heightClassName="h-[75vh]"
                 />
               )}
 
@@ -173,25 +174,6 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="font-semibold">Preview</h2>
                 <div className="flex items-center gap-3">
-                  <PDFDownloadLink
-                    key={`download-${previewDocumentKey}`}
-                    document={
-                      <RetailerPdf
-                        key={`document-${previewDocumentKey}`}
-                        orderData={previewData}
-                      />
-                    }
-                    fileName={`${previewData.purchaseOrderNo}.pdf`}
-                  >
-                    {({ loading: pdfLoading }) =>
-                      pdfLoading ? (
-                        <Button disabled>Preparing PDF...</Button>
-                      ) : (
-                        <Button className="bg-green-600 text-white">Download PDF</Button>
-                      )
-                    }
-                  </PDFDownloadLink>
-
                   <Button
                     className="bg-blue-600 text-white"
                     onClick={() => downloadOrderPPT(previewData)}
@@ -201,16 +183,17 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
                 </div>
               </div>
 
-              <PDFViewer
+              <PdfPreview
                 key={`viewer-${previewDocumentKey}`}
-                className="h-[75vh] w-full"
-                showToolbar={false}
-              >
-                <RetailerPdf
-                  key={`viewer-document-${previewDocumentKey}`}
-                  orderData={previewData}
-                />
-              </PDFViewer>
+                sourceDocument={
+                  <RetailerPdf
+                    key={`viewer-document-${previewDocumentKey}`}
+                    orderData={previewData}
+                  />
+                }
+                fileName={`${previewData.purchaseOrderNo}.pdf`}
+                heightClassName="h-[75vh]"
+              />
             </div>
           </div>
         )}

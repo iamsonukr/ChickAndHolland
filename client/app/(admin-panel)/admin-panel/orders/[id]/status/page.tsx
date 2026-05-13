@@ -8,13 +8,13 @@ import StatusLabelBox from "@/components/StatusLabelBox";
 import StatusLabelBox1 from "@/components/StoreLable";
 import StatusScannerButton from "./StatusScannerButton";
 
-import { PDFDownloadLink } from "@react-pdf/renderer";
 import LabelPdf from "@/components/LabelPdf";
 import LabelPdf1 from "@/components/LabelBox";
 import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
 import { normalizeBarcodeValue } from "@/lib/barcodes";
 import GoBackButton from "@/components/GoBackButton";
 import { formatEuSizeText } from "@/lib/sizeConversion";
+import { PdfDownloadButton } from "@/components/pdf/PdfPreview";
 
 const formatReportValue = (value: unknown) =>
   String(value ?? "").trim() || "-";
@@ -215,20 +215,13 @@ function ItemCard({
             <LabelComponent item={raw} orderType={type} />
           </div>
 
-          <PDFDownloadLink
-            document={<PdfComponent item={raw} />}
+          <PdfDownloadButton
+            sourceDocument={<PdfComponent item={raw} />}
             fileName={`${raw.styleNo}-label.pdf`}
-            className="w-full"
-          >
-            {({ loading }: { loading: boolean }) => (
-              <button
-                type="button"
-                className="w-full rounded-lg bg-black px-3 py-3 text-xs sm:text-sm font-medium text-white min-h-[44px] hover:bg-gray-900"
-              >
-                {loading ? "Generating..." : "Download PDF"}
-              </button>
-            )}
-          </PDFDownloadLink>
+            className="w-full rounded-lg bg-black px-3 py-3 text-xs sm:text-sm font-medium text-white min-h-[44px] hover:bg-gray-900 disabled:opacity-70"
+            label="Download PDF"
+            loadingLabel="Generating..."
+          />
         </div>
       </div>
     </>

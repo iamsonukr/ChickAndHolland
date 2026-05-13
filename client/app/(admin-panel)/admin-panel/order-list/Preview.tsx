@@ -20,10 +20,10 @@ import {
 import { convertWebPToJPG } from "../request/StockAcceptedForm";
 import useHttp from "@/lib/hooks/usePost";
 import { toast } from "sonner";
-import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import RetailerPdf from "../request/RetailerPdf";
 import { Presentation } from "lucide-react";
 import { API_URL } from "@/lib/constants";
+import PdfPreview from "@/components/pdf/PdfPreview";
 
 const resolveUploadedDocumentUrl = (filePath?: string | null) => {
   if (!filePath) return "";
@@ -227,6 +227,10 @@ const Preview = ({
     getUploadedDocumentPreviewUrl(data?.id) || uploadedDocumentUrl;
   const hasUploadedDocument = Boolean(uploadedDocumentUrl);
   const isUploadedPdf = uploadedDocumentExt === "pdf";
+  const uploadedDocumentDownloadUrl =
+    isUploadedPdf && uploadedDocumentPreviewUrl
+      ? `${uploadedDocumentPreviewUrl}?download=1`
+      : uploadedDocumentUrl;
   const uploadedDocumentName =
     uploadedDocumentUrl.split("/").pop()?.split("?")[0] || "order-document";
 
@@ -249,32 +253,30 @@ const Preview = ({
               {loading ? "Sending..." : "Send Mail"}
             </Button>
 
-            <div className="flex justify-end py-3">
-              {hasUploadedDocument ? (
+            {(!hasUploadedDocument || !isUploadedPdf) && (
+              <div className="flex justify-end py-3">
+                {hasUploadedDocument ? (
                 <a
-                  href={isUploadedPdf ? uploadedDocumentPreviewUrl : uploadedDocumentUrl}
+                  href={uploadedDocumentDownloadUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="rounded bg-green-600 px-4 py-2 text-white"
                 >
                   Download Uploaded File
                 </a>
-              ) : (
-                <PDFDownloadLink
-                  document={<RetailerPdf orderData={data} showShippingDate={showShippingDate} />}
-                  fileName={`${data.purchaseOrderNo}.pdf`}
-                >
-                  <Button className="bg-blue-600 text-white">Download PDF</Button>
-                </PDFDownloadLink>
-              )}
-            </div>
+                ) : null}
+              </div>
+            )}
 
             {hasUploadedDocument ? (
               isUploadedPdf ? (
-                <iframe
-                  src={uploadedDocumentPreviewUrl}
-                  className="mt-4 h-[75vh] w-full rounded border-0"
-                  title="Uploaded order document preview"
+                <PdfPreview
+                  url={uploadedDocumentPreviewUrl}
+                  openUrl={uploadedDocumentPreviewUrl}
+                  downloadUrl={uploadedDocumentDownloadUrl}
+                  fileName={uploadedDocumentName}
+                  className="mt-4"
+                  heightClassName="h-[75vh]"
                 />
               ) : (
                 <div className="mt-4 flex h-[50vh] flex-col items-center justify-center gap-3 rounded border border-dashed bg-muted/30 text-center">
@@ -290,9 +292,17 @@ const Preview = ({
                 </div>
               )
             ) : (
-              <PDFViewer className="mt-4 h-[75vh] w-full" showToolbar={false}>
-                <RetailerPdf orderData={data} showShippingDate={showShippingDate} />
-              </PDFViewer>
+              <PdfPreview
+                sourceDocument={
+                  <RetailerPdf
+                    orderData={data}
+                    showShippingDate={showShippingDate}
+                  />
+                }
+                fileName={`${data.purchaseOrderNo}.pdf`}
+                className="mt-4"
+                heightClassName="h-[75vh]"
+              />
             )}
           </>
         )}

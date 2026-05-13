@@ -36,6 +36,10 @@
 // export default nextConfig;
 
 import bundleAnalyzer from "@next/bundle-analyzer";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
@@ -84,16 +88,29 @@ const nextConfig = {
     ],
   },
 
+  serverExternalPackages: [
+    "@react-pdf/renderer",
+    "@alexandernanberg/react-pdf-renderer",
+  ],
+
   experimental: {
-    serverComponentsExternalPackages: ["@react-pdf/renderer"],
-    serverExternalPackages: ["@alexandernanberg/react-pdf-renderer"],
     serverActions: {
       bodySizeLimit: "20mb",
     },
   },
 
-  eslint: {
-    ignoreDuringBuilds: true,
+  turbopack: {
+    resolveAlias: {
+      canvas: "./lib/pdf/canvas-shim.ts",
+    },
+  },
+
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      canvas: path.resolve(__dirname, "lib/pdf/canvas-shim.ts"),
+    };
+    return config;
   },
 
   typescript: {
