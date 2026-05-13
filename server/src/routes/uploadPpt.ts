@@ -37,11 +37,41 @@ const getSafeFileName = (filePath: string) => {
   return fileName.replace(/"/g, "");
 };
 
-const findOrderWithDocument = async (orderId: number) => {
-  return (
-    (await RetailerOrder.findOne({ where: { id: orderId } })) ||
-    (await Order.findOne({ where: { id: orderId } }))
-  );
+type UploadedDocumentSource = "retailer" | "order" | null;
+
+const normalizeUploadedDocumentSource = (
+  value?: string | string[] | null,
+): UploadedDocumentSource => {
+  const source = Array.isArray(value) ? value[0] : value;
+  const normalizedSource = String(source || "").toLowerCase();
+
+  if (["order", "regular", "admin"].includes(normalizedSource)) return "order";
+  if (["retailer", "retailer-order"].includes(normalizedSource)) return "retailer";
+
+  return null;
+};
+
+const findOrderWithDocument = async (
+  orderId: number,
+  source: UploadedDocumentSource = null,
+) => {
+  if (source === "order") {
+    return Order.findOne({ where: { id: orderId } });
+  }
+
+  if (source === "retailer") {
+    return RetailerOrder.findOne({ where: { id: orderId } });
+  }
+
+  const [retailerOrder, regularOrder] = await Promise.all([
+    RetailerOrder.findOne({ where: { id: orderId } }),
+    Order.findOne({ where: { id: orderId } }),
+  ]);
+
+  if (retailerOrder?.ppt_path) return retailerOrder;
+  if (regularOrder?.ppt_path) return regularOrder;
+
+  return retailerOrder || regularOrder;
 };
 
 // 🔥 MEMORY storage (NO DISK)
@@ -54,6 +84,7 @@ const upload = multer({
 router.post("/", upload.single("ppt"), async (req: any, res: Response) => {
   try {
     const orderId = Number(req.body.orderId);
+    const source = normalizeUploadedDocumentSource(req.body.source);
 
     if (!orderId)
       return res.status(400).json({
@@ -88,12 +119,17 @@ router.post("/", upload.single("ppt"), async (req: any, res: Response) => {
     const fileUrl = getFullUrl(uploaded.fileName);
 
     // 🗄️ Save URL in DB
-    let updated = await RetailerOrder.update(
-      { id: orderId },
-      { ppt_path: fileUrl },
-    );
+    let updated =
+      source === "order"
+        ? await Order.update({ id: orderId }, { ppt_path: fileUrl })
+        : source === "retailer"
+          ? await RetailerOrder.update({ id: orderId }, { ppt_path: fileUrl })
+          : await RetailerOrder.update(
+              { id: orderId },
+              { ppt_path: fileUrl },
+            );
 
-    if (!updated.affected) {
+    if (!updated.affected && !source) {
       updated = await Order.update({ id: orderId }, { ppt_path: fileUrl });
     }
 
@@ -120,6 +156,7 @@ router.post("/", upload.single("ppt"), async (req: any, res: Response) => {
 router.get("/preview/:orderId", async (req: Request, res: Response) => {
   try {
     const orderId = Number(req.params.orderId);
+    const source = normalizeUploadedDocumentSource(req.query.source as any);
 
     if (!orderId) {
       return res.status(400).json({
@@ -128,7 +165,7 @@ router.get("/preview/:orderId", async (req: Request, res: Response) => {
       });
     }
 
-    const record = await findOrderWithDocument(orderId);
+    const record = await findOrderWithDocument(orderId, source);
 
     if (!record?.ppt_path) {
       return res.status(404).json({
@@ -210,7 +247,8 @@ router.get("/preview/:orderId", async (req: Request, res: Response) => {
 router.get("/:orderId", async (req: Request, res: Response) => {
   try {
     const orderId = Number(req.params.orderId);
-    const record = await findOrderWithDocument(orderId);
+    const source = normalizeUploadedDocumentSource(req.query.source as any);
+    const record = await findOrderWithDocument(orderId, source);
 
     res.json({
       success: true,

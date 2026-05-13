@@ -2818,10 +2818,12 @@ router.get(
     const SQL = `
   SELECT 
     o.id,
+    'regular' AS orderSource,
     o.purchaeOrderNo AS order_id,
     o.orderType,
     o.orderStatus,
     o.trackingNo,
+    o.ppt_path,
     o.createdAt,
     o.orderReceivedDate,
 

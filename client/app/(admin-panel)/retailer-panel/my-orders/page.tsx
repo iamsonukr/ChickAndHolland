@@ -187,7 +187,12 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                       />
                     </TableCell>
                     <TableCell>
-                      <Preview order={item} type={item.orderType} id={item.id} />
+                      <Preview
+                        order={item}
+                        type={item.orderType}
+                        id={item.id}
+                        orderSource="regular"
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

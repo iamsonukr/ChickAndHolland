@@ -40,9 +40,33 @@ const getUploadedDocumentExtension = (filePath?: string | null) => {
   return ext ? ext.toLowerCase() : "";
 };
 
-const getUploadedDocumentPreviewUrl = (orderId?: number | null) => {
+const appendQueryParams = (
+  url: string,
+  params: Record<string, string | undefined>,
+) => {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) searchParams.set(key, value);
+  });
+
+  const query = searchParams.toString();
+  if (!query) return url;
+
+  return `${url}${url.includes("?") ? "&" : "?"}${query}`;
+};
+
+const getUploadedDocumentSource = (orderSource?: string) =>
+  orderSource === "regular" ? "order" : "retailer";
+
+const getUploadedDocumentPreviewUrl = (
+  orderId?: number | null,
+  source?: string,
+) => {
   if (!orderId) return "";
-  return `${API_URL}/upload-ppt/preview/${orderId}`;
+  return appendQueryParams(`${API_URL}/upload-ppt/preview/${orderId}`, {
+    source,
+  });
 };
 
 const TableActions = ({ data }: { data: any }) => {
@@ -397,13 +421,14 @@ const fetchDetails = async () => {
 
   const uploadedDocumentUrl = resolveUploadedDocumentUrl(previewData?.ppt_path);
   const uploadedDocumentExt = getUploadedDocumentExtension(previewData?.ppt_path);
+  const uploadedDocumentSource = getUploadedDocumentSource(data?.orderSource);
   const hasUploadedDocument = Boolean(uploadedDocumentUrl);
   const isUploadedPdf = uploadedDocumentExt === "pdf";
   const uploadedDocumentPreviewUrl =
-    getUploadedDocumentPreviewUrl(previewData?.id) || uploadedDocumentUrl;
+    getUploadedDocumentPreviewUrl(previewData?.id, uploadedDocumentSource) || uploadedDocumentUrl;
   const uploadedDocumentDownloadUrl =
     isUploadedPdf && uploadedDocumentPreviewUrl
-      ? `${uploadedDocumentPreviewUrl}?download=1`
+      ? appendQueryParams(uploadedDocumentPreviewUrl, { download: "1" })
       : uploadedDocumentUrl;
   const uploadedDocumentName =
     uploadedDocumentUrl.split("/").pop()?.split("?")[0] || "order-document";
@@ -463,6 +488,7 @@ const fetchDetails = async () => {
       const formData = new FormData();
       formData.append("ppt", file);
       formData.append("orderId", String(orderId));
+      formData.append("source", uploadedDocumentSource);
 
       const res = await fetch(API_URL + "/upload-ppt", {
         method: "POST",

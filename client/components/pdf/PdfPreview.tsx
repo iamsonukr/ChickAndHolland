@@ -396,6 +396,14 @@ export default function PdfPreview({
       renderedPagesRef.current = new Set<number>();
 
       try {
+        console.info("[PdfPreview] load:start", {
+          fileName: resolvedFileName,
+          hasFile: Boolean(file),
+          hasUrl: Boolean(url),
+          hasSourceDocument: Boolean(sourceDocument),
+          url,
+        });
+
         const pdfjs = await loadPdfJs();
 
         if (file || sourceDocument) {
@@ -439,9 +447,21 @@ export default function PdfPreview({
         setPdfDocument(loadedDocument);
         setPageCount(loadedDocument.numPages);
         setStatus("ready");
+        console.info("[PdfPreview] load:ready", {
+          fileName: resolvedFileName,
+          pages: loadedDocument.numPages,
+          url: resolvedUrl || url || null,
+        });
       } catch (error) {
         if (cancelled) return;
-        console.error("Failed to load PDF preview:", error);
+        console.error("[PdfPreview] load:error", {
+          fileName: resolvedFileName,
+          hasFile: Boolean(file),
+          hasUrl: Boolean(url),
+          hasSourceDocument: Boolean(sourceDocument),
+          url,
+          error,
+        });
         setStatus("error");
       }
     };
@@ -454,7 +474,7 @@ export default function PdfPreview({
       void loadedDocument?.destroy();
       if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
     };
-  }, [file, sourceDocument, url]);
+  }, [file, resolvedFileName, sourceDocument, url]);
 
   const handlePageRendered = useCallback((pageNumber: number) => {
     if (renderedPagesRef.current.has(pageNumber)) return;
