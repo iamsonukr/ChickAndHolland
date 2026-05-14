@@ -39,6 +39,8 @@ const CONFIG = {
     "ABXhaf7ileiFSoPqrwEfaLZRAmmvPd0PsbOlbXM0edUB22BcFH",
   QB_CLIENT_SECRET:
     process.env.QB_CLIENT_SECRET || "u4jptL93HiIavNE0PCEfj8i4ZoVNTZpOnnMc5LY5",
+  QB_ENVIRONMENT: process.env.QB_ENVIRONMENT || "sandbox",
+  QB_REDIRECT_URI: process.env.QB_REDIRECT_URI || "",
   GOOGLE_MAPS_API_KEY:
     process.env.GOOGLE_MAPS_API_KEY ||
     "AIzaSyCm6BCGEB30k2P5xAPys5KU1dfuJT9H6V4",

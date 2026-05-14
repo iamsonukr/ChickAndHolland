@@ -19,14 +19,39 @@ const removeExtraSlash = (url: string) => {
   return url.replace(/([^:]\/)\/+/g, "$1");
 };
 
-const oauthClient = new OauthClient({
-  clientId: config.QB_CLIENT_ID,
-  clientSecret: config.QB_CLIENT_SECRET,
-  environment: "sandbox",
-  redirectUri: removeExtraSlash(
-    config.CLIENT_URL + "/admin-panel/quickbook/callback"
-  ),
-});
+const joinUrl = (baseUrl: string, path: string) => {
+  return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+};
+
+const getQuickBooksRedirectUri = () => {
+  const explicitRedirectUri = config.QB_REDIRECT_URI.trim();
+
+  if (explicitRedirectUri) return explicitRedirectUri;
+
+  return removeExtraSlash(
+    joinUrl(config.CLIENT_URL, "/admin-panel/quickbook/callback")
+  );
+};
+
+const getQuickBooksEnvironment = () => {
+  return config.QB_ENVIRONMENT === "production" ? "production" : "sandbox";
+};
+
+const createQuickBooksOauthClient = () => {
+  const redirectUri = getQuickBooksRedirectUri();
+  const environment = getQuickBooksEnvironment();
+
+  return {
+    redirectUri,
+    environment,
+    oauthClient: new OauthClient({
+      clientId: config.QB_CLIENT_ID,
+      clientSecret: config.QB_CLIENT_SECRET,
+      environment,
+      redirectUri,
+    }),
+  };
+};
 
 const googleMapsClient = new Client({});
 
@@ -39,6 +64,8 @@ router.get("/", (req, res, next) => {
 router.get(
   "/redirect-url",
   asyncHandler((req: Request, res: Response) => {
+    const { oauthClient, redirectUri, environment } =
+      createQuickBooksOauthClient();
     const authUri = oauthClient.authorizeUri({
       scope: [
         OauthClient.scopes.Accounting,
@@ -47,9 +74,20 @@ router.get(
       ],
     });
 
+    console.info("[QuickBooksOAuth] redirect-url", {
+      environment,
+      redirectUri,
+      host: req.get("host"),
+      origin: req.get("origin"),
+      forwardedHost: req.get("x-forwarded-host"),
+      forwardedProto: req.get("x-forwarded-proto"),
+    });
+
     return res.json({
       success: true,
       authUri,
+      redirectUri,
+      environment,
     });
   })
 );
@@ -58,9 +96,19 @@ router.get(
   "/access-token",
   asyncHandler(async (req: any, res: Response) => {
     try {
+      const { oauthClient, redirectUri, environment } =
+        createQuickBooksOauthClient();
       const params = req.query;
       const searchParamsString = new URLSearchParams(params as any).toString();
-      const url = `${config.CLIENT_URL}/admin-panel/quickbook/callback?${searchParamsString}`;
+      const url = `${redirectUri}?${searchParamsString}`;
+
+      console.info("[QuickBooksOAuth] access-token:start", {
+        environment,
+        redirectUri,
+        realmId: params.realmId,
+        hasCode: Boolean(params.code),
+        hasError: Boolean(params.error),
+      });
 
       const tokenResponse = await oauthClient.createToken(url);
       const tokenResponseJson: any = tokenResponse.getJson();
@@ -85,9 +133,24 @@ router.get(
         success: true,
         message: "Successfully connected to Quickbooks",
       });
-    } catch (error) {
-      console.error("Error saving Quickbooks token:", error);
-      throw error;
+    } catch (error: any) {
+      console.error("[QuickBooksOAuth] access-token:error", {
+        message: error?.message,
+        originalMessage: error?.originalMessage,
+        errorDescription: error?.error_description,
+        authResponse: error?.authResponse?.json,
+      });
+
+      return res.status(400).json({
+        success: false,
+        message:
+          error?.error_description ||
+          error?.originalMessage ||
+          error?.message ||
+          "QuickBooks connection failed",
+        redirectUri: getQuickBooksRedirectUri(),
+        environment: getQuickBooksEnvironment(),
+      });
     }
   })
 );
