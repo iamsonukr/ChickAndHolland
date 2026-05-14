@@ -34,12 +34,8 @@ const CONFIG = {
     "IMMU+pwgaDEJlOAngCE2W9VybFVqdxl+4CUSdP+yiDw",
   S3_REGION: process.env.S3_REGION || "blr1",
   S3_AWS_ENDPOINT: process.env.S3_AWS_ENDPOINT || "blr1.digitaloceanspaces.com",
-  QB_CLIENT_ID:
-    process.env.QB_CLIENT_ID ||
-    "ABXhaf7ileiFSoPqrwEfaLZRAmmvPd0PsbOlbXM0edUB22BcFH",
-  QB_CLIENT_SECRET:
-    process.env.QB_CLIENT_SECRET || "u4jptL93HiIavNE0PCEfj8i4ZoVNTZpOnnMc5LY5",
-  QB_ENVIRONMENT: process.env.QB_ENVIRONMENT || "sandbox",
+  QB_CLIENT_ID: process.env.QB_CLIENT_ID || "",
+  QB_CLIENT_SECRET: process.env.QB_CLIENT_SECRET || "",
   QB_REDIRECT_URI: process.env.QB_REDIRECT_URI || "",
   GOOGLE_MAPS_API_KEY:
     process.env.GOOGLE_MAPS_API_KEY ||

@@ -1,143 +1,18 @@
 import { Request, Response, Router } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
-import OauthClient from "intuit-oauth";
-import config from "../config";
 import  QuickbooksToken  from "../models/QuickBooksToken";
 import  QuickbooksLoginHistory  from "../models/QuickBookLoginHistory";
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-//@ts-ignore
-import Quickbooks from "node-quickbooks";
 import Clients from "../models/ClientsModel";
 import Customer from "../models/Customer";
-
-import { Client } from "@googlemaps/google-maps-services-js";
+import {
+  createQuickBooksOauthClient,
+  getLatestQuickBooksToken,
+  getQuickBooksErrorDetails,
+  getQuickBooksRedirectUri,
+  quickBooksService,
+} from "../services/quickbooks.service";
 
 const router = Router();
-const QUICKBOOKS_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
-
-const removeExtraSlash = (url: string) => {
-  return url.replace(/([^:]\/)\/+/g, "$1");
-};
-
-const joinUrl = (baseUrl: string, path: string) => {
-  return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
-};
-
-const getQuickBooksRedirectUri = () => {
-  const explicitRedirectUri = config.QB_REDIRECT_URI.trim();
-
-  if (explicitRedirectUri) return explicitRedirectUri;
-
-  return removeExtraSlash(
-    joinUrl(config.CLIENT_URL, "/admin-panel/quickbook/callback")
-  );
-};
-
-const getQuickBooksEnvironment = () => {
-  return config.QB_ENVIRONMENT === "production" ? "production" : "sandbox";
-};
-
-const createQuickBooksOauthClient = () => {
-  const redirectUri = getQuickBooksRedirectUri();
-  const environment = getQuickBooksEnvironment();
-
-  return {
-    redirectUri,
-    environment,
-    oauthClient: new OauthClient({
-      clientId: config.QB_CLIENT_ID,
-      clientSecret: config.QB_CLIENT_SECRET,
-      environment,
-      redirectUri,
-    }),
-  };
-};
-
-const googleMapsClient = new Client({});
-
-const getLatestQuickBooksToken = async () => {
-  return (
-    await QuickbooksToken.find({
-      order: { id: "DESC" },
-    })
-  )[0];
-};
-
-const tokenNeedsRefresh = (token: QuickbooksToken) => {
-  return (
-    token.expiresAt.getTime() - QUICKBOOKS_TOKEN_REFRESH_BUFFER_MS <= Date.now()
-  );
-};
-
-const refreshQuickBooksToken = async (token: QuickbooksToken) => {
-  const { oauthClient } = createQuickBooksOauthClient();
-  const tokenResponse = await oauthClient.refreshUsingToken(token.refreshToken);
-  const tokenResponseJson = tokenResponse.getJson() as {
-    access_token?: string;
-    refresh_token?: string;
-    expires_in?: number;
-  };
-
-  if (!tokenResponseJson.access_token || !tokenResponseJson.expires_in) {
-    throw new Error("QuickBooks refresh response did not include a new token");
-  }
-
-  token.accessToken = tokenResponseJson.access_token;
-  token.refreshToken = tokenResponseJson.refresh_token || token.refreshToken;
-  token.expiresAt = new Date(Date.now() + tokenResponseJson.expires_in * 1000);
-  await token.save();
-
-  return token;
-};
-
-const getUsableQuickBooksToken = async () => {
-  const token = await getLatestQuickBooksToken();
-
-  if (!token) return null;
-
-  if (tokenNeedsRefresh(token)) {
-    return refreshQuickBooksToken(token);
-  }
-
-  return token;
-};
-
-const isQuickBooksUnauthorizedError = (error: any) => {
-  return (
-    error?.status === 401 ||
-    error?.response?.status === 401 ||
-    error?.Fault?.Error?.some?.((faultError: any) => faultError?.code === "3200")
-  );
-};
-
-const createQuickBooksClient = (token: QuickbooksToken) => {
-  return new Quickbooks(
-    config.QB_CLIENT_ID,
-    config.QB_CLIENT_SECRET,
-    token.accessToken,
-    false,
-    token.realmId,
-    getQuickBooksEnvironment() === "sandbox",
-    false,
-    null,
-    "2.0",
-    token.refreshToken
-  );
-};
-
-const findQuickBooksCustomers = (qbo: any) =>
-  new Promise((resolve, reject) => {
-    qbo.findCustomers(
-      {
-        fetchAll: true,
-      },
-      function (err: any, customers: any) {
-        if (err) reject(err);
-        else resolve(customers);
-      }
-    );
-  });
 
 router.get("/", (req, res, next) => {
   return res.json({
@@ -147,20 +22,14 @@ router.get("/", (req, res, next) => {
 
 router.get(
   "/redirect-url",
-  asyncHandler((req: Request, res: Response) => {
-    const { oauthClient, redirectUri, environment } =
-      createQuickBooksOauthClient();
-    const authUri = oauthClient.authorizeUri({
-      scope: [
-        OauthClient.scopes.Accounting,
-        OauthClient.scopes.Profile,
-        OauthClient.scopes.OpenId,
-      ],
-    });
+  asyncHandler(async (req: Request, res: Response) => {
+    const { authUri, redirectUri, environment, scopes } =
+      await quickBooksService.createAuthorizationUri();
 
     console.info("[QuickBooksOAuth] redirect-url", {
       environment,
       redirectUri,
+      scopes,
       host: req.get("host"),
       origin: req.get("origin"),
       forwardedHost: req.get("x-forwarded-host"),
@@ -172,6 +41,7 @@ router.get(
       authUri,
       redirectUri,
       environment,
+      scopes,
     });
   })
 );
@@ -180,7 +50,7 @@ router.get(
   "/access-token",
   asyncHandler(async (req: any, res: Response) => {
     try {
-      const { oauthClient, redirectUri, environment } =
+      const { redirectUri, environment, scopes } =
         createQuickBooksOauthClient();
       const params = req.query;
       const searchParamsString = new URLSearchParams(params as any).toString();
@@ -192,10 +62,15 @@ router.get(
         realmId: params.realmId,
         hasCode: Boolean(params.code),
         hasError: Boolean(params.error),
+        error: params.error,
+        errorDescription: params.error_description,
+        scopes,
       });
 
-      const tokenResponse = await oauthClient.createToken(url);
-      const tokenResponseJson: any = tokenResponse.getJson();
+      const tokenResponseJson = await quickBooksService.exchangeCodeForToken(
+        url,
+        params.realmId
+      );
 
       // Save token directly using the entity
       const token = new QuickbooksToken();
@@ -233,7 +108,8 @@ router.get(
           error?.message ||
           "QuickBooks connection failed",
         redirectUri: getQuickBooksRedirectUri(),
-        environment: getQuickBooksEnvironment(),
+        environment: "production",
+        diagnostics: getQuickBooksErrorDetails(error),
       });
     }
   })
@@ -253,13 +129,13 @@ router.get(
     }
 
     try {
-      const usableToken = tokenNeedsRefresh(token)
-        ? await refreshQuickBooksToken(token)
-        : token;
+      const usableToken = await quickBooksService.getAuthorizedToken();
 
       return res.json({
-        connected: true,
-        expiresAt: usableToken.expiresAt,
+        connected: Boolean(usableToken),
+        expiresAt: usableToken?.expiresAt,
+        realmId: usableToken?.realmId,
+        environment: "production",
         message: "Connected to Quickbooks",
       });
     } catch (error: any) {
@@ -274,6 +150,8 @@ router.get(
         connected: false,
         expiresAt: token.expiresAt,
         message: "Quickbooks token refresh failed. Please reconnect.",
+        environment: "production",
+        diagnostics: getQuickBooksErrorDetails(error),
       });
     }
   })
@@ -282,67 +160,17 @@ router.get(
 router.post(
   "/import-customers",
   asyncHandler(async (req: Request, res: Response) => {
-    let token: QuickbooksToken | null;
-
     try {
-      token = await getUsableQuickBooksToken();
-    } catch (error: any) {
-      console.error("[QuickBooksOAuth] token-refresh:error", {
-        message: error?.message,
-        originalMessage: error?.originalMessage,
-        errorDescription: error?.error_description,
-        authResponse: error?.authResponse?.json,
+      console.info("[QuickBooksImport] customer-import:start", {
+        environment: "production",
       });
 
-      return res.status(401).json({
-        success: false,
-        message: "Quickbooks token refresh failed. Please reconnect.",
-      });
-    }
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "No Quickbooks connection found",
-      });
-    }
-
-    try {
-      let customersResponse: any;
-
-      try {
-        customersResponse = await findQuickBooksCustomers(
-          createQuickBooksClient(token)
-        );
-      } catch (error: any) {
-        if (!isQuickBooksUnauthorizedError(error)) {
-          throw error;
-        }
-
-        try {
-          token = await refreshQuickBooksToken(token);
-          customersResponse = await findQuickBooksCustomers(
-            createQuickBooksClient(token)
-          );
-        } catch (refreshError: any) {
-          console.error("[QuickBooksOAuth] token-refresh:error", {
-            message: refreshError?.message,
-            originalMessage: refreshError?.originalMessage,
-            errorDescription: refreshError?.error_description,
-            authResponse: refreshError?.authResponse?.json,
-          });
-
-          return res.status(401).json({
-            success: false,
-            message: "Quickbooks token refresh failed. Please reconnect.",
-          });
-        }
-      }
-
-      const qbCustomers = customersResponse.QueryResponse.Customer || [];
+      const totalContactsAvailable = await quickBooksService.countCustomers();
+      const qbCustomers = await quickBooksService.getAllCustomers();
 
       const stats: any = {
-        total: qbCustomers.length,
+        total: totalContactsAvailable,
+        fetched: qbCustomers.length,
         imported: 0,
         skipped: 0,
         failed: 0,
@@ -352,12 +180,22 @@ router.post(
       // Import each customer
       for (const qbCustomer of qbCustomers) {
         try {
+          console.info("[QuickBooksImport] customer:import:start", {
+            quickbooksCustomerId: qbCustomer.Id,
+            displayName: qbCustomer.DisplayName,
+            companyName: qbCustomer.CompanyName,
+          });
+
           // Check if customer already exists
           const existingCustomer = await Customer.findOne({
             where: { quickbooksCustomerId: qbCustomer.Id },
           });
 
           if (existingCustomer) {
+            console.info("[QuickBooksImport] customer:skip-existing", {
+              quickbooksCustomerId: qbCustomer.Id,
+              localCustomerId: existingCustomer.id,
+            });
             stats.skipped++;
             continue; // Skip this customer
           }
@@ -413,6 +251,11 @@ customer.client = newClient;
           }
 
           await customer.save();
+          console.info("[QuickBooksImport] customer:imported", {
+            quickbooksCustomerId: qbCustomer.Id,
+            localCustomerId: customer.id,
+            localClientId: newClient.id,
+          });
           stats.imported++;
         } catch (error: any) {
           const customerName =
@@ -427,20 +270,43 @@ customer.client = newClient;
             id: qbCustomer.Id,
             reason: error.message || "Unknown error occurred",
           });
+          console.error("[QuickBooksImport] customer:failed", {
+            quickbooksCustomerId: qbCustomer.Id,
+            name: customerName,
+            message: error?.message,
+            stack: error?.stack,
+          });
         }
       }
 
+      console.info("[QuickBooksImport] customer-import:complete", {
+        stats,
+      });
+
       return res.json({
         success: true,
-        message: `Import completed: ${stats.imported} imported, ${stats.skipped} already existed, ${stats.failed} failed`,
+        message: `QuickBooks contacts available: ${stats.total}. Imported now: ${stats.imported}. ${stats.skipped} already existed, ${stats.failed} failed.`,
         stats,
       });
     } catch (error: any) {
-      console.error("error:", JSON.stringify(error, null, 2));
-      return res.status(500).json({
+      const diagnostics = getQuickBooksErrorDetails(error);
+      console.error("[QuickBooksImport] customer-import:error", {
+        message: error?.message,
+        diagnostics,
+      });
+
+      const status =
+        diagnostics.status === 401 || diagnostics.reason === "expired_token"
+          ? 401
+          : diagnostics.status === 403
+          ? 403
+          : 500;
+
+      return res.status(status).json({
         success: false,
         message: "Failed to import customers",
         error: error.message,
+        diagnostics,
       });
     }
   })

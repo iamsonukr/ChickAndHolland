@@ -49,17 +49,18 @@ const ImportQuickbook = () => {
                   const res = await executeAsync();
                   setRes(res);
                   if (res.success) {
-                    toast(res.message);
+                    toast(
+                      `QuickBooks contacts available: ${res.stats?.total ?? 0}. Imported now: ${res.stats?.imported ?? 0}.`
+                    );
                   }
                   // setOpen(false);
                   router.refresh();
                 } catch (err) {
-                  // toast.error(
-                  //   "Something went wrong, please try again later",
-                  //   {
-                  //     className: "bg-destructive"
-                  //   }
-                  // );
+                  toast.error(
+                    err instanceof Error
+                      ? err.message
+                      : "QuickBooks import failed. Check server logs for diagnostics."
+                  );
                   console.log(err);
                 }finally {
                   setOpen(false);
