@@ -170,7 +170,7 @@ function ItemCard({
 
   const barcode = normalizeBarcodeValue(raw.barcode);
   const LabelComponent = type === "STORE" ? StatusLabelBox1 : StatusLabelBox;
-  const PdfComponent = type === "STORE" ? LabelPdf1 : LabelPdf;
+  const PdfComponent = type === "STORE" ? LabelPdf : LabelPdf;
 
   const progress: any[] = raw.progress ?? [];
   const sorted = [...progress].sort(
@@ -263,11 +263,11 @@ function ItemCard({
               loadingLabel="Generating..."
             />
 
-            <PptDownloadButton
+            {/* <PptDownloadButton
               item={raw}
               orderType={type}
               className="min-h-[44px] w-full rounded-lg bg-green-600 px-3 py-3 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
-            />
+            /> */}
           </div>
         </div>
       </div>
