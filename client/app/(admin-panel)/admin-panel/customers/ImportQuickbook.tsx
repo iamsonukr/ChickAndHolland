@@ -61,6 +61,8 @@ const ImportQuickbook = () => {
                   //   }
                   // );
                   console.log(err);
+                }finally {
+                  setOpen(false);
                 }
               }}
               // loading={loading}
