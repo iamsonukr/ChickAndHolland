@@ -54,12 +54,13 @@ const ImportQuickbook = () => {
                   // setOpen(false);
                   router.refresh();
                 } catch (err) {
-                  toast.error(
-                    "Something went wrong, please try again later",
-                    {
-                      className: "bg-destructive"
-                    }
-                  );
+                  // toast.error(
+                  //   "Something went wrong, please try again later",
+                  //   {
+                  //     className: "bg-destructive"
+                  //   }
+                  // );
+                  console.log(err);
                 }
               }}
               // loading={loading}
