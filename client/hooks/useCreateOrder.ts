@@ -30,6 +30,9 @@ export interface UseCreateOrderOptions {
 
 export type UploadedFileType = "pdf" | "ppt" | null;
 
+const getCustomerStoreName = (customer: any) =>
+  customer?.customerStoreName || customer?.storeName || customer?.name || "";
+
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
 function getTrailingPoNumber(poNumber?: string | null) {
@@ -262,7 +265,7 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
   // ── Derived customer options ────────────────────────────────────────────────
   const formattedCustomers: Option[] = customers.map((c) => ({
     value: c.id.toString(),
-    label: c.name,
+    label: getCustomerStoreName(c),
   }));
 
   // ── Form ────────────────────────────────────────────────────────────────────
@@ -315,8 +318,8 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
       return;
     }
 
-    const customerName = selected[0].label ?? "";
-    const prefix = customerName
+    const customerStoreName = selected[0].label ?? "";
+    const prefix = customerStoreName
       .split(" ")[0]
       .replace(/[^A-Za-z]/g, "")
       .toUpperCase();

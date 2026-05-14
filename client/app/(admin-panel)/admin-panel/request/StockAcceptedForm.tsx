@@ -75,6 +75,13 @@ const getTrailingPoNumber = (poNumber?: string | null) => {
   return match ? Number(match[1]) : 0;
 };
 
+const getCustomerStoreName = (customer: any) =>
+  customer?.customerStoreName ||
+  customer?.customer_store_name ||
+  customer?.storeName ||
+  customer?.name ||
+  "";
+
 const StockAcceptedForm = ({ id }: { id: number }) => {
   const [open, setOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
@@ -209,7 +216,8 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     const sizeLabel = customerDetails?.size_country
       ? `${customerDetails?.size ?? ""} (${customerDetails.size_country})`
       : `${customerDetails?.size ?? ""}`;
-    const purchaseOrderNo = await buildPrefilledPoNumber(customerDetails?.name);
+    const customerStoreName = getCustomerStoreName(customerDetails);
+    const purchaseOrderNo = await buildPrefilledPoNumber(customerStoreName);
 
     form.reset({
       orderId: id,
@@ -222,7 +230,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
         : undefined,
       orderCancellationDate: undefined,
       address: customerDetails?.storeAddress || "",
-      customerId: customerDetails?.name || "",
+      customerId: customerStoreName,
       styleNo: customerDetails?.productCode || "",
       size: sizeLabel.trim(),
       quantity: String(customerDetails?.quantity ?? 0),
@@ -636,7 +644,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       const invoice = `INVOICE_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
       const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
 
-      form.setValue("customerId", customers.name);
+      form.setValue("customerId", getCustomerStoreName(customers));
       form.setValue("manufacturingEmailAddress", "rubyinc@hotmail.com");
       form.setValue("orderReceivedDate", new Date(customers.received));
       form.setValue("address", customers.storeAddress);

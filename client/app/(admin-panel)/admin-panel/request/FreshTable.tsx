@@ -70,6 +70,13 @@ const formatFreshTableSize = (invoice: {
   return formattedSizes.join(", ");
 };
 
+const getCustomerStoreName = (invoice: any) =>
+  invoice?.customerStoreName ||
+  invoice?.customer_store_name ||
+  invoice?.storeName ||
+  invoice?.customer_name ||
+  "";
+
 export function FreshTable({ data }: { data: any[] }) {
   const { loading, error, executeAsync } = useHttp(
     "/retailer-orders/admin/fresh-order/reject",
@@ -119,7 +126,7 @@ export function FreshTable({ data }: { data: any[] }) {
             <TableCell className="font-medium">
               {dayjs(invoice.formatted_date).format("DD-MM-YYYY")}
             </TableCell>
-            <TableCell className="text-center">{invoice.customer_name}</TableCell>
+            <TableCell className="text-center">{getCustomerStoreName(invoice)}</TableCell>
             <TableCell className="max-w-[150px] truncate text-center">
               {formatFreshTableSize(invoice)}
             </TableCell>

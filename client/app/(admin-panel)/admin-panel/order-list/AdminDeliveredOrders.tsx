@@ -152,7 +152,7 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
                   <TableCell className="font-medium">
                     {dayjs(item.formatted_date).format("DD-MM-YYYY")}
                   </TableCell>
-                  <TableCell>{item.retailer_name}</TableCell>
+                  <TableCell>{item.customerStoreName || item.retailer_name}</TableCell>
 
                   <TableCell>{item.order_id}</TableCell>
                   <TableCell>

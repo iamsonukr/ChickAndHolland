@@ -285,7 +285,7 @@ const fetchDetails = async () => {
         orderReceivedDate: data.orderReceivedDate,
         orderType: "Fresh",
         purchaseOrderNo: data.purchaeOrderNo,
-        name: data.retailer_name,
+        name: data.customerStoreName || data.retailer_name,
         email: data.retailer_email,
         details,
         ppt_path: data.ppt_path || data.favouriteOrder.ppt_path || "",

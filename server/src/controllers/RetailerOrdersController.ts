@@ -41,6 +41,17 @@ const router = Router();
 
 const RETAILER_QR_STATUS_FLOW = SCAN_STAGE_FLOW as OrderStatus[];
 
+const sanitizeText = (value: unknown) => {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  return trimmed && trimmed.toLowerCase() !== "null" && trimmed.toLowerCase() !== "undefined"
+    ? trimmed
+    : "";
+};
+
+const getCustomerStoreName = (customer?: { storeName?: string | null; name?: string | null } | null) =>
+  sanitizeText(customer?.storeName) || sanitizeText(customer?.name);
+
 async function resolveRetailerOrderQrStage(req: Request) {
   const order = await RetailerOrder.findOne({
     where: { id: Number(req.params.id), status: 0 },
@@ -457,7 +468,8 @@ router.get(
       DATE_FORMAT(rf.createdAt, '%Y-%m-%d') AS formatted_date,
         rf.id as id,
         s.id as stock_id,
-        c.name,
+        COALESCE(NULLIF(c.storeName, ''), c.name) AS customerStoreName,
+        COALESCE(NULLIF(c.storeName, ''), c.name) AS name,
         p.productCode,
         p.id as product_id,
         rf.quantity,
@@ -493,9 +505,9 @@ router.get(
     if (query) {
       const likeQuery = `%${query.toLowerCase()}%`;
       whereClauses.push(
-        "(LOWER(p.productCode) LIKE ? OR LOWER(r.name) LIKE ?)"
+        "(LOWER(p.productCode) LIKE ? OR LOWER(c.storeName) LIKE ? OR LOWER(c.name) LIKE ?)"
       );
-      params.push(likeQuery, likeQuery);
+      params.push(likeQuery, likeQuery, likeQuery);
     }
 
     // Add WHERE clauses
@@ -550,7 +562,8 @@ router.get(
       SELECT 
         rf.id AS id,
         DATE_FORMAT(rf.createdAt, '%Y-%m-%d') AS formatted_date,
-        c.name AS customer_name,
+        COALESCE(NULLIF(c.storeName, ''), c.name) AS customerStoreName,
+        COALESCE(NULLIF(c.storeName, ''), c.name) AS customer_name,
         SUM(f.quantity) AS total_quantity,
         
         -- first favourite id
@@ -603,9 +616,9 @@ router.get(
     if (query) {
       const likeQuery = `%${query.toLowerCase()}%`;
       whereClauses.push(
-        "(LOWER(c.name) LIKE ? OR LOWER(p.productCode) LIKE ?)"
+        "(LOWER(c.storeName) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(p.productCode) LIKE ?)"
       );
-      params.push(likeQuery, likeQuery);
+      params.push(likeQuery, likeQuery, likeQuery);
     }
 
     if (whereClauses.length > 0) {
@@ -848,7 +861,8 @@ router.get(
 
         MIN(COALESCE(NULLIF(ros.size, ''), NULLIF(f.admin_us_size, ''), CAST(f.product_size AS CHAR))) AS size,
         MIN(f.product_size) AS original_size,
-        MIN(c.name) AS customer_name,
+        MIN(COALESCE(NULLIF(c.storeName, ''), c.name)) AS customerStoreName,
+        MIN(COALESCE(NULLIF(c.storeName, ''), c.name)) AS customer_name,
         MIN(c.email) AS manufacturingEmailAddress,
         MIN(c.phoneNumber) AS phoneNumber,
         MIN(p.productCode) AS styleNo,
@@ -1001,7 +1015,7 @@ router.post(
     order.phoneNumber = data.phoneNumber || retailer.customer.phoneNumber;
 
     // 🔥 AUTO GENERATE UNIQUE PO
-    const customerPrefix = retailer.customer.name
+    const customerPrefix = getCustomerStoreName(retailer.customer)
       .split(" ")[0]
       .replace(/[^A-Za-z]/g, "")
       .toUpperCase();
@@ -1140,7 +1154,7 @@ router.post(
         return res.json({ success: false, msg: "Retailer not found" });
       }
 
-      const customerPrefix = retailer.customer.name
+      const customerPrefix = getCustomerStoreName(retailer.customer)
         .split(" ")[0]
         .replace(/[^A-Za-z]/g, "")
         .toUpperCase();
@@ -1795,7 +1809,8 @@ router.get(
         ro.orderCancellationDate as orderCancellationDate,
         IFNULL(payments.paid_amount, 0) AS paid_amount,
         (ro.purchaseAmount - IFNULL(payments.paid_amount, 0)) AS balance,
-        c.name as retailer_name,  
+        COALESCE(NULLIF(c.storeName, ''), c.name) as customerStoreName,
+        COALESCE(NULLIF(c.storeName, ''), c.name) as retailer_name,  
         c.email as retailer_email,
         curr.symbol as currencySymbol,
         curr.name as currencyName
@@ -1818,9 +1833,9 @@ router.get(
     if (query) {
       const likeQuery = `%${query.toLowerCase()}%`;
       whereClauses.push(
-        "(LOWER(ro.purchaeOrderNo) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(ro.orderStatus) LIKE ?)"
+        "(LOWER(ro.purchaeOrderNo) LIKE ? OR LOWER(c.storeName) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(ro.orderStatus) LIKE ?)"
       );
-      params.push(likeQuery, likeQuery, likeQuery);
+      params.push(likeQuery, likeQuery, likeQuery, likeQuery);
 
       if (query.toLowerCase() === "stock") {
         whereClauses.push("ro.is_stock_order = 1");

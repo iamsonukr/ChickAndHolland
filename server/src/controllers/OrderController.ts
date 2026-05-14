@@ -104,6 +104,10 @@ function buildOrderAddress(
   return `${baseAddress} (${countryName})`;
 }
 
+function getCustomerStoreName(customer?: { storeName?: string | null; name?: string | null } | null) {
+  return sanitizeText(customer?.storeName) || sanitizeText(customer?.name);
+}
+
 
 
 interface Field {
@@ -232,7 +236,7 @@ router.post(
           where: { id: customerId },
         });
         const resolvedPurchaseOrderNo = await resolveRegularPurchaseOrderNo(
-          customer.name,
+          getCustomerStoreName(customer),
         );
 
         // CREATE ORDER
@@ -591,7 +595,7 @@ router.get(
 
     if (likeQuery) {
       regularOrdersQuery.andWhere(
-        "(LOWER(o.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)", // Add filter for customer.name
+        "(LOWER(o.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
         { likeQuery }
       );
     }
@@ -621,7 +625,7 @@ router.get(
 
     if (likeQuery) {
       retailerOrdersQuery.andWhere(
-        "(LOWER(ro.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)", // Add filter for customer.name
+        "(LOWER(ro.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
         { likeQuery }
       );
     }
@@ -846,7 +850,8 @@ router.get(
             ? detailedOrder?.customer
               ? {
                 id: detailedOrder.customer.id,
-                name: detailedOrder.customer.name,
+                name: getCustomerStoreName(detailedOrder.customer),
+                customerStoreName: getCustomerStoreName(detailedOrder.customer),
                 phoneNumber: detailedOrder.customer.phoneNumber,  // <-- ADD THIS
                 storeAddress: detailedOrder.customer.storeAddress,
                 country: detailedOrder.customer.country?.name ?? null,
@@ -855,7 +860,8 @@ router.get(
             : detailedOrder?.retailer?.customer
               ? {
                 id: detailedOrder.retailer.customer.id,
-                name: detailedOrder.retailer.customer.name,
+                name: getCustomerStoreName(detailedOrder.retailer.customer),
+                customerStoreName: getCustomerStoreName(detailedOrder.retailer.customer),
                 phoneNumber: detailedOrder.retailer.customer.phoneNumber,  // <-- ADD THIS
                 storeAddress: detailedOrder.retailer.customer.storeAddress,
                 country: detailedOrder.retailer.customer.country?.name ?? null,
@@ -1022,7 +1028,10 @@ router.post(
           orderReceivedDate,
           orderCancellationDate,
           address,
-          customer,
+          customer: {
+            ...customer,
+            customerStoreName: getCustomerStoreName(customer),
+          },
           isPreview: true,
           styles: await Promise.all(
             styles.map(async (style: any, index: number) => {

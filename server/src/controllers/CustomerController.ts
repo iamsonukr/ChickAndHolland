@@ -10,6 +10,15 @@ import Favourites from "../models/Favourites";
 
 const router = Router();
 
+const withCustomerStoreName = (customer: Customer) => {
+  const customerStoreName = customer.storeName || customer.name || "";
+
+  return {
+    ...customer,
+    customerStoreName,
+  };
+};
+
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
@@ -31,7 +40,7 @@ router.get(
       });
 
       return res.json({
-        customers,
+        customers: customers.map(withCustomerStoreName),
         totalCount,
       });
     } else {
@@ -63,7 +72,7 @@ router.get(
       // for every customer if the
 
       res.json({
-        customers,
+        customers: customers.map(withCustomerStoreName),
         totalCount,
       });
     }
@@ -73,9 +82,10 @@ router.get(
 router.post(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
+    const customerStoreName = req.body.customerStoreName || req.body.storeName || req.body.name;
     const customer = new Customer();
     customer.name = req.body.name;
-    customer.storeName = req.body.storeName;
+    customer.storeName = customerStoreName;
     customer.storeAddress = req.body.address;
     customer.website = req.body.website;
     customer.phoneNumber = req.body.phoneNumber;
@@ -110,7 +120,7 @@ router.post(
       }
     }
     const newClient = Clients.create({
-      name: req.body.storeName,
+      name: customerStoreName,
       address: req.body.address,
       proximity: req.body.proximity || 1,
       latitude: req.body.coordinates?.latitude || "0",
@@ -147,13 +157,14 @@ router.get(
       });
     }
 
-    res.json(customer);
+    res.json(withCustomerStoreName(customer));
   })
 );
 
 router.put(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
+    const customerStoreName = req.body.customerStoreName || req.body.storeName || req.body.name;
     const customer = await Customer.findOne({
       where: {
         id: Number(req.params.id),
@@ -171,7 +182,7 @@ router.put(
 
     // Update customer fields
     customer.name = req.body.name;
-    customer.storeName = req.body.storeName;
+    customer.storeName = customerStoreName;
     customer.storeAddress = req.body.address;
     customer.website = req.body.website;
     customer.phoneNumber = req.body.phoneNumber;
@@ -240,7 +251,7 @@ router.put(
         client = Clients.create({});
       }
 
-      client.name = req.body.storeName;
+      client.name = customerStoreName;
       client.address = req.body.address || client.address || "";
       client.proximity = req.body.proximity || client.proximity || 1;
       client.latitude =

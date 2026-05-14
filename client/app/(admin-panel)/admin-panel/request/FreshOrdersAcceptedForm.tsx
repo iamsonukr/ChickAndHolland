@@ -97,6 +97,9 @@ const getTrailingPoNumber = (poNumber?: string | null) => {
   return match ? Number(match[1]) : 0;
 };
 
+const getCustomerStoreName = (data: any) =>
+  data?.customerStoreName || data?.customer_store_name || data?.storeName || data?.customer_name || "";
+
 const FreshOrdersAcceptedForm = ({
   customers,
   id,
@@ -203,7 +206,8 @@ const FreshOrdersAcceptedForm = ({
       // 🔹 Fetch latest Fresh PO #
       // 1️⃣ Get Customer Prefix
       // 1️⃣ Get Customer Prefix
-      const customerPrefix = data[0].customer_name
+      const customerStoreName = getCustomerStoreName(data[0]);
+      const customerPrefix = customerStoreName
         .split(" ")[0]
         .replace(/[^A-Za-z]/g, "")
         .toUpperCase();
@@ -223,7 +227,7 @@ const FreshOrdersAcceptedForm = ({
       const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 6)}`;
 
       // form.setValue("purchaseOrderNo", newPO);
-      form.setValue("customerId", data[0].customer_name);
+      form.setValue("customerId", customerStoreName);
       form.setValue("manufacturingEmailAddress", "rubyinc@hotmail.com");
       form.setValue("orderReceivedDate", new Date(data[0].orderReceivedDate));
       form.setValue("address", data[0].address);

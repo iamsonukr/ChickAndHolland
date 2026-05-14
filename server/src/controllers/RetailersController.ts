@@ -18,6 +18,9 @@ import AdminBank from "../models/AdminBank";
 
 const router = Router();
 
+const getCustomerStoreName = (customer?: Customer | null) =>
+  customer?.storeName || customer?.name || "";
+
 router.post(
   "/login",
   asyncHandler(async (req: Request, res: Response) => {
@@ -52,7 +55,8 @@ router.post(
 
     const tokenData = {
       id: retailer.id,
-      name: retailer.customer.name,
+      name: getCustomerStoreName(retailer.customer),
+      customerStoreName: getCustomerStoreName(retailer.customer),
       storeName: retailer.customer.storeName,
       username: retailer.username,
       countryId: retailer.customer.countryId,
@@ -69,7 +73,8 @@ router.post(
       message: "Retailer logged in successfully",
       token,
       retailerId: retailer.id,
-      name: retailer.customer.name,
+      name: getCustomerStoreName(retailer.customer),
+      customerStoreName: getCustomerStoreName(retailer.customer),
       storeName: retailer.customer.storeName,
       username: retailer.username,
       countryId: retailer.customer.countryId,
@@ -577,7 +582,8 @@ router.get(
         currencyId: retailer.customer.currencyId,
 
         // CUSTOMER FIELDS
-        name: retailer.customer.name,
+        name: getCustomerStoreName(retailer.customer),
+        customerStoreName: getCustomerStoreName(retailer.customer),
         storeName: retailer.customer.storeName,
         storeAddress: retailer.customer.storeAddress,   // <-- ADD HERE
 
