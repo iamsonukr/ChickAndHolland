@@ -14,6 +14,7 @@ import Customer from "../models/Customer";
 import { Client } from "@googlemaps/google-maps-services-js";
 
 const router = Router();
+const QUICKBOOKS_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 const removeExtraSlash = (url: string) => {
   return url.replace(/([^:]\/)\/+/g, "$1");
@@ -54,6 +55,89 @@ const createQuickBooksOauthClient = () => {
 };
 
 const googleMapsClient = new Client({});
+
+const getLatestQuickBooksToken = async () => {
+  return (
+    await QuickbooksToken.find({
+      order: { id: "DESC" },
+    })
+  )[0];
+};
+
+const tokenNeedsRefresh = (token: QuickbooksToken) => {
+  return (
+    token.expiresAt.getTime() - QUICKBOOKS_TOKEN_REFRESH_BUFFER_MS <= Date.now()
+  );
+};
+
+const refreshQuickBooksToken = async (token: QuickbooksToken) => {
+  const { oauthClient } = createQuickBooksOauthClient();
+  const tokenResponse = await oauthClient.refreshUsingToken(token.refreshToken);
+  const tokenResponseJson = tokenResponse.getJson() as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+  };
+
+  if (!tokenResponseJson.access_token || !tokenResponseJson.expires_in) {
+    throw new Error("QuickBooks refresh response did not include a new token");
+  }
+
+  token.accessToken = tokenResponseJson.access_token;
+  token.refreshToken = tokenResponseJson.refresh_token || token.refreshToken;
+  token.expiresAt = new Date(Date.now() + tokenResponseJson.expires_in * 1000);
+  await token.save();
+
+  return token;
+};
+
+const getUsableQuickBooksToken = async () => {
+  const token = await getLatestQuickBooksToken();
+
+  if (!token) return null;
+
+  if (tokenNeedsRefresh(token)) {
+    return refreshQuickBooksToken(token);
+  }
+
+  return token;
+};
+
+const isQuickBooksUnauthorizedError = (error: any) => {
+  return (
+    error?.status === 401 ||
+    error?.response?.status === 401 ||
+    error?.Fault?.Error?.some?.((faultError: any) => faultError?.code === "3200")
+  );
+};
+
+const createQuickBooksClient = (token: QuickbooksToken) => {
+  return new Quickbooks(
+    config.QB_CLIENT_ID,
+    config.QB_CLIENT_SECRET,
+    token.accessToken,
+    false,
+    token.realmId,
+    getQuickBooksEnvironment() === "sandbox",
+    false,
+    null,
+    "2.0",
+    token.refreshToken
+  );
+};
+
+const findQuickBooksCustomers = (qbo: any) =>
+  new Promise((resolve, reject) => {
+    qbo.findCustomers(
+      {
+        fetchAll: true,
+      },
+      function (err: any, customers: any) {
+        if (err) reject(err);
+        else resolve(customers);
+      }
+    );
+  });
 
 router.get("/", (req, res, next) => {
   return res.json({
@@ -159,11 +243,7 @@ router.get(
 router.get(
   "/connection-status",
   asyncHandler(async (req: Request, res: Response) => {
-    const token = (
-      await QuickbooksToken.find({
-        order: { id: "DESC" },
-      })
-    )[0];
+    const token = await getLatestQuickBooksToken();
 
     if (!token) {
       return res.json({
@@ -172,26 +252,53 @@ router.get(
       });
     }
 
-    const isValid = token.expiresAt > new Date();
+    try {
+      const usableToken = tokenNeedsRefresh(token)
+        ? await refreshQuickBooksToken(token)
+        : token;
 
-    return res.json({
-      connected: isValid,
-      expiresAt: token.expiresAt,
-      message: isValid
-        ? "Connected to Quickbooks"
-        : "Quickbooks token has expired",
-    });
+      return res.json({
+        connected: true,
+        expiresAt: usableToken.expiresAt,
+        message: "Connected to Quickbooks",
+      });
+    } catch (error: any) {
+      console.error("[QuickBooksOAuth] token-refresh:error", {
+        message: error?.message,
+        originalMessage: error?.originalMessage,
+        errorDescription: error?.error_description,
+        authResponse: error?.authResponse?.json,
+      });
+
+      return res.json({
+        connected: false,
+        expiresAt: token.expiresAt,
+        message: "Quickbooks token refresh failed. Please reconnect.",
+      });
+    }
   })
 );
 
 router.post(
   "/import-customers",
   asyncHandler(async (req: Request, res: Response) => {
-    const token = (
-      await QuickbooksToken.find({
-        order: { id: "DESC" },
-      })
-    )[0];
+    let token: QuickbooksToken | null;
+
+    try {
+      token = await getUsableQuickBooksToken();
+    } catch (error: any) {
+      console.error("[QuickBooksOAuth] token-refresh:error", {
+        message: error?.message,
+        originalMessage: error?.originalMessage,
+        errorDescription: error?.error_description,
+        authResponse: error?.authResponse?.json,
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: "Quickbooks token refresh failed. Please reconnect.",
+      });
+    }
 
     if (!token) {
       return res.status(401).json({
@@ -200,42 +307,39 @@ router.post(
       });
     }
 
-    if (token.expiresAt <= new Date()) {
-      return res.status(401).json({
-        success: false,
-        message: "Quickbooks token has expired. Please reconnect.",
-      });
-    }
-
-    const qbo = new Quickbooks(
-      config.QB_CLIENT_ID,
-      config.QB_CLIENT_SECRET,
-      token.accessToken,
-      false,
-      token.realmId,
-      true, // use the sandbox
-      false, // debugging
-      null,
-      "2.0",
-      token.refreshToken
-    );
-
-    const findCustomersPromise = () =>
-      new Promise((resolve, reject) => {
-        qbo.findCustomers(
-          {
-            fetchAll: true,
-          },
-          function (err: any, customers: any) {
-            if (err) reject(err);
-            else resolve(customers);
-          }
-        );
-      });
-
     try {
-      const customersResponse: any = await findCustomersPromise();
-      const qbCustomers = customersResponse.QueryResponse.Customer;
+      let customersResponse: any;
+
+      try {
+        customersResponse = await findQuickBooksCustomers(
+          createQuickBooksClient(token)
+        );
+      } catch (error: any) {
+        if (!isQuickBooksUnauthorizedError(error)) {
+          throw error;
+        }
+
+        try {
+          token = await refreshQuickBooksToken(token);
+          customersResponse = await findQuickBooksCustomers(
+            createQuickBooksClient(token)
+          );
+        } catch (refreshError: any) {
+          console.error("[QuickBooksOAuth] token-refresh:error", {
+            message: refreshError?.message,
+            originalMessage: refreshError?.originalMessage,
+            errorDescription: refreshError?.error_description,
+            authResponse: refreshError?.authResponse?.json,
+          });
+
+          return res.status(401).json({
+            success: false,
+            message: "Quickbooks token refresh failed. Please reconnect.",
+          });
+        }
+      }
+
+      const qbCustomers = customersResponse.QueryResponse.Customer || [];
 
       const stats: any = {
         total: qbCustomers.length,
