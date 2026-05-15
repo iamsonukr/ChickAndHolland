@@ -483,7 +483,11 @@ export const createOrderFormSchema = z.object({
     required_error: "Order Received Date is required",
     invalid_type_error: "Order Received Date must be a valid date",
   }),
-  orderCancellationDate: z.date().nullable().optional(),
+  // Make shipping date required when creating an order
+  orderCancellationDate: z.date({
+    required_error: "Order Shipping Date is required",
+    invalid_type_error: "Order Shipping Date must be a valid date",
+  }),
 
   address: z.string().optional(),
 
