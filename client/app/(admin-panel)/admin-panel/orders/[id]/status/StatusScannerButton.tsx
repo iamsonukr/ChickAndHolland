@@ -11,10 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import ScanSuccessScreen from "@/components/ScanSuccessScreen";
+import ScanFailScreen from "@/components/ScanFailScreen";
 
 type StatusScanOrderType = "RETAILER" | "STORE" | "STOCK";
 
 const SUCCESS_SCREEN_MS = 2200;
+const FAIL_SCREEN_MS = 2200;
 
 interface StatusScannerButtonProps {
   barcode?: string | null;
@@ -41,15 +43,22 @@ export default function StatusScannerButton({
   const [successOpen, setSuccessOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [successStage, setSuccessStage] = useState("");
+  const [failOpen, setFailOpen] = useState(false);
+  const [failMessage, setFailMessage] = useState("");
+  const [failStage, setFailStage] = useState("");
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scanLockRef = useRef(false); // mirrors scanLock for use inside ZXing callback closure
   const successTimerRef = useRef<number | null>(null);
+  const failTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (successTimerRef.current) {
         window.clearTimeout(successTimerRef.current);
+      }
+      if (failTimerRef.current) {
+        window.clearTimeout(failTimerRef.current);
       }
     };
   }, []);
@@ -67,11 +76,11 @@ export default function StatusScannerButton({
 
 
   // ── Helpers ──────────────────────────────────────────────────────────────
-  const unlockScannerSoon = () => {
+  const unlockScannerSoon = (delay = 1500) => {
     window.setTimeout(() => {
       setScanLock(false);
       scanLockRef.current = false;
-    }, 1500);
+    }, delay);
   };
 
   const showSuccessScreen = (
@@ -83,6 +92,12 @@ export default function StatusScannerButton({
       window.clearTimeout(successTimerRef.current);
     }
 
+    if (failTimerRef.current) {
+      window.clearTimeout(failTimerRef.current);
+      failTimerRef.current = null;
+    }
+
+    setFailOpen(false);
     setSuccessMessage(message);
     setSuccessStage(stage || "");
     setSuccessOpen(true);
@@ -98,7 +113,32 @@ export default function StatusScannerButton({
     }, SUCCESS_SCREEN_MS);
   };
 
+  const showFailScreen = (message?: string, stage?: string | null) => {
+    if (failTimerRef.current) {
+      window.clearTimeout(failTimerRef.current);
+    }
+
+    setSuccessOpen(false);
+    setFailMessage(message || "Stage transition not allowed");
+    setFailStage(stage || "");
+    setFailOpen(true);
+
+    failTimerRef.current = window.setTimeout(() => {
+      setFailOpen(false);
+      failTimerRef.current = null;
+    }, FAIL_SCREEN_MS);
+  };
+
   const resetDialogState = () => {
+    if (successTimerRef.current) {
+      window.clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
+    if (failTimerRef.current) {
+      window.clearTimeout(failTimerRef.current);
+      failTimerRef.current = null;
+    }
+
     setBarcode("");
     setScanLock(false);
     scanLockRef.current = false;
@@ -106,6 +146,9 @@ export default function StatusScannerButton({
     setSuccessOpen(false);
     setSuccessMessage("");
     setSuccessStage("");
+    setFailOpen(false);
+    setFailMessage("");
+    setFailStage("");
   };
 
 
@@ -143,13 +186,14 @@ export default function StatusScannerButton({
     });
     const json = await response.json();
     if (!json.success) {
-      toast.error(json.message || "Store scan failed");
-      return;
+      showFailScreen(json.message || "Stage transition not allowed", json.nextStage || json.currentStage);
+      return "failure";
     }
     const message = json.nextStage
       ? `Store status updated to ${json.nextStage}`
       : json.message || "Store scan successful";
     handleSuccessfulScan(message, json.nextStage);
+    return "success";
   };
 
   const processRetailerOrStockBarcode = async (code: string) => {
@@ -169,26 +213,27 @@ export default function StatusScannerButton({
     const json = await response.json();
 
     if (isRetailer && json.code === "WAIT_ADMIN") {
-      toast.warning(json.message || "Admin approval is still pending");
-      return;
+      showFailScreen(json.message || "Stage transition not allowed", json.nextStage || json.currentStage || "Balance Pending");
+      return "failure";
     }
     if (isRetailer && json.code === "READY_FOR_SHIP") {
       setReadyForShip(true);
       toast.info(json.message || "Scan the same QR code once more to ship it");
-      return;
+      return "pending";
     }
     if (isRetailer && json.code === "SHIPPED") {
       handleSuccessfulScan(json.message || "Order shipped successfully", "Shipped");
-      return;
+      return "success";
     }
     if (!json.success) {
-      toast.error(json.message || "Scan failed");
-      return;
+      showFailScreen(json.message || "Stage transition not allowed", json.nextStage || json.currentStage);
+      return "failure";
     }
     const message = json.nextStage
       ? `Status updated to ${json.nextStage}`
       : json.message || "Scan successful";
     handleSuccessfulScan(message, json.nextStage);
+    return "success";
   };
 
   // ── Main scan handler ────────────────────────────────────────────────────
@@ -199,21 +244,26 @@ export default function StatusScannerButton({
     setScanLock(true);
     scanLockRef.current = true;
     setBarcode(code);
+    let unlockDelay = 1500;
 
     try {
       if (expectedBarcode && code !== String(expectedBarcode).trim()) {
-        toast.error("Scanned QR code does not match this item");
+        showFailScreen("Scanned QR code does not match this item");
+        unlockDelay = FAIL_SCREEN_MS + 100;
         return;
       }
       if (orderType === "STORE") {
-        await processStoreBarcode(code);
+        const outcome = await processStoreBarcode(code);
+        if (outcome === "failure") unlockDelay = FAIL_SCREEN_MS + 100;
         return;
       }
-      await processRetailerOrStockBarcode(code);
+      const outcome = await processRetailerOrStockBarcode(code);
+      if (outcome === "failure") unlockDelay = FAIL_SCREEN_MS + 100;
     } catch {
-      toast.error("Process failed");
+      showFailScreen("Process failed");
+      unlockDelay = FAIL_SCREEN_MS + 100;
     } finally {
-      unlockScannerSoon();
+      unlockScannerSoon(unlockDelay);
     }
   };
 
@@ -381,6 +431,13 @@ export default function StatusScannerButton({
             title="Success"
             subtitle={successMessage}
             stage={successStage}
+          />
+
+          <ScanFailScreen
+            open={failOpen}
+            title="Scan Failed"
+            subtitle={failMessage}
+            stage={failStage}
           />
 
         </div>

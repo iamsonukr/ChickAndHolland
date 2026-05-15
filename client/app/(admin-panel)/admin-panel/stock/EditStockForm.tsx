@@ -58,7 +58,8 @@ const lining = [
   "Separate Short Lining",
   "Waist to Hips Stitched Lining",
   "Waist to floor Stitched Lining",
-
+  "Bust to Hips Stitched lining",
+  "Bust to Hips Seperate lining",
 ];
 const EditStockForm = ({ previousData, colours, currencies }: any) => {
   const [open, setOpen] = useState(false);

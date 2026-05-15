@@ -20,10 +20,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import ScanSuccessOverlay from "@/components/ScanSuccessOverlay";
+import ScanFailOverlay from "@/components/ScanFailOverlay";
 
 type ScanOrderType = "RETAILER" | "STOCK" | "STORE";
 
 const SUCCESS_OVERLAY_MS = 2200;
+const FAIL_OVERLAY_MS = 2200;
 
 type ScanOutcome = {
   success: boolean;
@@ -72,9 +74,11 @@ export default function GlobalQrScanPage() {
   const [pendingRetailerShipBarcode, setPendingRetailerShipBarcode] = useState<string | null>(null);
   const [result, setResult] = useState<ScanOutcome | null>(null);
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+  const [showFailScreen, setShowFailScreen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scanLockRef = useRef(false); // mirror of scanLock for use inside the ZXing callback closure
   const successTimerRef = useRef<number | null>(null);
+  const failTimerRef = useRef<number | null>(null);
   const { cameraError, toggleTorch, torchOn, videoRef } = useQrCodeScanner({
     active: true,
     onScan: (text) => {
@@ -100,6 +104,9 @@ export default function GlobalQrScanPage() {
     return () => {
       if (successTimerRef.current) {
         window.clearTimeout(successTimerRef.current);
+      }
+      if (failTimerRef.current) {
+        window.clearTimeout(failTimerRef.current);
       }
     };
   }, []);
@@ -128,6 +135,40 @@ export default function GlobalQrScanPage() {
     };
   };
 
+  const showSuccessOverlay = () => {
+    if (successTimerRef.current) {
+      window.clearTimeout(successTimerRef.current);
+    }
+    if (failTimerRef.current) {
+      window.clearTimeout(failTimerRef.current);
+      failTimerRef.current = null;
+    }
+
+    setShowFailScreen(false);
+    setShowSuccessScreen(true);
+    successTimerRef.current = window.setTimeout(() => {
+      setShowSuccessScreen(false);
+      successTimerRef.current = null;
+    }, SUCCESS_OVERLAY_MS);
+  };
+
+  const showFailOverlay = () => {
+    if (failTimerRef.current) {
+      window.clearTimeout(failTimerRef.current);
+    }
+    if (successTimerRef.current) {
+      window.clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
+
+    setShowSuccessScreen(false);
+    setShowFailScreen(true);
+    failTimerRef.current = window.setTimeout(() => {
+      setShowFailScreen(false);
+      failTimerRef.current = null;
+    }, FAIL_OVERLAY_MS);
+  };
+
   const tryRetailerFlow = async (code: string): Promise<ScanOutcome | null> => {
     const isConfirmShip = pendingRetailerShipBarcode === code;
     const response = await fetch(`${API_URL}/scan/scan`, {
@@ -141,7 +182,7 @@ export default function GlobalQrScanPage() {
 
     if (json?.code === "WAIT_ADMIN") {
       setPendingRetailerShipBarcode(null);
-      return { success: false, orderType: "RETAILER", barcode: code, message: json.message || "Admin approval is still pending.", currentStage: "Balance Pending", statusTone: "warning" };
+      return { success: false, orderType: "RETAILER", barcode: code, message: json.message || "Stage transition not allowed", currentStage: "Balance Pending", statusTone: "warning" };
     }
     if (json?.code === "READY_FOR_SHIP") {
       setPendingRetailerShipBarcode(code);
@@ -154,7 +195,7 @@ export default function GlobalQrScanPage() {
 
     setPendingRetailerShipBarcode(null);
     if (!json?.success) {
-      return { success: false, orderType: "RETAILER", barcode: code, message: json?.message || "Retailer scan failed.", currentStage: json?.currentStage, nextStage: json?.nextStage, statusTone: "error" };
+      return { success: false, orderType: "RETAILER", barcode: code, message: json?.message || "Stage transition not allowed", currentStage: json?.currentStage, nextStage: json?.nextStage, statusTone: "error" };
     }
     return { success: true, orderType: "RETAILER", barcode: code, message: json.message || `Status updated to ${json.nextStage}`, currentStage: json.currentStage, nextStage: json.nextStage, statusTone: "success" };
   };
@@ -168,7 +209,7 @@ export default function GlobalQrScanPage() {
     const json = await response.json();
     if (isInvalidStockBarcode(json)) return null;
     if (!json?.success) {
-      return { success: false, orderType: "STOCK", barcode: code, message: json?.message || "Stock scan failed.", currentStage: json?.currentStage, nextStage: json?.nextStage, statusTone: "error" };
+      return { success: false, orderType: "STOCK", barcode: code, message: json?.message || "Stage transition not allowed", currentStage: json?.currentStage, nextStage: json?.nextStage, statusTone: "error" };
     }
     return { success: true, orderType: "STOCK", barcode: code, message: json.message || `Status updated to ${json.nextStage}`, currentStage: json.currentStage, nextStage: json.nextStage, statusTone: "success" };
   };
@@ -183,7 +224,7 @@ export default function GlobalQrScanPage() {
     if (isInvalidStoreBarcode(json)) return null;
     const details = await loadStoreDetails(code);
     if (!json?.success) {
-      return { success: false, orderType: "STORE", barcode: code, message: json?.message || "Store scan failed.", currentStage: json?.currentStage, nextStage: json?.nextStage, statusTone: "error", details: details || undefined };
+      return { success: false, orderType: "STORE", barcode: code, message: json?.message || "Stage transition not allowed", currentStage: json?.currentStage, nextStage: json?.nextStage, statusTone: "error", details: details || undefined };
     }
     return { success: true, orderType: "STORE", barcode: code, message: json.nextStage ? `Store status updated to ${json.nextStage}` : json.message || "Store scan successful.", currentStage: json.currentStage, nextStage: json.nextStage, statusTone: "success", details: details || undefined };
   };
@@ -216,26 +257,19 @@ export default function GlobalQrScanPage() {
 
       setResult(nextResult);
 
-      if (nextResult.statusTone === "warning") {
-        toast.warning(nextResult.message);
-      } else if (nextResult.success) {
+      if (nextResult.success) {
         unlockDelay = SUCCESS_OVERLAY_MS + 100;
-        if (successTimerRef.current) {
-          window.clearTimeout(successTimerRef.current);
-        }
-        setShowSuccessScreen(true);
-        successTimerRef.current = window.setTimeout(() => {
-          setShowSuccessScreen(false);
-          successTimerRef.current = null;
-        }, SUCCESS_OVERLAY_MS);
+        showSuccessOverlay();
       } else {
-        toast.error(nextResult.message);
+        unlockDelay = FAIL_OVERLAY_MS + 100;
+        showFailOverlay();
       }
       
     } catch {
       const errorResult: ScanOutcome = { success: false, orderType: "UNKNOWN", barcode: code, message: "Something went wrong while scanning this QR code.", statusTone: "error" };
       setResult(errorResult);
-      toast.error(errorResult.message);
+      unlockDelay = FAIL_OVERLAY_MS + 100;
+      showFailOverlay();
     } finally {
       setBarcode("");
       inputRef.current?.focus();
@@ -462,6 +496,13 @@ export default function GlobalQrScanPage() {
           </Card>
         </div>
       </div>
+      <ScanFailOverlay
+        open={showFailScreen}
+        title="Scan Failed"
+        message={result?.message || "Stage transition not allowed"}
+        failedStage={result?.nextStage || result?.currentStage}
+        orderType={result?.orderType}
+      />
       <ScanSuccessOverlay
         open={showSuccessScreen}
         title="Scan Completed"

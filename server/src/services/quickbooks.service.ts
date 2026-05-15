@@ -70,9 +70,7 @@ const logError = (step: string, error: any, details: Record<string, any> = {}) =
 
 export const getQuickBooksRedirectUri = () => {
   const explicitRedirectUri = config.QB_REDIRECT_URI.trim();
-
   if (explicitRedirectUri) return explicitRedirectUri;
-
   return removeExtraSlash(
     joinUrl(config.CLIENT_URL, "/admin-panel/quickbook/callback")
   );
