@@ -52,6 +52,21 @@ const sanitizeText = (value: unknown) => {
 const getCustomerStoreName = (customer?: { storeName?: string | null; name?: string | null } | null) =>
   sanitizeText(customer?.storeName) || sanitizeText(customer?.name);
 
+async function resolveSubmittedOrGeneratedPurchaseOrderNo(
+  submittedPurchaseOrderNo: unknown,
+  customerName: string,
+) {
+  const customerPrefix = customerName
+    .split(" ")[0]
+    .replace(/[^A-Za-z]/g, "")
+    .toUpperCase();
+  const generatedPurchaseOrderNo = await generateUniquePO(
+    `PO#${customerPrefix || "ORDER"}`,
+  );
+
+  return sanitizeText(submittedPurchaseOrderNo) || generatedPurchaseOrderNo;
+}
+
 async function resolveRetailerOrderQrStage(req: Request) {
   const order = await RetailerOrder.findOne({
     where: { id: Number(req.params.id), status: 0 },
@@ -1014,16 +1029,13 @@ router.post(
     order.address = data.address;
     order.phoneNumber = data.phoneNumber || retailer.customer.phoneNumber;
 
-    // 🔥 AUTO GENERATE UNIQUE PO
-    const customerPrefix = getCustomerStoreName(retailer.customer)
-      .split(" ")[0]
-      .replace(/[^A-Za-z]/g, "")
-      .toUpperCase();
+    // Resolve submitted PO, falling back to the global sequence.
+    const purchaseOrderNo = await resolveSubmittedOrGeneratedPurchaseOrderNo(
+      data.purchaseOrderNo,
+      getCustomerStoreName(retailer.customer),
+    );
 
-    const prefix = `PO#${customerPrefix}`;
-    const uniquePO = await generateUniquePO(prefix);
-
-    order.purchaeOrderNo = uniquePO;
+    order.purchaeOrderNo = purchaseOrderNo;
     order.hasId = data.color;
     order.purchaseAmount = data.total_amount;
     order.is_stock_order = true;
@@ -1143,7 +1155,7 @@ router.post(
       }
 
       // -------------------------------
-      // 🔹 Get Retailer + Generate Unique PO
+      // 🔹 Get Retailer + Resolve PO
       // -------------------------------
       const retailer = await Retailer.findOne({
         where: { id: orderData.retailerId },
@@ -1154,13 +1166,10 @@ router.post(
         return res.json({ success: false, msg: "Retailer not found" });
       }
 
-      const customerPrefix = getCustomerStoreName(retailer.customer)
-        .split(" ")[0]
-        .replace(/[^A-Za-z]/g, "")
-        .toUpperCase();
-
-      const prefix = `PO#${customerPrefix}`;
-      const uniquePO = await generateUniquePO(prefix);
+      const purchaseOrderNo = await resolveSubmittedOrGeneratedPurchaseOrderNo(
+        orderData.purchaseOrderNo,
+        getCustomerStoreName(retailer.customer),
+      );
       const normalizedStyles = Array.isArray(orderData.styles)
         ? orderData.styles.map((style: any) => {
             const normalizedSize = normalizeAcceptedStyleSize(
@@ -1257,7 +1266,7 @@ router.post(
       // -------------------------------
       const order = new RetailerOrder();
 
-      order.purchaeOrderNo = uniquePO;
+      order.purchaeOrderNo = purchaseOrderNo;
       order.retailer = retailer;
       order.favourite_order = favOrders;
 
@@ -1350,7 +1359,7 @@ router.post(
       return res.json({
         success: true,
         msg: "Order Accepted",
-        purchaseOrderNo: uniquePO,
+        purchaseOrderNo: order.purchaeOrderNo,
         orderId: order.id,
         createdStyles,
       });

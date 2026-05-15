@@ -378,6 +378,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   };
 
   const buildAcceptedOrderPayload = (data: CreateStockOrderForm) => ({
+    purchaseOrderNo: data.purchaseOrderNo,
     email: data.manufacturingEmailAddress,
     received_date: `${data.orderReceivedDate}`,
     orderCancellationDate: `${data.orderCancellationDate}`,
@@ -761,8 +762,6 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                         placeholder="PO#RITIK 21"
                         {...field}
                         value={field.value ?? ""}
-                        readOnly
-                        className="cursor-not-allowed bg-gray-200"
                       />
                     </FormControl>
 

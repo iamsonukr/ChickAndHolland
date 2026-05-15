@@ -312,9 +312,16 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
   const watchCustomerName = useWatch({ control: form.control, name: "customerId" });
 
   const generatePO = useCallback(async () => {
+    if (form.getFieldState("purchaseOrderNo").isDirty) {
+      return;
+    }
+
     const selected = form.getValues("customerId");
     if (!selected || selected.length < 1) {
-      form.setValue("purchaseOrderNo", `PO# ${fallbackSequence}`);
+      form.setValue("purchaseOrderNo", `PO# ${fallbackSequence}`, {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
       return;
     }
 
@@ -329,9 +336,15 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
       const latestSequence = getTrailingPoNumber(latestPO?.purchaeOrderNo);
       const nextSequence = latestSequence > 0 ? latestSequence + 1 : fallbackSequence;
 
-      form.setValue("purchaseOrderNo", `PO#${prefix} ${nextSequence}`);
+      form.setValue("purchaseOrderNo", `PO#${prefix} ${nextSequence}`, {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
     } catch {
-      form.setValue("purchaseOrderNo", `PO#${prefix} ${fallbackSequence}`);
+      form.setValue("purchaseOrderNo", `PO#${prefix} ${fallbackSequence}`, {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
     }
   }, [fallbackSequence, form]);
 

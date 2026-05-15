@@ -94,7 +94,7 @@
 //   @Column("int", { default: 0 })
 //   status_id: number;
 
-//   @Column("varchar", { length: 225, nullable: false, unique: true })
+//   @Column("varchar", { length: 225, nullable: false })
 //   purchaeOrderNo: string;
 
 //   @Column("datetime", {
@@ -238,7 +238,7 @@ export class RetailerOrder extends BaseModel {
   @Column("int", { default: 0 })
   status_id: number;
 
-  @Column("varchar", { length: 225, nullable: false, unique: true })
+  @Column("varchar", { length: 225, nullable: false })
   purchaeOrderNo: string;
 
   @Column("datetime", { nullable: true, default: () => "CURRENT_TIMESTAMP" })

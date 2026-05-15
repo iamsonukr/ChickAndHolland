@@ -81,6 +81,7 @@ import stockScanRoute from "./routes/StockScanRoute";
 import stripeWebhookHandler from "./routes/webhook";
 import { ensureProductQueriesTable } from "./utils/ensureProductQueriesTable";
 import { ensureAdminSettingsTable } from "./services/resetPassword.service";
+import { ensurePurchaseOrderNoIsNotUnique } from "./utils/ensurePurchaseOrderNoIsNotUnique";
 
 const router = Router();
 
@@ -146,11 +147,12 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
       if (!fs.existsSync(dir)) fs.mkdirSync(dir);
     }
     
-  await db.initialize();
-BaseEntity.useDataSource(db);
-await ensureProductQueriesTable();
-await ensureAdminSettingsTable();
-console.log("✅ Database connected");
+    await db.initialize();
+    BaseEntity.useDataSource(db);
+    await ensurePurchaseOrderNoIsNotUnique();
+    await ensureProductQueriesTable();
+    await ensureAdminSettingsTable();
+    console.log("✅ Database connected");
 
 if (process.env.RUN_SEEDER === "true") {
   try {

@@ -847,7 +847,6 @@ const FreshOrdersAcceptedForm = ({
                       <Input
                         placeholder="PO#RITIK 21"
                         {...field}
-                        readOnly
                       />
                     </FormControl>
 

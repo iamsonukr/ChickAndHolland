@@ -146,9 +146,12 @@ function resolveUploadedOrderDocumentExtension(
 
 async function resolveRegularPurchaseOrderNo(
   customerName: string,
+  submittedPurchaseOrderNo?: string,
 ) {
   const prefix = buildPurchaseOrderPrefix(customerName);
-  return generateUniquePO(prefix);
+  const generatedPurchaseOrderNo = await generateUniquePO(prefix);
+
+  return sanitizeText(submittedPurchaseOrderNo) || generatedPurchaseOrderNo;
 }
 
 
@@ -237,6 +240,7 @@ router.post(
         });
         const resolvedPurchaseOrderNo = await resolveRegularPurchaseOrderNo(
           getCustomerStoreName(customer),
+          purchaseOrderNo,
         );
 
         // CREATE ORDER

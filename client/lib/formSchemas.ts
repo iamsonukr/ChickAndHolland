@@ -360,12 +360,7 @@ export type editStockForm = z.infer<typeof editStockFormSchema>;
 //     .string()
 //     .min(1, {
 //       message: "Purchase Order Number is required",
-//     })
-//     .refine((value) => {
-//       const splitted = value.split(" ");
-//       const last = splitted[splitted.length - 1];
-//       return !isNaN(Number(last));
-//     }, "Purchase Order Number should end with number"),
+//     }),
 //   manufacturingEmailAddress: z.string().email({
 //     message: "Invalid Email Address",
 //   }),
@@ -603,12 +598,7 @@ export const createFreshOrderFormSchema = z.object({
     .string()
     .min(1, {
       message: "Purchase Order Number is required",
-    })
-    .refine((value) => {
-      const splitted = value.split("");
-      const last = splitted[splitted.length - 1];
-      return !isNaN(Number(last));
-    }, "Purchase Order Number should end with number"),
+    }),
   manufacturingEmailAddress: z.string().email({
     message: "Invalid Email Address",
   }),
@@ -713,7 +703,9 @@ export const createFreshOrderFormSchema = z.object({
 export type CreateFreshOrderForm = z.infer<typeof createFreshOrderFormSchema>;
 
 export const createStockOrderFormSchema = z.object({
-  purchaseOrderNo: z.string().optional(),
+  purchaseOrderNo: z
+    .string()
+    .min(1, { message: "Purchase Order Number is required" }),
 
 
   manufacturingEmailAddress: z
