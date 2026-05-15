@@ -113,6 +113,125 @@ const normalizeAcceptedStyleSize = (
 };
 // 🔥 Get Latest Purchase Order Number (Fresh Orders Only)
 // Used to auto-generate the next PO number for approval page
+const hasDirtyPath = (dirtyFields: any, path: string) =>
+  path.split(".").reduce((current, key) => current?.[key], dirtyFields) != null;
+
+const hasDirtyValue = (dirtyFields: any): boolean => {
+  if (!dirtyFields || typeof dirtyFields !== "object") return false;
+
+  return Object.values(dirtyFields).some((value) =>
+    value === true ? true : hasDirtyValue(value),
+  );
+};
+
+const parseIncomingDate = (value: unknown) => {
+  const date = new Date(String(value ?? ""));
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+async function upsertRetailerOrderAdvance(
+  order: RetailerOrder,
+  amount: unknown,
+) {
+  const numericAmount = Number(amount);
+  if (Number.isNaN(numericAmount) || numericAmount < 0) {
+    throw new Error("Advance amount must be a valid number");
+  }
+
+  const payments = await RetailerOrdersPayment.find({
+    where: { order: { id: order.id } },
+    order: { id: "ASC" },
+  });
+  const payment = payments[0] ?? new RetailerOrdersPayment();
+
+  payment.order = order;
+  payment.amount = numericAmount;
+  await payment.save();
+}
+
+async function syncFreshOrderStyleRows(order: RetailerOrder, style: any) {
+  const normalizedSize = normalizeAcceptedStyleSize(style?.size, style?.size_country);
+  const desiredQuantity = Math.max(Number(style?.quantity) || 0, 0);
+  const incomingBarcodes = Array.isArray(style?.barcodes)
+    ? style.barcodes.map((barcode: any) => String(barcode)).filter(Boolean)
+    : [];
+
+  const existingRows = incomingBarcodes.length
+    ? await RetailerOrderStyles.find({ where: { barcode: In(incomingBarcodes) } })
+    : await RetailerOrderStyles.find({
+        where: {
+          retailerOrder: { id: order.id },
+          styleNo: String(style?.styleNo ?? ""),
+        },
+      });
+
+  const sortedRows = existingRows.sort((a, b) => a.id - b.id);
+  const rowsToKeep = sortedRows.slice(0, desiredQuantity);
+  const rowsToRemove = sortedRows.slice(desiredQuantity);
+
+  for (const row of rowsToKeep) {
+    row.styleNo = String(style?.styleNo ?? row.styleNo ?? "");
+    row.size = normalizedSize.displaySize;
+    row.size_country = normalizedSize.sizeCountry;
+    row.quantity = 1;
+    await row.save();
+  }
+
+  for (const row of rowsToRemove) {
+    await row.remove();
+  }
+
+  for (let index = rowsToKeep.length; index < desiredQuantity; index++) {
+    const row = new RetailerOrderStyles();
+    row.retailerOrder = order;
+    row.styleNo = String(style?.styleNo ?? "");
+    row.size = normalizedSize.displaySize;
+    row.size_country = normalizedSize.sizeCountry;
+    row.quantity = 1;
+    row.photoUrls = JSON.stringify([]);
+
+    await row.save();
+    row.barcode = `${order.purchaeOrderNo}-${row.id}`;
+    await row.save();
+  }
+}
+
+async function syncStockOrderStyleRows(order: RetailerOrder, data: any) {
+  const normalizedSize = normalizeAcceptedStyleSize(data?.size, data?.size_country);
+  const desiredQuantity = Math.max(Number(data?.quantity) || 0, 0);
+  const existingRows = await StockOrderStyles.find({
+    where: { retailerOrder: { id: order.id } },
+  });
+  const sortedRows = existingRows.sort((a, b) => a.id - b.id);
+  const rowsToKeep = sortedRows.slice(0, desiredQuantity);
+  const rowsToRemove = sortedRows.slice(desiredQuantity);
+
+  for (const row of rowsToKeep) {
+    row.styleNo = String(data?.styleNo ?? row.styleNo ?? "");
+    row.size = normalizedSize.displaySize;
+    row.size_country = normalizedSize.sizeCountry;
+    row.quantity = 1;
+    await row.save();
+  }
+
+  for (const row of rowsToRemove) {
+    await row.remove();
+  }
+
+  for (let index = rowsToKeep.length; index < desiredQuantity; index++) {
+    const row = new StockOrderStyles();
+    row.retailerOrder = order;
+    row.styleNo = String(data?.styleNo ?? "");
+    row.size = normalizedSize.displaySize;
+    row.size_country = normalizedSize.sizeCountry;
+    row.quantity = 1;
+
+    await row.save();
+    row.barcode = `${order.purchaeOrderNo}-${row.id}`;
+    await row.save();
+  }
+}
+
 router.get(
   "/latest-po",
   asyncHandler(async (req: Request, res: Response) => {
@@ -705,6 +824,17 @@ router.get(
   SELECT 
   DATE_FORMAT(MIN(rf.createdAt), '%Y-%m-%d') AS received,
   rf.id as id,
+  MIN(ro.id) AS retailerOrderId,
+  MIN(ro.purchaeOrderNo) AS purchaseOrderNo,
+  MIN(ro.manufacturingEmailAddress) AS manufacturingEmailAddress,
+  MIN(ro.orderReceivedDate) AS orderReceivedDate,
+  MIN(ro.orderCancellationDate) AS orderCancellationDate,
+  MIN(ro.address) AS address,
+  MIN(ro.invoiceNo) AS invoiceNo,
+  MIN(ro.estimateNo) AS estimateNo,
+  MIN(ro.shippingAmount) AS shippingAmount,
+  MIN(ro.purchaseAmount) AS purchaseAmount,
+  MIN(payments.paidAmount) AS paidAmount,
   MIN(s.id) as stock_id,
   MIN(r.name) as name,
   MIN(r.email) as email,
@@ -732,6 +862,12 @@ LEFT JOIN retailer_orders ro
 
 LEFT JOIN stock_order_styles sos 
   ON sos.retailerOrderId = ro.id
+
+LEFT JOIN (
+  SELECT orderId, SUM(amount) AS paidAmount
+  FROM retailer_order_payments
+  GROUP BY orderId
+) payments ON payments.orderId = ro.id
 
 INNER JOIN stock s ON s.id = rf.stockId
 INNER JOIN products p ON p.id = s.styleNo
@@ -866,6 +1002,13 @@ router.get(
 
         -- 🔥 ACTUAL RETAILER ORDER ID
         ro.id AS retailerOrderId,
+        MIN(ro.purchaeOrderNo) AS purchaseOrderNo,
+        MIN(ro.orderCancellationDate) AS orderCancellationDate,
+        MIN(ro.invoiceNo) AS invoiceNo,
+        MIN(ro.estimateNo) AS estimateNo,
+        MIN(ro.shippingAmount) AS shippingAmount,
+        MIN(ro.purchaseAmount) AS purchaseAmount,
+        MIN(payments.paidAmount) AS paidAmount,
 
         p.id AS product_id,
         MIN(pm.name) AS image,
@@ -878,11 +1021,11 @@ router.get(
         MIN(f.product_size) AS original_size,
         MIN(COALESCE(NULLIF(c.storeName, ''), c.name)) AS customerStoreName,
         MIN(COALESCE(NULLIF(c.storeName, ''), c.name)) AS customer_name,
-        MIN(c.email) AS manufacturingEmailAddress,
+        MIN(COALESCE(ro.manufacturingEmailAddress, c.email)) AS manufacturingEmailAddress,
         MIN(c.phoneNumber) AS phoneNumber,
         MIN(p.productCode) AS styleNo,
-        DATE_FORMAT(MIN(rf.createdAt), '%Y-%m-%d') AS orderReceivedDate,
-        MIN(c.storeAddress) AS address,
+        MIN(COALESCE(ro.orderReceivedDate, rf.createdAt)) AS orderReceivedDate,
+        MIN(COALESCE(ro.address, c.storeAddress)) AS address,
 
         MIN(f.color) AS color,
         MIN(f.mesh_color) AS mesh_color,
@@ -892,21 +1035,22 @@ router.get(
         MIN(f.lining_color) AS lining_color,
         MIN(f.reference_image) AS reference_image,
         MIN(f.customization) AS comments,
+        MIN(f.customization_price) AS customization_price,
         MIN(COALESCE(NULLIF(ros.size_country, ''), f.size_country)) AS size_country,
 
-        MIN(CASE 
+        MIN(COALESCE(NULLIF(f.product_price, 0) * f.quantity, CASE 
             WHEN CAST(f.product_size AS SIGNED) >= 58 THEN COALESCE(pcp.price, p.price) * 1.60 * f.quantity
             WHEN CAST(f.product_size AS SIGNED) >= 54 THEN COALESCE(pcp.price, p.price) * 1.40 * f.quantity
             WHEN CAST(f.product_size AS SIGNED) >= 50 THEN COALESCE(pcp.price, p.price) * 1.20 * f.quantity
             ELSE COALESCE(pcp.price, p.price) * f.quantity
-        END) AS total_amount,
+        END)) AS total_amount,
 
-        MIN(CASE
+        MIN(COALESCE(NULLIF(f.product_price, 0), CASE
             WHEN CAST(f.product_size AS SIGNED) >= 58 THEN COALESCE(pcp.price, p.price) * 1.60
             WHEN CAST(f.product_size AS SIGNED) >= 54 THEN COALESCE(pcp.price, p.price) * 1.40
             WHEN CAST(f.product_size AS SIGNED) >= 50 THEN COALESCE(pcp.price, p.price) * 1.20
             ELSE COALESCE(pcp.price, p.price)
-        END) AS price,
+        END)) AS price,
 
         MIN(curr.symbol) AS currencySymbol,
         MIN(curr.name) AS currencyName
@@ -931,6 +1075,12 @@ router.get(
     -- 🔥 APPROVED RETAILER ORDER
     LEFT JOIN retailer_orders ro
         ON ro.favouriteOrderId = rf.id
+
+    LEFT JOIN (
+        SELECT orderId, SUM(amount) AS paidAmount
+        FROM retailer_order_payments
+        GROUP BY orderId
+    ) payments ON payments.orderId = ro.id
 
     -- 🔥 BARCODE TABLE
     LEFT JOIN retailer_order_styles ros
@@ -2134,6 +2284,226 @@ router.post(
     return res.json({
       success: true,
       msg: "Status Updated Successfully",
+    });
+  })
+);
+
+router.patch(
+  "/admin/edit-order/:id",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const payload = req.body?.orderData ?? req.body?.data;
+    const changedFields = req.body?.changedFields ?? {};
+
+    if (!payload) {
+      return res.status(400).json({
+        success: false,
+        message: "No order data was provided",
+      });
+    }
+
+    const order = await RetailerOrder.findOne({
+      where: { id: Number(id), status: 0 },
+      relations: ["favourite_order", "Stock_order", "retailer", "retailer.customer"],
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    const incomingEmail = payload.manufacturingEmailAddress ?? payload.email;
+    const incomingReceivedDate = payload.orderReceivedDate ?? payload.received_date;
+
+    if (hasDirtyPath(changedFields, "purchaseOrderNo")) {
+      const purchaseOrderNo = sanitizeText(payload.purchaseOrderNo);
+      if (!purchaseOrderNo) {
+        return res.status(400).json({
+          success: false,
+          message: "Purchase order number is required",
+        });
+      }
+      order.purchaeOrderNo = purchaseOrderNo;
+    }
+
+    if (
+      hasDirtyPath(changedFields, "manufacturingEmailAddress") ||
+      hasDirtyPath(changedFields, "email")
+    ) {
+      const email = sanitizeText(incomingEmail);
+      if (!email || !email.includes("@")) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid manufacturing email is required",
+        });
+      }
+      order.manufacturingEmailAddress = email;
+    }
+
+    if (
+      hasDirtyPath(changedFields, "orderReceivedDate") ||
+      hasDirtyPath(changedFields, "received_date")
+    ) {
+      const date = parseIncomingDate(incomingReceivedDate);
+      if (!date) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid order received date is required",
+        });
+      }
+      order.orderReceivedDate = date;
+    }
+
+    if (hasDirtyPath(changedFields, "orderCancellationDate")) {
+      const date = parseIncomingDate(payload.orderCancellationDate);
+      if (!date) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid order shipping date is required",
+        });
+      }
+      order.orderCancellationDate = date;
+    }
+
+    if (hasDirtyPath(changedFields, "address")) {
+      order.address = payload.address ?? "";
+    }
+
+    if (hasDirtyPath(changedFields, "phoneNumber")) {
+      order.phoneNumber = sanitizeText(payload.phoneNumber);
+    }
+
+    if (hasDirtyPath(changedFields, "invoice")) {
+      order.invoiceNo = sanitizeText(payload.invoice);
+    }
+
+    if (hasDirtyPath(changedFields, "estimate")) {
+      order.estimateNo = sanitizeText(payload.estimate);
+    }
+
+    if (hasDirtyPath(changedFields, "shipping")) {
+      const shippingAmount = Number(payload.shipping);
+      if (Number.isNaN(shippingAmount) || shippingAmount < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Shipping amount must be a valid number",
+        });
+      }
+      order.shippingAmount = shippingAmount;
+    }
+
+    if (hasDirtyPath(changedFields, "advance")) {
+      await upsertRetailerOrderAdvance(order, payload.advance);
+    }
+
+    const stylesChanged = Array.isArray(changedFields.styles)
+      ? changedFields.styles.some((styleDirty: any) => hasDirtyValue(styleDirty))
+      : false;
+    const shouldUpdateAmount =
+      hasDirtyPath(changedFields, "total_amount") ||
+      hasDirtyPath(changedFields, "shipping") ||
+      stylesChanged;
+
+    if (shouldUpdateAmount) {
+      const purchaseAmount = Number(payload.total_amount);
+      if (Number.isNaN(purchaseAmount) || purchaseAmount < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Total amount must be a valid number",
+        });
+      }
+      order.purchaseAmount = purchaseAmount;
+    }
+
+    if (order.is_stock_order) {
+      if (hasDirtyPath(changedFields, "styleNo")) {
+        order.StyleNo = sanitizeText(payload.styleNo);
+      }
+
+      if (hasDirtyPath(changedFields, "size")) {
+        const normalizedSize = normalizeAcceptedStyleSize(
+          payload.size,
+          payload.size_country,
+        );
+        order.Size = normalizedSize.displaySize;
+        order.size_country = normalizedSize.sizeCountry;
+      }
+
+      if (hasDirtyPath(changedFields, "quantity")) {
+        order.quantity = String(payload.quantity ?? "");
+        await syncStockOrderStyleRows(order, payload);
+      }
+    } else if (Array.isArray(payload.styles) && stylesChanged) {
+      const normalizedStyles = payload.styles.map((style: any) => ({
+        ...style,
+        normalizedSize: normalizeAcceptedStyleSize(
+          style?.size,
+          style?.size_country,
+        ),
+      }));
+
+      for (let index = 0; index < normalizedStyles.length; index++) {
+        const style = normalizedStyles[index];
+        const styleDirty = changedFields.styles?.[index];
+        if (!hasDirtyValue(styleDirty)) continue;
+
+        if (style.fav_id) {
+          const fav = await Favourites.findOne({
+            where: { id: Number(style.fav_id) },
+          });
+
+          if (fav) {
+            if (styleDirty.amount) fav.product_price = Number(style.amount) || 0;
+            if (styleDirty.customization_p) {
+              fav.customization_price = Number(style.customization_p) || 0;
+            }
+            if (styleDirty.quantity) fav.quantity = Number(style.quantity) || fav.quantity;
+            if (styleDirty.comments) fav.customization = String(style.comments ?? "");
+            if (styleDirty.customColor) fav.color = String(style.customColor ?? "");
+            if (styleDirty.meshColor) fav.mesh_color = String(style.meshColor ?? "");
+            if (styleDirty.beadingColor) fav.beading_color = String(style.beadingColor ?? "");
+            if (styleDirty.lining) {
+              fav.lining = String(style.lining ?? "");
+              fav.add_lining = fav.lining === "No Lining" ? 0 : 1;
+            }
+            if (styleDirty.liningColor) fav.lining_color = String(style.liningColor ?? "");
+            if (styleDirty.size) {
+              fav.admin_us_size = style.normalizedSize.displaySize;
+              fav.size_country = style.normalizedSize.sizeCountry;
+            }
+
+            await fav.save();
+          }
+        }
+
+        if (
+          styleDirty.quantity ||
+          styleDirty.size ||
+          styleDirty.styleNo
+        ) {
+          await syncFreshOrderStyleRows(order, style);
+        }
+      }
+
+      order.StyleNo = normalizedStyles.map((style: any) => style.styleNo).join(",");
+      order.Size = normalizedStyles
+        .map((style: any) => style.normalizedSize.displaySize)
+        .join(",");
+      order.size_country = normalizedStyles
+        .map((style: any) => style.normalizedSize.sizeCountry)
+        .join(",");
+      order.quantity = normalizedStyles
+        .map((style: any) => String(style.quantity ?? ""))
+        .join(",");
+    }
+
+    await order.save();
+
+    return res.json({
+      success: true,
+      message: "Order updated successfully",
     });
   })
 );

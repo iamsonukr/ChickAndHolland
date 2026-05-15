@@ -20,7 +20,11 @@ const Customers = async (props: {
   searchParams: Promise<Record<string, string>>;
 }) => {
   const searchParams = await props.searchParams;
-  const currentPage = searchParams["cPage"] ? Number(searchParams["cPage"]) : 1;
+
+  const currentPage = searchParams["cPage"]
+    ? Number(searchParams["cPage"])
+    : 1;
+
   const query = searchParams["q"] ? searchParams["q"] : "";
 
   const customers = await getCustomers({
@@ -35,56 +39,96 @@ const Customers = async (props: {
     <ContentLayout title="Customers">
       <MapProvider>
         <div className="flex flex-col gap-8">
+          
+          {/* Header */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-xl md:text-2xl">All customers</h1>
+
             <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-<AddCustomerForm 
-   countries={countries} 
-   currencies={currencies} 
-/>
+              <AddCustomerForm
+                countries={countries}
+                currencies={currencies}
+              />
+
               <ImportQuickbook />
             </div>
           </div>
 
           <div className="space-y-2">
+            
+            {/* Search */}
             <CustomSearchBar query={query} />
-<TableScrollWrapper>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Store Name</TableHead>
-                  <TableHead>Website</TableHead>
-                  <TableHead>Phone Number</TableHead>
-                  <TableHead>Contact Person</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customers?.customers?.map((customer: any) => {
-                  return (
-                    <TableRow key={customer.id}>
-                      <TableCell>{customer.name}</TableCell>
-                      <TableCell>{customer.email}</TableCell>
-                      <TableCell>{customer.storeName}</TableCell>
-                      {/*<TableCell>{customer.address}</TableCell>*/}
-                      <TableCell>{customer.website}</TableCell>
-                      <TableCell>{customer.phoneNumber}</TableCell>
-                      <TableCell>{customer.contactPerson}</TableCell>
-<TableActions 
-   data={customer} 
-   countries={countries} 
-   currencies={currencies} 
-/>
 
+            {/* Table */}
+            <TableScrollWrapper>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>S.No</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Store Name</TableHead>
+                    <TableHead>Website</TableHead>
+                    <TableHead>Phone Number</TableHead>
+                    <TableHead>Contact Person</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+
+                <TableBody>
+                  {customers?.customers?.length > 0 ? (
+                    customers.customers.map(
+                      (customer: any, index: number) => {
+                        return (
+                          <TableRow key={customer.id}>
+                            
+                            {/* Serial Number */}
+                            <TableCell>
+                              {(currentPage - 1) * 10 + index + 1}
+                            </TableCell>
+
+                            {/* Customer Details */}
+                            <TableCell>{customer.name}</TableCell>
+
+                            <TableCell>{customer.email}</TableCell>
+
+                            <TableCell>{customer.storeName}</TableCell>
+
+                            <TableCell>{customer.website}</TableCell>
+
+                            <TableCell>
+                              {customer.phoneNumber}
+                            </TableCell>
+
+                            <TableCell>
+                              {customer.contactPerson}
+                            </TableCell>
+
+                            {/* Actions */}
+                            <TableActions
+                              data={customer}
+                              countries={countries}
+                              currencies={currencies}
+                            />
+                          </TableRow>
+                        );
+                      }
+                    )
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={8}
+                        className="py-10 text-center"
+                      >
+                        No customers found
+                      </TableCell>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                  )}
+                </TableBody>
+              </Table>
             </TableScrollWrapper>
 
+            {/* Pagination */}
             <CustomPagination
               currentPage={currentPage}
               totalLength={customers?.totalCount}

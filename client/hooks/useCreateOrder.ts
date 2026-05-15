@@ -26,12 +26,38 @@ import { Option } from "@/components/custom/multi-selector";
 export interface UseCreateOrderOptions {
   customers: any[];
   ordersTotalCount: number;
+  editOrder?: any;
 }
 
 export type UploadedFileType = "pdf" | "ppt" | null;
 
 const getCustomerStoreName = (customer: any) =>
   customer?.customerStoreName || customer?.storeName || customer?.name || "";
+
+const parseJsonArray = (value: any) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const toDateValue = (value: any) => {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
+const hasDirtyFields = (dirtyFields: any): boolean => {
+  if (!dirtyFields || typeof dirtyFields !== "object") return false;
+  return Object.values(dirtyFields).some((value) =>
+    value === true ? true : hasDirtyFields(value),
+  );
+};
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -64,39 +90,47 @@ function appendDateField(
   );
 }
 
+function appendStyleFormData(
+  fd: FormData,
+  style: CreateOrderForm["styles"][number],
+  index: number,
+  detailsMap: Map<string, any>,
+) {
+  const productDetails = detailsMap.get(style.styleNo?.[0]?.value ?? "");
+  const sas = (val: string | undefined, fallback: string | undefined) =>
+    val === "SAS" ? (fallback ?? "") : (val ?? "");
+
+  if (style.styleId) fd.append(`styles[${index}].id`, String(style.styleId));
+  fd.append(`styles[${index}].styleNo`, style.styleNo?.[0]?.value ?? "");
+  fd.append(`styles[${index}].colorType`, style.colorType);
+  fd.append(`styles[${index}].beading`, sas(style.beading, productDetails?.beading_color));
+  fd.append(`styles[${index}].mesh`, sas(style.mesh, productDetails?.mesh_color));
+  fd.append(`styles[${index}].lining`, sas(style.lining, productDetails?.lining));
+  fd.append(`styles[${index}].liningColor`, sas(style.liningColor, productDetails?.lining_color));
+  fd.append(`styles[${index}].customColor`, JSON.stringify(style.customColor?.map((c) => c.value) ?? []));
+  fd.append(`styles[${index}].sizeCountry`, style.sizeCountry);
+  fd.append(`styles[${index}].size`, style.size);
+  fd.append(`styles[${index}].customSize`, JSON.stringify(style.customSize?.map((s) => s.value) ?? []));
+  fd.append(`styles[${index}].quantity`, style.quantity ?? "");
+  fd.append(
+    `styles[${index}].comments`,
+    JSON.stringify(style.comments?.map((comment) => comment.trim()).filter(Boolean) ?? []),
+  );
+  fd.append(`styles[${index}].customSizesQuantity`, JSON.stringify(style.customSizesQuantity));
+
+  if (style.modifiedPhotoImage) {
+    Array.from(style.modifiedPhotoImage).forEach((file: any) => {
+      fd.append(`styles[${index}].modifiedPhotoImage`, file);
+    });
+  }
+}
+
 export function appendStylesFormData(
   fd: FormData,
   styles: CreateOrderForm["styles"],
   detailsMap: Map<string, any>,
 ) {
-  styles.forEach((style, index) => {
-    const productDetails = detailsMap.get(style.styleNo?.[0]?.value ?? "");
-    const sas = (val: string | undefined, fallback: string | undefined) =>
-      val === "SAS" ? (fallback ?? "") : (val ?? "");
-
-    fd.append(`styles[${index}].styleNo`, style.styleNo?.[0]?.value ?? "");
-    fd.append(`styles[${index}].colorType`, style.colorType);
-    fd.append(`styles[${index}].beading`, sas(style.beading, productDetails?.beading_color));
-    fd.append(`styles[${index}].mesh`, sas(style.mesh, productDetails?.mesh_color));
-    fd.append(`styles[${index}].lining`, sas(style.lining, productDetails?.lining));
-    fd.append(`styles[${index}].liningColor`, sas(style.liningColor, productDetails?.lining_color));
-    fd.append(`styles[${index}].customColor`, JSON.stringify(style.customColor?.map((c) => c.value) ?? []));
-    fd.append(`styles[${index}].sizeCountry`, style.sizeCountry);
-    fd.append(`styles[${index}].size`, style.size);
-    fd.append(`styles[${index}].customSize`, JSON.stringify(style.customSize?.map((s) => s.value) ?? []));
-    fd.append(`styles[${index}].quantity`, style.quantity ?? "");
-    fd.append(
-      `styles[${index}].comments`,
-      JSON.stringify(style.comments?.map((comment) => comment.trim()).filter(Boolean) ?? []),
-    );
-    fd.append(`styles[${index}].customSizesQuantity`, JSON.stringify(style.customSizesQuantity));
-
-    if (style.modifiedPhotoImage) {
-      Array.from(style.modifiedPhotoImage).forEach((file: any) => {
-        fd.append(`styles[${index}].modifiedPhotoImage`, file);
-      });
-    }
-  });
+  styles.forEach((style, index) => appendStyleFormData(fd, style, index, detailsMap));
 }
 
 export function buildPreviewData(
@@ -189,8 +223,13 @@ export function resolveFileType(file: File): UploadedFileType {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOptions) {
+export function useCreateOrder({
+  customers,
+  ordersTotalCount,
+  editOrder,
+}: UseCreateOrderOptions) {
   const router = useRouter();
+  const isEditMode = Boolean(editOrder?.id);
   const fallbackSequence = Math.max(1, Number(ordersTotalCount) + 1 || 1);
 
   // ── Derived arrays ──────────────────────────────────────────────────────────
@@ -249,6 +288,11 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
 
   // ── HTTP hooks ──────────────────────────────────────────────────────────────
   const { loading, error, executeAsync } = useHttp("/orders");
+  const {
+    loading: updateLoading,
+    error: updateError,
+    executeAsync: executeUpdateAsync,
+  } = useHttp(`/orders/${editOrder?.id ?? ""}`, "PATCH");
   const { loading: previewLoading, executeAsync: executePreviewAsync } = useHttp("/orders/preview");
 
   // ── Colour helpers ──────────────────────────────────────────────────────────
@@ -269,9 +313,106 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
   }));
 
   // ── Form ────────────────────────────────────────────────────────────────────
-  const form = useForm<CreateOrderForm>({
-    resolver: zodResolver(createOrderFormSchema),
-    defaultValues: {
+  const buildEmptyStyle = (): CreateOrderForm["styles"][number] => ({
+    styleNo: [],
+    colorType: colorTypeArray[0].value,
+    customColor: [],
+    sizeCountry: sizeCountryArray[0].value,
+    size: "",
+    customSize: [],
+    quantity: "",
+    customSizesQuantity: [],
+    comments: [],
+    beading: "SAS",
+    lining: "SAS",
+    liningColor: "SAS",
+    mesh: "SAS",
+    addLining: false,
+  });
+
+  const mapStyleToFormValue = (style: any): CreateOrderForm["styles"][number] => {
+    const styleNo = String(style?.styleNo ?? "");
+    const customSizesQuantity = parseJsonArray(style?.customSizesQuantity);
+    const customSize = parseJsonArray(style?.customSize);
+    const customColor = parseJsonArray(style?.customColor);
+    const comments = parseJsonArray(style?.comments);
+    const hasCustomSizes = customSizesQuantity.length > 0;
+
+    return {
+      styleId: style?.id,
+      styleNo: styleNo
+        ? ([
+            {
+              value: styleNo,
+              label: styleNo,
+              mesh: style?.mesh_color,
+              beading: style?.beading_color,
+              lining: style?.lining,
+              liningColor: style?.lining_color,
+            },
+          ] as any)
+        : [],
+      colorType: style?.colorType || colorTypeArray[0].value,
+      customColor: customColor.map((value: any) => ({
+        value: String(value),
+        label: String(value),
+      })),
+      sizeCountry: style?.sizeCountry || sizeCountryArray[0].value,
+      size: hasCustomSizes ? "Custom" : String(style?.size ?? ""),
+      customSize: (hasCustomSizes ? customSizesQuantity : customSize).map(
+        (value: any) => {
+          const sizeValue = typeof value === "object" ? value.size : value;
+          return {
+            value: String(sizeValue ?? ""),
+            label: String(sizeValue ?? ""),
+          };
+        },
+      ),
+      quantity: style?.quantity != null ? String(style.quantity) : "",
+      customSizesQuantity: customSizesQuantity.map((item: any) => ({
+        size: String(item?.size ?? ""),
+        quantity: String(item?.quantity ?? ""),
+      })),
+      comments: comments.map((comment: any) => String(comment)),
+      beading: style?.beading_color || "SAS",
+      lining: style?.lining || "SAS",
+      liningColor: style?.lining_color || "SAS",
+      mesh: style?.mesh_color || "SAS",
+      addLining:
+        Boolean(style?.lining) &&
+        !["SAS", "No Lining"].includes(String(style.lining)),
+    };
+  };
+
+  const buildDefaultValues = (): CreateOrderForm => {
+    if (isEditMode) {
+      const orderCustomer = editOrder?.customer;
+      const customerOption =
+        orderCustomer?.id != null
+          ? [
+              {
+                value: String(orderCustomer.id),
+                label: getCustomerStoreName(orderCustomer),
+              },
+            ]
+          : [];
+
+      return {
+        purchaseOrderNo: editOrder?.purchaeOrderNo ?? "",
+        manufacturingEmailAddress:
+          editOrder?.manufacturingEmailAddress ?? "rubyinc@hotmail.com",
+        orderType: editOrder?.orderType || orderTypeArrayState[0].value,
+        orderReceivedDate: toDateValue(editOrder?.orderReceivedDate) ?? new Date(),
+        orderCancellationDate: toDateValue(editOrder?.orderCancellationDate),
+        address: editOrder?.address ?? "",
+        customerId: customerOption,
+        styles: editOrder?.styles?.length
+          ? editOrder.styles.map(mapStyleToFormValue)
+          : [buildEmptyStyle()],
+      };
+    }
+
+    return {
       purchaseOrderNo: `PO# ${fallbackSequence}`,
       manufacturingEmailAddress: "rubyinc@hotmail.com",
       orderType: orderTypeArrayState[0].value,
@@ -279,25 +420,13 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
       orderCancellationDate: undefined,
       address: "",
       customerId: [],
-      styles: [
-        {
-          styleNo: [],
-          colorType: colorTypeArray[0].value,
-          customColor: [],
-          sizeCountry: sizeCountryArray[0].value,
-          size: "",
-          customSize: [],
-          quantity: "",
-          customSizesQuantity: [],
-          comments: [],
-          beading: "SAS",
-          lining: "SAS",
-          liningColor: "SAS",
-          mesh: "SAS",
-          addLining: false,
-        },
-      ],
-    },
+      styles: [buildEmptyStyle()],
+    };
+  };
+
+  const form = useForm<CreateOrderForm>({
+    resolver: zodResolver(createOrderFormSchema),
+    defaultValues: buildDefaultValues(),
     mode: "onChange",
   });
 
@@ -308,10 +437,23 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
 
   const fullComponentWatch = form.watch("styles");
 
+  useEffect(() => {
+    if (!isEditMode || !open) return;
+
+    form.reset(buildDefaultValues());
+    setPreviewData(null);
+    clearUploadedFile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, open, editOrder?.id]);
+
   // ── PO number generation ────────────────────────────────────────────────────
   const watchCustomerName = useWatch({ control: form.control, name: "customerId" });
 
   const generatePO = useCallback(async () => {
+    if (isEditMode) {
+      return;
+    }
+
     if (form.getFieldState("purchaseOrderNo").isDirty) {
       return;
     }
@@ -346,7 +488,7 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
         shouldValidate: true,
       });
     }
-  }, [fallbackSequence, form]);
+  }, [fallbackSequence, form, isEditMode]);
 
   useEffect(() => {
     generatePO();
@@ -413,6 +555,91 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
   // ── onSubmit ────────────────────────────────────────────────────────────────
   const onSubmit = async (data: CreateOrderForm) => {
     const detailsMap = await ensureProductDetailsLoaded(data.styles);
+
+    if (isEditMode) {
+      const dirtyFields = form.formState.dirtyFields as any;
+      const originalStyleIds = (editOrder?.styles ?? [])
+        .map((style: any) => Number(style?.id))
+        .filter(Boolean);
+      const currentStyleIds = data.styles
+        .map((style) => Number(style?.styleId))
+        .filter(Boolean);
+      const deleteStyleIds = originalStyleIds.filter(
+        (id: number) => !currentStyleIds.includes(id),
+      );
+      const hasUploadedStyleImage = data.styles.some(
+        (style) => style.modifiedPhotoImage?.length,
+      );
+
+      if (
+        !hasDirtyFields(dirtyFields) &&
+        deleteStyleIds.length === 0 &&
+        !uploadedFile &&
+        !hasUploadedStyleImage
+      ) {
+        toast.info("No changes to update");
+        return;
+      }
+
+      const fd = new FormData();
+
+      if (dirtyFields.purchaseOrderNo) fd.append("purchaseOrderNo", data.purchaseOrderNo);
+      if (dirtyFields.manufacturingEmailAddress) {
+        fd.append("manufacturingEmailAddress", data.manufacturingEmailAddress);
+      }
+      if (dirtyFields.orderType) fd.append("orderType", data.orderType);
+      if (dirtyFields.address) fd.append("address", data.address ?? "");
+      if (dirtyFields.customerId) {
+        fd.append("customerId", data.customerId?.[0]?.value ?? "");
+      }
+      if (dirtyFields.orderReceivedDate) {
+        appendDateField(fd, "orderReceivedDate", data.orderReceivedDate);
+      }
+      if (dirtyFields.orderCancellationDate) {
+        appendDateField(fd, "orderCancellationDate", data.orderCancellationDate);
+      }
+      if (deleteStyleIds.length) {
+        fd.append("deleteStyleIds", JSON.stringify(deleteStyleIds));
+      }
+
+      data.styles.forEach((style, index) => {
+        const styleDirty = dirtyFields.styles?.[index];
+        const isNewStyle = !style.styleId;
+        const hasNewImages = Boolean(style.modifiedPhotoImage?.length);
+
+        if (!isNewStyle && !styleDirty && !hasNewImages) return;
+        appendStyleFormData(fd, style, index, detailsMap);
+      });
+
+      if (uploadedFile) {
+        fd.append("uploadedOrderFile", uploadedFile);
+        fd.append("uploadedOrderFileType", uploadedFileType ?? "");
+      }
+
+      try {
+        const response = await executeUpdateAsync(fd, {}, (err) => {
+          toast.error("Failed to update order", {
+            description: err?.message ?? "Something went wrong",
+          });
+        });
+
+        if (!response.success) return toast.error("Failed to update order");
+
+        form.reset(data);
+        setOpen(false);
+        clearUploadedFile();
+        toast.success(response.message ?? "Order updated successfully");
+        setPreviewData(null);
+        router.refresh();
+      } catch {
+        toast.error("Failed to update order", {
+          description: updateError?.message ?? "Something went wrong",
+        });
+      }
+
+      return;
+    }
+
     const fd = buildSharedFormData(data);
     appendDateField(fd, "orderReceivedDate", data.orderReceivedDate);
     appendDateField(fd, "orderCancellationDate", data.orderCancellationDate);
@@ -482,7 +709,7 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
 
   // ── onErrors ────────────────────────────────────────────────────────────────
   const onErrors = () => {
-    toast.error("Failed to add order", {
+    toast.error(isEditMode ? "Failed to update order" : "Failed to add order", {
       description: "Make sure all fields are filled correctly",
     });
   };
@@ -541,7 +768,7 @@ export function useCreateOrder({ customers, ordersTotalCount }: UseCreateOrderOp
     onErrors,
     addStyle,
     // loading
-    loading,
+    loading: isEditMode ? updateLoading : loading,
     previewLoading,
   };
 }

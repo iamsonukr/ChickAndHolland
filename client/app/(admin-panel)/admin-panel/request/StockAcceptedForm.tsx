@@ -82,7 +82,42 @@ const getCustomerStoreName = (customer: any) =>
   customer?.name ||
   "";
 
-const StockAcceptedForm = ({ id }: { id: number }) => {
+const hasDirtyFields = (dirtyFields: any): boolean => {
+  if (!dirtyFields || typeof dirtyFields !== "object") return false;
+  return Object.values(dirtyFields).some((value) =>
+    value === true ? true : hasDirtyFields(value),
+  );
+};
+
+const normalizeAcceptedStockDetails = (details: any[] = []) => {
+  const first = details[0];
+  if (!first) return null;
+
+  const quantity = details.length > 1
+    ? details.reduce((sum, row) => sum + Number(row?.quantity || 0), 0)
+    : Number(first.quantity || 0);
+
+  return {
+    ...first,
+    quantity,
+    barcodes: details.map((row) => row?.barcode).filter(Boolean),
+  };
+};
+
+const StockAcceptedForm = ({
+  id,
+  editMode = false,
+  retailerOrderId,
+  triggerLabel,
+  editOrder,
+}: {
+  id: number;
+  editMode?: boolean;
+  retailerOrderId?: number;
+  triggerLabel?: string;
+  editOrder?: any;
+}) => {
+  const isEditMode = editMode && Boolean(retailerOrderId);
   const [open, setOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [customers, setCustomers] = useState<any>();
@@ -116,6 +151,14 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
 
   const { loading, error, executeAsync } = useHttp(
     "/retailer-orders/admin/accepted/stock-order",
+  );
+  const {
+    loading: updateLoading,
+    error: updateError,
+    executeAsync: executeUpdateAsync,
+  } = useHttp(
+    `/retailer-orders/admin/edit-order/${retailerOrderId ?? ""}`,
+    "PATCH",
   );
 
 
@@ -212,30 +255,44 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   const hydrateForm = async (customerDetails: any, availableColours: any[]) => {
     const invoice = `INVOICE_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
     const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
-    const totalAmount = Math.round(Number(customerDetails?.total_price || 0));
+    const shippingAmount = Number(customerDetails?.shippingAmount ?? editOrder?.shippingAmount ?? 0);
+    const totalAmount = Math.round(
+      Number(customerDetails?.purchaseAmount ?? customerDetails?.total_price ?? 0),
+    );
+    const productAmount = isEditMode
+      ? Math.max(totalAmount - shippingAmount, 0)
+      : totalAmount;
     const sizeLabel = customerDetails?.size_country
       ? `${customerDetails?.size ?? ""} (${customerDetails.size_country})`
       : `${customerDetails?.size ?? ""}`;
     const customerStoreName = getCustomerStoreName(customerDetails);
-    const purchaseOrderNo = await buildPrefilledPoNumber(customerStoreName);
+    const purchaseOrderNo =
+      isEditMode
+        ? customerDetails?.purchaseOrderNo || editOrder?.purchaeOrderNo || ""
+        : await buildPrefilledPoNumber(customerStoreName);
 
     form.reset({
       orderId: id,
       purchaseOrderNo,
-      manufacturingEmailAddress: "rubyinc@hotmail.com",
-      estimate,
-      invoice,
-      orderReceivedDate: customerDetails?.received
-        ? new Date(customerDetails.received)
+      manufacturingEmailAddress:
+        customerDetails?.manufacturingEmailAddress ||
+        editOrder?.manufacturingEmailAddress ||
+        "rubyinc@hotmail.com",
+      estimate: customerDetails?.estimateNo || editOrder?.estimateNo || estimate,
+      invoice: customerDetails?.invoiceNo || editOrder?.invoiceNo || invoice,
+      orderReceivedDate: (customerDetails?.orderReceivedDate || customerDetails?.received)
+        ? new Date(customerDetails.orderReceivedDate || customerDetails.received)
         : undefined,
-      orderCancellationDate: undefined,
-      address: customerDetails?.storeAddress || "",
+      orderCancellationDate: (customerDetails?.orderCancellationDate || editOrder?.orderCancellationDate)
+        ? new Date(customerDetails.orderCancellationDate || editOrder?.orderCancellationDate)
+        : undefined,
+      address: customerDetails?.address || editOrder?.address || customerDetails?.storeAddress || "",
       customerId: customerStoreName,
       styleNo: customerDetails?.productCode || "",
       size: sizeLabel.trim(),
       quantity: String(customerDetails?.quantity ?? 0),
-      advance: "0",
-      shipping: 0,
+      advance: String(customerDetails?.paidAmount ?? editOrder?.paidAmount ?? 0),
+      shipping: shippingAmount,
       beadingColor: resolveColourName(
         customerDetails?.beading_color,
         availableColours,
@@ -250,7 +307,7 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
         availableColours,
       ),
       total_amount: totalAmount,
-      product_amount: totalAmount,
+      product_amount: productAmount,
     });
   };
 
@@ -338,12 +395,14 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     try {
       const [detailsRes, coloursRes] = await Promise.all([
         fetchJson<{ success: boolean; details: any[]; message?: string }>(
-          `/retailer-orders/admin/stock-order/form/${id}/0`,
+          `/retailer-orders/admin/stock-order/form/${id}/${isEditMode ? 1 : 0}`,
         ),
         fetchJson<{ productColours?: any[] }>(`/product-colours`),
       ]);
 
-      const customerDetails = detailsRes.details?.[0];
+      const customerDetails = isEditMode
+        ? normalizeAcceptedStockDetails(detailsRes.details)
+        : detailsRes.details?.[0];
       const availableColours = coloursRes.productColours || [];
 
       if (!detailsRes.success || !customerDetails) {
@@ -430,6 +489,56 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
   const onSubmit = async (data: CreateStockOrderForm) => {
     try {
       const preData = buildAcceptedOrderPayload(data);
+
+      if (isEditMode) {
+        const dirtyFields = form.formState.dirtyFields;
+
+        if (!hasDirtyFields(dirtyFields) && !uploadedFile) {
+          toast.info("No changes to update");
+          return;
+        }
+
+        const response = await executeUpdateAsync({
+          orderType: "Stock",
+          data: preData,
+          changedFields: dirtyFields,
+        });
+
+        if (!response.success) {
+          toast.error("Failed to update order");
+          return;
+        }
+
+        if (uploadedFile) {
+          if (!retailerOrderId) {
+            throw new Error("Order ID missing for uploaded document.");
+          }
+
+          const formData = new FormData();
+          formData.append("ppt", uploadedFile);
+          formData.append("orderId", String(retailerOrderId));
+          formData.append("source", "retailer");
+          formData.append("uploadedOrderFileType", uploadedFileType ?? "");
+
+          const uploadResponse = await fetch(`${API_URL}/upload-ppt`, {
+            method: "POST",
+            body: formData,
+          });
+          const uploadJson = await uploadResponse.json();
+
+          if (!uploadResponse.ok || !uploadJson.success) {
+            throw new Error(
+              uploadJson?.message || "Order updated but the uploaded document failed to save.",
+            );
+          }
+        }
+
+        form.reset(data);
+        toast.success(response.message ?? "Order updated successfully");
+        setOpen(false);
+        router.refresh();
+        return;
+      }
 
       // If user uploaded a file, create the order first, then attach the uploaded document.
       if (uploadedFile) {
@@ -592,9 +701,11 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
       toast.error(
         message.includes("Order was created")
           ? "Order created, but document upload failed"
-          : "Failed to add order",
+          : isEditMode
+            ? "Failed to update order"
+            : "Failed to add order",
         {
-          description: message,
+          description: message || updateError?.message,
         },
       );
     }
@@ -623,12 +734,12 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
 
   const onPreviewSubmit = async (data: CreateStockOrderForm) => {
     setPreviewData(
-      await buildStockPreviewData(data, data.purchaseOrderNo),
+      await buildStockPreviewData(data, data.purchaseOrderNo, customers?.barcodes),
     );
   };
 
   const onErrors = (errors: any) => {
-    toast.error("Failed to add order", {
+    toast.error(isEditMode ? "Failed to update order" : "Failed to add order", {
       description: "Make sure all fields are filled correctly",
     });
   };
@@ -724,13 +835,15 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
     <div>
       <Sheet open={open} onOpenChange={setOpen}>
         <Button onClick={fetchData} disabled={prefillLoading}>
-          {prefillLoading ? "Loading..." : "Accept"}
+          {prefillLoading ? "Loading..." : triggerLabel ?? (isEditMode ? "Edit" : "Accept")}
         </Button>
         <SheetContent className="min-w-[100%] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Stock order</SheetTitle>
+            <SheetTitle>{isEditMode ? "Edit Stock Order" : "Stock order"}</SheetTitle>
             <SheetDescription>
-              Fill in the form below to Stock Order
+              {isEditMode
+                ? "Update the fields that need to change"
+                : "Fill in the form below to Stock Order"}
             </SheetDescription>
           </SheetHeader>
 
@@ -1124,10 +1237,14 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                     Preview Order{" "}
                   </Button>
                 )}
-                <Button type="submit" className="flex-1" disabled={loading}>
-                  {loading ? "Loading..." : "Accept Order"} (
+                <Button type="submit" className="flex-1" disabled={loading || updateLoading}>
+                  {loading || updateLoading
+                    ? "Loading..."
+                    : isEditMode
+                      ? "Update Order"
+                      : "Accept Order"} (
                   {currencyInfo?.symbol || "€"}{" "}
-                  {Math.round(customers?.total_price || 0)})
+                  {Math.round(customers?.total_price || customers?.purchaseAmount || 0)})
                 </Button>
               </div>
             </form>
@@ -1197,7 +1314,10 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                     className="border w-full p-2 rounded bg-white"
                     value={form.watch("customerId")}
                     onChange={(e) => {
-                      form.setValue("customerId", e.target.value);
+                      form.setValue("customerId", e.target.value, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
                       onPreviewSubmit(form.getValues());
                     }}
                   />
@@ -1210,7 +1330,10 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                     className="border w-full p-2 rounded bg-white"
                     value={form.watch("purchaseOrderNo")}
                     onChange={(e) => {
-                      form.setValue("purchaseOrderNo", e.target.value);
+                      form.setValue("purchaseOrderNo", e.target.value, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
                       onPreviewSubmit(form.getValues());
                     }}
                   />
@@ -1223,7 +1346,10 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                     className="border w-full p-2 rounded bg-white"
                     value={form.watch("invoice")}
                     onChange={(e) => {
-                      form.setValue("invoice", e.target.value);
+                      form.setValue("invoice", e.target.value, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
                       onPreviewSubmit(form.getValues());
                     }}
                   />
@@ -1236,7 +1362,10 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                     className="border w-full p-2 rounded bg-white"
                     value={form.watch("estimate")}
                     onChange={(e) => {
-                      form.setValue("estimate", e.target.value);
+                      form.setValue("estimate", e.target.value, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
                       onPreviewSubmit(form.getValues());
                     }}
                   />
@@ -1249,7 +1378,10 @@ const StockAcceptedForm = ({ id }: { id: number }) => {
                     className="border w-full p-2 rounded bg-white"
                     value={form.watch("address")}
                     onChange={(e) => {
-                      form.setValue("address", e.target.value);
+                      form.setValue("address", e.target.value, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
                       onPreviewSubmit(form.getValues());
                     }}
                   />

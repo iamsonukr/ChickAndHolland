@@ -192,6 +192,7 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                         type={item.orderType}
                         id={item.id}
                         orderSource="regular"
+                        showShippingDate={false}
                       />
                     </TableCell>
                   </TableRow>

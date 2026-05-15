@@ -52,8 +52,8 @@ const RejectedOrders = ({
     "PATCH",
   );
 
-  console.log(myOrders);
-  console.log(selectedOrders);
+  // console.log(myOrders);
+  // console.log(selectedOrders);
 
   const isAllSelected =
     myOrders.length > 0 && selectedOrders.length === myOrders.length;

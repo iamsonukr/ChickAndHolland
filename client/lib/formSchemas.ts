@@ -507,6 +507,7 @@ export const createOrderFormSchema = z.object({
     .array(
       z
         .object({
+          styleId: z.number().optional(),
           styleNo: z
             .object({
               value: z.string().min(1, {
@@ -558,7 +559,6 @@ export const createOrderFormSchema = z.object({
           liningColor: z.string().optional(),
 
           addLining: z.boolean().optional(),
-
           quantity: z.string().optional(),
 
           customSizesQuantity: z
@@ -613,6 +613,7 @@ export const createFreshOrderFormSchema = z.object({
     required_error: "Order Cancellation Date is required",
   }),
   address: z.string(),
+  phoneNumber: z.string().optional(),
   customerId: z.string(),
   orderId: z.number(),
 
@@ -683,6 +684,7 @@ export const createFreshOrderFormSchema = z.object({
           beadingColor: z.string(),
           lining: z.string(),
           liningColor: z.string().optional(),
+          barcodes: z.array(z.string()).optional(),
         })
         .refine(
           (data) => {

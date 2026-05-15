@@ -154,6 +154,99 @@ async function resolveRegularPurchaseOrderNo(
   return sanitizeText(submittedPurchaseOrderNo) || generatedPurchaseOrderNo;
 }
 
+function parseJsonArrayField(value: unknown) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseMultipartRequest(req: Request) {
+  return new Promise<{ fields: Field; files: FileData[] }>((resolve, reject) => {
+    const busboy = Busboy({ headers: req.headers });
+    const fields: Field = {};
+    const filePromises: Promise<FileData>[] = [];
+
+    busboy.on("field", (fieldname: string, val: string) => {
+      fields[fieldname] = val;
+    });
+
+    busboy.on(
+      "file",
+      (
+        fieldname: string,
+        file: NodeJS.ReadableStream,
+        filename: string,
+        encoding: string,
+        mimetype: string
+      ) => {
+        const buffers: Buffer[] = [];
+
+        const filePromise = new Promise<FileData>((fileResolve, fileReject) => {
+          file.on("data", (data: Buffer) => {
+            buffers.push(data);
+          });
+
+          file.on("end", () => {
+            fileResolve({
+              fieldname,
+              filename,
+              encoding,
+              mimetype,
+              buffer: Buffer.concat(buffers),
+            });
+          });
+
+          file.on("error", fileReject);
+        });
+
+        filePromises.push(filePromise);
+      }
+    );
+
+    busboy.on("finish", async () => {
+      try {
+        resolve({ fields, files: await Promise.all(filePromises) });
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    busboy.on("error", reject);
+    busboy.end(req.body);
+  });
+}
+
+function parseStylesFromFields(fields: Field) {
+  const styles: any[] = [];
+
+  for (const key in fields) {
+    if (!key.startsWith("styles[")) continue;
+
+    const matches = key.match(/\[(\d+)\]\.(.+)/);
+    if (!matches) continue;
+
+    const index = Number(matches[1]);
+    const field = matches[2];
+
+    if (!styles[index]) styles[index] = {};
+    styles[index][field] = fields[key];
+  }
+
+  return styles.filter(Boolean);
+}
+
+function parseDateField(value: unknown) {
+  const date = new Date(String(value ?? ""));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 
 router.post(
   "/",
@@ -354,6 +447,226 @@ router.post(
     });
 
     busboy.end(req.body);
+  })
+);
+
+router.patch(
+  "/:id",
+  raw({
+    type: "multipart/form-data",
+    limit: "100mb",
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const order = await Order.findOne({
+      where: { id: Number(id), status: 0 },
+      relations: ["customer", "styles"],
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    const { fields, files } = await parseMultipartRequest(req);
+    const hasField = (fieldName: string) =>
+      Object.prototype.hasOwnProperty.call(fields, fieldName);
+
+    if (hasField("purchaseOrderNo")) {
+      const purchaseOrderNo = sanitizeText(fields.purchaseOrderNo);
+      if (!purchaseOrderNo) {
+        return res.status(400).json({
+          success: false,
+          message: "Purchase order number is required",
+        });
+      }
+      order.purchaeOrderNo = purchaseOrderNo;
+    }
+
+    if (hasField("manufacturingEmailAddress")) {
+      const email = sanitizeText(fields.manufacturingEmailAddress);
+      if (!email || !email.includes("@")) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid manufacturing email is required",
+        });
+      }
+      order.manufacturingEmailAddress = email;
+    }
+
+    if (hasField("orderType")) {
+      const orderType = sanitizeText(fields.orderType);
+      if (!orderType) {
+        return res.status(400).json({
+          success: false,
+          message: "Order type is required",
+        });
+      }
+      order.orderType = orderType as OrderType;
+    }
+
+    if (hasField("address")) {
+      order.address = fields.address;
+    }
+
+    if (hasField("customerId")) {
+      const customerId = Number(fields.customerId);
+      if (!customerId) {
+        return res.status(400).json({
+          success: false,
+          message: "Customer is required",
+        });
+      }
+
+      const customer = await Customer.findOne({ where: { id: customerId } });
+      if (!customer) {
+        return res.status(404).json({
+          success: false,
+          message: "Customer not found",
+        });
+      }
+      order.customer = customer;
+    }
+
+    if (hasField("orderReceivedDate")) {
+      const date = parseDateField(fields.orderReceivedDate);
+      if (!date) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid order received date is required",
+        });
+      }
+      order.orderReceivedDate = date;
+    }
+
+    if (hasField("orderCancellationDate")) {
+      const date = parseDateField(fields.orderCancellationDate);
+      if (!date) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid order shipping date is required",
+        });
+      }
+      order.orderCancellationDate = date;
+    }
+
+    const uploadedOrderFile = files.find(
+      (file) => file.fieldname === "uploadedOrderFile"
+    );
+    if (uploadedOrderFile) {
+      const extension = resolveUploadedOrderDocumentExtension(
+        uploadedOrderFile,
+        fields.uploadedOrderFileType
+      );
+      const uploadedDocument = await storeFileInS3(
+        uploadedOrderFile.buffer,
+        `order-documents/${order.id}/${Date.now()}${extension}`
+      );
+
+      if (!uploadedDocument) {
+        throw new Error("Failed to upload order document");
+      }
+
+      order.ppt_path = getFullUrl(uploadedDocument.fileName);
+    }
+
+    const deleteStyleIds = parseJsonArrayField(fields.deleteStyleIds)
+      .map((styleId) => Number(styleId))
+      .filter(Boolean);
+
+    for (const styleId of deleteStyleIds) {
+      const style = order.styles?.find((item) => item.id === styleId);
+      if (style) {
+        await style.remove();
+      }
+    }
+
+    const styles = parseStylesFromFields(fields);
+    const existingStyles = new Map(
+      (order.styles ?? []).map((style) => [style.id, style]),
+    );
+
+    for (let i = 0; i < styles.length; i++) {
+      const s = styles[i];
+      const styleId = Number(s.id);
+      const style = styleId ? existingStyles.get(styleId) : new Style();
+
+      if (!style) {
+        return res.status(404).json({
+          success: false,
+          message: "Order style not found",
+        });
+      }
+
+      if (!styleId) {
+        style.order = order;
+      }
+
+      if (s.styleNo !== undefined) style.styleNo = sanitizeText(s.styleNo);
+      if (s.colorType !== undefined) style.colorType = sanitizeText(s.colorType);
+      if (s.customColor !== undefined) style.customColor = s.customColor;
+      if (s.comments !== undefined) style.comments = s.comments;
+      if (s.customSize !== undefined) style.customSize = s.customSize;
+      if (s.customSizesQuantity !== undefined) {
+        style.customSizesQuantity = s.customSizesQuantity;
+      }
+      if (s.sizeCountry !== undefined) style.sizeCountry = s.sizeCountry;
+      if (s.size !== undefined) style.size = s.size;
+      if (s.mesh !== undefined) style.mesh_color = s.mesh || "SAS";
+      if (s.beading !== undefined) style.beading_color = s.beading || "SAS";
+      if (s.lining !== undefined) style.lining = s.lining || "SAS";
+      if (s.liningColor !== undefined) {
+        style.lining_color = style.lining === "No Lining" ? null : s.liningColor;
+      }
+      if (s.quantity !== undefined) {
+        const quantity = Number(s.quantity || 0);
+        if (quantity < 0 || Number.isNaN(quantity)) {
+          return res.status(400).json({
+            success: false,
+            message: "Quantity must be a valid number",
+          });
+        }
+        style.quantity = quantity;
+      }
+
+      await style.save();
+
+      if (!styleId && !style.barcode) {
+        style.barcode = `${order.purchaeOrderNo}-${style.styleNo}-${style.id}`;
+        await style.save();
+      }
+
+      const styleImages = files.filter(
+        (file) => file.fieldname === `styles[${i}].modifiedPhotoImage`
+      );
+
+      if (styleImages.length) {
+        const imageUrls = await Promise.all(
+          styleImages.map(async (file) => {
+            const fileName = `orders/${order.id}/${Math.random()
+              .toString(36)
+              .substring(7)}.jpeg`;
+            const compressedImage = await sharp(file.buffer).jpeg().toBuffer();
+            return storeFileInS3(compressedImage, fileName);
+          })
+        );
+        const existingPhotoUrls = parseJsonArrayField(style.photoUrls);
+        style.photoUrls = JSON.stringify([
+          ...existingPhotoUrls,
+          ...imageUrls.filter(Boolean).map((image) => image?.fileName),
+        ]);
+        await style.save();
+      }
+    }
+
+    await order.save();
+
+    return res.json({
+      success: true,
+      message: "Order updated successfully",
+    });
   })
 );
 

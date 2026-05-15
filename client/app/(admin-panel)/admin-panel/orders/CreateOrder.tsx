@@ -23,11 +23,19 @@ import PdfPreview from "@/components/pdf/PdfPreview";
 interface CreateOrderProps {
   customers: any[];
   ordersTotalCount: number;
+  editOrder?: any;
+  triggerLabel?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
+const CreateOrder = ({
+  customers,
+  ordersTotalCount,
+  editOrder,
+  triggerLabel,
+}: CreateOrderProps) => {
+  const isEditMode = Boolean(editOrder?.id);
   const {
     // form
     form,
@@ -64,7 +72,7 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
     // loading
     loading,
     previewLoading,
-  } = useCreateOrder({ customers, ordersTotalCount });
+  } = useCreateOrder({ customers, ordersTotalCount, editOrder });
 
   // ── Decide what to show in the preview panel ────────────────────────────────
   //
@@ -99,14 +107,19 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button>
-          Add New Order <Plus className="ml-1 h-4 w-4" />
+          {triggerLabel ?? "Add New Order"}
+          {!isEditMode && <Plus className="ml-1 h-4 w-4" />}
         </Button>
       </SheetTrigger>
 
       <SheetContent className="min-w-[100%] overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Add New Order</SheetTitle>
-          <SheetDescription>Fill in the form below to add an order</SheetDescription>
+          <SheetTitle>{isEditMode ? "Edit Order" : "Add New Order"}</SheetTitle>
+          <SheetDescription>
+            {isEditMode
+              ? "Update the fields that need to change"
+              : "Fill in the form below to add an order"}
+          </SheetDescription>
         </SheetHeader>
 
         {/* ── Form ── */}
@@ -124,6 +137,7 @@ const CreateOrder = ({ customers, ordersTotalCount }: CreateOrderProps) => {
           setOrderTypeArrayState={setOrderTypeArrayState}
           loading={loading}
           previewLoading={previewLoading}
+          submitLabel={isEditMode ? "Update Order" : "Create Order"}
           uploadedFile={uploadedFile}
           uploadedFileType={uploadedFileType}
           setUploadedFile={setUploadedFile}

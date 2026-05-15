@@ -55,6 +55,7 @@ interface CreateOrderFormFieldsProps {
   >;
   loading: boolean;
   previewLoading: boolean;
+  submitLabel?: string;
   // upload
   uploadedFile: File | null;
   uploadedFileType: UploadedFileType;
@@ -85,6 +86,7 @@ export function CreateOrderFormFields({
   setOrderTypeArrayState,
   loading,
   previewLoading,
+  submitLabel = "Create Order",
   uploadedFile,
   uploadedFileType,
   setUploadedFile,
@@ -385,7 +387,7 @@ export function CreateOrderFormFields({
             className={cn("flex-1", uploadedFile && "w-full")}
             disabled={loading}
           >
-            {loading ? "Loading..." : "Create Order"}
+            {loading ? "Loading..." : submitLabel}
           </Button>
         </div>
       </form>

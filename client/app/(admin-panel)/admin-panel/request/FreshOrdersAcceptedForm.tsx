@@ -100,13 +100,52 @@ const getTrailingPoNumber = (poNumber?: string | null) => {
 const getCustomerStoreName = (data: any) =>
   data?.customerStoreName || data?.customer_store_name || data?.storeName || data?.customer_name || "";
 
+const hasDirtyFields = (dirtyFields: any): boolean => {
+  if (!dirtyFields || typeof dirtyFields !== "object") return false;
+  return Object.values(dirtyFields).some((value) =>
+    value === true ? true : hasDirtyFields(value),
+  );
+};
+
+const groupAcceptedFreshRows = (rows: any[] = []) => {
+  const groupedRows = new Map<string, any>();
+
+  rows.forEach((row) => {
+    const key = String(row?.fav_id ?? `${row?.styleNo}-${row?.size}`);
+    const existing = groupedRows.get(key);
+
+    if (!existing) {
+      groupedRows.set(key, {
+        ...row,
+        quantity: Number(row?.quantity || 0),
+        barcodes: row?.barcode ? [String(row.barcode)] : [],
+      });
+      return;
+    }
+
+    existing.quantity += Number(row?.quantity || 0);
+    if (row?.barcode) existing.barcodes.push(String(row.barcode));
+  });
+
+  return Array.from(groupedRows.values());
+};
+
 const FreshOrdersAcceptedForm = ({
   customers,
   id,
+  editMode = false,
+  retailerOrderId,
+  triggerLabel,
+  editOrder,
 }: {
   customers: any[];
   id: number;
+  editMode?: boolean;
+  retailerOrderId?: number;
+  triggerLabel?: string;
+  editOrder?: any;
 }) => {
+  const isEditMode = editMode && Boolean(retailerOrderId);
   const [details, setDetails] = useState<any[]>([]);
   const [currencyInfo, setCurrencyInfo] = useState<{
     symbol: string;
@@ -143,6 +182,14 @@ const FreshOrdersAcceptedForm = ({
   const { loading, error, executeAsync } = useHttp(
     "/retailer-orders/admin/accepted/favorites-order",
     "POST",
+  );
+  const {
+    loading: updateLoading,
+    error: updateError,
+    executeAsync: executeUpdateAsync,
+  } = useHttp(
+    `/retailer-orders/admin/edit-order/${retailerOrderId ?? ""}`,
+    "PATCH",
   );
 
   const router = useRouter();
@@ -193,8 +240,16 @@ const FreshOrdersAcceptedForm = ({
 
   const fetchData = async () => {
     try {
-      const res = await getRetailerAdminFreshOrderDetails(id, 0);
-      let data = res.data;
+      const res = await getRetailerAdminFreshOrderDetails(
+        id,
+        isEditMode ? 1 : 0,
+      );
+      const rawData = Array.isArray(res.data) ? res.data : [];
+      let data = isEditMode ? groupAcceptedFreshRows(rawData) : rawData;
+
+      if (!data.length) {
+        throw new Error("Order details were not found");
+      }
 
       form.setValue("orderId", id);
       console.log("ORDER ID →", form.getValues("orderId"));
@@ -213,9 +268,12 @@ const FreshOrdersAcceptedForm = ({
         .toUpperCase();
 
       // 2️⃣ Fetch last retailer PO from backend and keep the global sequence
-      const latestPO = await getLatestRetailerOrder();
-      const nextSequence = getTrailingPoNumber(latestPO?.purchaeOrderNo) + 1 || 1;
-      const newPO = `PO#${customerPrefix} ${nextSequence}`;
+      let newPO = data[0].purchaseOrderNo || editOrder?.purchaeOrderNo || "";
+      if (!isEditMode) {
+        const latestPO = await getLatestRetailerOrder();
+        const nextSequence = getTrailingPoNumber(latestPO?.purchaeOrderNo) + 1 || 1;
+        newPO = `PO#${customerPrefix} ${nextSequence}`;
+      }
 
       // 3️⃣ Set PO in form
       form.setValue("purchaseOrderNo", newPO);
@@ -228,10 +286,24 @@ const FreshOrdersAcceptedForm = ({
 
       // form.setValue("purchaseOrderNo", newPO);
       form.setValue("customerId", customerStoreName);
-      form.setValue("manufacturingEmailAddress", "rubyinc@hotmail.com");
-      form.setValue("orderReceivedDate", new Date(data[0].orderReceivedDate));
-      form.setValue("address", data[0].address);
-      form.setValue("phoneNumber", data[0].phoneNumber);
+      form.setValue(
+        "manufacturingEmailAddress",
+        data[0].manufacturingEmailAddress ||
+          editOrder?.manufacturingEmailAddress ||
+          "rubyinc@hotmail.com",
+      );
+      form.setValue(
+        "orderReceivedDate",
+        new Date(data[0].orderReceivedDate || editOrder?.orderReceivedDate),
+      );
+      if (data[0].orderCancellationDate || editOrder?.orderCancellationDate) {
+        form.setValue(
+          "orderCancellationDate",
+          new Date(data[0].orderCancellationDate || editOrder?.orderCancellationDate),
+        );
+      }
+      form.setValue("address", data[0].address || editOrder?.address || "");
+      form.setValue("phoneNumber", data[0].phoneNumber || editOrder?.customer?.phoneNumber || "");
 
 
       const arrayData = data.map((it: any) => ({
@@ -241,7 +313,8 @@ const FreshOrdersAcceptedForm = ({
         comments: it.comments,
         amount: Number(it.price),
         fav_id: it.fav_id,
-        customization_p: 0,
+        customization_p: Number(it.customization_price || 0),
+        barcodes: it.barcodes || (it.barcode ? [String(it.barcode)] : []),
         meshColor:
           it.mesh_color !== "SAS"
             ? colors.find((colour: any) => colour.hexcode === it.mesh_color)
@@ -269,9 +342,20 @@ const FreshOrdersAcceptedForm = ({
       );
 
       form.setValue("product_amount", total);
-      form.setValue("total_amount", total);
-      form.setValue("estimate", estimate);
-      form.setValue("invoice", invoice);
+      form.setValue(
+        "shipping",
+        Number(data[0].shippingAmount ?? editOrder?.shippingAmount ?? 0),
+      );
+      form.setValue(
+        "total_amount",
+        Number(data[0].purchaseAmount ?? editOrder?.purchaseAmount ?? total),
+      );
+      form.setValue(
+        "advance",
+        Number(data[0].paidAmount ?? editOrder?.paidAmount ?? 0),
+      );
+      form.setValue("estimate", data[0].estimateNo || editOrder?.estimateNo || estimate);
+      form.setValue("invoice", data[0].invoiceNo || editOrder?.invoiceNo || invoice);
       setTotalState(total);
 
       if (data.length > 0 && data[0].currencySymbol) {
@@ -281,6 +365,8 @@ const FreshOrdersAcceptedForm = ({
         });
       }
 
+      form.reset(form.getValues());
+      setPreviewData(null);
       setDetails(data);
     } catch (error) {
       console.log(error);
@@ -340,7 +426,11 @@ const FreshOrdersAcceptedForm = ({
         const styleNo = parseInt(details[index].product_id);
         const standardColors = await productColorSAS(styleNo);
         const favouriteId = getFavouriteRowId(current, index);
-        const rowBarcodes = groupedBarcodes?.get(favouriteId) ?? [];
+        const rowBarcodes =
+          groupedBarcodes?.get(favouriteId) ??
+          (Array.isArray((current as any).barcodes)
+            ? (current as any).barcodes
+            : []);
         const cleanSize = String(current.size ?? "")
           .split("")
           .map((item) => (item.trim() ? item : ""))
@@ -448,6 +538,64 @@ const FreshOrdersAcceptedForm = ({
       invoice: data.invoice,
       phoneNumber: data.phoneNumber,
     };
+
+    if (isEditMode) {
+      const dirtyFields = form.formState.dirtyFields;
+
+      if (!hasDirtyFields(dirtyFields) && !uploadedFile) {
+        toast.info("No changes to update");
+        return;
+      }
+
+      try {
+        const response = await executeUpdateAsync({
+          orderType: "Fresh",
+          orderData: dataSend,
+          changedFields: dirtyFields,
+        });
+
+        if (!response.success) {
+          toast.error("Failed to update order");
+          return;
+        }
+
+        if (uploadedFile) {
+          if (!retailerOrderId) {
+            throw new Error("Order ID missing for uploaded document.");
+          }
+
+          const formData = new FormData();
+          formData.append("ppt", uploadedFile);
+          formData.append("orderId", String(retailerOrderId));
+          formData.append("source", "retailer");
+          formData.append("uploadedOrderFileType", uploadedFileType ?? "");
+
+          const uploadResponse = await fetch(`${API_URL}/upload-ppt`, {
+            method: "POST",
+            body: formData,
+          });
+          const uploadJson = await uploadResponse.json();
+
+          if (!uploadResponse.ok || !uploadJson.success) {
+            throw new Error(
+              uploadJson?.message || "Order updated but the uploaded document failed to save.",
+            );
+          }
+        }
+
+        form.reset(data);
+        setOpen(false);
+        toast.success(response.message ?? "Order updated successfully");
+        setPreviewData(null);
+        router.refresh();
+      } catch (err: any) {
+        toast.error("Failed to update order", {
+          description: err?.message ?? updateError?.message ?? "Something went wrong",
+        });
+      }
+
+      return;
+    }
 
     // If user uploaded a file, create the order first, then attach the uploaded document.
     if (uploadedFile) {
@@ -557,9 +705,17 @@ const FreshOrdersAcceptedForm = ({
 
   const onPreviewSubmit = async (data: CreateFreshOrderForm) => {
     try {
+      const formBarcodeGroups = new Map<string, string[]>();
+      data.styles.forEach((style: any, index) => {
+        const favouriteId = getFavouriteRowId(style, index);
+        if (Array.isArray(style.barcodes) && style.barcodes.length) {
+          formBarcodeGroups.set(favouriteId, style.barcodes);
+        }
+      });
       const finalStyles = await buildFreshPreviewDetails(
         data,
         data.purchaseOrderNo,
+        formBarcodeGroups,
       );
 
       setPreviewData({
@@ -741,7 +897,7 @@ const FreshOrdersAcceptedForm = ({
 
 
   const onErrors = (errors: any) => {
-    toast.error("Failed to add order", {
+    toast.error(isEditMode ? "Failed to update order" : "Failed to add order", {
       description: "Make sure all fields are filled correctly",
     });
   };
@@ -799,13 +955,15 @@ const FreshOrdersAcceptedForm = ({
     <div>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button onClick={fetchData}>Accept</Button>
+          <Button onClick={fetchData}>{triggerLabel ?? (isEditMode ? "Edit" : "Accept")}</Button>
         </SheetTrigger>
         <SheetContent className="min-w-[100%] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Add New Order</SheetTitle>
+            <SheetTitle>{isEditMode ? "Edit Retail Order" : "Add New Order"}</SheetTitle>
             <SheetDescription>
-              Fill in the form below to add order
+              {isEditMode
+                ? "Update the fields that need to change"
+                : "Fill in the form below to add order"}
             </SheetDescription>
           </SheetHeader>
 
@@ -1402,9 +1560,13 @@ const FreshOrdersAcceptedForm = ({
                 <Button
                   type="submit"
                   className="flex-1"
-                  disabled={loading}
+                  disabled={loading || updateLoading}
                 >
-                  {loading ? "Loading..." : "Create Order"}
+                  {loading || updateLoading
+                    ? "Loading..."
+                    : isEditMode
+                      ? "Update Order"
+                      : "Create Order"}
                 </Button>
 
               </div>
@@ -1483,7 +1645,10 @@ const FreshOrdersAcceptedForm = ({
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.customColor}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.customColor`, e.target.value);
+                            form.setValue(`styles.${idx}.customColor`, e.target.value, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1496,7 +1661,10 @@ const FreshOrdersAcceptedForm = ({
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.size}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.size`, e.target.value);
+                            form.setValue(`styles.${idx}.size`, e.target.value, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1509,7 +1677,10 @@ const FreshOrdersAcceptedForm = ({
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.meshColor}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.meshColor`, e.target.value);
+                            form.setValue(`styles.${idx}.meshColor`, e.target.value, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1522,7 +1693,10 @@ const FreshOrdersAcceptedForm = ({
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.beadingColor}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.beadingColor`, e.target.value);
+                            form.setValue(`styles.${idx}.beadingColor`, e.target.value, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1535,7 +1709,10 @@ const FreshOrdersAcceptedForm = ({
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.lining}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.lining`, e.target.value);
+                            form.setValue(`styles.${idx}.lining`, e.target.value, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1548,7 +1725,10 @@ const FreshOrdersAcceptedForm = ({
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.liningColor}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.liningColor`, e.target.value);
+                            form.setValue(`styles.${idx}.liningColor`, e.target.value, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1562,7 +1742,10 @@ const FreshOrdersAcceptedForm = ({
                         className="border w-full p-2 rounded text-black bg-white"
                         value={style.comments}
                         onChange={(e) => {
-                          form.setValue(`styles.${idx}.comments`, e.target.value);
+                          form.setValue(`styles.${idx}.comments`, e.target.value, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
                           onPreviewSubmit(form.getValues());
                         }}
                       />
@@ -1576,7 +1759,10 @@ const FreshOrdersAcceptedForm = ({
                         className="border w-full p-2 rounded text-black bg-white"
                         value={style.quantity}
                         onChange={(e) => {
-                          form.setValue(`styles.${idx}.quantity`, e.target.value);
+                          form.setValue(`styles.${idx}.quantity`, e.target.value, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
                           formChange();
                           onPreviewSubmit(form.getValues());
                         }}

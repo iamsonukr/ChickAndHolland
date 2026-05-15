@@ -18,6 +18,7 @@ import OrderDetailsSheet from "./OrderDetails";
 import AdjustSequenceButton from "./AdjustSequenceButton";
 import { Button } from "@/components/ui/button";
 import ResetScanButton from "./ResetScanButton";
+import EditOrderAction from "./EditOrderAction";
 
 const statusToDbField: Record<string, string | null> = {
   "Pattern/Khaka":     "pattern",
@@ -339,6 +340,10 @@ const OrdersPage = async (props: {
                           <td className={cn(tableCellClassName, "text-center")}>
                             <div className="flex items-center justify-center gap-2">
                               <OrderDetailsSheet orderDetails={order} />
+                              <EditOrderAction
+                                order={order}
+                                customers={customers.customers}
+                              />
                               <TableActions data={order} />
                               <ResetScanButton order={order} />
                             </div>
