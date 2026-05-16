@@ -137,6 +137,7 @@ const FreshOrdersAcceptedForm = ({
   retailerOrderId,
   triggerLabel,
   editOrder,
+  onSuccess,
 }: {
   customers: any[];
   id: number;
@@ -144,6 +145,7 @@ const FreshOrdersAcceptedForm = ({
   retailerOrderId?: number;
   triggerLabel?: string;
   editOrder?: any;
+  onSuccess?: () => void;
 }) => {
   const isEditMode = editMode && Boolean(retailerOrderId);
   const [details, setDetails] = useState<any[]>([]);
@@ -586,6 +588,7 @@ const FreshOrdersAcceptedForm = ({
         form.reset(data);
         setOpen(false);
         toast.success(response.message ?? "Order updated successfully");
+        onSuccess?.();
         setPreviewData(null);
         router.refresh();
       } catch (err: any) {
@@ -633,6 +636,7 @@ const FreshOrdersAcceptedForm = ({
 
         toast.success(response.message ?? "Order Added Successfully!");
         setOpen(false);
+        onSuccess?.();
         router.refresh();
         return;
       } catch (err: any) {
@@ -685,6 +689,7 @@ const FreshOrdersAcceptedForm = ({
       form.reset();
       setOpen(false);
       toast.success(response.message ?? "Order added successfully");
+      onSuccess?.();
       setPreviewData(null);
       router.refresh();
     } catch (err) {
@@ -729,166 +734,6 @@ const FreshOrdersAcceptedForm = ({
         total: total_state,
       });
       return;
-      /*
-      if (!orderRes?.success) {
-        throw new Error("Failed to fetch order barcode data");
-      }
-
-      const barcodeStyles = Array.isArray(orderRes.data) ? orderRes.data : [];
-
-      const barcodeMap = buildFreshBarcodeMap(
-        barcodeStyles,
-      );
-
-      console.log("🧠 BARCODE MAP →", [...barcodeMap.entries()]);
-
-      // =====================================================
-      // 🔥 STEP 2: BUILD PREVIEW STYLES
-      // =====================================================
-      const combinedStyles = await Promise.all(
-        data.styles.map(async (current, index) => {
-          // Colors
-          const colours = await getProductColours({});
-          const colors = colours.productColours;
-
-          const styleNoId = parseInt(details[index].product_id);
-          const standardColors = await productColorSAS(styleNoId);
-          const favouriteId = getFavouriteRowId(current, index);
-
-          // Clean size
-          const cleanSize = String(current.size ?? "")
-            .split("")
-            .map((item) => (item.trim() ? item : ""))
-            .join("");
-
-          // SAS logic
-          const meshColorDisplay =
-            current.meshColor ===
-              colors.find(
-                (c: any) => c.hexcode === standardColors.mesh_color
-              )?.name
-              ? `SAS(${current.meshColor})`
-              : current.meshColor;
-
-          const beadingColorDisplay =
-            current.beadingColor ===
-              colors.find(
-                (c: any) => c.hexcode === standardColors.beading_color
-              )?.name
-              ? `SAS(${current.beadingColor})`
-              : current.beadingColor;
-
-          const liningDisplay =
-            current.lining === standardColors.lining
-              ? `SAS(${current.lining})`
-              : current.lining;
-
-          const liningColorDisplay =
-            current.liningColor ===
-              colors.find(
-                (c: any) => c.hexcode === standardColors.lining_color
-              )?.name
-              ? formatSasValue(current.liningColor)
-              : current.liningColor;
-
-          // Reference images
-          const currentRefImages = details[index].reference_image
-            ? JSON.parse(details[index].reference_image).map((img: any) =>
-              convertWebPToJPG(img)
-            )
-            : [];
-
-          // Size country
-          const match = /\((.*?)\)/.exec(cleanSize);
-          const sizeCountry = match ? match[1] : "";
-
-          // 🔥 FINAL BARCODE (ONLY SOURCE)
-          const barcode =
-            barcodeMap.get(favouriteId) ||
-            buildFreshPreviewBarcode(data.purchaseOrderNo, current.styleNo, index);
-          const comparisonKey = buildFreshRowKey({
-            favouriteId,
-            styleNo: current.styleNo,
-            size: cleanSize,
-            quantity: current.quantity,
-            meshColor: current.meshColor,
-            beadingColor: current.beadingColor,
-            lining: current.lining,
-            liningColor: current.liningColor,
-            customColor: current.customColor,
-            comments: current.comments,
-            barcode,
-          });
-
-          console.log("🔍 PREVIEW BARCODE →", favouriteId, current.styleNo, barcode);
-
-          return {
-            key: comparisonKey,
-            quantity: current.quantity,
-            size: `${cleanSize.split("(")[0].trim()}/${current.quantity}`,
-            size_country: sizeCountry,
-            styleNo: current.styleNo,
-            comments: current.comments || "",
-            price: details[index].total_amount,
-            color: current.meshColor || current.customColor,
-            image: convertWebPToJPG(details[index].image),
-            refImg: currentRefImages,
-            meshColor: meshColorDisplay,
-            beadingColor: beadingColorDisplay,
-            lining: liningDisplay,
-            liningColor: liningColorDisplay,
-            barcode, // ✅ CORRECT BARCODE
-          };
-        })
-      );
-
-      // =====================================================
-      // 🔥 STEP 3: MERGE SAME ITEMS
-      // =====================================================
-      const reduced = combinedStyles.reduce((acc: any[], item) => {
-        const existingIndex = acc.findIndex(
-          (e) => e.key === item.key
-        );
-
-        if (existingIndex !== -1) {
-          const existing = acc[existingIndex];
-          existing.quantity =
-            Number(existing.quantity) + Number(item.quantity);
-          existing.size = `${existing.size}, ${item.size}`;
-          existing.price =
-            Number(existing.price) + Number(item.price);
-          existing.refImg = [
-            ...new Set([...existing.refImg, ...item.refImg]),
-          ];
-          existing.image = item.image;
-        } else {
-          acc.push(item);
-        }
-
-        return acc;
-      }, []);
-
-      // Remove temp key
-      const finalStyles = reduced.map(({ key, ...rest }) => rest);
-
-      // =====================================================
-      // 🔥 STEP 4: SET PREVIEW DATA
-      // =====================================================
-      const preData = {
-        customerId: data.customerId,
-        manufacturingEmailAddress: data.manufacturingEmailAddress,
-        orderCancellationDate: data.orderCancellationDate,
-        orderReceivedDate: data.orderReceivedDate,
-        orderType: "Fresh",
-        purchaseOrderNo: data.purchaseOrderNo,
-        details: finalStyles,
-        total: total_state,
-      };
-
-      console.log("✅ FINAL PREVIEW DATA →", preData);
-
-      setPreviewData(preData);
-      */
     } catch (err) {
       console.error("❌ onPreviewSubmit ERROR →", err);
       toast.error("Failed to generate preview");

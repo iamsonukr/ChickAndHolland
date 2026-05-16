@@ -82,6 +82,7 @@ import stripeWebhookHandler from "./routes/webhook";
 import { ensureProductQueriesTable } from "./utils/ensureProductQueriesTable";
 import { ensureAdminSettingsTable } from "./services/resetPassword.service";
 import { ensurePurchaseOrderNoIsNotUnique } from "./utils/ensurePurchaseOrderNoIsNotUnique";
+import { ensureOrderPublishStatusColumn } from "./utils/ensureOrderPublishStatusColumn";
 
 const router = Router();
 
@@ -150,6 +151,7 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
     await db.initialize();
     BaseEntity.useDataSource(db);
     await ensurePurchaseOrderNoIsNotUnique();
+    await ensureOrderPublishStatusColumn();
     await ensureProductQueriesTable();
     await ensureAdminSettingsTable();
     console.log("✅ Database connected");

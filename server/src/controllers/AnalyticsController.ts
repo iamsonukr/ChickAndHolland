@@ -364,7 +364,7 @@ router.get(
          WHERE ro.orderReceivedDate BETWEEN ? AND ? AND ro.status = 0)
         +
         (SELECT COUNT(o.id) FROM orders AS o 
-         WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0)
+         WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published')
     ) AS orders, 
 
     (
@@ -377,7 +377,7 @@ router.get(
             
             SELECT DISTINCT o.customerId AS buyer_id
             FROM orders o
-            WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0
+            WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published'
         ) unique_buyers
     ) AS customers,
 
@@ -386,7 +386,7 @@ router.get(
          WHERE ro.orderReceivedDate BETWEEN ? AND ? AND ro.status = 0)
         +
         (SELECT COUNT(o.id) FROM orders AS o 
-         WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0)
+         WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published')
     ) AS total_quantity
 ;`;
 
@@ -418,7 +418,7 @@ router.get(
         
         SELECT DATE(o.orderReceivedDate) AS order_date, COUNT(o.id) AS total_quantity
         FROM orders o
-        WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0
+        WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published'
         GROUP BY DATE(o.orderReceivedDate)
     ) combined_orders
     GROUP BY order_date
@@ -457,7 +457,7 @@ router.get(
             os.sizeCountry AS combined_country
         FROM orders o
         INNER JOIN orderStyles os ON o.id = os.orderId
-        WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND os.styleNo IS NOT NULL
+        WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published' AND os.styleNo IS NOT NULL
         GROUP BY os.styleNo, os.size, os.sizeCountry
     ) combined_products
     GROUP BY product_id

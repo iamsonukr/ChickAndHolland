@@ -353,17 +353,24 @@ export const getOrders = async ({
   page,
   query,
   orderType,
+  publishStatus,
 }: {
   page?: number;
   query?: string;
   orderType?: string;
+  publishStatus?: "published" | "draft";
 }) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
+  const params = new URLSearchParams();
+  if (page) params.set("page", String(page));
+  if (query) params.set("query", query);
+  if (orderType) params.set("orderType", orderType);
+  if (publishStatus) params.set("publishStatus", publishStatus);
 
   const response = await fetch(
-    `${API_URL}/orders?page=${page}&query=${query}&orderType=${orderType}`,
+    `${API_URL}/orders?${params.toString()}`,
     {
       headers,
       cache: "no-store",

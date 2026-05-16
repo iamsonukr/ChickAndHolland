@@ -27,6 +27,7 @@ export interface UseCreateOrderOptions {
   customers: any[];
   ordersTotalCount: number;
   editOrder?: any;
+  onSuccess?: () => void;
 }
 
 export type UploadedFileType = "pdf" | "ppt" | null;
@@ -227,6 +228,7 @@ export function useCreateOrder({
   customers,
   ordersTotalCount,
   editOrder,
+  onSuccess,
 }: UseCreateOrderOptions) {
   const router = useRouter();
   const isEditMode = Boolean(editOrder?.id);
@@ -553,11 +555,17 @@ export function useCreateOrder({
   );
 
   // ── onSubmit ────────────────────────────────────────────────────────────────
-  const onSubmit = async (data: CreateOrderForm) => {
+  const submitOrder = async (
+    data: CreateOrderForm,
+    publishStatus?: "published" | "draft",
+  ) => {
     const detailsMap = await ensureProductDetailsLoaded(data.styles);
 
     if (isEditMode) {
       const dirtyFields = form.formState.dirtyFields as any;
+      const isChangingPublishStatus = Boolean(
+        publishStatus && publishStatus !== editOrder?.publishStatus,
+      );
       const originalStyleIds = (editOrder?.styles ?? [])
         .map((style: any) => Number(style?.id))
         .filter(Boolean);
@@ -575,7 +583,8 @@ export function useCreateOrder({
         !hasDirtyFields(dirtyFields) &&
         deleteStyleIds.length === 0 &&
         !uploadedFile &&
-        !hasUploadedStyleImage
+        !hasUploadedStyleImage &&
+        !isChangingPublishStatus
       ) {
         toast.info("No changes to update");
         return;
@@ -601,6 +610,7 @@ export function useCreateOrder({
       if (deleteStyleIds.length) {
         fd.append("deleteStyleIds", JSON.stringify(deleteStyleIds));
       }
+      if (publishStatus) fd.append("publishStatus", publishStatus);
 
       data.styles.forEach((style, index) => {
         const styleDirty = dirtyFields.styles?.[index];
@@ -623,12 +633,19 @@ export function useCreateOrder({
           });
         });
 
-        if (!response.success) return toast.error("Failed to update order");
+        if (!response.success) {
+          toast.error("Failed to update order");
+          return;
+        }
 
         form.reset(data);
         setOpen(false);
         clearUploadedFile();
-        toast.success(response.message ?? "Order updated successfully");
+        toast.success(
+          response.message ??
+            (publishStatus === "draft" ? "Draft saved successfully" : "Order updated successfully"),
+        );
+        onSuccess?.();
         setPreviewData(null);
         router.refresh();
       } catch {
@@ -641,6 +658,7 @@ export function useCreateOrder({
     }
 
     const fd = buildSharedFormData(data);
+    if (publishStatus) fd.append("publishStatus", publishStatus);
     appendDateField(fd, "orderReceivedDate", data.orderReceivedDate);
     appendDateField(fd, "orderCancellationDate", data.orderCancellationDate);
     appendStylesFormData(fd, data.styles, detailsMap);
@@ -659,12 +677,19 @@ export function useCreateOrder({
         });
       });
 
-      if (!response.success) return toast.error("Failed to add order");
+      if (!response.success) {
+        toast.error("Failed to add order");
+        return;
+      }
 
       form.reset();
       setOpen(false);
       clearUploadedFile();
-      toast.success(response.message ?? "Order added successfully");
+      toast.success(
+        response.message ??
+          (publishStatus === "draft" ? "Draft saved successfully" : "Order added successfully"),
+      );
+      onSuccess?.();
       setPreviewData(null);
       router.refresh();
     } catch {
@@ -673,6 +698,9 @@ export function useCreateOrder({
       });
     }
   };
+
+  const onSubmit = async (data: CreateOrderForm) => submitOrder(data);
+  const onSaveDraft = async (data: CreateOrderForm) => submitOrder(data, "draft");
 
   // ── onPreviewSubmit ─────────────────────────────────────────────────────────
   const onPreviewSubmit = async (data: CreateOrderForm) => {
@@ -764,6 +792,7 @@ export function useCreateOrder({
     getColourBasedOnhex,
     // actions
     onSubmit,
+    onSaveDraft,
     onPreviewSubmit,
     onErrors,
     addStyle,

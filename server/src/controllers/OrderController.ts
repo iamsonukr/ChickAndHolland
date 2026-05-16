@@ -1,7 +1,12 @@
 
 import { raw, Request, Response, Router } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
-import Order, { OrderType, OrderStatus, ShippingStatus } from "../models/Order";
+import Order, {
+  OrderType,
+  OrderStatus,
+  ShippingStatus,
+  OrderPublishStatus,
+} from "../models/Order";
 import { Equal, In, Like } from "typeorm";
 import Busboy from "busboy";
 import sharp from "sharp";
@@ -247,6 +252,12 @@ function parseDateField(value: unknown) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function parsePublishStatus(value: unknown) {
+  return value === OrderPublishStatus.Draft
+    ? OrderPublishStatus.Draft
+    : OrderPublishStatus.Published;
+}
+
 
 router.post(
   "/",
@@ -311,6 +322,7 @@ router.post(
         const orderCancellationDate = new Date(fields["orderCancellationDate"]);
         const address = fields["address"];
         const customerId = Number(fields["customerId"]);
+        const publishStatus = parsePublishStatus(fields["publishStatus"]);
 
         const styles: any = [];
 
@@ -344,6 +356,7 @@ router.post(
         order.orderReceivedDate = orderReceivedDate;
         order.orderCancellationDate = orderCancellationDate;
         order.address = address;
+        order.publishStatus = publishStatus;
         order.customer = customer;
 
         await order.save(); // ⬅ MUST SAVE BEFORE STYLES
@@ -435,7 +448,10 @@ router.post(
 
         res.json({
           success: true,
-          message: "Order created with barcode successfully",
+          message:
+            order.publishStatus === OrderPublishStatus.Draft
+              ? "Draft saved successfully"
+              : "Order created with barcode successfully",
           purchaseOrderNo: order.purchaeOrderNo,
         });
       } catch (error) {
@@ -509,6 +525,10 @@ router.patch(
 
     if (hasField("address")) {
       order.address = fields.address;
+    }
+
+    if (hasField("publishStatus")) {
+      order.publishStatus = parsePublishStatus(fields.publishStatus);
     }
 
     if (hasField("customerId")) {
@@ -665,9 +685,38 @@ router.patch(
 
     return res.json({
       success: true,
-      message: "Order updated successfully",
+      message:
+        order.publishStatus === OrderPublishStatus.Draft
+          ? "Draft saved successfully"
+          : "Order updated successfully",
     });
   })
+);
+
+router.patch(
+  "/:id/publish",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    const order = await Order.findOne({
+      where: { id: Number(id), status: 0 },
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    order.publishStatus = OrderPublishStatus.Published;
+    await order.save();
+
+    return res.json({
+      success: true,
+      message: "Order published successfully",
+    });
+  }),
 );
 
 
@@ -876,15 +925,23 @@ router.get(
       page,
       query,
       orderType,
+      publishStatus,
     }: {
       page?: string;
       query?: string;
       orderType?: string;
+      publishStatus?: string;
     } = req.query;
 
     const skip = (page ? Number(page) - 1 : 0) * 100;
     const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
     const pageSize = 100;
+    const requestedPublishStatus =
+      publishStatus === OrderPublishStatus.Draft
+        ? OrderPublishStatus.Draft
+        : OrderPublishStatus.Published;
+    const includeRetailerOrders =
+      requestedPublishStatus === OrderPublishStatus.Published;
 
     let unionQuery;
 
@@ -903,12 +960,17 @@ router.get(
         "o.shippingStatus as shippingStatus",
         "o.shippingDate as shippingDate",
         "o.trackingNo as trackingNo",
+        "COALESCE(o.publishStatus, 'published') as publishStatus",
         "o.createdAt as createdAt",
         "'regular' as orderSource",
       ])
       .from(Order, "o")
       .leftJoin("o.customer", "customer") // Join the Customer table to filter by name
-      .where("o.status = 0");
+      .where("o.status = 0")
+      .andWhere("COALESCE(o.publishStatus, :publishedStatus) = :publishStatus", {
+        publishedStatus: OrderPublishStatus.Published,
+        publishStatus: requestedPublishStatus,
+      });
 
     if (likeQuery) {
       regularOrdersQuery.andWhere(
@@ -932,6 +994,7 @@ router.get(
         "ro.shippingStatus as shippingStatus",
         "ro.shippingDate as shippingDate",
         "ro.trackingNo as trackingNo",
+        "'published' as publishStatus",
         "ro.createdAt as createdAt",
         "'retailer' as orderSource",
       ])
@@ -948,7 +1011,10 @@ router.get(
     }
 
     if (orderType) {
-      if (orderType === "Stock") {
+      if (!includeRetailerOrders) {
+        regularOrdersQuery.andWhere("o.orderType = :orderType", { orderType });
+        unionQuery = regularOrdersQuery.getQuery();
+      } else if (orderType === "Stock") {
         retailerOrdersQuery.andWhere("ro.is_stock_order = 1");
         unionQuery = retailerOrdersQuery.getQuery();
       } else if (orderType === "Fresh") {
@@ -959,7 +1025,9 @@ router.get(
         unionQuery = regularOrdersQuery.getQuery();
       }
     } else {
-      unionQuery = `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})`;
+      unionQuery = includeRetailerOrders
+        ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})`
+        : regularOrdersQuery.getQuery();
     }
 
     const finalQuery = db
@@ -1149,6 +1217,7 @@ router.get(
         shippingStatus: baseOrder.shippingStatus,
         shippingDate: baseOrder.shippingDate,
         trackingNo: baseOrder.trackingNo,
+        publishStatus: baseOrder.publishStatus ?? OrderPublishStatus.Published,
         pattern: detailedOrder?.pattern ?? recoveredStageDates.pattern ?? null,
         khaka: detailedOrder?.khaka ?? recoveredStageDates.khaka ?? null,
         issue_beading:
@@ -1226,10 +1295,16 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = req.query as any;
 
-    const order = await Order.findOne({
-      where: { id: Number(orderId) },
-      relations: ["customer", "styles"],
-    });
+    const order = await db
+      .createQueryBuilder(Order, "order")
+      .leftJoinAndSelect("order.customer", "customer")
+      .leftJoinAndSelect("order.styles", "styles")
+      .where("order.id = :orderId", { orderId: Number(orderId) })
+      .andWhere("order.status = 0")
+      .andWhere("COALESCE(order.publishStatus, :publishedStatus) = :publishedStatus", {
+        publishedStatus: OrderPublishStatus.Published,
+      })
+      .getOne();
 
     if (!order) {
       return res.status(404).json({
@@ -1631,6 +1706,7 @@ router.get(
       ],
       where: {
         id: Number(id),
+        publishStatus: OrderPublishStatus.Published,
       },
     });
 
@@ -1705,6 +1781,13 @@ PublicStoreRoutes.get(
     });
 
     if (!style) {
+      return res.status(404).json({
+        success: false,
+        message: "Invalid barcode",
+      });
+    }
+
+    if (style.order?.publishStatus === OrderPublishStatus.Draft) {
       return res.status(404).json({
         success: false,
         message: "Invalid barcode",
@@ -1818,6 +1901,13 @@ PublicStoreRoutes.post(
 
     const order = style.order;
 
+    if (order?.publishStatus === OrderPublishStatus.Draft) {
+      return res.json({
+        success: false,
+        message: "Invalid barcode",
+      });
+    }
+
     // 2️⃣ Last progress
     const lastProgress = await StoreStyleProgress.findOne({
       where: { barcode },
@@ -1896,6 +1986,10 @@ async function resolveStoreScannerStage(req: Request) {
     return null;
   }
 
+  if (style.order?.publishStatus === OrderPublishStatus.Draft) {
+    return null;
+  }
+
   const lastProgress = await StoreStyleProgress.findOne({
     where: { barcode },
     order: { createdAt: "DESC" },
@@ -1951,6 +2045,7 @@ PublicStoreRoutes.get(
         ON LOWER(pc.hexcode) = LOWER(s.mesh_color)
 
       WHERE o.id = ?
+        AND COALESCE(o.publishStatus, 'published') = 'published'
       ORDER BY s.id ASC
       `,
       [orderId]
@@ -2044,6 +2139,7 @@ router.get(
         DATE_FORMAT(o.createdAt,'%Y-%m-%d') as createdAt
       FROM orders o
       WHERE o.status = 0
+        AND COALESCE(o.publishStatus, 'published') = 'published'
       ORDER BY o.createdAt DESC
       LIMIT ? OFFSET ?
       `,

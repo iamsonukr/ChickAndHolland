@@ -118,6 +118,13 @@ export function getMenuList(pathname: string, userType: any): Group[] {
             submenus: [],
           },
           {
+            href: "/admin-panel/draft-orders",
+            label: "Draft Orders",
+            active: pathname.includes("/draft-orders"),
+            icon: List,
+            submenus: [],
+          },
+          {
             href: "/admin-panel/orders/qr-scan",
             label: "Global QR Scan",
             active: pathname.includes("/orders/qr-scan"),

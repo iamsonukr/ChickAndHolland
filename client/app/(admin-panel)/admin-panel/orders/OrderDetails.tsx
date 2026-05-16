@@ -17,7 +17,13 @@ import { QRCodeCanvas } from "qrcode.react";
 import StatusCount from "./StatusCount";
 
 
-const OrderDetailsSheet = ({ orderDetails }: { orderDetails: any }) => {
+const OrderDetailsSheet = ({
+  orderDetails,
+  showStatusActions = true,
+}: {
+  orderDetails: any;
+  showStatusActions?: boolean;
+}) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -142,21 +148,23 @@ const OrderDetailsSheet = ({ orderDetails }: { orderDetails: any }) => {
 {/* =============================== */}
 {/* ⭐ VIEW STATUS PROGRESS BUTTON ⭐ */}
 {/* =============================== */}
-<div className="mt-6 flex justify-center">
-  <Link
-    href={{
-      pathname: `/admin-panel/orders/${orderDetails.id}/status`,
-      query: {
-        source:
-          orderDetails.orderSource ||
-          (orderDetails.retailer ? "retailer" : "regular"),
-        type: orderDetails.orderType || "",
-      },
-    }}
-  >
-    <Button>View Status Progress</Button>
-  </Link>
-</div>
+{showStatusActions && (
+  <div className="mt-6 flex justify-center">
+    <Link
+      href={{
+        pathname: `/admin-panel/orders/${orderDetails.id}/status`,
+        query: {
+          source:
+            orderDetails.orderSource ||
+            (orderDetails.retailer ? "retailer" : "regular"),
+          type: orderDetails.orderType || "",
+        },
+      }}
+    >
+      <Button>View Status Progress</Button>
+    </Link>
+  </div>
+)}
 
 {/* =============================== */}
 
@@ -175,16 +183,17 @@ const OrderDetailsSheet = ({ orderDetails }: { orderDetails: any }) => {
 </div> */}
 
     {/* QR CODE FOR STATUS UPDATE */}
-<div className="mt-6 flex flex-col items-center gap-2">
-  <h3 className="text-lg font-semibold">Scan to Update Status</h3>
-{/* value={`${process.env.NEXT_PUBLIC_BASE_URL}/admin-panel/orders/qr-scan?order=${orderDetails.id}`} */}
-<QRCodeCanvas value={String(orderDetails.id)} size={180} />
+{showStatusActions && (
+  <div className="mt-6 flex flex-col items-center gap-2">
+    <h3 className="text-lg font-semibold">Scan to Update Status</h3>
+    {/* value={`${process.env.NEXT_PUBLIC_BASE_URL}/admin-panel/orders/qr-scan?order=${orderDetails.id}`} */}
+    <QRCodeCanvas value={String(orderDetails.id)} size={180} />
 
-
-  <p className="text-xs text-gray-500">
-    Scan this QR in warehouse to move to next status
-  </p>
-</div>
+    <p className="text-xs text-gray-500">
+      Scan this QR in warehouse to move to next status
+    </p>
+  </div>
+)}
 
 
       </SheetContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { API_URL } from "@/lib/constants";
 
@@ -16,24 +16,13 @@ import GoBackButton from "@/components/GoBackButton";
 import { formatEuSizeText } from "@/lib/sizeConversion";
 import { PdfDownloadButton } from "@/components/pdf/PdfPreview";
 import { downloadStatusLabelPPT } from "@/lib/utils/exportStatusLabelPPT";
+import { pdf } from "@react-pdf/renderer";
 
 const formatReportValue = (value: unknown) =>
   String(value ?? "").trim() || "-";
 
 const formatReportSize = (item: any) =>
   formatEuSizeText(item, { includeUnit: false });
-
-const getCommentsSummary = (variants: any[], fallback?: string) => {
-  const uniqueComments = Array.from(
-    new Set(
-      variants
-        .map((item) => String(item.comments ?? "").trim())
-        .filter(Boolean),
-    ),
-  );
-
-  return uniqueComments.join("\n") || fallback || "-";
-};
 
 type ReportType = "RETAILER" | "STORE" | "STOCK";
 
@@ -60,6 +49,172 @@ const TYPE_DOT: Record<ReportType, string> = {
   STOCK: "bg-purple-500",
 };
 
+/* ─────────────────────────────────────────────
+   Merge multiple PDF blobs into one using
+   pdf-lib (no extra dep needed if you already
+   have it; otherwise install pdf-lib).
+   Falls back to sequential individual downloads
+   if pdf-lib isn't available.
+───────────────────────────────────────────── */
+async function mergeAndDownloadPdfs(items: NormalizedItem[], fileName: string) {
+  // Generate all blobs in parallel
+  const blobs = await Promise.all(
+    items.map(({ raw }) => pdf(<LabelPdf item={raw} />).toBlob())
+  );
+
+  try {
+    // Try to merge with pdf-lib
+    const { PDFDocument } = await import("pdf-lib");
+    const merged = await PDFDocument.create();
+
+    for (const blob of blobs) {
+      const arrayBuffer = await blob.arrayBuffer();
+      const doc = await PDFDocument.load(arrayBuffer);
+      const pages = await merged.copyPages(doc, doc.getPageIndices());
+      pages.forEach((p) => merged.addPage(p));
+    }
+
+    const mergedBytes = await merged.save();
+    const mergedBlob = new Blob([mergedBytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(mergedBlob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  } catch {
+    // pdf-lib not available — download individually
+    for (let i = 0; i < blobs.length; i++) {
+      const url = URL.createObjectURL(blobs[i]);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${items[i].raw.styleNo ?? i}-label.pdf`;
+      a.click();
+      await new Promise((r) => setTimeout(r, 300)); // stagger downloads
+      URL.revokeObjectURL(url);
+    }
+  }
+}
+
+async function mergeAndPrintPdfs(items: NormalizedItem[]) {
+  const blobs = await Promise.all(
+    items.map(({ raw }) => pdf(<LabelPdf item={raw} />).toBlob())
+  );
+
+  try {
+    const { PDFDocument } = await import("pdf-lib");
+    const merged = await PDFDocument.create();
+
+    for (const blob of blobs) {
+      const arrayBuffer = await blob.arrayBuffer();
+      const doc = await PDFDocument.load(arrayBuffer);
+      const pages = await merged.copyPages(doc, doc.getPageIndices());
+      pages.forEach((p) => merged.addPage(p));
+    }
+
+    const mergedBytes = await merged.save();
+    const mergedBlob = new Blob([mergedBytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(mergedBlob);
+
+    const printTab = window.open(url, "_blank");
+    if (!printTab) {
+      // Pop-up blocked — download instead
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "selected-labels.pdf";
+      a.click();
+    } else {
+      printTab.addEventListener("load", () => {
+        try { printTab.print(); } catch {}
+      });
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch {
+    // Fallback: open each PDF in a new tab
+    for (const blob of blobs) {
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Bulk Action Bar
+───────────────────────────────────────────── */
+function BulkActionBar({
+  selected,
+  total,
+  allSelected,
+  onSelectAll,
+  onClearAll,
+  onDownloadAll,
+  onPrintAll,
+  downloading,
+  printing,
+}: {
+  selected: number;
+  total: number;
+  allSelected: boolean;
+  onSelectAll: () => void;
+  onClearAll: () => void;
+  onDownloadAll: () => void;
+  onPrintAll: () => void;
+  downloading: boolean;
+  printing: boolean;
+}) {
+  if (selected === 0) return null;
+
+  return (
+    <div className="sticky top-0 z-30 mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white/95 backdrop-blur px-3 py-2 shadow-md">
+      {/* Count */}
+      <span className="text-xs font-semibold text-gray-700">
+        {selected} of {total} selected
+      </span>
+
+      <div className="flex flex-wrap gap-1.5 ml-auto">
+        {/* Select / Deselect all */}
+        <button
+          onClick={allSelected ? onClearAll : onSelectAll}
+          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          {allSelected ? "Deselect all" : "Select all"}
+        </button>
+
+        {/* Clear selection */}
+        <button
+          onClick={onClearAll}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+        >
+          Clear
+        </button>
+
+        {/* Download all selected */}
+        <button
+          onClick={onDownloadAll}
+          disabled={downloading}
+          className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-60 transition-colors"
+        >
+          {downloading ? "Generating…" : `Download PDF (${selected})`}
+        </button>
+
+        {/* Print all selected */}
+        <button
+          onClick={onPrintAll}
+          disabled={printing}
+          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-60 transition-colors"
+        >
+          {printing ? "Preparing…" : `Print (${selected})`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   ProgressPopup (unchanged)
+───────────────────────────────────────────── */
 function ProgressPopup({
   progress,
   onClose,
@@ -90,15 +245,12 @@ function ProgressPopup({
             ×
           </button>
         </div>
-
         <ol className="relative border-l border-gray-200 space-y-4 pl-4">
           {sorted.map((p, i) => (
             <li key={p.id ?? i} className="relative">
               <span
                 className={`absolute -left-[19px] top-1 w-3 h-3 rounded-full border-2 border-white ${
-                  i === sorted.length - 1
-                    ? "bg-green-500 animate-pulse"
-                    : "bg-gray-300"
+                  i === sorted.length - 1 ? "bg-green-500 animate-pulse" : "bg-gray-300"
                 }`}
               />
               <p className="text-xs font-medium text-gray-800 break-words">
@@ -106,14 +258,11 @@ function ProgressPopup({
               </p>
               <p className="mt-0.5 text-[10px] text-gray-400">
                 {new Date(p.createdAt).toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
+                  day: "2-digit", month: "short", year: "numeric",
                 })}
                 {" · "}
                 {new Date(p.createdAt).toLocaleTimeString("en-GB", {
-                  hour: "2-digit",
-                  minute: "2-digit",
+                  hour: "2-digit", minute: "2-digit",
                 })}
               </p>
             </li>
@@ -124,115 +273,62 @@ function ProgressPopup({
   );
 }
 
-function PptDownloadButton({
-  item,
-  orderType,
-  className,
-}: {
-  item: any;
-  orderType: ReportType;
-  className?: string;
-}) {
-  const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  const handleDownload = async () => {
-    setLoading(true);
-    setFailed(false);
-
-    try {
-      await downloadStatusLabelPPT(item, orderType);
-    } catch (error) {
-      console.error("Failed to generate PPT download:", error);
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      className={className}
-      disabled={loading}
-      onClick={handleDownload}
-    >
-      {loading ? "Generating..." : failed ? "Try again" : "Download PPT"}
-    </button>
-  );
-}
-
-/** Renders a hidden iframe with the PDF URL and triggers window.print() */
-function PrintPdfButton({
-  item,
-  className,
-}: {
-  item: any;
-  className?: string;
-}) {
+/* ─────────────────────────────────────────────
+   Single-item Print button
+───────────────────────────────────────────── */
+function PrintPdfButton({ item, className }: { item: any; className?: string }) {
   const [printing, setPrinting] = useState(false);
 
   const handlePrint = async () => {
     setPrinting(true);
     try {
-      // Open a small print window with the label rendered inside
-      const printWindow = window.open("", "_blank", "width=800,height=600");
-      if (!printWindow) {
-        alert("Please allow pop-ups to print.");
+      const blob = await pdf(<LabelPdf item={item} />).toBlob();
+      const blobUrl = URL.createObjectURL(blob);
+      const printTab = window.open(blobUrl, "_blank");
+      if (!printTab) {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `${item.styleNo ?? "label"}-print.pdf`;
+        a.click();
+        URL.revokeObjectURL(blobUrl);
         return;
       }
-
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Print Label – ${item.styleNo ?? ""}</title>
-            <style>
-              body { margin: 0; font-family: sans-serif; }
-              @media print {
-                body { margin: 0; }
-              }
-            </style>
-          </head>
-          <body>
-            <p style="padding:24px;font-size:14px;">
-              Printing label for <strong>${item.styleNo ?? "Unknown"}</strong>…<br/>
-              <em>Use your browser's print dialog to complete printing.</em>
-            </p>
-            <script>
-              window.onload = function() { window.print(); window.close(); };
-            <\/script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
+      printTab.addEventListener("load", () => {
+        try { printTab.print(); } catch {}
+      });
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (err) {
+      console.error("Print failed:", err);
     } finally {
       setPrinting(false);
     }
   };
 
   return (
-    <button
-      type="button"
-      className={className}
-      disabled={printing}
-      onClick={handlePrint}
-    >
-      {printing ? "Opening…" : "Print"}
+    <button type="button" className={className} disabled={printing} onClick={handlePrint}>
+      {printing ? "Preparing…" : "Print"}
     </button>
   );
 }
 
+/* ─────────────────────────────────────────────
+   ItemCard — now accepts isSelected + onToggle
+───────────────────────────────────────────── */
 function ItemCard({
   raw,
   type,
   onRefresh,
-}: NormalizedItem & { onRefresh: () => void }) {
+  isSelected,
+  onToggle,
+}: NormalizedItem & {
+  onRefresh: () => void;
+  isSelected: boolean;
+  onToggle: () => void;
+}) {
   const [showProgress, setShowProgress] = useState(false);
 
   const barcode = normalizeBarcodeValue(raw.barcode);
   const LabelComponent = type === "STORE" ? StatusLabelBox1 : StatusLabelBox;
-  const PdfComponent = LabelPdf;
 
   const progress: any[] = raw.progress ?? [];
   const sorted = [...progress].sort(
@@ -243,39 +339,45 @@ function ItemCard({
   return (
     <>
       {showProgress && (
-        <ProgressPopup
-          progress={progress}
-          onClose={() => setShowProgress(false)}
-        />
+        <ProgressPopup progress={progress} onClose={() => setShowProgress(false)} />
       )}
 
-      {/* ↓ Reduced padding & gap compared to original */}
       <div
-        className={`rounded-lg border bg-white shadow-sm ring-1 ${TYPE_RING[type]} p-2.5 sm:p-3 flex flex-col gap-2.5 min-w-0 p-2`}
-      >
-        {/* Header row: badge + size */}
-        <div className="flex items-center justify-between gap-2">
-          <span
-            className={`shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${TYPE_BADGE[type]}`}
-          >
+  className={`rounded-lg border bg-white shadow-sm ring-1 transition-all p-2.5 sm:p-3 flex flex-col gap-2.5 relative
+    w-[240px] flex-shrink-0
+    ${isSelected ? `${TYPE_RING[type]} ring-2` : "ring-gray-200"}`}
+>
+        {/* ── Checkbox (top-left) ── */}
+        <button
+          onClick={onToggle}
+          aria-label={isSelected ? "Deselect item" : "Select item"}
+          className={`absolute top-2 left-2 z-10 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors
+            ${isSelected
+              ? "border-blue-500 bg-blue-500"
+              : "border-gray-300 bg-white hover:border-blue-400"
+            }`}
+        >
+          {isSelected && (
+            <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none">
+              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </button>
+
+        {/* Header row: badge + size (offset for checkbox) */}
+        <div className="flex items-center justify-between gap-2 pl-6">
+          <span className={`shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${TYPE_BADGE[type]}`}>
             {type}
           </span>
-
           <div className="min-w-0 text-right">
-            <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-none mb-0.5">
-              Size
-            </p>
-            <p className="text-xs font-medium break-words leading-none">
-              {formatReportSize(raw)}
-            </p>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-none mb-0.5">Size</p>
+            <p className="text-xs font-medium break-words leading-none">{formatReportSize(raw)}</p>
           </div>
         </div>
 
         {/* Style No */}
         <div className="min-w-0">
-          <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-none mb-0.5">
-            Style No
-          </p>
+          <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-none mb-0.5">Style No</p>
           <p className="font-bold text-xs sm:text-sm text-foreground break-words leading-tight">
             {formatReportValue(raw.styleNo)}
           </p>
@@ -285,57 +387,37 @@ function ItemCard({
         <button
           onClick={() => progress.length > 0 && setShowProgress(true)}
           className={`w-full flex items-center gap-1.5 rounded-md px-2 py-2 text-left transition-colors min-h-[36px] ${
-            progress.length > 0
-              ? "bg-gray-50 hover:bg-gray-100 cursor-pointer"
-              : "bg-gray-50 cursor-default"
+            progress.length > 0 ? "bg-gray-50 hover:bg-gray-100 cursor-pointer" : "bg-gray-50 cursor-default"
           }`}
         >
-          <span
-            className={`shrink-0 h-2 w-2 rounded-full ${
-              currentStage ? TYPE_DOT[type] : "bg-gray-300"
-            }`}
-          />
+          <span className={`shrink-0 h-2 w-2 rounded-full ${currentStage ? TYPE_DOT[type] : "bg-gray-300"}`} />
           <span className="text-[11px] font-medium text-gray-700 flex-1 break-words">
-            {currentStage
-              ? currentStage.stage || currentStage.status
-              : "No stages"}
+            {currentStage ? currentStage.stage || currentStage.status : "No stages"}
           </span>
           {progress.length > 1 && (
-            <span className="text-[9px] text-gray-400 shrink-0">
-              {progress.length} ›
-            </span>
+            <span className="text-[9px] text-gray-400 shrink-0">{progress.length} ›</span>
           )}
         </button>
 
         {/* Actions */}
         <div className="mt-auto flex flex-col gap-1.5 pt-2 border-t">
-          {/* Scanner */}
           <div className="w-full">
-            <StatusScannerButton
-              barcode={barcode}
-              orderType={type}
-              onScanned={onRefresh}
-            />
+            <StatusScannerButton barcode={barcode} orderType={type} onScanned={onRefresh} />
           </div>
-
-          {/* Label preview */}
           <div className="w-full">
             <LabelComponent item={raw} orderType={type} />
           </div>
-
-          {/* PDF Download + Print — side by side */}
           <div className="grid grid-cols-2 gap-1.5">
             <PdfDownloadButton
-              sourceDocument={<PdfComponent item={raw} />}
+              sourceDocument={<LabelPdf item={raw} />}
               fileName={`${raw.styleNo}-label.pdf`}
               className="min-h-[36px] w-full rounded-md bg-black px-2 py-2 text-[11px] font-medium text-white hover:bg-gray-900 disabled:opacity-70"
               label="Download PDF"
               loadingLabel="Generating..."
             />
-
             <PrintPdfButton
               item={raw}
-              className="min-h-[36px] w-full bg-red-500 rounded-md bg-gray-700 px-2 py-2 text-[11px] font-medium text-white hover:bg-gray-600 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="min-h-[36px] w-full rounded-md bg-gray-700 px-2 py-2 text-[11px] font-medium text-white hover:bg-gray-600 disabled:opacity-70 disabled:cursor-not-allowed"
             />
           </div>
         </div>
@@ -344,6 +426,9 @@ function ItemCard({
   );
 }
 
+/* ─────────────────────────────────────────────
+   Page
+───────────────────────────────────────────── */
 export default function OrderStatusPage({
   params,
 }: {
@@ -358,6 +443,14 @@ export default function OrderStatusPage({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // ── Selection state ──
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [bulkPrinting, setBulkPrinting] = useState(false);
+
+  const getItemKey = (raw: any, type: ReportType, i: number) =>
+    `${type}-${raw.styleId ?? raw.id ?? i}`;
+
   const fetchReport = useCallback(async () => {
     setLoading(true);
     const collected: NormalizedItem[] = [];
@@ -366,41 +459,23 @@ export default function OrderStatusPage({
       try {
         const res = await fetch(url);
         const json = await res.json();
-
         if (json.success) {
-          (json.data || []).forEach((item: any) =>
-            collected.push({ raw: item, type })
-          );
+          (json.data || []).forEach((item: any) => collected.push({ raw: item, type }));
         }
       } catch {}
     };
 
     if (orderSource === "regular") {
-      await fetchAndCollect(
-        `${API_URL}/orders/store-status/report/${id}`,
-        "STORE"
-      );
+      await fetchAndCollect(`${API_URL}/orders/store-status/report/${id}`, "STORE");
     } else if (orderSource === "retailer" && orderType === "Stock") {
-      await fetchAndCollect(
-        `${API_URL}/report/stock-status/report/${id}`,
-        "STOCK"
-      );
+      await fetchAndCollect(`${API_URL}/report/stock-status/report/${id}`, "STOCK");
     } else if (orderSource === "retailer") {
-      await fetchAndCollect(
-        `${API_URL}/report/status/report/${id}`,
-        "RETAILER"
-      );
+      await fetchAndCollect(`${API_URL}/report/status/report/${id}`, "RETAILER");
     } else {
       await Promise.all([
         fetchAndCollect(`${API_URL}/report/status/report/${id}`, "RETAILER"),
-        fetchAndCollect(
-          `${API_URL}/orders/store-status/report/${id}`,
-          "STORE"
-        ),
-        fetchAndCollect(
-          `${API_URL}/report/stock-status/report/${id}`,
-          "STOCK"
-        ),
+        fetchAndCollect(`${API_URL}/orders/store-status/report/${id}`, "STORE"),
+        fetchAndCollect(`${API_URL}/report/stock-status/report/${id}`, "STOCK"),
       ]);
     }
 
@@ -408,9 +483,7 @@ export default function OrderStatusPage({
     setLoading(false);
   }, [id, orderSource, orderType]);
 
-  useEffect(() => {
-    fetchReport();
-  }, [fetchReport]);
+  useEffect(() => { fetchReport(); }, [fetchReport]);
 
   if (loading) {
     return (
@@ -431,26 +504,55 @@ export default function OrderStatusPage({
     return styleNo.includes(q) || size.includes(q);
   });
 
+  // ── Helpers ──
+  const filteredKeys = filtered.map(({ raw, type }, i) => getItemKey(raw, type, i));
+  const allSelected = filteredKeys.length > 0 && filteredKeys.every((k) => selectedKeys.has(k));
+
+  const toggleItem = (key: string) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const selectAll = () => setSelectedKeys(new Set(filteredKeys));
+  const clearAll = () => setSelectedKeys(new Set());
+
+  const selectedItems = filtered.filter((_, i) => selectedKeys.has(filteredKeys[i]));
+
+  const handleBulkDownload = async () => {
+    if (!selectedItems.length) return;
+    setBulkDownloading(true);
+    try {
+      await mergeAndDownloadPdfs(selectedItems, "selected-labels.pdf");
+    } finally {
+      setBulkDownloading(false);
+    }
+  };
+
+  const handleBulkPrint = async () => {
+    if (!selectedItems.length) return;
+    setBulkPrinting(true);
+    try {
+      await mergeAndPrintPdfs(selectedItems);
+    } finally {
+      setBulkPrinting(false);
+    }
+  };
+
   return (
     <div className="px-3 py-4 sm:p-4 md:p-6">
       <div className="rounded-lg bg-white shadow p-3 sm:p-4 md:p-6">
         <div className="mb-4 sm:mb-5 flex flex-col gap-3">
-
-          {/* Top Row */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-
-            {/* Left */}
             <div className="min-w-0">
               <GoBackButton className="mb-2" label="Back to Orders" />
-              <h1 className="text-xl sm:text-2xl font-bold break-words">
-                Order Status Report
-              </h1>
+              <h1 className="text-xl sm:text-2xl font-bold break-words">Order Status Report</h1>
               <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
                 Total items: {filtered.length}
               </p>
             </div>
-
-            {/* Right (Search) */}
             <div className="w-full sm:w-auto">
               <input
                 type="text"
@@ -468,30 +570,43 @@ export default function OrderStatusPage({
           {(["RETAILER", "STORE", "STOCK"] as ReportType[]).map((t) => {
             const count = filtered.filter((i) => i.type === t).length;
             if (!count) return null;
-
             return (
-              <span
-                key={t}
-                className={`px-2.5 py-1 rounded-full border font-medium ${TYPE_BADGE[t]}`}
-              >
+              <span key={t} className={`px-2.5 py-1 rounded-full border font-medium ${TYPE_BADGE[t]}`}>
                 {t}: {count}
               </span>
             );
           })}
-
           {filtered.length === 0 && <span>No results</span>}
         </div>
 
-        {/* Grid — more columns since cards are smaller */}
+        {/* ── Sticky Bulk Action Bar ── */}
+        <BulkActionBar
+          selected={selectedItems.length}
+          total={filtered.length}
+          allSelected={allSelected}
+          onSelectAll={selectAll}
+          onClearAll={clearAll}
+          onDownloadAll={handleBulkDownload}
+          onPrintAll={handleBulkPrint}
+          downloading={bulkDownloading}
+          printing={bulkPrinting}
+        />
+
+        {/* Grid */}
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-          {filtered.map(({ raw, type }, i) => (
-            <ItemCard
-              key={`${type}-${raw.styleId ?? i}`}
-              raw={raw}
-              type={type}
-              onRefresh={fetchReport}
-            />
-          ))}
+          {filtered.map(({ raw, type }, i) => {
+            const key = getItemKey(raw, type, i);
+            return (
+              <ItemCard
+                key={key}
+                raw={raw}
+                type={type}
+                onRefresh={fetchReport}
+                isSelected={selectedKeys.has(key)}
+                onToggle={() => toggleItem(key)}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

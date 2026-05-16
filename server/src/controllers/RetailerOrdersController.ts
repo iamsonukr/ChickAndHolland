@@ -3247,6 +3247,8 @@ router.get(
   ) paid_pay ON paid_pay.orderId = o.id
 
   WHERE o.customerId = ?
+    AND o.status = 0
+    AND COALESCE(o.publishStatus, 'published') = 'published'
   ORDER BY o.id DESC;
 `;
 

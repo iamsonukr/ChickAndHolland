@@ -25,6 +25,7 @@ interface CreateOrderProps {
   ordersTotalCount: number;
   editOrder?: any;
   triggerLabel?: string;
+  onSuccess?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -34,6 +35,7 @@ const CreateOrder = ({
   ordersTotalCount,
   editOrder,
   triggerLabel,
+  onSuccess,
 }: CreateOrderProps) => {
   const isEditMode = Boolean(editOrder?.id);
   const {
@@ -66,13 +68,14 @@ const CreateOrder = ({
     getColourBasedOnhex,
     // actions
     onSubmit,
+    onSaveDraft,
     onPreviewSubmit,
     onErrors,
     addStyle,
     // loading
     loading,
     previewLoading,
-  } = useCreateOrder({ customers, ordersTotalCount, editOrder });
+  } = useCreateOrder({ customers, ordersTotalCount, editOrder, onSuccess });
 
   // ── Decide what to show in the preview panel ────────────────────────────────
   //
@@ -142,6 +145,7 @@ const CreateOrder = ({
           uploadedFileType={uploadedFileType}
           setUploadedFile={setUploadedFile}
           onSubmit={onSubmit}
+          onSaveDraft={onSaveDraft}
           onPreviewSubmit={onPreviewSubmit}
           onErrors={onErrors}
           addStyle={addStyle}

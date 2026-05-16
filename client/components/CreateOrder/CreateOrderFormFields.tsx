@@ -62,6 +62,7 @@ interface CreateOrderFormFieldsProps {
   setUploadedFile: (file: File | null) => void;
   // actions
   onSubmit: (data: CreateOrderForm) => Promise<void>;
+  onSaveDraft: (data: CreateOrderForm) => Promise<void>;
   onPreviewSubmit: (data: CreateOrderForm) => Promise<void>;
   onErrors: () => void;
   addStyle: () => void;
@@ -91,6 +92,7 @@ export function CreateOrderFormFields({
   uploadedFileType,
   setUploadedFile,
   onSubmit,
+  onSaveDraft,
   onPreviewSubmit,
   onErrors,
   addStyle,
@@ -382,6 +384,15 @@ export function CreateOrderFormFields({
               {previewLoading ? "Loading..." : "Preview Order"}
             </Button>
           )}
+          <Button
+            type="button"
+            className="flex-1"
+            variant="secondary"
+            onClick={form.handleSubmit(onSaveDraft, onErrors)}
+            disabled={loading}
+          >
+            {loading ? "Loading..." : "Save as Draft"}
+          </Button>
           <Button
             type="submit"
             className={cn("flex-1", uploadedFile && "w-full")}

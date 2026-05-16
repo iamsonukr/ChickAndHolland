@@ -16,12 +16,11 @@ const EditOrderAction = ({
 }) => {
   const [openEdit, setOpenEdit] = useState(false);
 
+  const handleSuccess = () => setOpenEdit(false); // 👈 collapse back after save
+
   if (!openEdit) {
     return (
-      <Button
-        variant="outline"
-        onClick={() => setOpenEdit(true)}
-      >
+      <Button variant="outline" onClick={() => setOpenEdit(true)}>
         Edit
       </Button>
     );
@@ -34,6 +33,7 @@ const EditOrderAction = ({
         ordersTotalCount={0}
         editOrder={order}
         triggerLabel="Edit"
+        onSuccess={handleSuccess} // 👈
       />
     );
   }
@@ -56,6 +56,7 @@ const EditOrderAction = ({
         retailerOrderId={order.id}
         editOrder={order}
         triggerLabel="Edit"
+        onSuccess={handleSuccess} // 👈
       />
     );
   }
@@ -69,6 +70,7 @@ const EditOrderAction = ({
         retailerOrderId={order.id}
         editOrder={order}
         triggerLabel="Edit"
+        onSuccess={handleSuccess} // 👈
       />
     );
   }

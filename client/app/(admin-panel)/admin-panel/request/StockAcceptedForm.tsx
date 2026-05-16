@@ -110,12 +110,14 @@ const StockAcceptedForm = ({
   retailerOrderId,
   triggerLabel,
   editOrder,
+  onSuccess,
 }: {
   id: number;
   editMode?: boolean;
   retailerOrderId?: number;
   triggerLabel?: string;
   editOrder?: any;
+  onSuccess?: () => void;
 }) => {
   const isEditMode = editMode && Boolean(retailerOrderId);
   const [open, setOpen] = useState(false);
@@ -536,6 +538,7 @@ const StockAcceptedForm = ({
         form.reset(data);
         toast.success(response.message ?? "Order updated successfully");
         setOpen(false);
+        onSuccess?.();
         router.refresh();
         return;
       }
@@ -561,6 +564,7 @@ const StockAcceptedForm = ({
 
         toast.success(response.message ?? "Order Added Successfully!");
         setOpen(false);
+        onSuccess?.();
         router.refresh();
         return;
       }
@@ -694,6 +698,7 @@ const StockAcceptedForm = ({
       });
 
       setOpen(false);
+      onSuccess?.();
       router.refresh();
 
     } catch (err: any) {

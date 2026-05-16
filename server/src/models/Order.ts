@@ -31,6 +31,11 @@ export enum ShippingStatus {
   Shipped = "Shipped",
 }
 
+export enum OrderPublishStatus {
+  Published = "published",
+  Draft = "draft",
+}
+
 @Entity(TABLE_NAMES.ORDERS)
 export default class Order extends BaseModel {
   @Column("varchar", { length: 225, nullable: false })
@@ -110,6 +115,12 @@ export default class Order extends BaseModel {
 
   @Column("int", { default: 0 })
   status: number;
+
+  @Column("enum", {
+    enum: OrderPublishStatus,
+    default: OrderPublishStatus.Published,
+  })
+  publishStatus: OrderPublishStatus;
 
   @ManyToOne(() => Customer, (customer) => customer.orders, {
     onDelete: "CASCADE",

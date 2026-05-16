@@ -84,7 +84,7 @@ const Customers = async (props: {
                             
                             {/* Serial Number */}
                             <TableCell>
-                              {(currentPage - 1) * 10 + index + 1}
+                              {(currentPage - 1) * 100 + index + 1}
                             </TableCell>
 
                             {/* Customer Details */}
