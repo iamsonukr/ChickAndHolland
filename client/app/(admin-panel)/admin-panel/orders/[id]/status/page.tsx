@@ -95,10 +95,11 @@ function ProgressPopup({
           {sorted.map((p, i) => (
             <li key={p.id ?? i} className="relative">
               <span
-                className={`absolute -left-[19px] top-1 w-3 h-3 rounded-full border-2 border-white ${i === sorted.length - 1
+                className={`absolute -left-[19px] top-1 w-3 h-3 rounded-full border-2 border-white ${
+                  i === sorted.length - 1
                     ? "bg-green-500 animate-pulse"
                     : "bg-gray-300"
-                  }`}
+                }`}
               />
               <p className="text-xs font-medium text-gray-800 break-words">
                 {p.stage || p.status}
@@ -161,6 +162,67 @@ function PptDownloadButton({
   );
 }
 
+/** Renders a hidden iframe with the PDF URL and triggers window.print() */
+function PrintPdfButton({
+  item,
+  className,
+}: {
+  item: any;
+  className?: string;
+}) {
+  const [printing, setPrinting] = useState(false);
+
+  const handlePrint = async () => {
+    setPrinting(true);
+    try {
+      // Open a small print window with the label rendered inside
+      const printWindow = window.open("", "_blank", "width=800,height=600");
+      if (!printWindow) {
+        alert("Please allow pop-ups to print.");
+        return;
+      }
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Print Label – ${item.styleNo ?? ""}</title>
+            <style>
+              body { margin: 0; font-family: sans-serif; }
+              @media print {
+                body { margin: 0; }
+              }
+            </style>
+          </head>
+          <body>
+            <p style="padding:24px;font-size:14px;">
+              Printing label for <strong>${item.styleNo ?? "Unknown"}</strong>…<br/>
+              <em>Use your browser's print dialog to complete printing.</em>
+            </p>
+            <script>
+              window.onload = function() { window.print(); window.close(); };
+            <\/script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={printing}
+      onClick={handlePrint}
+    >
+      {printing ? "Opening…" : "Print"}
+    </button>
+  );
+}
+
 function ItemCard({
   raw,
   type,
@@ -170,7 +232,7 @@ function ItemCard({
 
   const barcode = normalizeBarcodeValue(raw.barcode);
   const LabelComponent = type === "STORE" ? StatusLabelBox1 : StatusLabelBox;
-  const PdfComponent = type === "STORE" ? LabelPdf : LabelPdf;
+  const PdfComponent = LabelPdf;
 
   const progress: any[] = raw.progress ?? [];
   const sorted = [...progress].sort(
@@ -187,61 +249,67 @@ function ItemCard({
         />
       )}
 
+      {/* ↓ Reduced padding & gap compared to original */}
       <div
-        className={`rounded-xl border bg-white shadow-sm ring-1 ${TYPE_RING[type]} p-3 sm:p-4 flex flex-col gap-4 min-w-0`}
+        className={`rounded-lg border bg-white shadow-sm ring-1 ${TYPE_RING[type]} p-2.5 sm:p-3 flex flex-col gap-2.5 min-w-0 p-2`}
       >
-        <div className="flex flex-col gap-3 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <span
-              className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full border ${TYPE_BADGE[type]}`}
-            >
-              {type}
-            </span>
+        {/* Header row: badge + size */}
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className={`shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${TYPE_BADGE[type]}`}
+          >
+            {type}
+          </span>
 
-            <div className="min-w-0 text-right">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                Size
-              </p>
-              <p className="text-xs sm:text-sm font-medium break-words">
-                {formatReportSize(raw)}
-              </p>
-            </div>
-          </div>
-
-          <div className="min-w-0">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-              Style No
+          <div className="min-w-0 text-right">
+            <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-none mb-0.5">
+              Size
             </p>
-            <p className="font-bold text-sm sm:text-base text-foreground break-words">
-              {formatReportValue(raw.styleNo)}
+            <p className="text-xs font-medium break-words leading-none">
+              {formatReportSize(raw)}
             </p>
           </div>
         </div>
 
+        {/* Style No */}
+        <div className="min-w-0">
+          <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-none mb-0.5">
+            Style No
+          </p>
+          <p className="font-bold text-xs sm:text-sm text-foreground break-words leading-tight">
+            {formatReportValue(raw.styleNo)}
+          </p>
+        </div>
+
+        {/* Stage button */}
         <button
           onClick={() => progress.length > 0 && setShowProgress(true)}
-          className={`w-full flex items-center gap-2 rounded-lg px-3 py-3 text-left transition-colors min-h-[44px] ${progress.length > 0
+          className={`w-full flex items-center gap-1.5 rounded-md px-2 py-2 text-left transition-colors min-h-[36px] ${
+            progress.length > 0
               ? "bg-gray-50 hover:bg-gray-100 cursor-pointer"
               : "bg-gray-50 cursor-default"
-            }`}
+          }`}
         >
           <span
-            className={`shrink-0 h-2.5 w-2.5 rounded-full ${currentStage ? TYPE_DOT[type] : "bg-gray-300"
-              }`}
+            className={`shrink-0 h-2 w-2 rounded-full ${
+              currentStage ? TYPE_DOT[type] : "bg-gray-300"
+            }`}
           />
-          <span className="text-xs sm:text-sm font-medium text-gray-700 flex-1 break-words">
+          <span className="text-[11px] font-medium text-gray-700 flex-1 break-words">
             {currentStage
               ? currentStage.stage || currentStage.status
               : "No stages"}
           </span>
           {progress.length > 1 && (
-            <span className="text-[10px] text-gray-400 shrink-0">
+            <span className="text-[9px] text-gray-400 shrink-0">
               {progress.length} ›
             </span>
           )}
         </button>
 
-        <div className="mt-auto flex flex-col gap-2 pt-3 border-t">
+        {/* Actions */}
+        <div className="mt-auto flex flex-col gap-1.5 pt-2 border-t">
+          {/* Scanner */}
           <div className="w-full">
             <StatusScannerButton
               barcode={barcode}
@@ -250,24 +318,25 @@ function ItemCard({
             />
           </div>
 
+          {/* Label preview */}
           <div className="w-full">
             <LabelComponent item={raw} orderType={type} />
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {/* PDF Download + Print — side by side */}
+          <div className="grid grid-cols-2 gap-1.5">
             <PdfDownloadButton
               sourceDocument={<PdfComponent item={raw} />}
               fileName={`${raw.styleNo}-label.pdf`}
-              className="min-h-[44px] w-full rounded-lg bg-black px-3 py-3 text-xs font-medium text-white hover:bg-gray-900 disabled:opacity-70 sm:text-sm"
+              className="min-h-[36px] w-full rounded-md bg-black px-2 py-2 text-[11px] font-medium text-white hover:bg-gray-900 disabled:opacity-70"
               label="Download PDF"
               loadingLabel="Generating..."
             />
 
-            {/* <PptDownloadButton
+            <PrintPdfButton
               item={raw}
-              orderType={type}
-              className="min-h-[44px] w-full rounded-lg bg-green-600 px-3 py-3 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
-            /> */}
+              className="min-h-[36px] w-full bg-red-500 rounded-md bg-gray-700 px-2 py-2 text-[11px] font-medium text-white hover:bg-gray-600 disabled:opacity-70 disabled:cursor-not-allowed"
+            />
           </div>
         </div>
       </div>
@@ -303,7 +372,7 @@ export default function OrderStatusPage({
             collected.push({ raw: item, type })
           );
         }
-      } catch { }
+      } catch {}
     };
 
     if (orderSource === "regular") {
@@ -363,28 +432,25 @@ export default function OrderStatusPage({
   });
 
   return (
-
     <div className="px-3 py-4 sm:p-4 md:p-6">
       <div className="rounded-lg bg-white shadow p-3 sm:p-4 md:p-6">
-        <div className="mb-5 sm:mb-6 flex flex-col gap-4">
+        <div className="mb-4 sm:mb-5 flex flex-col gap-3">
 
           {/* Top Row */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
-            {/* Left Section */}
+            {/* Left */}
             <div className="min-w-0">
               <GoBackButton className="mb-2" label="Back to Orders" />
-
               <h1 className="text-xl sm:text-2xl font-bold break-words">
                 Order Status Report
               </h1>
-
               <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
                 Total items: {filtered.length}
               </p>
             </div>
 
-            {/* Right Section (Search) */}
+            {/* Right (Search) */}
             <div className="w-full sm:w-auto">
               <input
                 type="text"
@@ -397,8 +463,8 @@ export default function OrderStatusPage({
           </div>
         </div>
 
-
-        <div className="mb-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+        {/* Type badges */}
+        <div className="mb-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
           {(["RETAILER", "STORE", "STOCK"] as ReportType[]).map((t) => {
             const count = filtered.filter((i) => i.type === t).length;
             if (!count) return null;
@@ -416,7 +482,8 @@ export default function OrderStatusPage({
           {filtered.length === 0 && <span>No results</span>}
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {/* Grid — more columns since cards are smaller */}
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {filtered.map(({ raw, type }, i) => (
             <ItemCard
               key={`${type}-${raw.styleId ?? i}`}
