@@ -277,23 +277,23 @@ const EditCustomerForm = ({
             />
 
             <FormField
-  control={form.control}
-  name="proximity"
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>Proximity (Miles)</FormLabel>
-      <FormControl>
-       <Input
-  type="number"
-  placeholder="5"
-  {...field}
-/>
+              control={form.control}
+              name="proximity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Proximity (Miles)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="5"
+                      {...field}
+                    />
 
-      </FormControl>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
 
             {/* WEBSITE */}

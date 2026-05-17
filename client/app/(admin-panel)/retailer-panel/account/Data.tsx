@@ -39,6 +39,10 @@ import {
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput } from "@/components/custom/phone-input";
+import { isValidPhoneNumber } from "react-phone-number-input";
+import { getApiUrl } from "@/lib/constants";
+import CountryCombobox from "@/app/(admin-panel)/admin-panel/customers/CountryCombobox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Bank details schema
 const bankSchema = z.object({
@@ -122,23 +126,24 @@ function Data({
   );
 
   const formSchema = whatToShow === "bank" ? bankSchema : cardSchema;
-  
+
   const form = useForm({
     resolver: zodResolver(formSchema),
-    defaultValues: whatToShow === "bank" 
-      ? {
-          name: "",
-          account: "",
-          ifc: "",
-          branch: "",
-          address: "",
-        }
-      : {
-          card_name: "",
-          card_number: "",
-          expiry_date: "",
-          card_address: "",
-        },
+    defaultValues:
+      whatToShow === "bank"
+        ? {
+            name: "",
+            account: "",
+            ifc: "",
+            branch: "",
+            address: "",
+          }
+        : {
+            card_name: "",
+            card_number: "",
+            expiry_date: "",
+            card_address: "",
+          },
   });
 
   async function onSubmit(values: any) {
@@ -390,7 +395,7 @@ const formDetailsSchema = z.object({
       (value) => {
         const phoneRegex =
           /^(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
-        return phoneRegex.test(value);
+        return isValidPhoneNumber(value) || phoneRegex.test(value);
       },
       { message: "Please enter a valid phone number" },
     ),
@@ -402,10 +407,27 @@ const formDetailsSchema = z.object({
     .string()
     .min(2, "Store name must be at least 2 characters")
     .max(50, "Store name must not exceed 50 characters"),
+  storeAddress: z
+    .string()
+    .trim()
+    .min(1, "Store address is required")
+    .max(200, "Store address must not exceed 200 characters"),
+  city_name: z.string().optional(),
+  country_id: z.string().optional(),
 });
 
 // Updated TypeScript type
 type FormValues = z.infer<typeof formDetailsSchema>;
+
+const getPersonalDetailsDefaultValues = (data?: any): FormValues => ({
+  email: data?.email || "",
+  phoneNumber: data?.phoneNumber || "",
+  storeName: data?.storeName || "",
+  name: data?.name || "",
+  storeAddress: data?.storeAddress || "",
+  city_name: data?.client?.city_name || "",
+  country_id: data?.countryId ? String(data.countryId) : "",
+});
 
 export function PersonalDetailsForm({
   retailerId,
@@ -416,47 +438,57 @@ export function PersonalDetailsForm({
 }) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formDetailsSchema),
-    defaultValues: {
-      email: "",
-      phoneNumber: "",
-      storeName: "",
-      name: "",
-    },
+    defaultValues: getPersonalDetailsDefaultValues(data),
   });
+  const [countries, setCountries] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const { executeAsync } = useHttp(
+  const { reset } = form;
+  const { executeAsync, loading } = useHttp(
     `/retailers/retailer/personal/${retailerId}`,
     "PATCH",
   );
-  function onSubmit(data: FormValues) {
+  async function onSubmit(data: FormValues) {
     try {
-      executeAsync(data);
+      // send both customer.storeAddress and client.address for compatibility
+      const payload: any = { ...data, address: data.storeAddress };
+      if (data.country_id) payload.country_id = data.country_id;
+      if (data.city_name) payload.city_name = data.city_name;
+
+      await executeAsync(payload);
       router.refresh();
       toast.success("Details Updated");
       setOpen(false);
-    } catch (error) {}
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update details");
+    }
   }
 
   useEffect(() => {
-    if (data) {
-      form.setValue("email", data.email);
-      form.setValue("phoneNumber", data.phoneNumber);
-      form.setValue("storeName", data.storeName);
-      form.setValue("name", data.name);
-    }
+    reset(getPersonalDetailsDefaultValues(data));
+  }, [data, reset]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(getApiUrl("countries"));
+        const json = await res.json();
+        setCountries(Array.isArray(json) ? json : []);
+      } catch (err) {
+        console.error("Failed to load countries", err);
+      }
+    })();
   }, []);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-       <Button className="bg-black text-white hover:bg-gray-800 transition-colors">
-  Edit Details
-</Button>
-
+        <Button className="bg-black text-white transition-colors hover:bg-gray-800">
+          Edit Details
+        </Button>
       </SheetTrigger>
 
-      <SheetContent className="w-full bg-gray-50 sm:max-w-md">
+      <SheetContent className="w-full bg-gray-50 sm:max-w-md h-screen overflow-y-auto pb-8">
         <SheetHeader className="mb-6 border-b pb-4">
           <SheetTitle className="text-2xl font-semibold text-gray-800">
             Edit Your Details
@@ -467,7 +499,12 @@ export function PersonalDetailsForm({
         </SheetHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(onSubmit, () => {
+              toast.error("Please fix the errors in the form.");
+            })}
+            className="space-y-6"
+          >
             <FormField
               control={form.control}
               name="name"
@@ -503,6 +540,58 @@ export function PersonalDetailsForm({
                     />
                   </FormControl>
                   <FormMessage className="mt-1 text-sm text-red-500" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="storeAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium text-gray-700">
+                    Store Address
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Enter store address"
+                      className="min-h-[90px] w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage className="mt-1 text-sm text-red-500" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="city_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium text-gray-700">City</FormLabel>
+                  <FormControl>
+                    <Input placeholder="City" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="country_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium text-gray-700">Country</FormLabel>
+                  <FormControl>
+                    <CountryCombobox
+                      countries={countries}
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -555,15 +644,19 @@ export function PersonalDetailsForm({
             />
 
             <div className="flex gap-4 pt-2">
-              <Button type="submit" className="flex-1 rounded-lg bg-black text-white hover:bg-gray-800">
-  Save Changes
-</Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="flex-1 rounded-lg bg-black text-white hover:bg-gray-800"
+              >
+                {loading ? "Saving..." : "Save Changes"}
+              </Button>
 
               <Button
                 type="button"
                 variant="outline"
                 className="flex-1 rounded-lg border-gray-300 py-2 text-gray-700 transition-colors hover:bg-gray-100"
-                onClick={() => form.reset()}
+                onClick={() => reset(getPersonalDetailsDefaultValues(data))}
               >
                 Cancel
               </Button>

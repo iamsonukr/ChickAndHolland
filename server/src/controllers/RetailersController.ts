@@ -563,7 +563,7 @@ router.get(
         id: Number(id),
         isDeleted: false,
       },
-      relations: ["customer"],
+      relations: ["customer", "customer.client", "customer.country", "customer.currency"],
     });
 
     if (!retailer || retailer.customer.isDeleted) {
@@ -585,11 +585,22 @@ router.get(
         name: getCustomerStoreName(retailer.customer),
         customerStoreName: getCustomerStoreName(retailer.customer),
         storeName: retailer.customer.storeName,
-        storeAddress: retailer.customer.storeAddress,   // <-- ADD HERE
+        storeAddress: retailer.customer.storeAddress,
 
         email: retailer.customer.email,
-        phoneNumber: retailer.customer.phoneNumber, // FIXED
-      }
+        phoneNumber: retailer.customer.phoneNumber,
+
+        // client details (address, city, coords)
+        client: retailer.customer.client
+          ? {
+              address: retailer.customer.client.address,
+              city_name: retailer.customer.client.city_name,
+              latitude: retailer.customer.client.latitude,
+              longitude: retailer.customer.client.longitude,
+              proximity: retailer.customer.client.proximity,
+            }
+          : null,
+      },
     });
 
   })
@@ -600,14 +611,43 @@ router.patch(
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
-    const { phoneNumber, email, storeName, name } = req.body;
+    const {
+      phoneNumber,
+      email,
+      storeName,
+      name,
+      storeAddress,
+      address,
+      city_name,
+      coordinates,
+      proximity,
+      country_id,
+      currency_id,
+    } = req.body;
 
-    const customer = await Customer.findOne({
+    // Load customer with client relation so we can sync client (address/coords)
+    const retailer = await Retailer.findOne({
       where: {
         id: Number(id),
         isDeleted: false,
       },
+      relations: ["customer"],
     });
+
+    let customer =
+      retailer?.customer && !retailer.customer.isDeleted
+        ? await Customer.findOne({ where: { id: retailer.customer.id }, relations: ["client"] })
+        : null;
+
+    if (!customer) {
+      customer = await Customer.findOne({
+        where: {
+          id: Number(id),
+          isDeleted: false,
+        },
+        relations: ["client"],
+      });
+    }
 
     if (!customer) {
       return res.status(404).json({
@@ -616,16 +656,57 @@ router.patch(
       });
     }
 
-    customer.email = email;
-    customer.phoneNumber = phoneNumber;
-    customer.storeName = storeName;
-    customer.name = name;
+    customer.email = email ?? customer.email;
+    customer.phoneNumber = phoneNumber ?? customer.phoneNumber;
+    customer.storeName = storeName ?? customer.storeName;
+    customer.name = name ?? customer.name;
+
+    const nextStoreAddress = storeAddress ?? address;
+    if (typeof nextStoreAddress === "string") {
+      customer.storeAddress = nextStoreAddress.trim();
+    }
+
+    // Update or create associated client record so admin panel sees city/country/address
+    try {
+      let client = customer.client ? await Clients.findOne({ where: { id: customer.client.id } }) : null;
+      if (!client) {
+        client = Clients.create({});
+      }
+
+      client.name = customer.storeName || customer.name || client.name;
+      client.address = address ?? nextStoreAddress ?? client.address ?? "";
+      client.proximity = proximity ?? client.proximity ?? 1;
+      client.latitude = (coordinates?.latitude) ?? client.latitude ?? "0";
+      client.longitude = (coordinates?.longitude) ?? client.longitude ?? "0";
+      client.city_name = city_name ?? client.city_name ?? "";
+
+      await client.save();
+      customer.client = client;
+
+      // Optionally update customer's country/currency if provided
+      if (typeof country_id !== "undefined") {
+        customer.countryId = country_id || null;
+      }
+      if (typeof currency_id !== "undefined") {
+        customer.currencyId = currency_id || null;
+      }
+    } catch (err) {
+      console.error("Failed to sync client for retailer personal update:", err);
+    }
 
     await customer.save();
 
     res.json({
       success: true,
-      message: "sd",
+      message: "Details updated successfully",
+      retailer: {
+        name: customer.name,
+        storeName: customer.storeName,
+        storeAddress: customer.storeAddress,
+        email: customer.email,
+        phoneNumber: customer.phoneNumber,
+        client: customer.client,
+      },
     });
   })
 );
