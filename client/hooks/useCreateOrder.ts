@@ -3,8 +3,13 @@
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  DefaultValues,
+  useFieldArray,
+  useForm,
+  useWatch,
+} from "react-hook-form";
 
 import useHttp from "@/lib/hooks/usePost";
 import {
@@ -20,6 +25,10 @@ import {
   getProductDetailsByProductCode,
 } from "@/lib/data";
 import { Option } from "@/components/custom/multi-selector";
+import {
+  calculateRetailerStylePricing,
+  resolveProductCurrencyPrice,
+} from "@/lib/orderPricing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -91,11 +100,51 @@ function appendDateField(
   );
 }
 
+function getCustomerCurrencyId(customer?: any) {
+  return customer?.currencyId ?? customer?.currency?.id ?? null;
+}
+
+function appendStylePricingFormData(
+  fd: FormData,
+  style: CreateOrderForm["styles"][number],
+  index: number,
+  productDetails: any,
+  customer?: any,
+) {
+  if (!productDetails) return;
+
+  const resolvedPrice = resolveProductCurrencyPrice(
+    productDetails,
+    getCustomerCurrencyId(customer),
+  );
+  const pricing = calculateRetailerStylePricing({
+    basePrice: resolvedPrice.amount,
+    size: style.size,
+    quantity: style.quantity,
+    customSizesQuantity: style.customSizesQuantity,
+  });
+
+  fd.append(`styles[${index}].unitPrice`, pricing.unitPrice.toFixed(2));
+  fd.append(`styles[${index}].subtotal`, pricing.subtotal.toFixed(2));
+  fd.append(`styles[${index}].discount`, pricing.discount.toFixed(2));
+  fd.append(`styles[${index}].totalPrice`, pricing.total.toFixed(2));
+  fd.append(
+    `styles[${index}].currencyId`,
+    resolvedPrice.currencyId == null ? "" : String(resolvedPrice.currencyId),
+  );
+  fd.append(`styles[${index}].currencyCode`, resolvedPrice.currencyCode ?? "");
+  fd.append(
+    `styles[${index}].currencySymbol`,
+    resolvedPrice.currencySymbol ?? "",
+  );
+}
+
 function appendStyleFormData(
   fd: FormData,
   style: CreateOrderForm["styles"][number],
   index: number,
   detailsMap: Map<string, any>,
+  customer?: any,
 ) {
   const productDetails = detailsMap.get(style.styleNo?.[0]?.value ?? "");
   const sas = (val: string | undefined, fallback: string | undefined) =>
@@ -118,6 +167,7 @@ function appendStyleFormData(
     JSON.stringify(style.comments?.map((comment) => comment.trim()).filter(Boolean) ?? []),
   );
   fd.append(`styles[${index}].customSizesQuantity`, JSON.stringify(style.customSizesQuantity));
+  appendStylePricingFormData(fd, style, index, productDetails, customer);
 
   if (style.modifiedPhotoImage) {
     Array.from(style.modifiedPhotoImage).forEach((file: any) => {
@@ -130,8 +180,11 @@ export function appendStylesFormData(
   fd: FormData,
   styles: CreateOrderForm["styles"],
   detailsMap: Map<string, any>,
+  customer?: any,
 ) {
-  styles.forEach((style, index) => appendStyleFormData(fd, style, index, detailsMap));
+  styles.forEach((style, index) =>
+    appendStyleFormData(fd, style, index, detailsMap, customer),
+  );
 }
 
 export function buildPreviewData(
@@ -386,7 +439,7 @@ export function useCreateOrder({
     };
   };
 
-  const buildDefaultValues = (): CreateOrderForm => {
+  const buildDefaultValues = (): DefaultValues<CreateOrderForm> => {
     if (isEditMode) {
       const orderCustomer = editOrder?.customer;
       const customerOption =
@@ -450,6 +503,15 @@ export function useCreateOrder({
 
   // ── PO number generation ────────────────────────────────────────────────────
   const watchCustomerName = useWatch({ control: form.control, name: "customerId" });
+  const selectedCustomer = useMemo(() => {
+    const selectedCustomerId = watchCustomerName?.[0]?.value;
+    if (!selectedCustomerId) return null;
+
+    return (
+      customers.find((customer) => String(customer.id) === String(selectedCustomerId)) ??
+      null
+    );
+  }, [customers, watchCustomerName]);
 
   const generatePO = useCallback(async () => {
     if (isEditMode) {
@@ -535,6 +597,7 @@ export function useCreateOrder({
           try {
             const details = await getProductDetailsByProductCode(styleSelect.value);
             newMap.set(styleSelect.value, {
+              ...details,
               productCode: styleSelect.value,
               mesh_color: details.mesh_color,
               beading_color: details.beading_color,
@@ -554,12 +617,20 @@ export function useCreateOrder({
     [eachStyleProductDetails],
   );
 
+  useEffect(() => {
+    ensureProductDetailsLoaded(fullComponentWatch);
+  }, [ensureProductDetailsLoaded, fullComponentWatch]);
+
   // ── onSubmit ────────────────────────────────────────────────────────────────
   const submitOrder = async (
     data: CreateOrderForm,
     publishStatus?: "published" | "draft",
   ) => {
     const detailsMap = await ensureProductDetailsLoaded(data.styles);
+    const orderCustomer =
+      customers.find(
+        (customer) => String(customer.id) === String(data.customerId?.[0]?.value),
+      ) ?? selectedCustomer;
 
     if (isEditMode) {
       const dirtyFields = form.formState.dirtyFields as any;
@@ -617,8 +688,10 @@ export function useCreateOrder({
         const isNewStyle = !style.styleId;
         const hasNewImages = Boolean(style.modifiedPhotoImage?.length);
 
-        if (!isNewStyle && !styleDirty && !hasNewImages) return;
-        appendStyleFormData(fd, style, index, detailsMap);
+        if (!isNewStyle && !styleDirty && !hasNewImages && !dirtyFields.customerId) {
+          return;
+        }
+        appendStyleFormData(fd, style, index, detailsMap, orderCustomer);
       });
 
       if (uploadedFile) {
@@ -661,7 +734,7 @@ export function useCreateOrder({
     if (publishStatus) fd.append("publishStatus", publishStatus);
     appendDateField(fd, "orderReceivedDate", data.orderReceivedDate);
     appendDateField(fd, "orderCancellationDate", data.orderCancellationDate);
-    appendStylesFormData(fd, data.styles, detailsMap);
+    appendStylesFormData(fd, data.styles, detailsMap, orderCustomer);
 
     // If the user supplied their own file, attach it so the backend can store
     // it directly instead of generating a PDF/PPT server-side.
@@ -713,7 +786,11 @@ export function useCreateOrder({
       data.orderCancellationDate,
       "iso",
     );
-    appendStylesFormData(fd, data.styles, detailsMap);
+    const orderCustomer =
+      customers.find(
+        (customer) => String(customer.id) === String(data.customerId?.[0]?.value),
+      ) ?? selectedCustomer;
+    appendStylesFormData(fd, data.styles, detailsMap, orderCustomer);
 
     try {
       const response = await executePreviewAsync(fd, {}, (err) => {
@@ -787,6 +864,8 @@ export function useCreateOrder({
     colorTypeArray,
     sizeCountryArray,
     formattedCustomers,
+    selectedCustomer,
+    productDetailsByStyleNo: eachStyleProductDetails,
     // helpers
     getColourBasedOnId,
     getColourBasedOnhex,

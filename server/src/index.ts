@@ -83,6 +83,7 @@ import { ensureProductQueriesTable } from "./utils/ensureProductQueriesTable";
 import { ensureAdminSettingsTable } from "./services/resetPassword.service";
 import { ensurePurchaseOrderNoIsNotUnique } from "./utils/ensurePurchaseOrderNoIsNotUnique";
 import { ensureOrderPublishStatusColumn } from "./utils/ensureOrderPublishStatusColumn";
+import { ensureOrderStylePricingColumns } from "./utils/ensureOrderStylePricingColumns";
 
 const router = Router();
 
@@ -152,6 +153,7 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
     BaseEntity.useDataSource(db);
     await ensurePurchaseOrderNoIsNotUnique();
     await ensureOrderPublishStatusColumn();
+    await ensureOrderStylePricingColumns();
     await ensureProductQueriesTable();
     await ensureAdminSettingsTable();
     console.log("✅ Database connected");

@@ -2346,7 +2346,7 @@ router.get(
       where: {
         productCode: code,
       },
-      relations: ["images"],
+      relations: ["images", "currencyPricing", "currencyPricing.currency"],
     });
 
     if (!product) {

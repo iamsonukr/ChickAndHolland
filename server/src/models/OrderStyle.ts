@@ -54,6 +54,27 @@ export default class Style extends BaseModel {
   @Column("int")
   quantity: number;
 
+  @Column("decimal", { precision: 10, scale: 2, nullable: true })
+  unitPrice: number | null;
+
+  @Column("decimal", { precision: 10, scale: 2, nullable: true })
+  subtotal: number | null;
+
+  @Column("decimal", { precision: 10, scale: 2, default: 0 })
+  discount: number;
+
+  @Column("decimal", { precision: 10, scale: 2, nullable: true })
+  totalPrice: number | null;
+
+  @Column("int", { nullable: true })
+  currencyId: number | null;
+
+  @Column("varchar", { length: 10, nullable: true })
+  currencyCode: string | null;
+
+  @Column("varchar", { length: 10, nullable: true })
+  currencySymbol: string | null;
+
   @Column("varchar", { nullable: false, default: "SAS" })
   mesh_color: string;
 

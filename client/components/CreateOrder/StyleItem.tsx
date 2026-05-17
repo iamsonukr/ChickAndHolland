@@ -30,6 +30,11 @@ import CommentsFieldArray from "./CommentsFieldArray";
 import CustomSizesQuantityFieldArray from "./CustomSizesQuantityFieldArray";
 import FileUploadField from "./FileUploadField";
 import { searchStyleNumbers } from "@/lib/data";
+import {
+  calculateRetailerStylePricing,
+  formatOrderCurrency,
+  resolveProductCurrencyPrice,
+} from "@/lib/orderPricing";
 
 const lining = [
   "No Lining",
@@ -57,6 +62,8 @@ interface StyleItemProps {
   colorTypeArray: { value: string; label: string }[];
   sizeCountryArray: { value: keyof typeof SizeCountry; label: string }[];
   fullComponentWatch: any[];
+  selectedCustomer: any;
+  productDetailsByStyleNo: Map<string, any>;
   canRemove: boolean;
   onRemove: (index: number) => void;
   getColourBasedOnId: (id: number) => string | undefined;
@@ -71,6 +78,8 @@ const StyleItem = ({
   colorTypeArray,
   sizeCountryArray,
   fullComponentWatch,
+  selectedCustomer,
+  productDetailsByStyleNo,
   canRemove,
   onRemove,
   getColourBasedOnId,
@@ -81,6 +90,31 @@ const StyleItem = ({
   const stylesSelect = form.watch(`styles[${index}].styleNo[0]` as any) as any;
   const addLining = fullComponentWatch[index]?.addLining;
   const currentLining = fullComponentWatch[index]?.lining;
+  const currentStyle = fullComponentWatch[index] ?? {};
+  const selectedStyleCode = stylesSelect?.value ?? "";
+  const productDetails = selectedStyleCode
+    ? productDetailsByStyleNo.get(selectedStyleCode)
+    : null;
+  const resolvedPrice = productDetails
+    ? resolveProductCurrencyPrice(
+        productDetails,
+        selectedCustomer?.currencyId ?? selectedCustomer?.currency?.id,
+      )
+    : null;
+  const stylePricing = resolvedPrice
+    ? calculateRetailerStylePricing({
+        basePrice: resolvedPrice.amount,
+        size: currentStyle.size,
+        quantity: currentStyle.quantity,
+        customSizesQuantity: currentStyle.customSizesQuantity,
+      })
+    : null;
+  const formatPrice = (value: number) =>
+    formatOrderCurrency(
+      value,
+      resolvedPrice?.currencyCode,
+      resolvedPrice?.currencySymbol,
+    );
 
   return (
     <Collapsible key={fieldId} defaultOpen={index === 0} className="space-y-2">
@@ -532,6 +566,58 @@ const StyleItem = ({
                 name={`styles[${index}].customSizesQuantity`}
                 register={form.register}
               />
+            </div>
+          )}
+
+          {selectedStyleCode && (
+            <div className="md:col-span-3">
+              <div className="grid gap-3 rounded-md border bg-muted/30 p-3 text-sm md:grid-cols-5">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Product Price
+                  </p>
+                  <p className="mt-1 font-semibold">
+                    {stylePricing ? formatPrice(stylePricing.baseUnitPrice) : "Loading..."}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Variant Price
+                  </p>
+                  <p className="mt-1 font-semibold">
+                    {stylePricing ? formatPrice(stylePricing.unitPrice) : "Loading..."}
+                  </p>
+                  {stylePricing && stylePricing.markupPercent > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      +{stylePricing.markupPercent}% size adjustment
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Subtotal
+                  </p>
+                  <p className="mt-1 font-semibold">
+                    {stylePricing ? formatPrice(stylePricing.subtotal) : "Loading..."}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Discount
+                  </p>
+                  <p className="mt-1 font-semibold">
+                    {stylePricing ? formatPrice(stylePricing.discount) : "Loading..."}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Total Price
+                  </p>
+                  <p className="mt-1 font-semibold">
+                    {stylePricing ? formatPrice(stylePricing.total) : "Loading..."}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 

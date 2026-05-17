@@ -486,10 +486,11 @@ router.get(
         SELECT
           confirmedOrders.currencyId,
           SUM(confirmedOrders.purchaseAmount) AS totalSales,
-          COUNT(confirmedOrders.orderId) AS orderCount
+          COUNT(DISTINCT confirmedOrders.orderKey) AS orderCount
         FROM (
           SELECT
             ro.id AS orderId,
+            CONCAT('retailer-', ro.id) AS orderKey,
             ro.purchaseAmount,
             COALESCE(
               rso.currencyId,
@@ -527,6 +528,47 @@ router.get(
               OR rfo.is_approved = 1
               OR rso.is_approved = 1
             )
+
+          UNION ALL
+
+          SELECT
+            o.id AS orderId,
+            CONCAT('admin-', o.id) AS orderKey,
+            COALESCE(
+              os.totalPrice,
+              os.subtotal,
+              os.unitPrice * COALESCE(NULLIF(os.quantity, 0), 0),
+              COALESCE(pcp.price, p.price, 0) *
+                CASE
+                  WHEN CAST(os.size AS SIGNED) >= 58 THEN 1.60
+                  WHEN CAST(os.size AS SIGNED) >= 54 THEN 1.40
+                  WHEN CAST(os.size AS SIGNED) >= 50 THEN 1.20
+                  ELSE 1
+                END *
+                COALESCE(NULLIF(os.quantity, 0), 0)
+            ) AS purchaseAmount,
+            COALESCE(
+              os.currencyId,
+              c.currencyId,
+              defaultCurrency.id,
+              firstCurrency.id
+            ) AS currencyId
+          FROM orders o
+          INNER JOIN orderStyles os ON os.orderId = o.id
+          LEFT JOIN customers c ON c.id = o.customerId
+          LEFT JOIN products p ON p.productCode = os.styleNo
+          LEFT JOIN product_currency_pricing pcp
+            ON pcp.productId = p.id
+           AND pcp.currencyId = COALESCE(os.currencyId, c.currencyId)
+          LEFT JOIN (
+            SELECT id FROM currencies WHERE isDefault = 1 ORDER BY id LIMIT 1
+          ) defaultCurrency ON 1 = 1
+          LEFT JOIN (
+            SELECT id FROM currencies ORDER BY id LIMIT 1
+          ) firstCurrency ON 1 = 1
+          WHERE o.orderReceivedDate BETWEEN ? AND ?
+            AND o.status = 0
+            AND COALESCE(o.publishStatus, 'published') = 'published'
         ) confirmedOrders
         WHERE confirmedOrders.currencyId IS NOT NULL
         GROUP BY confirmedOrders.currencyId
@@ -535,6 +577,8 @@ router.get(
     `;
 
     const salesByCurrencyRows = await db.query(salesByCurrencyQuery, [
+      startDate,
+      endDate,
       startDate,
       endDate,
     ]);

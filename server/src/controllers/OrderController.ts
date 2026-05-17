@@ -36,6 +36,11 @@ import {
   requireScannerRoleStageAccess,
   reserveUniqueBarcodeScan,
 } from "../lib/scanGuard";
+import {
+  calculateRetailerStylePricing,
+  parseCustomSizesQuantity,
+  resolveProductCurrencyPrice,
+} from "../lib/orderPricing";
 
 import StoreStyleProgress from "../models/StoreStyleProgress";  // ⬅ top me import add karna
 // import { updateOrderAndStyleStatus } from "../services/orderStatus.service";
@@ -258,6 +263,65 @@ function parsePublishStatus(value: unknown) {
     : OrderPublishStatus.Published;
 }
 
+async function fetchPricingProductsMap(styles: any[]) {
+  const styleNos = [
+    ...new Set(
+      styles
+        .map((style) => sanitizeText(style?.styleNo))
+        .filter(Boolean),
+    ),
+  ];
+
+  if (!styleNos.length) return new Map<string, Product>();
+
+  const products = await Product.find({
+    where: { productCode: In(styleNos) },
+    relations: ["currencyPricing", "currencyPricing.currency"],
+  });
+
+  return new Map(
+    products.map((product) => [product.productCode.toLowerCase(), product]),
+  );
+}
+
+function applyPricingToStyle(
+  style: Style,
+  styleInput: any,
+  product: any,
+  customer?: Customer | null,
+) {
+  if (!product) {
+    style.unitPrice = null;
+    style.subtotal = null;
+    style.discount = 0;
+    style.totalPrice = null;
+    style.currencyId = customer?.currencyId ? Number(customer.currencyId) : null;
+    style.currencyCode = customer?.currency?.code ?? null;
+    style.currencySymbol = customer?.currency?.symbol ?? null;
+    return;
+  }
+
+  const resolvedPrice = resolveProductCurrencyPrice(
+    product,
+    customer?.currencyId ?? customer?.currency?.id,
+  );
+  const pricing = calculateRetailerStylePricing({
+    basePrice: resolvedPrice.amount,
+    size: styleInput.size,
+    quantity: styleInput.quantity,
+    customSizesQuantity: parseCustomSizesQuantity(styleInput.customSizesQuantity),
+  });
+
+  style.unitPrice = pricing.unitPrice;
+  style.subtotal = pricing.subtotal;
+  style.discount = pricing.discount;
+  style.totalPrice = pricing.total;
+  style.currencyId =
+    resolvedPrice.currencyId == null ? null : Number(resolvedPrice.currencyId);
+  style.currencyCode = resolvedPrice.currencyCode;
+  style.currencySymbol = resolvedPrice.currencySymbol;
+}
+
 
 router.post(
   "/",
@@ -342,7 +406,9 @@ router.post(
 
         const customer = await Customer.findOneOrFail({
           where: { id: customerId },
+          relations: ["currency"],
         });
+        const pricingProductsMap = await fetchPricingProductsMap(styles);
         const resolvedPurchaseOrderNo = await resolveRegularPurchaseOrderNo(
           getCustomerStoreName(customer),
           purchaseOrderNo,
@@ -409,6 +475,12 @@ router.post(
           newStyle.lining_color =
             s.lining === "No Lining" ? null : s.liningColor;
           newStyle.quantity = s.quantity ? Number(s.quantity) : 0;
+          applyPricingToStyle(
+            newStyle,
+            s,
+            pricingProductsMap.get(sanitizeText(s.styleNo).toLowerCase()),
+            customer,
+          );
 
           // STEP 1 — SAVE FIRST (GETS ID)
           await newStyle.save();
@@ -476,7 +548,7 @@ router.patch(
     const { id } = req.params;
     const order = await Order.findOne({
       where: { id: Number(id), status: 0 },
-      relations: ["customer", "styles"],
+      relations: ["customer", "customer.currency", "styles"],
     });
 
     if (!order) {
@@ -540,7 +612,10 @@ router.patch(
         });
       }
 
-      const customer = await Customer.findOne({ where: { id: customerId } });
+      const customer = await Customer.findOne({
+        where: { id: customerId },
+        relations: ["currency"],
+      });
       if (!customer) {
         return res.status(404).json({
           success: false,
@@ -604,6 +679,14 @@ router.patch(
     }
 
     const styles = parseStylesFromFields(fields);
+    const pricingProductsMap = await fetchPricingProductsMap(
+      styles.map((style) => ({
+        ...style,
+        styleNo: style.styleNo ?? order.styles?.find(
+          (existingStyle) => existingStyle.id === Number(style.id),
+        )?.styleNo,
+      })),
+    );
     const existingStyles = new Map(
       (order.styles ?? []).map((style) => [style.id, style]),
     );
@@ -650,6 +733,20 @@ router.patch(
         }
         style.quantity = quantity;
       }
+
+      applyPricingToStyle(
+        style,
+        {
+          ...s,
+          styleNo: s.styleNo ?? style.styleNo,
+          size: s.size ?? style.size,
+          quantity: s.quantity ?? style.quantity,
+          customSizesQuantity:
+            s.customSizesQuantity ?? style.customSizesQuantity,
+        },
+        pricingProductsMap.get(sanitizeText(s.styleNo ?? style.styleNo).toLowerCase()),
+        order.customer,
+      );
 
       await style.save();
 

@@ -28,6 +28,17 @@ interface CreateOrderProps {
   onSuccess?: () => void;
 }
 
+const formatPreviewComments = (comments: unknown) => {
+  if (Array.isArray(comments)) {
+    return comments
+      .map((comment) => String(comment).trim())
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  return typeof comments === "string" ? comments.trim() : "";
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CreateOrder = ({
@@ -63,6 +74,8 @@ const CreateOrder = ({
     colorTypeArray,
     sizeCountryArray,
     formattedCustomers,
+    selectedCustomer,
+    productDetailsByStyleNo,
     // helpers
     getColourBasedOnId,
     getColourBasedOnhex,
@@ -92,12 +105,7 @@ const CreateOrder = ({
       ...previewData,
       details: previewData.details?.map((detail: any, index: number) => ({
         ...detail,
-        comments: Array.isArray(fullComponentWatch[index]?.comments)
-          ? fullComponentWatch[index].comments
-              .map((comment: string) => comment.trim())
-              .filter(Boolean)
-              .join(", ")
-          : fullComponentWatch[index]?.comments?.trim() || "",
+        comments: formatPreviewComments(fullComponentWatch[index]?.comments),
       })),
     };
   }, [fullComponentWatch, previewData]);
@@ -134,6 +142,8 @@ const CreateOrder = ({
           colorTypeArray={colorTypeArray}
           sizeCountryArray={sizeCountryArray}
           formattedCustomers={formattedCustomers}
+          selectedCustomer={selectedCustomer}
+          productDetailsByStyleNo={productDetailsByStyleNo}
           customOrderType={customOrderType}
           setCustomOrderType={setCustomOrderType}
           orderTypeArrayState={orderTypeArrayState}

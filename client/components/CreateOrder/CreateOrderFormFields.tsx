@@ -36,6 +36,11 @@ import { CreateOrderForm, ColorType, SizeCountry } from "@/lib/formSchemas";
 import { UploadedFileType } from "@/hooks/useCreateOrder";
 import StyleItem from "@/components/CreateOrder/StyleItem";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
+import {
+  calculateRetailerStylePricing,
+  formatOrderCurrency,
+  resolveProductCurrencyPrice,
+} from "@/lib/orderPricing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +52,8 @@ interface CreateOrderFormFieldsProps {
   colorTypeArray: { value: keyof typeof ColorType; label: string }[];
   sizeCountryArray: { value: keyof typeof SizeCountry; label: string }[];
   formattedCustomers: Option[];
+  selectedCustomer: any;
+  productDetailsByStyleNo: Map<string, any>;
   customOrderType: string;
   setCustomOrderType: (val: string) => void;
   orderTypeArrayState: { value: string; label: string }[];
@@ -81,6 +88,8 @@ export function CreateOrderFormFields({
   colorTypeArray,
   sizeCountryArray,
   formattedCustomers,
+  selectedCustomer,
+  productDetailsByStyleNo,
   customOrderType,
   setCustomOrderType,
   orderTypeArrayState,
@@ -100,6 +109,52 @@ export function CreateOrderFormFields({
   getColourBasedOnId,
   getColourBasedOnhex,
 }: CreateOrderFormFieldsProps) {
+  const orderPricingSummary = fullComponentWatch.reduce(
+    (summary, style) => {
+      const styleCode = style?.styleNo?.[0]?.value;
+      const productDetails = styleCode
+        ? productDetailsByStyleNo.get(styleCode)
+        : null;
+
+      if (!productDetails) return summary;
+
+      const resolvedPrice = resolveProductCurrencyPrice(
+        productDetails,
+        selectedCustomer?.currencyId ?? selectedCustomer?.currency?.id,
+      );
+      const pricing = calculateRetailerStylePricing({
+        basePrice: resolvedPrice.amount,
+        size: style.size,
+        quantity: style.quantity,
+        customSizesQuantity: style.customSizesQuantity,
+      });
+
+      return {
+        subtotal: summary.subtotal + pricing.subtotal,
+        discount: summary.discount + pricing.discount,
+        total: summary.total + pricing.total,
+        pricedStyles: summary.pricedStyles + 1,
+        currencyCode: summary.currencyCode || resolvedPrice.currencyCode,
+        currencySymbol: summary.currencySymbol || resolvedPrice.currencySymbol,
+      };
+    },
+    {
+      subtotal: 0,
+      discount: 0,
+      total: 0,
+      pricedStyles: 0,
+      currencyCode: "",
+      currencySymbol: "",
+    },
+  );
+
+  const formatSummaryPrice = (value: number) =>
+    formatOrderCurrency(
+      value,
+      orderPricingSummary.currencyCode,
+      orderPricingSummary.currencySymbol,
+    );
+
   return (
     <Form {...form}>
       <form
@@ -339,6 +394,8 @@ export function CreateOrderFormFields({
               colorTypeArray={colorTypeArray}
               sizeCountryArray={sizeCountryArray}
               fullComponentWatch={fullComponentWatch}
+              selectedCustomer={selectedCustomer}
+              productDetailsByStyleNo={productDetailsByStyleNo}
               canRemove={fields.length > 1}
               onRemove={onRemove}
               getColourBasedOnId={getColourBasedOnId}
@@ -346,6 +403,37 @@ export function CreateOrderFormFields({
             />
           ))}
         </div>
+
+        {orderPricingSummary.pricedStyles > 0 && (
+          <div className="md:col-span-3">
+            <div className="grid gap-3 rounded-md border bg-muted/30 p-3 text-sm md:grid-cols-3">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Order Subtotal
+                </p>
+                <p className="mt-1 font-semibold">
+                  {formatSummaryPrice(orderPricingSummary.subtotal)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Order Discount
+                </p>
+                <p className="mt-1 font-semibold">
+                  {formatSummaryPrice(orderPricingSummary.discount)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Order Total
+                </p>
+                <p className="mt-1 font-semibold">
+                  {formatSummaryPrice(orderPricingSummary.total)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Upload section ── */}
         <div className="!mt-6 md:col-span-3">
