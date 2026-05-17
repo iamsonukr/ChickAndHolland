@@ -15,6 +15,7 @@ import {
   getAcceptedRetailersOrders,
   getRetailerAcceptedAdminFreshOrderDetails,
   getRetailersOrders,
+  getAdminOrders,
 } from "@/lib/data";
 
 import RejectedOrders from "./RejectedOrders";
@@ -22,6 +23,8 @@ import AdminDeliveredOrders from "./AdminDeliveredOrders";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import Orders from "./Orders";
 import TableScrollWrapper from "@/components/TableScrollWrapper";
+import Preview from "./Preview";
+import Details from "../../retailer-panel/my-orders/Details";
 
 // import AdminDeliveredOrders from
 
@@ -60,6 +63,8 @@ const page = async (props: {
     id: 1,
   });
 
+  const adminOrders = await getAdminOrders(0);
+
   return (
     <ContentLayout title="Order List">
       <div className="mb-2">
@@ -71,10 +76,11 @@ const page = async (props: {
       </div> */}
       <TableScrollWrapper>
       <Tabs defaultValue="accepted" className="w-full">
-        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-3">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-4">
           <TabsTrigger value="accepted">Accepted</TabsTrigger>
           <TabsTrigger value="delivered">Delivered</TabsTrigger>
           <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          <TabsTrigger value="adminOrders">Admin Orders</TabsTrigger>
         </TabsList>
         <TabsContent value="accepted">
           <Orders data={acceptedOrders.retailerOrders} />
@@ -92,6 +98,53 @@ const page = async (props: {
         </TabsContent>
         <TabsContent value="rejected">
           <RejectedOrders searchParams={searchParams} myOrders={myOrders.orders} />
+        </TabsContent>
+        <TabsContent value="adminOrders">
+          <div className="mt-0">
+            <Table className="table-fixed w-full border">
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="text-center">Date</TableHead>
+                  <TableHead className="text-center">Order Id</TableHead>
+                  <TableHead className="text-center">Order Type</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-center">Tracking ID</TableHead>
+                  <TableHead className="text-center">Order Date</TableHead>
+                  <TableHead className="text-center">Paid</TableHead>
+                  <TableHead className="text-center">Balance</TableHead>
+                  <TableHead className="text-center">Preview</TableHead>
+                  <TableHead className="text-center">Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {adminOrders?.orders?.map((item: any) => (
+                  <TableRow key={item.id} className="text-center hover:bg-muted/20">
+                    <TableCell>{formatDateTime(new Date(item.createdAt))}</TableCell>
+                    <TableCell className="font-medium">{item.order_id}</TableCell>
+                    <TableCell>{item.orderType === "Store" ? "Store Web Order" : item.orderType}</TableCell>
+                    <TableCell>{item.orderStatus}</TableCell>
+                    <TableCell>{item.trackingNo || "-"}</TableCell>
+                    <TableCell>{formatDateTime(new Date(item.orderReceivedDate || item.createdAt))}</TableCell>
+                    <TableCell>${parseFloat(item.paid_amount || 0).toFixed(0)}</TableCell>
+                    <TableCell>${parseFloat(item.balance || 0).toFixed(0)}</TableCell>
+                    <TableCell>
+                      {/* Preview component available in this folder */}
+                      <Preview id={item.id} type={item.orderType} order={item} orderSource="regular" />
+                    </TableCell>
+                    <TableCell>
+                      <Details
+                        id={item.id}
+                        retailerId={item.retailer_id}
+                        type={item.orderType}
+                        paymentId={item.payment_id}
+                        orderId={item.order_id}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </TabsContent>
       </Tabs>
       </TableScrollWrapper>

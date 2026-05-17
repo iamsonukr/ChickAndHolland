@@ -3192,73 +3192,96 @@ router.post("/admin-panel/request", asyncHandler(async (req: Request, res: Respo
 router.get(
   "/retailer/admin-orders",
   asyncHandler(async (req: Request, res: Response) => {
-    const retailerId = Number(req.query.retailerId);
+      const retailerIdRaw = req.query.retailerId;
+      const retailerId = retailerIdRaw ? Number(retailerIdRaw) : null;
 
-    if (!retailerId) {
-      return res.json({ success: false, message: "RetailerId missing" });
-    }
+      // If a specific retailerId is provided, return orders for that retailer's customer
+      if (retailerId) {
+        const retailer = await Retailer.findOne({
+          where: { id: retailerId },
+          relations: ["customer"],
+        });
 
-    // 1️⃣ Get retailer + customerId
-    const retailer = await Retailer.findOne({
-      where: { id: retailerId },
-      relations: ["customer"],
-    });
+        if (!retailer) {
+          return res.json({ success: false, message: "Retailer not found" });
+        }
 
-    if (!retailer) {
-      return res.json({ success: false, message: "Retailer not found" });
-    }
+        const SQL = `
+    SELECT 
+      o.id,
+      'regular' AS orderSource,
+      o.purchaeOrderNo AS order_id,
+      o.orderType,
+      o.orderStatus,
+      o.trackingNo,
+      o.ppt_path,
+      o.createdAt,
+      o.orderReceivedDate,
+      COALESCE(total_pay.total_amount, 0) AS total,
+      COALESCE(paid_pay.paid_amount, 0) AS paid_amount,
+      (COALESCE(total_pay.total_amount, 0) - COALESCE(paid_pay.paid_amount, 0)) AS balance
+    FROM orders o
+    LEFT JOIN (
+      SELECT orderId, SUM(amount) AS total_amount
+      FROM retailer_order_payments
+      GROUP BY orderId
+    ) total_pay ON total_pay.orderId = o.id
+    LEFT JOIN (
+      SELECT orderId, SUM(amount) AS paid_amount
+      FROM retailer_order_payments
+      GROUP BY orderId
+    ) paid_pay ON paid_pay.orderId = o.id
+    WHERE o.customerId = ?
+      AND o.status = 0
+      AND COALESCE(o.publishStatus, 'published') = 'published'
+    ORDER BY o.id DESC;
+  `;
 
-    // 2️⃣ FULL DETAILED ADMIN ORDERS QUERY
-    const SQL = `
-  SELECT 
-    o.id,
-    'regular' AS orderSource,
-    o.purchaeOrderNo AS order_id,
-    o.orderType,
-    o.orderStatus,
-    o.trackingNo,
-    o.ppt_path,
-    o.createdAt,
-    o.orderReceivedDate,
+        const rows = await db.query(SQL, [retailer.customer.id]);
 
-    -- Total order amount (from payments table OR 0 if no payment)
-    COALESCE(total_pay.total_amount, 0) AS total,
+        return res.json({
+          success: true,
+          orders: rows,
+        });
+      }
 
-    -- Paid amount
-    COALESCE(paid_pay.paid_amount, 0) AS paid_amount,
+      // No retailerId provided -> admin panel use-case: return admin-created orders across all retailers
+      // We treat orders that belong to customers who have an associated retailer as "admin orders" for the admin panel.
+      const GLOBAL_SQL = `
+    SELECT 
+      o.id,
+      'regular' AS orderSource,
+      o.purchaeOrderNo AS order_id,
+      o.orderType,
+      o.orderStatus,
+      o.trackingNo,
+      o.ppt_path,
+      o.createdAt,
+      o.orderReceivedDate,
+      COALESCE(total_pay.total_amount, 0) AS total,
+      COALESCE(paid_pay.paid_amount, 0) AS paid_amount,
+      (COALESCE(total_pay.total_amount, 0) - COALESCE(paid_pay.paid_amount, 0)) AS balance
+    FROM orders o
+    JOIN customers c ON o.customerId = c.id
+    JOIN retailers r ON r.customerId = c.id
+    LEFT JOIN (
+      SELECT orderId, SUM(amount) AS total_amount
+      FROM retailer_order_payments
+      GROUP BY orderId
+    ) total_pay ON total_pay.orderId = o.id
+    LEFT JOIN (
+      SELECT orderId, SUM(amount) AS paid_amount
+      FROM retailer_order_payments
+      GROUP BY orderId
+    ) paid_pay ON paid_pay.orderId = o.id
+    WHERE o.status = 0
+      AND COALESCE(o.publishStatus, 'published') = 'published'
+    ORDER BY o.id DESC;
+  `;
 
-    -- Balance = total - paid
-    (COALESCE(total_pay.total_amount, 0) - COALESCE(paid_pay.paid_amount, 0)) AS balance
+      const rows = await db.query(GLOBAL_SQL);
 
-  FROM orders o
-
-  -- Total amount (sum of all payments)
-  LEFT JOIN (
-    SELECT orderId, SUM(amount) AS total_amount
-    FROM retailer_order_payments
-    GROUP BY orderId
-  ) total_pay ON total_pay.orderId = o.id
-
-  -- Paid amount (same as total for now)
-  LEFT JOIN (
-    SELECT orderId, SUM(amount) AS paid_amount
-    FROM retailer_order_payments
-    GROUP BY orderId
-  ) paid_pay ON paid_pay.orderId = o.id
-
-  WHERE o.customerId = ?
-    AND o.status = 0
-    AND COALESCE(o.publishStatus, 'published') = 'published'
-  ORDER BY o.id DESC;
-`;
-
-
-    const rows = await db.query(SQL, [retailer.customer.id]);
-
-    return res.json({
-      success: true,
-      orders: rows,
-    });
+      return res.json({ success: true, orders: rows });
   })
 );
 

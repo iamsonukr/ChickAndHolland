@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -181,6 +181,7 @@ const Preview = ({
 }) => {
   const [data, setData] = useState<any>(null);
   const [previewError, setPreviewError] = useState("");
+  const [open, setOpen] = useState(false);
 
   const { executeAsync: stockMail, loading: stockLoading } = useHttp(
     "/stock-email",
@@ -445,6 +446,13 @@ const Preview = ({
     }
   };
 
+  useEffect(() => {
+    if (!open) return;
+    // load details when sheet opens
+    fetchDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const sendMail = async () => {
     const res =
       data.orderType === "Fresh"
@@ -474,9 +482,9 @@ const Preview = ({
     uploadedDocumentUrl.split("/").pop()?.split("?")[0] || "order-document";
 
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button onClick={fetchDetails}>Preview</Button>
+        <Button>Preview</Button>
       </SheetTrigger>
 
       <SheetContent className="!min-w-[95%] overflow-y-auto">
