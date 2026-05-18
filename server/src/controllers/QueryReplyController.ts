@@ -76,7 +76,7 @@ await mail({
   subject,
   text: `${message}\n\nIn case you have any questions, please do not hesitate to contact us.\n\nThank you,\nTeam\nChic & Holland`,
   html: `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222; max-width: 600px; margin: 0 auto;">
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222; max-width: 600px; margin: 0 ;">
       <p>${escapedMessage}</p>
       <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="margin: 0 0 4px 0;">In case you have any questions, please do not hesitate to contact us.</p>

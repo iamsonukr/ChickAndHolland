@@ -1,11 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import CreateOrder from "./CreateOrder";
 import FreshOrdersAcceptedForm from "../request/FreshOrdersAcceptedForm";
 import StockAcceptedForm from "../request/StockAcceptedForm";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/custom/password-input";
+import useHttp from "@/lib/hooks/usePost";
+import { toast } from "sonner";
 
 const EditOrderAction = ({
   order,
@@ -15,14 +27,81 @@ const EditOrderAction = ({
   customers: any[];
 }) => {
   const [openEdit, setOpenEdit] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [openVerify, setOpenVerify] = useState(false);
+  const [password, setPassword] = useState("");
+
+  const { executeAsync: verifyEditPassword, loading: verifying } = useHttp(
+    "/admin-settings/verify-edit-password",
+    "POST",
+  );
 
   const handleSuccess = () => setOpenEdit(false); // 👈 collapse back after save
 
+  useEffect(() => {
+    if (!openEdit) {
+      // reset verification when edit closed
+      setVerified(false);
+      setPassword("");
+    }
+  }, [openEdit]);
+
+  const onVerifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!password.trim()) {
+      toast.error("Edit password is required");
+      return;
+    }
+
+    try {
+      await verifyEditPassword({ password });
+      setVerified(true);
+      setOpenVerify(false);
+      setOpenEdit(true);
+      toast.success("Password verified");
+    } catch (err: any) {
+      toast.error(err?.message || "Invalid edit password");
+    }
+  };
+
   if (!openEdit) {
     return (
-      <Button variant="outline" onClick={() => setOpenEdit(true)}>
-        Edit
-      </Button>
+      <Dialog open={openVerify} onOpenChange={setOpenVerify}>
+        <DialogTrigger asChild>
+          <Button variant="outline" onClick={() => setOpenVerify(true)}>
+            Edit
+          </Button>
+        </DialogTrigger>
+
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enter Edit Password</DialogTitle>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={onVerifySubmit}>
+            <div className="space-y-2">
+              <Label htmlFor={`edit-password-${order.id}`}>Edit Password</Label>
+              <PasswordInput
+                id={`edit-password-${order.id}`}
+                value={password}
+                onChange={(ev) => setPassword(ev.target.value)}
+                autoComplete="current-password"
+                autoFocus
+              />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpenVerify(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={verifying}>
+                Verify
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     );
   }
 

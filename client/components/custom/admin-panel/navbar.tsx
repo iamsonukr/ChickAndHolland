@@ -46,7 +46,7 @@ export function Navbar({ title, userDetails }: NavbarProps) {
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
 
-          <div className="hidden max-w-[180px] flex-col items-end text-right sm:flex">
+          <div className=" max-w-[180px] flex-col items-end text-right flex">
             {/* Added 'capitalize' class here to fix "sonu" -> "Sonu" */}
             <span className="truncate text-sm font-semibold">
               Hi, {user?.name?.split(" ")[0] || "User"}
