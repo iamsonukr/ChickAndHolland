@@ -14,7 +14,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import {
-  getCustomizationDetails,
   getRetailerAcceptedFreshOrderDetails,
   getRetailerAcceptedStockOrderDetails,
 } from "@/lib/data";
@@ -41,6 +40,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
 
 import {
   Form,
@@ -135,7 +135,7 @@ interface OrderItem {
   beading_color: string;
   lining: string;
   lining_color: string;
-  product_size: number;
+  product_size: number | string;
   quantity: number;
   customization_price: number;
   customization: string;
@@ -160,13 +160,18 @@ const Details = ({
   paymentId,
   retailerId,
   orderId,
+  orderSource = "retailer",
+  order,
 }: {
   id: number;
   type: string;
   paymentId: number;
   retailerId: number;
   orderId: number;
+  orderSource?: "retailer" | "regular";
+  order?: any;
 }) => {
+  const isRegularAdminOrder = orderSource === "regular";
   const [customizationData, setCustomizationData] = useState<OrderItem[]>();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -190,6 +195,11 @@ const Details = ({
     "PATCH",
   );
 
+  const { executeAsync: regularCusChange } = useHttp(
+    `/orders/customization/${id}`,
+    "PATCH",
+  );
+
   const { executeAsync: addPayment } = useHttp(
     `/retailer-orders/admin/payment-update/${orderId}`,
     "POST",
@@ -200,8 +210,21 @@ const Details = ({
     "POST",
   );
 
+  const { executeAsync: regularStatusChange } = useHttp(
+    "/orders/orderStatus",
+    "PUT",
+  );
+
+  const { executeAsync: regularTrackingChange } = useHttp(
+    "/orders/tracking",
+    "PUT",
+  );
+
   const [data, setData] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [customizationLoading, setCustomizationLoading] = useState(false);
+  const [customizationSaving, setCustomizationSaving] = useState(false);
+  const [customizationError, setCustomizationError] = useState<string | null>(null);
   const [currencyInfo, setCurrencyInfo] = useState<{
     symbol: string;
     name: string;
@@ -222,8 +245,93 @@ const Details = ({
   const pathname = usePathname();
   const router = useRouter();
 
+  const getToken = () =>
+    document.cookie
+      ?.split("; ")
+      .find((row) => row.startsWith("token="))
+      ?.split("=")[1] || localStorage.getItem("token");
+
+  const normalizeArray = (value: any) => {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : value.trim() ? [value] : [];
+      } catch {
+        return value.trim() ? [value] : [];
+      }
+    }
+
+    return [value];
+  };
+
+  const getRegularStyleQuantity = (style: any) => {
+    const customSizesQuantity = normalizeArray(style?.customSizesQuantity);
+    const customTotal = customSizesQuantity.reduce(
+      (sum: number, item: any) => sum + Number(item?.quantity || 0),
+      0,
+    );
+
+    return customTotal || Number(style?.quantity || 0);
+  };
+
+  const fetchRegularOrderData = async () => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/orders/orderDetails?orderId=${id}`,
+      { cache: "no-store" },
+    );
+    const json = await response.json();
+
+    if (!response.ok || !json?.success) {
+      throw new Error(json?.message || "Failed to load admin order details");
+    }
+
+    const adminOrder = json.orders?.[0];
+    if (!adminOrder) throw new Error("Admin order details not found");
+
+    const styles = adminOrder.styles || [];
+    const productAmount = styles.reduce((sum: number, style: any) => {
+      const fallbackTotal =
+        Number(style?.unitPrice || 0) * getRegularStyleQuantity(style);
+      return sum + Number(style?.totalPrice ?? style?.subtotal ?? fallbackTotal);
+    }, 0);
+    const total = Number(order?.total ?? adminOrder.purchaseAmount ?? productAmount);
+    const paid = Number(order?.paid_amount ?? adminOrder.paidAmount ?? 0);
+    const firstStyle = styles[0];
+
+    setData(styles);
+    setPayment(adminOrder.orderPayments || []);
+    setRetailerDetails(adminOrder);
+    setCurrencyInfo({
+      symbol: firstStyle?.currencySymbol || "$",
+      name: firstStyle?.currencyCode || "Currency",
+    });
+    setBillAmount({
+      total,
+      product_amount: productAmount,
+      paid,
+      balance: Number(order?.balance ?? total - paid),
+      ship: Number(adminOrder.shippingAmount || order?.shippingAmount || 0),
+      customization: 0,
+    });
+    updateForm.setValue("id", adminOrder.trackingNo || "");
+    updateForm.setValue("status", adminOrder.orderStatus || "");
+    updateForm.setValue(
+      "shippingAmount",
+      Number(adminOrder.shippingAmount || order?.shippingAmount || 0),
+    );
+  };
+
   const fetchData = async (statusToRestore?: string | null) => {
     try {
+      if (isRegularAdminOrder) {
+        await fetchRegularOrderData();
+        router.refresh();
+        return;
+      }
+
       let fresh;
       if (type == "Stock") {
         fresh = await getRetailerAcceptedStockOrderDetails(
@@ -380,6 +488,43 @@ const Details = ({
 
   const statusUpdate = async (data: any) => {
     try {
+      if (isRegularAdminOrder) {
+        const newTrackingId =
+          typeof data.id === "string" ? data.id.trim() : "";
+        const currentTrackingId =
+          typeof retailerDetails?.trackingNo === "string"
+            ? retailerDetails.trackingNo.trim()
+            : "";
+        const statusChanged =
+          data.status && data.status !== retailerDetails?.orderStatus;
+        const trackingChanged = newTrackingId !== currentTrackingId;
+
+        if (!statusChanged && !trackingChanged) {
+          toast.info("No changes to update");
+          return;
+        }
+
+        if (trackingChanged) {
+          await regularTrackingChange({
+            orderId: id,
+            trackingNo: newTrackingId,
+          });
+        }
+
+        if (statusChanged) {
+          await regularStatusChange({
+            orderId: id,
+            status: data.status,
+          });
+        }
+
+        toast.success("Order details updated");
+        setPreservedStatus(null);
+        await fetchData();
+        router.refresh();
+        return;
+      }
+
       // const tem = ["Moved To Delivery", "Delivered"];
 
     // ❌ Payment check ONLY for Shipped
@@ -419,15 +564,53 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
       setPreservedStatus(null);
       fetchData();
       router.refresh();
-    } catch (error) {
-      toast.error("Error at Order Status Payment");
+    } catch (error: any) {
+      toast.error(error?.message || "Error updating order details");
     }
   };
 
   const customizationDetailsFun = async (id: number) => {
-    const res = await getCustomizationDetails(id);
+    setCustomizationError(null);
+    setCustomizationLoading(true);
+    try {
+      const token = getToken();
 
-    setCustomizationData(res.data);
+      if (!token) throw new Error("Authentication token missing");
+
+      const customizationUrl = isRegularAdminOrder
+        ? `${process.env.NEXT_PUBLIC_API_URL}/orders/customization/${id}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/retailer-orders/customization/${id}`;
+
+      const res = await fetch(
+        customizationUrl,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const json = await res.json();
+
+      if (!json || !json.success) {
+        throw new Error(json?.message || "Failed to load customization details");
+      }
+
+      setCustomizationData(json.data || []);
+    } catch (err: any) {
+      console.error("Customization fetch error:", err);
+      setCustomizationError(err?.message || "Error fetching customization");
+      setCustomizationData([]);
+    } finally {
+      setCustomizationLoading(false);
+    }
+  };
+
+  const handleDialogOpenChange = (openState: boolean) => {
+    setDialogOpen(openState);
+    if (openState) {
+      customizationDetailsFun(isRegularAdminOrder ? id : orderId);
+    }
   };
 
   const handlePriceChange = (invoiceId: number, newValue: number) => {
@@ -445,23 +628,67 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
     );
   };
 
+  const handleCustomizationChange = (invoiceId: number, newValue: string) => {
+    setCustomizationData(
+      (prevData) =>
+        prevData &&
+        prevData.map((invoice) =>
+          invoice.id === invoiceId
+            ? { ...invoice, customization: newValue }
+            : invoice,
+        ),
+    );
+  };
+
   const cusSubmit = async () => {
-    const res = await getCustomizationDetails(orderId);
+    setCustomizationSaving(true);
+    try {
+      const token = getToken();
 
-    const dd = res.data;
+      if (!token) {
+        toast.error("Please login again");
+        return;
+      }
 
-    if (JSON.stringify(dd) == JSON.stringify(customizationData)) {
+      const customizationUrl = isRegularAdminOrder
+        ? `${process.env.NEXT_PUBLIC_API_URL}/orders/customization/${id}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/retailer-orders/customization/${orderId}`;
+
+      const res = await fetch(customizationUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || "Failed to load customization details");
+      }
+
+      const dd = json?.data || [];
+
+      if (JSON.stringify(dd) === JSON.stringify(customizationData)) {
+        toast.success("Changes Saved");
+        setDialogOpen(false);
+        return;
+      }
+
+      if (isRegularAdminOrder) {
+        await regularCusChange({ data: customizationData });
+      } else {
+        await cusChange({ data: customizationData });
+      }
+
+      await fetchData();
+      router.refresh();
       toast.success("Changes Saved");
-      return;
+      setDialogOpen(false);
+    } catch (error) {
+      console.error("Customization submit error:", error);
+      toast.error("Error saving customization");
+    } finally {
+      setCustomizationSaving(false);
     }
-
-    cusChange({
-      data: customizationData,
-    });
-    fetchData();
-    router.refresh();
-    toast.success("Changes Saved");
-    setDialogOpen(false);
   };
 
   useEffect(() => {
@@ -472,7 +699,7 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button onClick={fetchData}>Details</Button>
+        <Button onClick={() => { void fetchData(); }}>Details</Button>
       </SheetTrigger>
       <SheetContent className="!max-w-[98%] overflow-y-auto">
         <SheetHeader>
@@ -495,7 +722,7 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
                           <FormLabel>Status</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -539,26 +766,28 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
                     />
                   </div>
 
-                  <div className="col-span-3">
-                    <FormField
-                      control={updateForm.control}
-                      name="shippingAmount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Shipping Cost</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Shipping Cost"
-                              type="number"
-                              {...field}
-                            />
-                          </FormControl>
+                  {!isRegularAdminOrder && (
+                    <div className="col-span-3">
+                      <FormField
+                        control={updateForm.control}
+                        name="shippingAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Shipping Cost</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Shipping Cost"
+                                type="number"
+                                {...field}
+                              />
+                            </FormControl>
 
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
                   <Button type="submit">Submit</Button>
                 </div>
               </form>
@@ -581,14 +810,13 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
                {retailerDetails && (
   <div className="flex flex-col gap-4">
     
-   
-
     {/* Address with Editable Input */}
     <div className="flex gap-2 items-center">
       <p className="w-2/12 font-medium">Address:</p>
       <input
         className="bg-[#111] border border-gray-600 px-3 py-2 rounded text-white w-full"
         value={retailerDetails.address || ""}
+        readOnly={isRegularAdminOrder}
         onChange={(e) =>
           setRetailerDetails({
             ...retailerDetails,
@@ -596,12 +824,14 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
           })
         }
       />
-      <Button
-        onClick={updateRetailerAddress}
-        className="bg-white text-black font-semibold"
-      >
-        Save
-      </Button>
+      {!isRegularAdminOrder && (
+        <Button
+          onClick={updateRetailerAddress}
+          className="bg-white text-black font-semibold"
+        >
+          Save
+        </Button>
+      )}
     </div>
 
   </div>
@@ -615,6 +845,7 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
               </AccordionTrigger>
               <AccordionContent>
                 {pathname?.includes("/admin-panel/order-list") &&
+                  !isRegularAdminOrder &&
                   billAmount.balance > 0 && (
                     <div>
                       <Form {...form}>
@@ -722,17 +953,11 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
 
                           <Dialog
                             open={dialogOpen}
-                            onOpenChange={setDialogOpen}
+                            onOpenChange={handleDialogOpenChange}
                           >
                             {pathname?.includes("/admin-panel/order-list") && (
                               <DialogTrigger asChild>
-                                <Button
-                                  onClick={() => {
-                                    customizationDetailsFun(orderId);
-                                  }}
-                                >
-                                  Edit Customization
-                                </Button>
+                                <Button>Edit Customization</Button>
                               </DialogTrigger>
                             )}
                             <DialogContent className="max-h-[90%] max-w-[95%] overflow-y-auto">
@@ -740,7 +965,25 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
                                 <DialogTitle>Edit Customization</DialogTitle>
                               </DialogHeader>
                               <div className=" ">
-                                <Table>
+                                {customizationLoading ? (
+                                  <div className="p-6 text-center">Loading customization...</div>
+                                ) : customizationError ? (
+                                  <div className="p-6 text-center text-red-600">
+                                    <p>{customizationError}</p>
+                                    <div className="mt-2">
+                                      <Button
+                                        onClick={() =>
+                                          customizationDetailsFun(
+                                            isRegularAdminOrder ? id : orderId,
+                                          )
+                                        }
+                                      >
+                                        Retry
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <Table>
                                   <TableHeader>
                                     <TableRow className="text-nowrap">
                                       <TableHead className="">
@@ -768,7 +1011,7 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
-                                    {customizationData &&
+                                    {customizationData?.length ? (
                                       customizationData.map((invoice) => {
                                         const pricePerUnit =
                                           invoice.customization_price *
@@ -802,16 +1045,29 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
                                               {invoice.lining_color}
                                             </TableCell>
                                             <TableCell className="">
-                                              <HoverCard>
-                                                <HoverCardTrigger asChild>
-                                                  <div className="w-[100px] truncate">
+                                              {isRegularAdminOrder ? (
+                                                <Textarea
+                                                  value={invoice.customization || ""}
+                                                  onChange={(e) =>
+                                                    handleCustomizationChange(
+                                                      invoice.id,
+                                                      e.target.value,
+                                                    )
+                                                  }
+                                                  className="min-h-[70px] w-[240px]"
+                                                />
+                                              ) : (
+                                                <HoverCard>
+                                                  <HoverCardTrigger asChild>
+                                                    <div className="w-[100px] truncate">
+                                                      {invoice.customization}
+                                                    </div>
+                                                  </HoverCardTrigger>
+                                                  <HoverCardContent className="w-80">
                                                     {invoice.customization}
-                                                  </div>
-                                                </HoverCardTrigger>
-                                                <HoverCardContent className="w-80">
-                                                  {invoice.customization}
-                                                </HoverCardContent>
-                                              </HoverCard>
+                                                  </HoverCardContent>
+                                                </HoverCard>
+                                              )}
                                             </TableCell>
                                             <TableCell className="">
                                               <div className="flex">
@@ -824,30 +1080,53 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
                                             </TableCell>
                                             <TableCell className="">
                                               <div className="flex w-full items-center justify-end gap-1">
-                                                <Input
-                                                  type="Number"
-                                                  value={
-                                                    invoice.customization_price
-                                                  }
-                                                  onChange={(e) =>
-                                                    handlePriceChange(
-                                                      invoice.id,
-                                                      Number(e.target.value),
-                                                    )
-                                                  }
-                                                  className="h-[30px] w-[80px] border border-black p-0 ps-1"
-                                                />
+                                                {!isRegularAdminOrder && (
+                                                  <Input
+                                                    type="Number"
+                                                    value={
+                                                      invoice.customization_price
+                                                    }
+                                                    onChange={(e) =>
+                                                      handlePriceChange(
+                                                        invoice.id,
+                                                        Number(e.target.value),
+                                                      )
+                                                    }
+                                                    className="h-[30px] w-[80px] border border-black p-0 ps-1"
+                                                  />
+                                                )}
                                               </div>
                                             </TableCell>
                                           </TableRow>
                                         );
-                                      })}
+                                      })
+                                    ) : (
+                                      <TableRow>
+                                        <TableCell
+                                          colSpan={11}
+                                          className="py-6 text-center text-muted-foreground"
+                                        >
+                                          No customization details found.
+                                        </TableCell>
+                                      </TableRow>
+                                    )}
                                   </TableBody>
                                 </Table>
+                                )}
                               </div>
                               <DialogFooter>
-                                <Button type="button" onClick={cusSubmit}>
-                                  Save changes
+                                <Button
+                                  type="button"
+                                  onClick={cusSubmit}
+                                  disabled={
+                                    customizationLoading ||
+                                    customizationSaving ||
+                                    !customizationData?.length
+                                  }
+                                >
+                                  {customizationSaving
+                                    ? "Saving..."
+                                    : "Save changes"}
                                 </Button>
                               </DialogFooter>
                             </DialogContent>
@@ -936,7 +1215,8 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
                       <TableHead className="text-right font-bold text-black">
                         Paid Amount
                       </TableHead>
-                      {pathname?.includes("/admin-panel/order-list") && (
+                      {pathname?.includes("/admin-panel/order-list") &&
+                        !isRegularAdminOrder && (
                         <TableHead className="text-right font-bold text-black">
                           Action
                         </TableHead>
@@ -953,7 +1233,8 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
                         <TableCell className="text-right">
                           {currencyInfo?.symbol || "€"} {invoice.amount}
                         </TableCell>
-                        {pathname?.includes("/admin-panel/order-list") && (
+                        {pathname?.includes("/admin-panel/order-list") &&
+                          !isRegularAdminOrder && (
                           <TableCell className="p-0 text-right">
                             <EditPayment
                               id={invoice.id}

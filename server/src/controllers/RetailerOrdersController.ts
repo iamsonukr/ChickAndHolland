@@ -2112,12 +2112,21 @@ router.post(
 
     if (track_id) order.trackingNo = String(track_id).trim();
 
-    if (shipping > 0) {
+    if (shipping !== undefined && shipping !== null && shipping !== "") {
+      const shippingAmount = Number(shipping);
+
+      if (Number.isNaN(shippingAmount) || shippingAmount < 0) {
+        return res.status(400).json({
+          success: false,
+          msg: "Invalid shipping amount",
+        });
+      }
+
       const base =
         Number(order.purchaseAmount) -
-        Number(order.shippingAmount);
-      order.shippingAmount = shipping;
-      order.purchaseAmount = base + shipping;
+        Number(order.shippingAmount || 0);
+      order.shippingAmount = shippingAmount;
+      order.purchaseAmount = base + shippingAmount;
     }
 
     if (!status) {
@@ -3222,13 +3231,13 @@ router.get(
       (COALESCE(total_pay.total_amount, 0) - COALESCE(paid_pay.paid_amount, 0)) AS balance
     FROM orders o
     LEFT JOIN (
-      SELECT orderId, SUM(amount) AS total_amount
-      FROM retailer_order_payments
+      SELECT orderId, SUM(COALESCE(totalPrice, subtotal, unitPrice * quantity, 0)) AS total_amount
+      FROM orderStyles
       GROUP BY orderId
     ) total_pay ON total_pay.orderId = o.id
     LEFT JOIN (
       SELECT orderId, SUM(amount) AS paid_amount
-      FROM retailer_order_payments
+      FROM orderpayments
       GROUP BY orderId
     ) paid_pay ON paid_pay.orderId = o.id
     WHERE o.customerId = ?
@@ -3265,13 +3274,13 @@ router.get(
     JOIN customers c ON o.customerId = c.id
     JOIN retailers r ON r.customerId = c.id
     LEFT JOIN (
-      SELECT orderId, SUM(amount) AS total_amount
-      FROM retailer_order_payments
+      SELECT orderId, SUM(COALESCE(totalPrice, subtotal, unitPrice * quantity, 0)) AS total_amount
+      FROM orderStyles
       GROUP BY orderId
     ) total_pay ON total_pay.orderId = o.id
     LEFT JOIN (
       SELECT orderId, SUM(amount) AS paid_amount
-      FROM retailer_order_payments
+      FROM orderpayments
       GROUP BY orderId
     ) paid_pay ON paid_pay.orderId = o.id
     WHERE o.status = 0

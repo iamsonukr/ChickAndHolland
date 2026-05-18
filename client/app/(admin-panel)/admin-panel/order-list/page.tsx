@@ -134,10 +134,12 @@ const page = async (props: {
                     <TableCell>
                       <Details
                         id={item.id}
-                        retailerId={item.retailer_id}
+                        retailerId={item.retailer_id ?? 0}
                         type={item.orderType}
-                        paymentId={item.payment_id}
-                        orderId={item.order_id}
+                        paymentId={item.payment_id ?? 0}
+                        orderId={item.id}
+                        orderSource="regular"
+                        order={item}
                       />
                     </TableCell>
                   </TableRow>

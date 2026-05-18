@@ -74,6 +74,58 @@ function sanitizeText(value: unknown) {
   return trimmed;
 }
 
+function commentsToArray(value: any) {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.map((comment) => String(comment).trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.map((comment) => String(comment).trim()).filter(Boolean);
+      }
+    } catch {
+      // Plain-text comments from older records are still valid customization data.
+    }
+
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+
+  return [String(value).trim()].filter(Boolean);
+}
+
+function getStyleTotalQuantity(style: any) {
+  const customSizesQuantity = safeArray(style?.customSizesQuantity);
+  const customTotal = customSizesQuantity.reduce(
+    (sum: number, item: any) => sum + Number(item?.quantity || 0),
+    0,
+  );
+
+  return customTotal || Number(style?.quantity || 0);
+}
+
+function mapOrderStyleCustomization(style: any) {
+  return {
+    id: style.id,
+    color: style.colorType || "",
+    mesh_color: style.mesh_color || "",
+    beading_color: style.beading_color || "",
+    lining: style.lining || "",
+    lining_color: style.lining_color || "",
+    product_size: style.size || "",
+    quantity: getStyleTotalQuantity(style),
+    customization_price: 0,
+    customization: commentsToArray(style.comments).join(", "),
+    size_country: style.sizeCountry || "",
+    product: {
+      productCode: style.styleNo || "",
+    },
+  };
+}
+
 function buildOrderAddress(
   orderAddress: unknown,
   customer?: { storeAddress?: string | null; country?: { name?: string | null } | null } | null,
@@ -1388,6 +1440,77 @@ router.get(
 
 
 router.get(
+  "/customization/:id",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    const order = await Order.findOne({
+      where: {
+        id: Number(id),
+        status: 0,
+      },
+      relations: ["styles"],
+    });
+
+    if (!order || order.publishStatus === OrderPublishStatus.Draft) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+        data: [],
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: (order.styles || []).map(mapOrderStyleCustomization),
+    });
+  })
+);
+
+router.patch(
+  "/customization/:id",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const incoming = Array.isArray(req.body?.data) ? req.body.data : [];
+
+    const order = await Order.findOne({
+      where: {
+        id: Number(id),
+        status: 0,
+      },
+      relations: ["styles"],
+    });
+
+    if (!order || order.publishStatus === OrderPublishStatus.Draft) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    const stylesById = new Map(
+      (order.styles || []).map((style) => [Number(style.id), style]),
+    );
+
+    for (const item of incoming) {
+      const style = stylesById.get(Number(item?.id));
+      if (!style) continue;
+
+      style.comments = JSON.stringify(
+        commentsToArray(item?.customization ?? item?.comments),
+      );
+      await style.save();
+    }
+
+    return res.json({
+      success: true,
+      message: "Customization Edited successfully",
+      data: (order.styles || []).map(mapOrderStyleCustomization),
+    });
+  })
+);
+
+router.get(
   "/orderDetails",
   asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = req.query as any;
@@ -1396,6 +1519,7 @@ router.get(
       .createQueryBuilder(Order, "order")
       .leftJoinAndSelect("order.customer", "customer")
       .leftJoinAndSelect("order.styles", "styles")
+      .leftJoinAndSelect("order.orderPayments", "orderPayments")
       .where("order.id = :orderId", { orderId: Number(orderId) })
       .andWhere("order.status = 0")
       .andWhere("COALESCE(order.publishStatus, :publishedStatus) = :publishedStatus", {

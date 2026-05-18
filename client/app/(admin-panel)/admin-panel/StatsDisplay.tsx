@@ -79,14 +79,20 @@ const formatCurrency = (
   }
 };
 
-export const StatsDisplay = ({ data }: { data: any }) => {
-  const salesByCurrency = getSalesByCurrency(data);
+export const StatsDisplay = ({ data = {} }: { data?: any }) => {
+  const safeData = {
+    total: { orders: 0, total_quantity: 0, customers: 0 },
+    salesByCurrency: [],
+    productData: [],
+    ...data,
+  };
+
+  const salesByCurrency = getSalesByCurrency(safeData);
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
 
   const selectedSale =
-    salesByCurrency.find(
-      (sale) => sale.currencyCode === selectedCurrency,
-    ) || salesByCurrency[0];
+    salesByCurrency.find((sale) => sale.currencyCode === selectedCurrency) ||
+    salesByCurrency[0];
 
   return (
     <div className="space-y-6">
@@ -100,7 +106,7 @@ export const StatsDisplay = ({ data }: { data: any }) => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-extrabold text-blue-900">
-              {data.total?.orders || 0}
+              {safeData.total?.orders || 0}
             </div>
             <p className="mt-1 text-xs text-blue-600">All Time</p>
           </CardContent>
@@ -115,7 +121,7 @@ export const StatsDisplay = ({ data }: { data: any }) => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-extrabold text-green-900">
-              {data.total?.total_quantity || 0}
+              {safeData.total?.total_quantity || 0}
             </div>
             <p className="mt-1 text-xs text-green-600">Units Sold</p>
           </CardContent>
@@ -130,7 +136,7 @@ export const StatsDisplay = ({ data }: { data: any }) => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-extrabold text-purple-900">
-              {data.total?.customers || 0}
+              {safeData.total?.customers || 0}
             </div>
             <p className="mt-1 text-xs text-purple-600">Unique Buyers</p>
           </CardContent>
@@ -177,8 +183,8 @@ export const StatsDisplay = ({ data }: { data: any }) => {
             <div>
               <h2 className="break-words text-3xl font-extrabold text-amber-900">
                 {formatCurrency(
-                  selectedSale.totalSales,
-                  selectedSale.currencyCode,
+                  selectedSale.totalSales || 0,
+                  selectedSale.currencyCode || "USD",
                   selectedSale.currencySymbol,
                 )}
               </h2>
@@ -228,8 +234,8 @@ export const StatsDisplay = ({ data }: { data: any }) => {
               </TableHeader>
 
               <TableBody>
-                {data.productData?.length > 0 ? (
-                  data.productData.map((product: any, index: number) => (
+                {safeData.productData?.length > 0 ? (
+                  safeData.productData.map((product: any, index: number) => (
                     <TableRow key={product.product_id}>
                       <TableCell>
                         <Badge variant="outline" className="mr-2">
