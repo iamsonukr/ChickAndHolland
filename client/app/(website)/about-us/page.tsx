@@ -289,7 +289,7 @@ export default function BrandPage() {
           >
             <div className="about-slide-left md:w-[50%] opacity-0 transition-all duration-800 ease-out">
               <CustomizedImage
-                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/brand_page/41749c84-03e6-4a9e-894a-ecdfde95f634.jpeg"
+                src="/about-us-statue.png"
                 alt="Chic & Holland - Brand page images"
                 unoptimized
                 ref={addToImagesRef}
@@ -302,7 +302,7 @@ export default function BrandPage() {
                 <span className="absolute bottom-0 left-1/2 h-[1.5px] w-40 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#C9A39A] to-transparent"></span>
               </h2>
               {[
-                "The Chic & Holland Design Team is at the core of the brand. They seek innovation, high-quality raw materials, and the proper implementation of each proposal., Each silhouette goes through multiple phases and includes a lot of fine details.",
+                "Thed Chic & Holland Design Team is at the core of the brand. They seek innovation, high-quality raw materials, and the proper implementation of each proposal., Each silhouette goes through multiple phases and includes a lot of fine details.",
                 "The following sections make up the manufacturing process: Creative Design, Pattern Department, Sewing Unit, Handmade ornamentation Department, 1st Stage- Quality Control, End Stage, and Final Quality Control.",
                 "In collaboration with the Sales and Production teams, the Design Department meticulously plans the design of every CHIC & HOLLAND Dress. All gowns are made in a specified and regulated manner, with care and love applied at all stages.",
               ].map((text, index) => (

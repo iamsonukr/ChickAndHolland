@@ -59,7 +59,6 @@ export function Navbar({ title, userDetails }: NavbarProps) {
             )}
             {user.storeName}
           </div>
-
           <UserNav user={user} />
         </div>
       </div>
