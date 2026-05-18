@@ -405,7 +405,7 @@ export function CreateOrderFormFields({
         </div>
 
         {orderPricingSummary.pricedStyles > 0 && (
-          <div className="md:col-span-3">
+          <div className="md:col-span-3 hidden">
             <div className="grid gap-3 rounded-md border bg-muted/30 p-3 text-sm md:grid-cols-3">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">
