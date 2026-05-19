@@ -38,12 +38,79 @@ import {
   requireScannerIdentity,
   requireScannerRoleStageAccess,
 } from "../lib/scanGuard";
+import {
+  buildRegularOrderMissingStyleTotalSql,
+  buildRegularOrderStyleTotalSql,
+} from "../lib/orderTotals";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 const router = Router();
 
 const RETAILER_QR_STATUS_FLOW = SCAN_STAGE_FLOW as OrderStatus[];
+
+const REGULAR_ORDER_STYLE_TOTAL_SQL = buildRegularOrderStyleTotalSql();
+const REGULAR_ORDER_MISSING_STYLE_TOTAL_SQL =
+  buildRegularOrderMissingStyleTotalSql();
+const REGULAR_ADMIN_ORDER_TOTALS_JOIN_SQL = `
+    LEFT JOIN (
+      SELECT
+        os.orderId,
+        SUM(${REGULAR_ORDER_STYLE_TOTAL_SQL}) AS total_amount,
+        COUNT(*) AS style_count,
+        SUM(${REGULAR_ORDER_MISSING_STYLE_TOTAL_SQL}) AS missing_total_values,
+        SUM(
+          CASE
+            WHEN COALESCE(NULLIF(os.totalPrice, 0), NULLIF(os.subtotal, 0), NULLIF(os.unitPrice, 0), pcp.price, p.price) IS NULL
+            THEN 1
+            ELSE 0
+          END
+        ) AS unresolved_total_values,
+        MAX(COALESCE(os.currencyId, c.currencyId)) AS currencyId,
+        MAX(os.currencyCode) AS currencyCode,
+        MAX(os.currencySymbol) AS currencySymbol
+      FROM orderStyles os
+      LEFT JOIN orders style_order ON style_order.id = os.orderId
+      LEFT JOIN customers c ON c.id = style_order.customerId
+      LEFT JOIN products p ON p.productCode = os.styleNo
+      LEFT JOIN product_currency_pricing pcp
+        ON pcp.productId = p.id
+       AND pcp.currencyId = COALESCE(os.currencyId, c.currencyId)
+      GROUP BY os.orderId
+    ) total_pay ON total_pay.orderId = o.id
+    LEFT JOIN currencies curr ON curr.id = total_pay.currencyId
+`;
+
+const logAdminOrderTotalDiagnostics = (rows: any[], scope: string) => {
+  const diagnosticRows = rows.filter((row) => {
+    const total = Number(row.total || 0);
+    const missingStyleTotals = Number(row.missing_total_values || 0);
+    const unresolvedStyleTotals = Number(row.unresolved_total_values || 0);
+
+    return total <= 0 || missingStyleTotals > 0 || unresolvedStyleTotals > 0;
+  });
+
+  if (!diagnosticRows.length) return;
+
+  console.warn("[AdminOrders] Missing total value diagnostics", {
+    scope,
+    affectedOrders: diagnosticRows.length,
+  });
+
+  diagnosticRows.slice(0, 10).forEach((row) => {
+    console.warn("[AdminOrders] Missing total values", {
+      scope,
+      orderId: row.id,
+      purchaseOrderNo: row.order_id,
+      styleCount: Number(row.style_count || 0),
+      missingStyleTotals: Number(row.missing_total_values || 0),
+      unresolvedStyleTotals: Number(row.unresolved_total_values || 0),
+      total: Number(row.total || 0),
+      paid: Number(row.paid_amount || 0),
+      balance: Number(row.balance || 0),
+    });
+  });
+};
 
 const sanitizeText = (value: unknown) => {
   if (typeof value !== "string") return "";
@@ -3233,14 +3300,17 @@ router.get(
       o.createdAt,
       o.orderReceivedDate,
       COALESCE(total_pay.total_amount, 0) AS total,
+      COALESCE(total_pay.total_amount, 0) AS grandTotal,
       COALESCE(paid_pay.paid_amount, 0) AS paid_amount,
-      (COALESCE(total_pay.total_amount, 0) - COALESCE(paid_pay.paid_amount, 0)) AS balance
+      (COALESCE(total_pay.total_amount, 0) - COALESCE(paid_pay.paid_amount, 0)) AS balance,
+      COALESCE(total_pay.currencySymbol, curr.symbol, '€') AS currencySymbol,
+      COALESCE(total_pay.currencyCode, curr.code, 'EUR') AS currencyCode,
+      curr.name AS currencyName,
+      COALESCE(total_pay.style_count, 0) AS style_count,
+      COALESCE(total_pay.missing_total_values, 0) AS missing_total_values,
+      COALESCE(total_pay.unresolved_total_values, 0) AS unresolved_total_values
     FROM orders o
-    LEFT JOIN (
-      SELECT orderId, SUM(COALESCE(totalPrice, subtotal, unitPrice * quantity, 0)) AS total_amount
-      FROM orderStyles
-      GROUP BY orderId
-    ) total_pay ON total_pay.orderId = o.id
+    ${REGULAR_ADMIN_ORDER_TOTALS_JOIN_SQL}
     LEFT JOIN (
       SELECT orderId, SUM(amount) AS paid_amount
       FROM orderpayments
@@ -3253,6 +3323,7 @@ router.get(
   `;
 
         const rows = await db.query(SQL, [retailer.customer.id]);
+        logAdminOrderTotalDiagnostics(rows, `retailer:${retailerId}`);
 
         return res.json({
           success: true,
@@ -3274,16 +3345,19 @@ router.get(
       o.createdAt,
       o.orderReceivedDate,
       COALESCE(total_pay.total_amount, 0) AS total,
+      COALESCE(total_pay.total_amount, 0) AS grandTotal,
       COALESCE(paid_pay.paid_amount, 0) AS paid_amount,
-      (COALESCE(total_pay.total_amount, 0) - COALESCE(paid_pay.paid_amount, 0)) AS balance
+      (COALESCE(total_pay.total_amount, 0) - COALESCE(paid_pay.paid_amount, 0)) AS balance,
+      COALESCE(total_pay.currencySymbol, curr.symbol, '€') AS currencySymbol,
+      COALESCE(total_pay.currencyCode, curr.code, 'EUR') AS currencyCode,
+      curr.name AS currencyName,
+      COALESCE(total_pay.style_count, 0) AS style_count,
+      COALESCE(total_pay.missing_total_values, 0) AS missing_total_values,
+      COALESCE(total_pay.unresolved_total_values, 0) AS unresolved_total_values
     FROM orders o
     JOIN customers c ON o.customerId = c.id
     JOIN retailers r ON r.customerId = c.id
-    LEFT JOIN (
-      SELECT orderId, SUM(COALESCE(totalPrice, subtotal, unitPrice * quantity, 0)) AS total_amount
-      FROM orderStyles
-      GROUP BY orderId
-    ) total_pay ON total_pay.orderId = o.id
+    ${REGULAR_ADMIN_ORDER_TOTALS_JOIN_SQL}
     LEFT JOIN (
       SELECT orderId, SUM(amount) AS paid_amount
       FROM orderpayments
@@ -3295,6 +3369,7 @@ router.get(
   `;
 
       const rows = await db.query(GLOBAL_SQL);
+      logAdminOrderTotalDiagnostics(rows, "admin-panel");
 
       return res.json({ success: true, orders: rows });
   })

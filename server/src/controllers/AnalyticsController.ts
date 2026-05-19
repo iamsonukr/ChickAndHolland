@@ -17,6 +17,7 @@ import {
 import { RetailerOrder } from "../models/RetailerOrder";
 import { Between } from "typeorm";
 import Colours from "../models/ProductColours";
+import { buildRegularOrderStyleTotalSql } from "../lib/orderTotals";
 
 const router = Router();
 
@@ -534,19 +535,7 @@ router.get(
           SELECT
             o.id AS orderId,
             CONCAT('admin-', o.id) AS orderKey,
-            COALESCE(
-              os.totalPrice,
-              os.subtotal,
-              os.unitPrice * COALESCE(NULLIF(os.quantity, 0), 0),
-              COALESCE(pcp.price, p.price, 0) *
-                CASE
-                  WHEN CAST(os.size AS SIGNED) >= 58 THEN 1.60
-                  WHEN CAST(os.size AS SIGNED) >= 54 THEN 1.40
-                  WHEN CAST(os.size AS SIGNED) >= 50 THEN 1.20
-                  ELSE 1
-                END *
-                COALESCE(NULLIF(os.quantity, 0), 0)
-            ) AS purchaseAmount,
+            ${buildRegularOrderStyleTotalSql()} AS purchaseAmount,
             COALESCE(
               os.currencyId,
               c.currencyId,

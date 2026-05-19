@@ -1081,6 +1081,31 @@ export const getAdminOrders = async (retailerId: number) => {
 
   const data = await res.json();
 
+  const missingTotalOrders = Array.isArray(data?.orders)
+    ? data.orders.filter((order: any) => {
+        const total = Number(order?.total || order?.grandTotal || 0);
+        const missingStyleTotals = Number(order?.missing_total_values || 0);
+        const unresolvedStyleTotals = Number(order?.unresolved_total_values || 0);
+
+        return total <= 0 || missingStyleTotals > 0 || unresolvedStyleTotals > 0;
+      })
+    : [];
+
+  if (missingTotalOrders.length > 0) {
+    console.warn(
+      "[getAdminOrders] Orders with missing total values:",
+      missingTotalOrders.map((order: any) => ({
+        id: order.id,
+        order_id: order.order_id,
+        total: order.total,
+        grandTotal: order.grandTotal,
+        balance: order.balance,
+        missing_total_values: order.missing_total_values,
+        unresolved_total_values: order.unresolved_total_values,
+      })),
+    );
+  }
+
   console.log("🟦 API RAW RESPONSE:", data);
 
   return data;

@@ -38,6 +38,11 @@ function formatDateTime(date: Date) {
 
   return `${year}-${month}-${day} `;
 }
+
+function formatMoney(item: any, value: any) {
+  return `${item.currencySymbol || "\u20ac"} ${parseFloat(value || 0).toFixed(0)}`;
+}
+
 const page = async (props: {
   searchParams: Promise<Record<string, string>>;
 }) => {
@@ -125,8 +130,8 @@ const page = async (props: {
                     <TableCell>{item.orderStatus}</TableCell>
                     <TableCell>{item.trackingNo || "-"}</TableCell>
                     <TableCell>{formatDateTime(new Date(item.orderReceivedDate || item.createdAt))}</TableCell>
-                    <TableCell>${parseFloat(item.paid_amount || 0).toFixed(0)}</TableCell>
-                    <TableCell>${parseFloat(item.balance || 0).toFixed(0)}</TableCell>
+                    <TableCell>{formatMoney(item, item.paid_amount)}</TableCell>
+                    <TableCell>{formatMoney(item, item.balance)}</TableCell>
                     <TableCell>
                       {/* Preview component available in this folder */}
                       <Preview id={item.id} type={item.orderType} order={item} orderSource="regular" />

@@ -166,11 +166,11 @@ const OrdersPage = async (props: {
         ? dayjs(order.orderCancellationDate).diff(dayjs(), "days")
         : Infinity;
 
-      if (dueFilter === "lt7") {
+      if (dueFilter === "lt14") {
         return order.orderStatus !== "Shipped" && hasDueDate && difference < 7;
       }
 
-      if (dueFilter === "lt14") {
+      if (dueFilter === "lt28") {
         return (
           order.orderStatus !== "Shipped" &&
           hasDueDate &&
@@ -218,11 +218,11 @@ const OrdersPage = async (props: {
                   href={buildOrdersFilterHref({
                     query,
                     orderType,
-                    due: "lt7",
+                    due: "lt14",
                   })}
                   className={cn(
                     filterButtonClassName,
-                    dueFilter === "lt7" ? "bg-red-100 border-red-300" : ""
+                    dueFilter === "lt14" ? "bg-red-100 border-red-300" : ""
                   )}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -230,18 +230,18 @@ const OrdersPage = async (props: {
                       aria-hidden="true"
                       className="h-2.5 w-2.5 rounded-full bg-red-500"
                     />
-                    <span>Due in 7 Days</span>
+                    <span>Due in 14 Days</span>
                   </span>
                 </a>
                 <a
                   href={buildOrdersFilterHref({
                     query,
                     orderType,
-                    due: "lt14",
+                    due: "lt28",
                   })}
                   className={cn(
                     filterButtonClassName,
-                    dueFilter === "lt14" ? "bg-yellow-100 border-yellow-300" : ""
+                    dueFilter === "lt28" ? "bg-yellow-100 border-yellow-300" : ""
                   )}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -249,7 +249,7 @@ const OrdersPage = async (props: {
                       aria-hidden="true"
                       className="h-2.5 w-2.5 rounded-full bg-yellow-400"
                     />
-                    <span>Due in 14 Days</span>
+                    <span>Due in 28 Days</span>
                   </span>
                 </a>
                 <a

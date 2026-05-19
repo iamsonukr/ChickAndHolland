@@ -277,6 +277,15 @@ const Details = ({
     return customTotal || Number(style?.quantity || 0);
   };
 
+  const firstPositiveNumber = (...values: any[]) => {
+    for (const value of values) {
+      const amount = Number(value);
+      if (Number.isFinite(amount) && amount > 0) return amount;
+    }
+
+    return 0;
+  };
+
   const fetchRegularOrderData = async () => {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/orders/orderDetails?orderId=${id}`,
@@ -292,14 +301,28 @@ const Details = ({
     if (!adminOrder) throw new Error("Admin order details not found");
 
     const styles = adminOrder.styles || [];
-    const productAmount = styles.reduce((sum: number, style: any) => {
+    const calculatedProductAmount = styles.reduce((sum: number, style: any) => {
       const fallbackTotal =
         Number(style?.unitPrice || 0) * getRegularStyleQuantity(style);
-      return sum + Number(style?.totalPrice ?? style?.subtotal ?? fallbackTotal);
+      return sum + firstPositiveNumber(style?.totalPrice, style?.subtotal, fallbackTotal);
     }, 0);
-    const total = Number(order?.total ?? adminOrder.purchaseAmount ?? productAmount);
+    const total = firstPositiveNumber(
+      order?.total,
+      order?.grandTotal,
+      adminOrder.purchaseAmount,
+      calculatedProductAmount,
+    );
+    const productAmount = calculatedProductAmount || total;
     const paid = Number(order?.paid_amount ?? adminOrder.paidAmount ?? 0);
     const firstStyle = styles[0];
+
+    if (calculatedProductAmount <= 0 && total > 0) {
+      console.warn("[AdminOrderDetails] Missing style total values; using order total fallback", {
+        orderId: id,
+        purchaseOrderNo: adminOrder.purchaeOrderNo,
+        total,
+      });
+    }
 
     setData(styles);
     setPayment(adminOrder.orderPayments || []);

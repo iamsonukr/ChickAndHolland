@@ -38,6 +38,9 @@ const COL_WIDTHS = {
   actions: "w-[100px]",
 };
 
+const formatMoney = (item: any, value: any) =>
+  `${item.currencySymbol || "\u20ac"} ${parseFloat(value || 0).toFixed(0)}`;
+
 const Page = async (props: { searchParams: Promise<Record<string, string>> }) => {
   const searchParams = await props.searchParams;
   const retailerId = (await cookies()).get("retailerId")?.value;
@@ -175,15 +178,17 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                     <TableCell>{item.orderStatus}</TableCell>
                     <TableCell>{item.trackingNo || "-"}</TableCell>
                     <TableCell>{dayjs(item.orderReceivedDate).format("DD-MM-YYYY")}</TableCell>
-                    <TableCell>${parseFloat(item.paid_amount || 0).toFixed(0)}</TableCell>
-                    <TableCell>${parseFloat(item.balance || 0).toFixed(0)}</TableCell>
+                    <TableCell>{formatMoney(item, item.paid_amount)}</TableCell>
+                    <TableCell>{formatMoney(item, item.balance)}</TableCell>
                     <TableCell>
                       <Details
                         id={item.id}
                         retailerId={Number(retailerId)}
                         type={item.orderType}
                         paymentId={item.payment_id}
-                        orderId={item.order_id}
+                        orderId={item.id}
+                        orderSource="regular"
+                        order={item}
                       />
                     </TableCell>
                     <TableCell>

@@ -347,6 +347,11 @@ function applyPricingToStyle(
   customer?: Customer | null,
 ) {
   if (!product) {
+    console.warn("[AdminOrderPricing] Missing product for style total", {
+      styleNo: styleInput?.styleNo,
+      customerId: customer?.id,
+    });
+
     style.unitPrice = null;
     style.subtotal = null;
     style.discount = 0;
@@ -376,6 +381,16 @@ function applyPricingToStyle(
     resolvedPrice.currencyId == null ? null : Number(resolvedPrice.currencyId);
   style.currencyCode = resolvedPrice.currencyCode;
   style.currencySymbol = resolvedPrice.currencySymbol;
+
+  if (pricing.total <= 0) {
+    console.warn("[AdminOrderPricing] Missing or zero total price", {
+      styleNo: styleInput?.styleNo,
+      customerId: customer?.id,
+      basePrice: resolvedPrice.amount,
+      quantity: pricing.quantity,
+      totalPrice: pricing.total,
+    });
+  }
 }
 
 
