@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, use, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { API_URL } from "@/lib/constants";
 
 import StatusLabelBox from "@/components/StatusLabelBox";
@@ -17,6 +18,19 @@ import { formatEuSizeText } from "@/lib/sizeConversion";
 import { PdfDownloadButton } from "@/components/pdf/PdfPreview";
 import { downloadStatusLabelPPT } from "@/lib/utils/exportStatusLabelPPT";
 import { pdf } from "@react-pdf/renderer";
+import useHttp from "@/lib/hooks/usePost";
+import { Button } from "@/components/custom/button";
+import { PasswordInput } from "@/components/custom/password-input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const formatReportValue = (value: unknown) =>
   String(value ?? "").trim() || "-";
@@ -64,6 +78,7 @@ async function mergeAndDownloadPdfs(items: NormalizedItem[], fileName: string) {
 
   try {
     // Try to merge with pdf-lib
+    // @ts-expect-error pdf-lib is optional; the fallback below handles missing installs.
     const { PDFDocument } = await import("pdf-lib");
     const merged = await PDFDocument.create();
 
@@ -71,7 +86,7 @@ async function mergeAndDownloadPdfs(items: NormalizedItem[], fileName: string) {
       const arrayBuffer = await blob.arrayBuffer();
       const doc = await PDFDocument.load(arrayBuffer);
       const pages = await merged.copyPages(doc, doc.getPageIndices());
-      pages.forEach((p) => merged.addPage(p));
+      pages.forEach((p: any) => merged.addPage(p));
     }
 
     const mergedBytes = await merged.save();
@@ -103,6 +118,7 @@ async function mergeAndPrintPdfs(items: NormalizedItem[]) {
   );
 
   try {
+    // @ts-expect-error pdf-lib is optional; the fallback below handles missing installs.
     const { PDFDocument } = await import("pdf-lib");
     const merged = await PDFDocument.create();
 
@@ -110,7 +126,7 @@ async function mergeAndPrintPdfs(items: NormalizedItem[]) {
       const arrayBuffer = await blob.arrayBuffer();
       const doc = await PDFDocument.load(arrayBuffer);
       const pages = await merged.copyPages(doc, doc.getPageIndices());
-      pages.forEach((p) => merged.addPage(p));
+      pages.forEach((p: any) => merged.addPage(p));
     }
 
     const mergedBytes = await merged.save();
@@ -151,8 +167,10 @@ function BulkActionBar({
   onClearAll,
   onDownloadAll,
   onPrintAll,
+  onResetSelected,
   downloading,
   printing,
+  resetting,
 }: {
   selected: number;
   total: number;
@@ -161,8 +179,10 @@ function BulkActionBar({
   onClearAll: () => void;
   onDownloadAll: () => void;
   onPrintAll: () => void;
+  onResetSelected: () => void;
   downloading: boolean;
   printing: boolean;
+  resetting: boolean;
 }) {
   if (selected === 0) return null;
 
@@ -193,7 +213,7 @@ function BulkActionBar({
         {/* Download all selected */}
         <button
           onClick={onDownloadAll}
-          disabled={downloading}
+          disabled={downloading || resetting}
           className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-60 transition-colors"
         >
           {downloading ? "Generating…" : `Download PDF (${selected})`}
@@ -202,10 +222,18 @@ function BulkActionBar({
         {/* Print all selected */}
         <button
           onClick={onPrintAll}
-          disabled={printing}
+          disabled={printing || resetting}
           className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-60 transition-colors"
         >
           {printing ? "Preparing…" : `Print (${selected})`}
+        </button>
+
+        <button
+          onClick={onResetSelected}
+          disabled={resetting}
+          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500 disabled:opacity-60 transition-colors"
+        >
+          {resetting ? "Resetting..." : `Reset QR (${selected})`}
         </button>
       </div>
     </div>
@@ -320,10 +348,12 @@ function ItemCard({
   onRefresh,
   isSelected,
   onToggle,
+  onResetOne,
 }: NormalizedItem & {
   onRefresh: () => void;
   isSelected: boolean;
   onToggle: () => void;
+  onResetOne: () => void;
 }) {
   const [showProgress, setShowProgress] = useState(false);
 
@@ -420,6 +450,13 @@ function ItemCard({
               className="min-h-[36px] w-full rounded-md bg-gray-700 px-2 py-2 text-[11px] font-medium text-white hover:bg-gray-600 disabled:opacity-70 disabled:cursor-not-allowed"
             />
           </div>
+          <button
+            type="button"
+            onClick={onResetOne}
+            className="min-h-[36px] w-full rounded-md border border-red-200 bg-red-50 px-2 py-2 text-[11px] font-medium text-red-700 hover:bg-red-100"
+          >
+            Reset QR
+          </button>
         </div>
       </div>
     </>
@@ -447,6 +484,11 @@ export default function OrderStatusPage({
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [bulkPrinting, setBulkPrinting] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+
+  const { executeAsync: resetSelectedQrItems, loading: resettingQrItems } =
+    useHttp("/admin-scan/barcodes/reset", "POST");
 
   const getItemKey = (raw: any, type: ReportType, i: number) =>
     `${type}-${raw.styleId ?? raw.id ?? i}`;
@@ -541,6 +583,62 @@ export default function OrderStatusPage({
     }
   };
 
+  const openResetDialog = () => {
+    if (!selectedItems.length) {
+      toast.error("Select at least one QR item to reset");
+      return;
+    }
+
+    setResetDialogOpen(true);
+  };
+
+  const openSingleResetDialog = (key: string) => {
+    setSelectedKeys(new Set([key]));
+    setResetDialogOpen(true);
+  };
+
+  const handleResetSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const items = selectedItems
+      .map(({ raw, type }) => ({
+        barcode: normalizeBarcodeValue(raw.barcode),
+        orderType: type,
+      }))
+      .filter((item) => item.barcode);
+
+    if (!items.length) {
+      toast.error("Selected QR items do not have valid barcodes");
+      return;
+    }
+
+    if (!resetPassword.trim()) {
+      toast.error("Reset password is required");
+      return;
+    }
+
+    try {
+      const response = await resetSelectedQrItems(
+        {
+          password: resetPassword,
+          items,
+        },
+        {},
+        (error) => toast.error(error?.message ?? "Reset failed"),
+      );
+
+      toast.success(response?.message ?? "Selected QR reset successfully");
+      setResetPassword("");
+      setResetDialogOpen(false);
+      clearAll();
+      await fetchReport();
+    } catch (error: any) {
+      if (!error?.message) {
+        toast.error("Reset failed");
+      }
+    }
+  };
+
   return (
     <div className="px-3 py-4 sm:p-4 md:p-6">
       <div className="rounded-lg bg-white shadow p-3 sm:p-4 md:p-6">
@@ -588,9 +686,61 @@ export default function OrderStatusPage({
           onClearAll={clearAll}
           onDownloadAll={handleBulkDownload}
           onPrintAll={handleBulkPrint}
+          onResetSelected={openResetDialog}
           downloading={bulkDownloading}
           printing={bulkPrinting}
+          resetting={resettingQrItems}
         />
+
+        <Dialog
+          open={resetDialogOpen}
+          onOpenChange={(nextOpen) => {
+            setResetDialogOpen(nextOpen);
+            if (!nextOpen) setResetPassword("");
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reset QR Progress</DialogTitle>
+              <DialogDescription>
+                {selectedItems.length} selected QR
+                {selectedItems.length === 1 ? "" : "s"} will be reset to
+                Pattern.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form className="space-y-4" onSubmit={handleResetSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor={`reset-selected-qr-password-${id}`}>
+                  Reset Password
+                </Label>
+                <PasswordInput
+                  id={`reset-selected-qr-password-${id}`}
+                  value={resetPassword}
+                  onChange={(event) => setResetPassword(event.target.value)}
+                  autoComplete="current-password"
+                  autoFocus
+                />
+              </div>
+
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="outline">
+                    Cancel
+                  </Button>
+                </DialogClose>
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  loading={resettingQrItems}
+                  disabled={!resetPassword.trim() || !selectedItems.length}
+                >
+                  Reset
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* Grid */}
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
@@ -604,6 +754,7 @@ export default function OrderStatusPage({
                 onRefresh={fetchReport}
                 isSelected={selectedKeys.has(key)}
                 onToggle={() => toggleItem(key)}
+                onResetOne={() => openSingleResetDialog(key)}
               />
             );
           })}

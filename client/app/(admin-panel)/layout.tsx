@@ -152,12 +152,12 @@ export default async function RootLayout({
           cache: "no-store",
         });
         const data = await res.json().catch(() => []);
-        console.log("Dashboard Unread Query Fetch Response:", {
-          path,
-          status: res.status,
-          ok: res.ok,
-          data,
-        });
+        // console.log("Dashboard Unread Query Fetch Response:", {
+        //   path,
+        //   status: res.status,
+        //   ok: res.ok,
+        //   data,
+        // });
         if (!res.ok) {
           console.error("Dashboard Unread Query Fetch Error Response:", {
             path,

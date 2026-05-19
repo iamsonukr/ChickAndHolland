@@ -130,7 +130,14 @@ app.use(
 );  
 
 app.use(cookieParser());
-app.use(morgan("dev"));
+morgan.token("time", () => {
+  return new Date().toLocaleString();
+});
+
+app.use(
+  morgan(":method :url :status :response-time ms - :time")
+);
+
 app.use(`/${FOLDER_NAMES.STATIC_PATH}`, express.static(publicFolder));
 // 🔓 Allow PPT download without Authorization
 app.use("/uploads/ppt", express.static("uploads/ppt"));

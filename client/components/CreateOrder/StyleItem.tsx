@@ -27,7 +27,6 @@ import { ChevronDown, Delete } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
 import { ColorType, CreateOrderForm, SizeCountry, sizes } from "@/lib/formSchemas";
 import CommentsFieldArray from "./CommentsFieldArray";
-import CustomSizesQuantityFieldArray from "./CustomSizesQuantityFieldArray";
 import FileUploadField from "./FileUploadField";
 import { searchStyleNumbers } from "@/lib/data";
 import {
@@ -442,7 +441,6 @@ const StyleItem = ({
                     field.onChange(val);
                     form.setValue(`styles[${index}].size` as any, "");
                     form.setValue(`styles[${index}].customSize` as any, []);
-                    form.setValue(`styles[${index}].customSizesQuantity` as any, []);
                   }}
                   value={field.value}
                 >
@@ -508,29 +506,27 @@ const StyleItem = ({
             }}
           />
 
-          {/* ── Custom Size selector ── */}
+          {/* ── Custom Size — saved as string[] ── */}
           {watchSize === "Custom" && (
             <FormField
               control={form.control}
               name={`styles[${index}].customSize` as any}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Custom Size</FormLabel>
+                  <FormLabel>Custom Sizes</FormLabel>
                   <FormControl>
                     <MultipleSelector
-                      {...field}
-                      onChange={(value) => {
-                        field.onChange(value);
-                        form.setValue(
-                          `styles[${index}].customSizesQuantity` as any,
-                          value.map((v) => ({ size: v.value, quantity: "" })),
-                        );
+                      value={(field.value ?? []).map((v: string) =>
+                        typeof v === "string" ? { value: v, label: v } : v,
+                      )}
+                      onChange={(options) => {
+                        field.onChange(options.map((o) => o.value));
                       }}
                       creatable
-                      placeholder="Type the size and press Enter to add"
+                      placeholder="Type a size and press Enter (e.g. Waist 23)"
                       emptyIndicator={
                         <p className="text-muted-foreground">
-                          Type any unique size and press enter to add it
+                          Type any size and press Enter to add it
                         </p>
                       }
                     />
@@ -556,17 +552,6 @@ const StyleItem = ({
                 </FormItem>
               )}
             />
-          )}
-
-          {/* ── Custom sizes + quantities ── */}
-          {watchSize === "Custom" && (
-            <div className="md:col-span-3">
-              <CustomSizesQuantityFieldArray
-                control={form.control}
-                name={`styles[${index}].customSizesQuantity`}
-                register={form.register}
-              />
-            </div>
           )}
 
           {selectedStyleCode && (
