@@ -95,6 +95,10 @@ export const verifyEditPassword = async (
 
   const editPasswordHash = await getEditPasswordHash();
   const hashToCompare = editPasswordHash || fallbackAdminPasswordHash;
+  console.log("[AdminSettings] Verifying edit password", {
+    hasEditPasswordHash: Boolean(editPasswordHash),
+    hasFallbackAdminPasswordHash: Boolean(fallbackAdminPasswordHash),
+  });
 
   if (!hashToCompare) {
     return false;

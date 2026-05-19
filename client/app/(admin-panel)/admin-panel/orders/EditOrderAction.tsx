@@ -61,6 +61,12 @@ const EditOrderAction = ({
       setOpenEdit(true);
       toast.success("Password verified");
     } catch (err: any) {
+      console.error("[EditOrderAction] Edit password verification failed", {
+        orderId: order?.id,
+        orderType: order?.orderType,
+        orderSource: order?.orderSource,
+        message: err?.message,
+      });
       toast.error(err?.message || "Invalid edit password");
     }
   };
@@ -95,7 +101,7 @@ const EditOrderAction = ({
               <Button type="button" variant="outline" onClick={() => setOpenVerify(false)}>
                 Cancel
               </Button>
-              <Button type="submit" loading={verifying}>
+              <Button type="submit" disabled={verifying}>
                 Verify
               </Button>
             </DialogFooter>
@@ -111,6 +117,7 @@ const EditOrderAction = ({
         customers={customers}
         ordersTotalCount={0}
         editOrder={order}
+        editPassword={password}
         triggerLabel="Edit"
         onSuccess={handleSuccess} // 👈
       />
@@ -134,6 +141,7 @@ const EditOrderAction = ({
         editMode
         retailerOrderId={order.id}
         editOrder={order}
+        editPassword={password}
         triggerLabel="Edit"
         onSuccess={handleSuccess} // 👈
       />
@@ -148,6 +156,7 @@ const EditOrderAction = ({
         editMode
         retailerOrderId={order.id}
         editOrder={order}
+        editPassword={password}
         triggerLabel="Edit"
         onSuccess={handleSuccess} // 👈
       />

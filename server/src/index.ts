@@ -124,7 +124,7 @@ app.use(
       "http://188.166.61.115"
     ],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Edit-Password"],
     methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
   })  
 );  

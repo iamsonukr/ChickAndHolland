@@ -111,6 +111,7 @@ const StockAcceptedForm = ({
   triggerLabel,
   editOrder,
   onSuccess,
+  editPassword,
 }: {
   id: number;
   editMode?: boolean;
@@ -118,6 +119,7 @@ const StockAcceptedForm = ({
   triggerLabel?: string;
   editOrder?: any;
   onSuccess?: () => void;
+  editPassword?: string;
 }) => {
   const isEditMode = editMode && Boolean(retailerOrderId);
   const [open, setOpen] = useState(false);
@@ -500,11 +502,10 @@ const StockAcceptedForm = ({
           return;
         }
 
-        const response = await executeUpdateAsync({
-          orderType: "Stock",
-          data: preData,
-          changedFields: dirtyFields,
-        });
+        const response = await executeUpdateAsync(
+          { orderType: "Stock", data: preData, changedFields: dirtyFields },
+          { headers: editPassword ? { "X-Edit-Password": editPassword } : undefined },
+        );
 
         if (!response.success) {
           toast.error("Failed to update order");

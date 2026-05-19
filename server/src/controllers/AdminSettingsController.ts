@@ -68,22 +68,25 @@ router.put(
 
 router.post(
   "/verify-edit-password",
-  requireAdminUser([
-    "/admin-panel/settings",
-    "/admin-panel/users",
-    "/admin-panel/user-roles",
-  ]),
+  requireAdminUser(["/admin-panel/orders"]),
   asyncHandler(async (req: Request, res: Response) => {
     const { password } = req.body as { password?: string };
+    const adminUser = (req as any).adminUser as AdminUserContext | undefined;
 
     if (!password) {
       return res.status(400).json({ success: false, message: "Password is required." });
     }
 
-    const adminUser = (req as any).adminUser as AdminUserContext;
-    const isValid = await verifyEditPassword(password, adminUser?.password);
+    // Verify against stored edit password hash; if not set, there is no fallback here
+    const isValid = await verifyEditPassword(password);
 
     if (!isValid) {
+      console.warn("[AdminSettings] Edit password verification failed", {
+        reason: "invalid_edit_password",
+        adminUserId: adminUser?.id,
+        path: req.originalUrl || req.path,
+      });
+
       return res.status(401).json({ success: false, message: "Invalid edit password." });
     }
 

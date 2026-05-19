@@ -2,6 +2,10 @@ import Stripe from "stripe";
 
 import { Router, Request, Response, raw } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
+import {
+  requireAdminUser,
+  requireEditPasswordHeader,
+} from "../middleware/AdminAuth";
 import Favourites from "../models/Favourites";
 import RetailerFavouritesOrders from "../models/ReailerFavouritesOrder";
 import Retailer from "../models/Retailer";
@@ -2299,6 +2303,8 @@ router.post(
 
 router.patch(
   "/admin/edit-order/:id",
+  requireAdminUser(["/admin-panel/orders"]),
+  requireEditPasswordHeader,
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const payload = req.body?.orderData ?? req.body?.data;

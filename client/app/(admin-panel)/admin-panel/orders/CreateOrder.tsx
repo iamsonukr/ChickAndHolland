@@ -26,6 +26,7 @@ interface CreateOrderProps {
   editOrder?: any;
   triggerLabel?: string;
   onSuccess?: () => void;
+  editPassword?: string;
 }
 
 const formatPreviewComments = (comments: unknown) => {
@@ -47,6 +48,7 @@ const CreateOrder = ({
   editOrder,
   triggerLabel,
   onSuccess,
+  editPassword,
 }: CreateOrderProps) => {
   const isEditMode = Boolean(editOrder?.id);
   const {
@@ -88,7 +90,7 @@ const CreateOrder = ({
     // loading
     loading,
     previewLoading,
-  } = useCreateOrder({ customers, ordersTotalCount, editOrder, onSuccess });
+  } = useCreateOrder({ customers, ordersTotalCount, editOrder, onSuccess, editPassword });
 
   // ── Decide what to show in the preview panel ────────────────────────────────
   //

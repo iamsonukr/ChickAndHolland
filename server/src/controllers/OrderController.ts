@@ -1,6 +1,10 @@
 
 import { raw, Request, Response, Router } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
+import {
+  requireAdminUser,
+  requireEditPasswordHeader,
+} from "../middleware/AdminAuth";
 import Order, {
   OrderType,
   OrderStatus,
@@ -592,6 +596,8 @@ router.post(
 
 router.patch(
   "/:id",
+  requireAdminUser(["/admin-panel/orders"]),
+  requireEditPasswordHeader,
   raw({
     type: "multipart/form-data",
     limit: "100mb",

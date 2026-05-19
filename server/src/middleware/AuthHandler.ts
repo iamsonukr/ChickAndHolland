@@ -5,6 +5,7 @@ import Employee from "../models/Employee";
 import Seller from "../models/Seller";
 import db from "../db";
 import { TABLE_NAMES } from "../constants";
+import { verifyEditPassword } from "../services/resetPassword.service";
 
 /**
  * @description This middleware is used to authenticate the member
@@ -54,6 +55,45 @@ export const memberAuthHandler = async (
 
   ) {
     return next();
+  }
+
+  // Allow order edit requests to reach route-level role/password validation.
+  const editPassword = req.get("x-edit-password");
+  const normalizedPath = req.path.replace(/\/$/, "");
+  const isRegularOrderEditRequest =
+    req.method === "PATCH" &&
+    (/^\/api\/orders\/[^/]+$/.test(normalizedPath) ||
+      /^\/orders\/[^/]+$/.test(normalizedPath));
+
+  if (editPassword && isRegularOrderEditRequest) {
+    try {
+      const isValid = await verifyEditPassword(editPassword);
+      if (!isValid) {
+        console.warn("[AuthHandler] Edit password validation failed", {
+          reason: "invalid_edit_password",
+          path: req.originalUrl || req.path,
+          method: req.method,
+        });
+        return res.status(401).json({
+          success: false,
+          message: "Invalid edit password.",
+        });
+      }
+
+      // Mark request as authenticated via password (minimal user context)
+      (req as any).user = { id: 0, type: "PASSWORD" };
+      return next();
+    } catch (err: any) {
+      console.error("[AuthHandler] Edit password validation error", {
+        path: req.originalUrl || req.path,
+        method: req.method,
+        error: err?.message,
+      });
+      return res.status(401).json({
+        success: false,
+        message: "Invalid edit password.",
+      });
+    }
   }
 
   const authorization = (req.headers.authorization ||

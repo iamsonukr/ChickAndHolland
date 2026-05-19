@@ -13,6 +13,8 @@ import UpdateTrackingId from "./UpdateTrackingId";
 import UpdateRetailerOrderStatus from "./UpdateRetailerOrderStatus";
 import UpdateRetailerTrackingId from "./UpdateRetailerTrackingId";
 import AddressCard from "./AddressCard";
+import { cookies } from "next/headers";
+import { API_URL } from "@/lib/constants";
 import Delete, { DeleteButton, ItemsProvider } from "./Delete";
 import OrderDetailsSheet from "./OrderDetails";
 import AdjustSequenceButton from "./AdjustSequenceButton";
@@ -21,21 +23,21 @@ import ResetScanButton from "./ResetScanButton";
 import EditOrderAction from "./EditOrderAction";
 
 const statusToDbField: Record<string, string | null> = {
-  "Pattern/Khaka":     "pattern",
-  "Pattern":           "pattern",
-  "Khaka":             "khaka",
-  "Issue Beading":     "issue_beading",
-  "Beading":           "beading",
-  "Zarkan":            "zarkan",
-  "Stitching":         "stitching",
+  "Pattern/Khaka": "pattern",
+  "Pattern": "pattern",
+  "Khaka": "khaka",
+  "Issue Beading": "issue_beading",
+  "Beading": "beading",
+  "Zarkan": "zarkan",
+  "Stitching": "stitching",
   "Ready To Delivery": "ready_to_delivery",
-  "Shipped":           "shipped",
-  "Balance Pending":   "balance_pending",
+  "Shipped": "shipped",
+  "Balance Pending": "balance_pending",
 };
 
 const getRowClassName = (difference: number, orderStatus: string) => {
-  if (orderStatus === "Shipped")  return "bg-green-500 text-black hover:bg-green-600";
-  if (difference < 7)             return "bg-red-600 text-white hover:bg-red-500";
+  if (orderStatus === "Shipped") return "bg-green-500 text-black hover:bg-green-600";
+  if (difference < 7) return "bg-red-600 text-white hover:bg-red-500";
   if (difference >= 7 && difference < 14) {
     return "bg-yellow-400 text-black hover:bg-yellow-500";
   }
@@ -75,9 +77,9 @@ const OrdersPage = async (props: {
 }) => {
   const searchParams = await props.searchParams;
   const currentPage = searchParams["cPage"] ? Number(searchParams["cPage"]) : 1;
-  const query       = searchParams["q"]         ?? "";
-  const orderType   = searchParams["orderType"] ?? "";
-  const dueFilter   = searchParams["due"]       ?? "";
+  const query = searchParams["q"] ?? "";
+  const orderType = searchParams["orderType"] ?? "";
+  const dueFilter = searchParams["due"] ?? "";
 
   const orders = await getOrders({
     page: currentPage,
@@ -92,6 +94,63 @@ const OrdersPage = async (props: {
   };
 
   const customers = await getCustomers({});
+  // determine whether to show address/phone based on current user's role
+  const cookieStore = await cookies();
+  const userType = cookieStore.get("userType")?.value;
+  const token = cookieStore.get("token")?.value;
+  const userId = cookieStore.get("userId")?.value;
+  const userRole = cookieStore.get("accountUsername")?.value;
+
+  let showContact = false;
+  if (userType === "ADMIN" && token && userId) {
+    try {
+      const res = await fetch(`${API_URL}/users/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      });
+
+
+
+
+      const data = await res.json();
+      const userData = data?.data ?? data?.user ?? data;
+      const roleName = String(userData?.roleName || userData?.role || "").trim().toLowerCase();
+      // const allowed = [
+      //   "admin",
+      //   "shipping-master",
+      //   "ready-to-delivery-master",
+      // ];
+      const man = String(
+        cookieStore.get("accountUsername")?.value || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const allowed = [
+        "balancepending",
+        "admin",
+        "ready-to-delivery",
+      ];
+
+      showContact = allowed.includes(man);
+
+      console.log({
+        userType,
+        role: userData?.role,
+        roleName: userData?.roleName,
+      });
+
+    } catch (e) {
+      // silently ignore and keep showContact = false
+      console.error("Failed to fetch user data for contact info visibility", {
+        error: e instanceof Error ? e.message : e,
+        userId,
+      });
+    }
+  }
   const arr_ = orders?.orders?.[0]?.purchaeOrderNo.split(" ");
   const latestOrderPurchaseOrderNo =
     Number(arr_?.[arr_?.length - 1]) || orders?.totalCount;
@@ -241,8 +300,12 @@ const OrdersPage = async (props: {
                     <th className={cn(tableHeadClassName, "w-[130px]")}>Order Date</th>
                     <th className={cn(tableHeadClassName, "w-[130px]")}>Ship Date</th>
                     <th className={cn(tableHeadClassName, "w-[170px]")}>Order Status</th>
-                    <th className={cn(tableHeadClassName, "w-[220px]")}>Address</th>
-                    <th className={cn(tableHeadClassName, "w-[140px]")}>Phone</th>
+                    {showContact && (
+                      <th className={cn(tableHeadClassName, "w-[220px]")}>Address</th>
+                    )}
+                    {showContact && (
+                      <th className={cn(tableHeadClassName, "w-[140px]")}>Phone</th>
+                    )}
                     <th className={cn(tableHeadClassName, "w-[170px]")}>Tracking ID</th>
                     <th className={cn(tableHeadClassName, "w-[260px] text-center")}>Actions</th>
                   </tr>
@@ -254,7 +317,7 @@ const OrdersPage = async (props: {
                       const difference = order?.orderCancellationDate
                         ? dayjs(order.orderCancellationDate).diff(dayjs(), "days")
                         : Infinity;
-                      const rowClass   = getRowClassName(difference, order.orderStatus);
+                      const rowClass = getRowClassName(difference, order.orderStatus);
 
                       return (
                         <tr
@@ -314,16 +377,20 @@ const OrdersPage = async (props: {
                           </td>
 
                           {/* Address */}
-                          <td className={cn(tableCellClassName, "max-w-[220px] whitespace-normal break-words")}>
-                            <div className="whitespace-normal break-words leading-5">
-                              <AddressCard ad={order.address} />
-                            </div>
-                          </td>
+                          {showContact && (
+                            <td className={cn(tableCellClassName, "max-w-[220px] whitespace-normal break-words")}>
+                              <div className="whitespace-normal break-words leading-5">
+                                <AddressCard ad={order.address} />
+                              </div>
+                            </td>
+                          )}
 
                           {/* Phone */}
-                          <td className={tableCellClassName}>
-                            {order.customer?.phoneNumber || "N/A"}
-                          </td>
+                          {showContact && (
+                            <td className={tableCellClassName}>
+                              {order.customer?.phoneNumber || "N/A"}
+                            </td>
+                          )}
 
                           {/* Tracking ID */}
                           <td className={tableCellClassName}>
@@ -355,7 +422,7 @@ const OrdersPage = async (props: {
                   ) : (
                     <tr>
                       <td
-                        colSpan={11}
+                        colSpan={showContact ? 11 : 9}
                         className="border border-border py-10 text-center text-base text-muted-foreground"
                       >
                         <div className="flex flex-col items-center gap-1">
@@ -375,6 +442,7 @@ const OrdersPage = async (props: {
                 <CustomPagination
                   currentPage={currentPage}
                   totalLength={orders.totalCount}
+                  itemsPerPage={50}
                 />
               </div>
             )}

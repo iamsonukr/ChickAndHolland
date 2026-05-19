@@ -37,6 +37,7 @@ export interface UseCreateOrderOptions {
   ordersTotalCount: number;
   editOrder?: any;
   onSuccess?: () => void;
+  editPassword?: string;
 }
 
 export type UploadedFileType = "pdf" | "ppt" | null;
@@ -282,6 +283,7 @@ export function useCreateOrder({
   ordersTotalCount,
   editOrder,
   onSuccess,
+  editPassword,
 }: UseCreateOrderOptions) {
   const router = useRouter();
   const isEditMode = Boolean(editOrder?.id);
@@ -700,11 +702,15 @@ export function useCreateOrder({
       }
 
       try {
-        const response = await executeUpdateAsync(fd, {}, (err) => {
-          toast.error("Failed to update order", {
-            description: err?.message ?? "Something went wrong",
-          });
-        });
+        const response = await executeUpdateAsync(
+          fd,
+          { headers: editPassword ? { "X-Edit-Password": editPassword } : undefined },
+          (err) => {
+            toast.error("Failed to update order", {
+              description: err?.message ?? "Something went wrong",
+            });
+          },
+        );
 
         if (!response.success) {
           toast.error("Failed to update order");

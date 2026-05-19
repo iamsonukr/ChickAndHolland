@@ -56,11 +56,17 @@ function useHttp<T = any>(
         }
       }
 
-      const { url: _, ...restConfig } = config || {};
+      const { url: _, headers: configHeaders, ...restConfig } = config || {};
+      const requestHeaders = new Headers(headers);
+      if (configHeaders) {
+        new Headers(configHeaders).forEach((value, key) => {
+          requestHeaders.set(key, value);
+        });
+      }
 
       const response = await fetch(fullUrl, {
         method,
-        headers,
+        headers: requestHeaders,
         body,
         ...restConfig,
       });

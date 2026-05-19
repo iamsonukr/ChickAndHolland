@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import CONFIG from "../config";
 import db from "../db";
 import { TABLE_NAMES } from "../constants";
+import { verifyEditPassword } from "../services/resetPassword.service";
 
 export type AdminUserContext = {
   id: number;
@@ -36,12 +37,27 @@ const getAuthorizationHeader = (req: Request) =>
     | string
     | undefined;
 
+const logAdminRoleValidationFailure = (
+  req: Request,
+  reason: string,
+  details: Record<string, unknown> = {},
+) => {
+  console.warn("[AdminAuth] Role validation failed", {
+    reason,
+    path: req.originalUrl || req.path,
+    method: req.method,
+    ...details,
+  });
+};
+
 export const requireAdminUser =
   (requiredPermissions: string[] = []) =>
   async (req: Request, res: Response, next: NextFunction) => {
     const authorization = getAuthorizationHeader(req);
 
     if (!authorization?.startsWith("Bearer ")) {
+      logAdminRoleValidationFailure(req, "missing_admin_authorization");
+
       return res.status(401).json({
         success: false,
         message: "Admin login required.",
@@ -56,6 +72,11 @@ export const requireAdminUser =
       };
 
       if (decoded?.type !== "USER" || !decoded.id) {
+        logAdminRoleValidationFailure(req, "invalid_admin_token_type", {
+          decodedType: decoded?.type,
+          decodedId: decoded?.id,
+        });
+
         return res.status(403).json({
           success: false,
           message: "Only admin users can perform this action.",
@@ -74,6 +95,10 @@ export const requireAdminUser =
       );
 
       if (!user) {
+        logAdminRoleValidationFailure(req, "admin_user_not_found", {
+          userId: decoded.id,
+        });
+
         return res.status(401).json({
           success: false,
           message: "Admin user not found.",
@@ -81,10 +106,10 @@ export const requireAdminUser =
       }
 
       const rolePermissions = parsePermissions(user.rolePermissions);
-      const hasAllAccess = rolePermissions.includes("ALL");
-      const normalizedUserPermissions = new Set(
-        rolePermissions.map(normalizePermission),
-      );
+      const normalizedRolePermissions =
+        rolePermissions.map(normalizePermission);
+      const hasAllAccess = normalizedRolePermissions.includes("ALL");
+      const normalizedUserPermissions = new Set(normalizedRolePermissions);
       const hasRequiredPermission =
         !requiredPermissions.length ||
         hasAllAccess ||
@@ -93,6 +118,12 @@ export const requireAdminUser =
         );
 
       if (!hasRequiredPermission) {
+        logAdminRoleValidationFailure(req, "missing_required_permission", {
+          userId: decoded.id,
+          requiredPermissions,
+          rolePermissions,
+        });
+
         return res.status(403).json({
           success: false,
           message: "You do not have permission to perform this action.",
@@ -108,6 +139,10 @@ export const requireAdminUser =
 
       return next();
     } catch (error: any) {
+      logAdminRoleValidationFailure(req, "invalid_admin_session", {
+        error: error?.message,
+      });
+
       return res.status(401).json({
         success: false,
         message: "Invalid admin session.",
@@ -115,3 +150,57 @@ export const requireAdminUser =
       });
     }
   };
+
+export const requireEditPasswordHeader = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const editPassword = req.get("x-edit-password");
+
+  if (!editPassword) {
+    console.warn("[AdminAuth] Edit password validation failed", {
+      reason: "missing_edit_password_header",
+      path: req.originalUrl || req.path,
+      method: req.method,
+      adminUserId: (req as any).adminUser?.id,
+    });
+
+    return res.status(401).json({
+      success: false,
+      message: "Edit password verification is required.",
+    });
+  }
+
+  try {
+    const isValid = await verifyEditPassword(editPassword);
+
+    if (!isValid) {
+      console.warn("[AdminAuth] Edit password validation failed", {
+        reason: "invalid_edit_password",
+        path: req.originalUrl || req.path,
+        method: req.method,
+        adminUserId: (req as any).adminUser?.id,
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: "Invalid edit password.",
+      });
+    }
+
+    return next();
+  } catch (error: any) {
+    console.error("[AdminAuth] Edit password validation error", {
+      path: req.originalUrl || req.path,
+      method: req.method,
+      adminUserId: (req as any).adminUser?.id,
+      error: error?.message,
+    });
+
+    return res.status(401).json({
+      success: false,
+      message: "Invalid edit password.",
+    });
+  }
+};

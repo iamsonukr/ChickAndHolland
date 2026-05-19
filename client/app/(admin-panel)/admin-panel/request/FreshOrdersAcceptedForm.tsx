@@ -138,6 +138,7 @@ const FreshOrdersAcceptedForm = ({
   triggerLabel,
   editOrder,
   onSuccess,
+  editPassword,
 }: {
   customers: any[];
   id: number;
@@ -146,6 +147,7 @@ const FreshOrdersAcceptedForm = ({
   triggerLabel?: string;
   editOrder?: any;
   onSuccess?: () => void;
+  editPassword?: string;
 }) => {
   const isEditMode = editMode && Boolean(retailerOrderId);
   const [details, setDetails] = useState<any[]>([]);
@@ -550,11 +552,10 @@ const FreshOrdersAcceptedForm = ({
       }
 
       try {
-        const response = await executeUpdateAsync({
-          orderType: "Fresh",
-          orderData: dataSend,
-          changedFields: dirtyFields,
-        });
+        const response = await executeUpdateAsync(
+          { orderType: "Fresh", orderData: dataSend, changedFields: dirtyFields },
+          { headers: editPassword ? { "X-Edit-Password": editPassword } : undefined },
+        );
 
         if (!response.success) {
           toast.error("Failed to update order");
