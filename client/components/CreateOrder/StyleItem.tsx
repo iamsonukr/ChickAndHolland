@@ -53,6 +53,11 @@ const sizeOptions: Record<string, number[]> = {
   UK: [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32],
 };
 
+const getSelectItemValue = (value: unknown, fallback = "SAS") => {
+  const stringValue = String(value ?? "").trim();
+  return stringValue || fallback;
+};
+
 interface StyleItemProps {
   form: UseFormReturn<CreateOrderForm>;
   index: number;
@@ -100,6 +105,15 @@ const StyleItem = ({
         selectedCustomer?.currencyId ?? selectedCustomer?.currency?.id,
       )
     : null;
+  const sampleMeshValue = getSelectItemValue(stylesSelect?.mesh);
+  const sampleBeadingValue = getSelectItemValue(stylesSelect?.beading);
+  const sampleLiningValue = getSelectItemValue(stylesSelect?.lining);
+  const sampleLiningColorValue = getSelectItemValue(stylesSelect?.liningColor);
+  const getColorOptionValue = (colour: any) =>
+    getSelectItemValue(
+      getColourBasedOnId(colour.id),
+      getSelectItemValue(colour.id, getSelectItemValue(colour.name)),
+    );
   const stylePricing = resolvedPrice
     ? calculateRetailerStylePricing({
         basePrice: resolvedPrice.amount,
@@ -212,7 +226,7 @@ const StyleItem = ({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value={stylesSelect?.mesh ?? "SAS"}>
+                        <SelectItem value={sampleMeshValue}>
                           <div className="flex gap-1">
                             SAS (
                             <div className="flex items-center">
@@ -231,7 +245,7 @@ const StyleItem = ({
                         {colors.map((colour: any) => (
                           <SelectItem
                             key={colour.id}
-                            value={getColourBasedOnId(colour.id) ?? colour.id}
+                            value={getColorOptionValue(colour)}
                           >
                             <div className="flex items-center">
                               <div
@@ -266,7 +280,7 @@ const StyleItem = ({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value={stylesSelect?.beading ?? "SAS"}>
+                        <SelectItem value={sampleBeadingValue}>
                           <div className="flex gap-1">
                             SAS (
                             <div className="flex items-center">
@@ -285,7 +299,7 @@ const StyleItem = ({
                         {colors.map((colour: any) => (
                           <SelectItem
                             key={colour.id}
-                            value={getColourBasedOnId(colour.id) ?? colour.id}
+                            value={getColorOptionValue(colour)}
                           >
                             <div className="flex items-center">
                               <div
@@ -351,7 +365,7 @@ const StyleItem = ({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={stylesSelect?.lining ?? "SAS"}>
+                            <SelectItem value={sampleLiningValue}>
                               SAS (Same as Sample)
                             </SelectItem>
                             {lining.map((item) => (
@@ -384,7 +398,7 @@ const StyleItem = ({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value={stylesSelect?.liningColor ?? "SAS"}>
+                              <SelectItem value={sampleLiningColorValue}>
                                 <div className="flex gap-1">
                                   SAS (
                                   <div className="flex items-center">
@@ -403,7 +417,7 @@ const StyleItem = ({
                               {colors.map((colour: any) => (
                                 <SelectItem
                                   key={colour.id}
-                                  value={getColourBasedOnId(colour.id) ?? colour.id}
+                                  value={getColorOptionValue(colour)}
                                 >
                                   <div className="flex items-center">
                                     <div
