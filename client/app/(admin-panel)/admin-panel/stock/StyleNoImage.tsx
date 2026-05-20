@@ -38,13 +38,15 @@ const StyleNoImage = ({ details }: { details: any }) => {
         >
           {/* PRODUCT CODE */}
           <span className="absolute right-1 top-1 z-10 rounded bg-black/80 px-1.5 py-0.5 text-xs text-white">
-            {details.product.productCode}
+            {details.product?.productCode || details.productCode}
           </span>
 
           {/* EXACT INVENTORY IMAGE */}
           <CustomizedImage
-            src={details.images.name}
-            alt="product-image"
+            src={
+              details.images?.[0]?.name || details.product?.images?.[0]?.name || ""
+            }
+            alt={details.product?.productCode || "product-image"}
             fill
             className="object-cover"
           />
