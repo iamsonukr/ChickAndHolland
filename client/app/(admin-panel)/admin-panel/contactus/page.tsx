@@ -78,10 +78,7 @@ const fetchQueryItems = async (
 ): Promise<FetchResult> => {
   try {
     const requestUrl = getApiUrl(endpoint);
-    console.log("Dashboard Fetch API Request:", {
-      endpoint,
-      requestUrl,
-    });
+    // request details intentionally not logged to reduce terminal noise
 
     const response = await fetch(requestUrl, {
       headers: {
@@ -92,12 +89,7 @@ const fetchQueryItems = async (
     });
 
     const data = await response.json().catch(() => null);
-    console.log("Dashboard Fetch API Response:", {
-      endpoint,
-      status: response.status,
-      ok: response.ok,
-      data,
-    });
+    // response details intentionally not logged to reduce terminal noise
 
     if (!response.ok) {
       console.error("Dashboard Fetch API Error Response:", {

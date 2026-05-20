@@ -1842,7 +1842,7 @@ export async function getCustomers(params?: { page?: number; query?: string }) {
     }
 
     const data = await res.json();
-    console.log("✅ getCustomers data:", data);
+    // customer response intentionally not logged to reduce terminal noise
 
     return {
       customers: data.customers || [],

@@ -43,13 +43,7 @@ export function MarkAsReadButton({
         },
       });
       const data = await response.json().catch(() => null);
-      console.log("Product Query Mark As Read API Response:", {
-        queryType,
-        id,
-        status: response.status,
-        ok: response.ok,
-        data,
-      });
+      // API response intentionally not logged to reduce terminal noise
 
       if (response.ok) {
         setIsMarked(true);

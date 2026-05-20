@@ -611,6 +611,271 @@ router.post(
 
 router.patch(
   "/:id",
+  raw({
+    type: "multipart/form-data",
+    limit: "100mb",
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const busboy = Busboy({ headers: req.headers });
+    const fields: Field = {};
+    const filePromises: Promise<FileData>[] = [];
+
+    busboy.on("field", (fieldname: string, val: string) => {
+      fields[fieldname] = val;
+    });
+
+    // @ts-ignore
+    busboy.on(
+      "file",
+      (
+        fieldname: string,
+        file: NodeJS.ReadableStream,
+        filename: string,
+        encoding: string,
+        mimetype: string
+      ) => {
+        const buffers: Buffer[] = [];
+
+        const filePromise = new Promise<FileData>((resolve, reject) => {
+          file.on("data", (data: Buffer) => {
+            buffers.push(data);
+          });
+
+          file.on("end", () => {
+            const fileBuffer = Buffer.concat(buffers);
+            resolve({ fieldname, filename, encoding, mimetype, buffer: fileBuffer });
+          });
+
+          file.on("error", (error: Error) => {
+            reject(error);
+          });
+        });
+
+        filePromises.push(filePromise);
+      }
+    );
+
+    busboy.on("finish", async () => {
+      try {
+        const files = await Promise.all(filePromises);
+        const orderId = Number(req.params.id);
+
+        // ================================
+        // LOAD EXISTING ORDER
+        // ================================
+        const order = await Order.findOneOrFail({
+          where: { id: orderId },
+          relations: ["customer", "styles"],
+        });
+
+        const customerId = Number(fields["customerId"]);
+        const customer = await Customer.findOneOrFail({
+          where: { id: customerId },
+          relations: ["currency"],
+        });
+
+        // ================================
+        // PARSE STYLES FROM FIELDS
+        // ================================
+        const styles: any = [];
+        for (const key in fields) {
+          if (key.startsWith("styles[")) {
+            const matches = key.match(/\[(\d+)\]\.(.+)/);
+            if (matches) {
+              const index = Number(matches[1]);
+              const field = matches[2];
+              if (!styles[index]) styles[index] = {};
+              styles[index][field] = fields[key];
+            }
+          }
+        }
+
+        // ================================
+        // UPDATE ORDER-LEVEL FIELDS (only if present in payload)
+        // ================================
+        if (fields["purchaseOrderNo"]) {
+          order.purchaeOrderNo = await resolveRegularPurchaseOrderNo(
+            getCustomerStoreName(customer),
+            fields["purchaseOrderNo"]
+          );
+        }
+        if (fields["manufacturingEmailAddress"]) {
+          order.manufacturingEmailAddress = fields["manufacturingEmailAddress"];
+        }
+        if (fields["orderType"]) {
+          order.orderType = fields["orderType"] as OrderType;
+        }
+        if (fields["orderReceivedDate"]) {
+          order.orderReceivedDate = new Date(fields["orderReceivedDate"]);
+        }
+        if (fields["orderCancellationDate"]) {
+          order.orderCancellationDate = new Date(fields["orderCancellationDate"]);
+        }
+        if (fields["address"]) {
+          order.address = fields["address"];
+        }
+        if (fields["publishStatus"]) {
+          order.publishStatus = parsePublishStatus(fields["publishStatus"]);
+        }
+
+        order.customer = customer;
+        await order.save();
+
+        // ================================
+        // HANDLE ORDER-LEVEL FILE UPLOAD (replace if new file sent)
+        // ================================
+        const uploadedOrderFile = files.find(
+          (file) => file.fieldname === "uploadedOrderFile"
+        );
+        const uploadedOrderFileType = fields["uploadedOrderFileType"];
+
+        if (uploadedOrderFile) {
+          const extension = resolveUploadedOrderDocumentExtension(
+            uploadedOrderFile,
+            uploadedOrderFileType
+          );
+
+          const uploadedDocument = await storeFileInS3(
+            uploadedOrderFile.buffer,
+            `order-documents/${orderId}/${Date.now()}${extension}`
+          );
+
+          if (!uploadedDocument) {
+            throw new Error("Failed to upload order document");
+          }
+
+          order.ppt_path = getFullUrl(uploadedDocument.fileName);
+          await order.save();
+        }
+
+        // ================================
+        // RECONCILE STYLES
+        // ================================
+        const pricingProductsMap = await fetchPricingProductsMap(styles);
+
+        // IDs that came in from the client (existing styles being kept/updated)
+        const incomingStyleIds = styles
+          .filter((s: any) => s.id)
+          .map((s: any) => Number(s.id));
+
+        // IDs currently in DB for this order
+        const existingStyleIds = order.styles.map((s) => s.id);
+
+        // Styles to delete: exist in DB but not in incoming payload
+        const styleIdsToDelete = existingStyleIds.filter(
+          (id) => !incomingStyleIds.includes(id)
+        );
+
+        if (styleIdsToDelete.length > 0) {
+          await Style.delete(styleIdsToDelete);
+        }
+
+        // ================================
+        // PROCESS EACH STYLE (UPDATE or INSERT)
+        // ================================
+        for (let i = 0; i < styles.length; i++) {
+          const s = styles[i];
+          const isExisting = !!s.id;
+
+          let styleEntity: Style;
+
+          if (isExisting) {
+            // Load existing style — keep barcode untouched
+            styleEntity = await Style.findOneOrFail({
+              where: { id: Number(s.id) },
+            });
+          } else {
+            // New style
+            styleEntity = new Style();
+            styleEntity.order = order;
+          }
+
+          // Apply common fields
+          styleEntity.styleNo = s.styleNo;
+          styleEntity.customColor = s.customColor;
+          styleEntity.comments = s.comments;
+          styleEntity.customSize = s.customSize;
+          styleEntity.customSizesQuantity = s.customSizesQuantity;
+          styleEntity.colorType = s.colorType;
+          styleEntity.sizeCountry = s.sizeCountry;
+          styleEntity.size = s.size;
+          styleEntity.mesh_color = s.mesh;
+          styleEntity.beading_color = s.beading;
+          styleEntity.lining = s.lining;
+          styleEntity.lining_color = s.lining === "No Lining" ? null : s.liningColor;
+          styleEntity.quantity = s.quantity ? Number(s.quantity) : 0;
+
+          applyPricingToStyle(
+            styleEntity,
+            s,
+            pricingProductsMap.get(sanitizeText(s.styleNo).toLowerCase()),
+            customer
+          );
+
+          // STEP 1 — SAVE (gets ID if new)
+          await styleEntity.save();
+
+          // STEP 2 — Assign barcode only for new styles
+          if (!isExisting) {
+            styleEntity.barcode = `${order.purchaeOrderNo}-${styleEntity.styleNo}-${styleEntity.id}`;
+            await styleEntity.save();
+          }
+
+          // STEP 3 — HANDLE IMAGES
+          const styleImages = files.filter(
+            (file) => file.fieldname === `styles[${i}].modifiedPhotoImage`
+          );
+
+          if (styleImages.length > 0) {
+            // New images sent — replace existing
+            const imageUrls = await Promise.all(
+              styleImages.map(async (file) => {
+                if (!file) return null;
+
+                const fileName = `orders/${orderId}/${Math.random()
+                  .toString(36)
+                  .substring(7)}.jpeg`;
+
+                const compressedImage = await sharp(file.buffer)
+                  .jpeg()
+                  .toBuffer();
+
+                return await storeFileInS3(compressedImage, fileName);
+              })
+            );
+
+            styleEntity.photoUrls = JSON.stringify(
+              imageUrls.filter((x) => x).map((x) => x?.fileName)
+            );
+
+            // STEP 4 — SAVE FINAL STYLE
+            await styleEntity.save();
+          }
+          // If no images sent for this style, existing photoUrls are preserved
+        }
+
+        res.json({
+          success: true,
+          message:
+            order.publishStatus === OrderPublishStatus.Draft
+              ? "Draft updated successfully"
+              : "Order updated successfully",
+          purchaseOrderNo: order.purchaeOrderNo,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({
+          error: "An error occurred while updating the order",
+        });
+      }
+    });
+
+    busboy.end(req.body);
+  })
+);
+
+router.patch(
+  "/check/:id",
   requireAdminUser(["/admin-panel/orders"]),
   requireEditPasswordHeader,
   raw({
