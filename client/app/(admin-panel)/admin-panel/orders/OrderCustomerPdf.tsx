@@ -8,12 +8,27 @@ import {
 } from "@react-pdf/renderer";
 import dayjs from "dayjs";
 import { generateRandomColour } from "@/lib/utils";
+import { getCustomSizeEntries } from "@/lib/sizeConversion";
+
+const parseMaybeArray = (value: unknown): any[] => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
   return (
     <Document>
       {orderData?.styles?.map((oData: any, i: number) => {
         const productImageUrl = oData.convertedFirstProductImage;
+        const customSizeEntries = getCustomSizeEntries(oData);
+        const customSizesQuantity = parseMaybeArray(oData.customSizesQuantity);
 
         return (
           <Page
@@ -117,10 +132,14 @@ const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
                       }}
                     >
                       <View>
-                        {oData.size !== "Custom" ? (
+                        {customSizeEntries.length ? (
+                          customSizeEntries.map((size) => (
+                            <Text key={size}>{`\u2022 ${size}`}</Text>
+                          ))
+                        ) : oData.size !== "Custom" ? (
                           <Text>{oData.size}</Text>
                         ) : (
-                          oData.customSizesQuantity.map((sQ: any) => {
+                          customSizesQuantity.map((sQ: any) => {
                             return (
                               <Text>
                                 {sQ.size} - {sQ.quantity}{" "}
@@ -145,7 +164,7 @@ const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
                         <Text>{oData.quantity}</Text>
                       ) : (
                         <Text>
-                          {oData.customSizesQuantity.reduce(
+                          {customSizesQuantity.reduce(
                             (
                               sum: number,
                               sQ: { size: string; quantity: number },

@@ -2,6 +2,7 @@ import React from "react";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { sendMail } from "../../../lib/mail";
 import { generateRandomColour } from "../../../lib/utils";
+import { getCustomSizeEntries } from "../../../lib/sizeConversion";
 import {
   Document,
   Image,
@@ -152,6 +153,10 @@ const OrderCustomerPdf: React.FC<OrderCustomerPdfProps> = ({ orderData }) => {
     <Document>
       {orderData?.styles?.map((oData, i) => {
         const productImageUrl = oData.convertedFirstProductImage;
+        const customSizeEntries = getCustomSizeEntries(oData);
+        const customSizesQuantity = Array.isArray(oData.customSizesQuantity)
+          ? oData.customSizesQuantity
+          : [];
 
         return (
           <Page
@@ -257,10 +262,14 @@ const OrderCustomerPdf: React.FC<OrderCustomerPdfProps> = ({ orderData }) => {
                       }}
                     >
                       <View>
-                        {oData.size !== "Custom" ? (
+                        {customSizeEntries.length ? (
+                          customSizeEntries.map((size) => (
+                            <Text key={size}>{`\u2022 ${size}`}</Text>
+                          ))
+                        ) : oData.size !== "Custom" ? (
                           <Text>{oData.size}</Text>
                         ) : (
-                          oData.customSizesQuantity?.map((sQ: any) => {
+                          customSizesQuantity.map((sQ: any) => {
                             return (
                               <Text>
                                 {sQ.size} - {sQ.quantity}{" "}
@@ -286,7 +295,7 @@ const OrderCustomerPdf: React.FC<OrderCustomerPdfProps> = ({ orderData }) => {
                         <Text>{oData.quantity}</Text>
                       ) : (
                         <Text>
-                          {oData.customSizesQuantity?.reduce(
+                          {customSizesQuantity.reduce(
                             (
                               sum: number,
                               sQ: { size: string; quantity: number },

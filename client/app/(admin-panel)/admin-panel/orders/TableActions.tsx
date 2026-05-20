@@ -116,13 +116,47 @@ const [uploading, setUploading] = useState(false);
           ? colors.find((c: any) => c.hexcode === hex)?.name || hex
           : "SAS";
 
-      const normalizeArray = (v: any) =>
-        Array.isArray(v) ? v : v ? [v] : [];
+      const normalizeArray = (v: any) => {
+        if (Array.isArray(v)) return v;
+        if (typeof v === "string" && v.trim()) {
+          try {
+            const parsed = JSON.parse(v);
+            return Array.isArray(parsed) ? parsed : [v];
+          } catch {
+            return [v];
+          }
+        }
+
+        return v ? [v] : [];
+      };
+
+      const getCustomSizeText = (value: any) => {
+        if (typeof value === "string" || typeof value === "number") {
+          return String(value).trim();
+        }
+
+        if (value && typeof value === "object") {
+          return String(value.size ?? value.value ?? value.label ?? "").trim();
+        }
+
+        return "";
+      };
+
+      const getCustomSizeEntries = (customSize: any, customSizesQuantity: any[]) => {
+        const customSizeEntries = normalizeArray(customSize)
+          .map(getCustomSizeText)
+          .filter(Boolean);
+
+        return customSizeEntries.length
+          ? customSizeEntries
+          : customSizesQuantity.map(getCustomSizeText).filter(Boolean);
+      };
 
       const details = order.styles.reduce((acc: any[], item: any) => {
-        const sizes = Array.isArray(item.customSizesQuantity)
-          ? item.customSizesQuantity
-          : [];
+        const sizes = normalizeArray(item.customSizesQuantity);
+        const customSizeEntries = getCustomSizeEntries(item.customSize, sizes);
+        const isCustomSize =
+          String(item.size ?? "").trim().toLowerCase() === "custom";
 
         const d = {
           quantity:
@@ -131,9 +165,13 @@ const [uploading, setUploading] = useState(false);
               : sizes.reduce((s: number, v: any) => s + Number(v.quantity || 0), 0),
 
           size:
-            sizes.length === 0
+            isCustomSize && customSizeEntries.length
+              ? "Custom"
+              : sizes.length === 0
               ? `${item.size}/${item.quantity}`
               : sizes.map((v: any) => `${v.size}/${v.quantity}`).join(", "),
+          customSize: customSizeEntries,
+          customSizesQuantity: sizes,
 
           styleNo: item.styleNo,
             barcode: item.barcode,   // 🔥 सबसे ज़रूरी लाइन
@@ -161,7 +199,13 @@ const [uploading, setUploading] = useState(false);
 
         if (exists) {
           exists.quantity += d.quantity;
-          exists.size += `, ${d.size}`;
+          if (d.customSize.length) {
+            exists.customSize = Array.from(
+              new Set([...(exists.customSize ?? []), ...d.customSize]),
+            );
+          } else {
+            exists.size += `, ${d.size}`;
+          }
         } else {
           acc.push(d);
         }

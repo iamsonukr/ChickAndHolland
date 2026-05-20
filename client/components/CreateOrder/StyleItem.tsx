@@ -516,7 +516,7 @@ const StyleItem = ({
                   <FormLabel>Custom Sizes</FormLabel>
                   <FormControl>
                     <MultipleSelector
-                      value={(field.value ?? []).map((v: string) =>
+                      value={(field.value ?? []).map((v: any) =>
                         typeof v === "string" ? { value: v, label: v } : v,
                       )}
                       onChange={(options) => {

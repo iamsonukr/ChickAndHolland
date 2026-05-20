@@ -53,6 +53,14 @@ export const sizes = Array.from({ length: 16 }, (_, i) => 30 + i * 2);
 
 export const imageFormatsSupportedByPDF = ["jpg", "jpeg", "png"];
 
+const customSizeEntrySchema = z.union([
+  z.string(),
+  z.object({
+    value: z.string().optional(),
+    label: z.string().optional(),
+  }),
+]);
+
 const disposableEmailDomains = [
   "10minutemail.com",
   "dispostable.com",
@@ -537,11 +545,7 @@ export const createOrderFormSchema = z.object({
           size: z.string().min(1, { message: "Size is required" }),
 
           customSize: z
-            .object({
-              value: z.string().optional(),
-              label: z.string().optional(),
-            })
-            .array()
+            .array(customSizeEntrySchema)
             .optional(),
 
           mesh: z.string().min(1, {
@@ -658,11 +662,7 @@ export const createFreshOrderFormSchema = z.object({
               message: "Size is required",
             }),
           customSize: z
-            .object({
-              value: z.string().optional(),
-              label: z.string().optional(),
-            })
-            .array()
+            .array(customSizeEntrySchema)
             .optional(),
           quantity: z
             .string({

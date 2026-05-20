@@ -105,6 +105,28 @@ const normalizeArray = (value: any) => {
   return [value];
 };
 
+const getCustomSizeText = (value: any) => {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value).trim();
+  }
+
+  if (value && typeof value === "object") {
+    return String(value.size ?? value.value ?? value.label ?? "").trim();
+  }
+
+  return "";
+};
+
+const getCustomSizeEntries = (customSize: any, customSizesQuantity: any[]) => {
+  const customSizeEntries = normalizeArray(customSize)
+    .map(getCustomSizeText)
+    .filter(Boolean);
+
+  return customSizeEntries.length
+    ? customSizeEntries
+    : customSizesQuantity.map(getCustomSizeText).filter(Boolean);
+};
+
 const buildRegularOrderDetails = (order: any, colors: any[]) => {
   const getColorName = (hex?: string | null) =>
     hex && hex !== "SAS"
@@ -115,6 +137,9 @@ const buildRegularOrderDetails = (order: any, colors: any[]) => {
     const sizes = Array.isArray(item.customSizesQuantity)
       ? item.customSizesQuantity
       : normalizeArray(item.customSizesQuantity);
+    const customSizeEntries = getCustomSizeEntries(item.customSize, sizes);
+    const isCustomSize =
+      String(item.size ?? "").trim().toLowerCase() === "custom";
 
     const detail = {
       quantity:
@@ -124,11 +149,15 @@ const buildRegularOrderDetails = (order: any, colors: any[]) => {
               return sum + Number(sizeItem?.quantity || 0);
             }, 0),
       size:
-        sizes.length === 0
+        isCustomSize && customSizeEntries.length
+          ? "Custom"
+          : sizes.length === 0
           ? `${item.size ?? ""}/${item.quantity ?? ""}`.trim()
           : sizes
               .map((sizeItem: any) => `${sizeItem.size}/${sizeItem.quantity}`)
               .join(", "),
+      customSize: customSizeEntries,
+      customSizesQuantity: sizes,
       styleNo: item.styleNo,
       barcode: item.barcode,
       size_country: item.sizeCountry ?? item.size_country,
@@ -157,7 +186,13 @@ const buildRegularOrderDetails = (order: any, colors: any[]) => {
 
     if (existing) {
       existing.quantity += detail.quantity;
-      existing.size += `, ${detail.size}`;
+      if (detail.customSize.length) {
+        existing.customSize = Array.from(
+          new Set([...(existing.customSize ?? []), ...detail.customSize]),
+        );
+      } else {
+        existing.size += `, ${detail.size}`;
+      }
     } else {
       acc.push(detail);
     }

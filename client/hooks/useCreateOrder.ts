@@ -57,6 +57,32 @@ const parseJsonArray = (value: any) => {
   }
 };
 
+const getCustomSizeText = (value: any) => {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value).trim();
+  }
+
+  if (value && typeof value === "object") {
+    return String(value.size ?? value.value ?? value.label ?? "").trim();
+  }
+
+  return "";
+};
+
+const getCustomSizeEntries = (customSize: any, customSizesQuantity?: any) => {
+  const customSizeEntries = parseJsonArray(customSize)
+    .map(getCustomSizeText)
+    .filter(Boolean);
+
+  if (customSizeEntries.length) {
+    return customSizeEntries;
+  }
+
+  return parseJsonArray(customSizesQuantity)
+    .map(getCustomSizeText)
+    .filter(Boolean);
+};
+
 const toDateValue = (value: any) => {
   if (!value) return undefined;
   const date = new Date(value);
@@ -161,7 +187,14 @@ function appendStyleFormData(
   fd.append(`styles[${index}].customColor`, JSON.stringify(style.customColor?.map((c) => c.value) ?? []));
   fd.append(`styles[${index}].sizeCountry`, style.sizeCountry);
   fd.append(`styles[${index}].size`, style.size);
-  fd.append(`styles[${index}].customSize`, JSON.stringify(style.customSize?.map((s) => s.value) ?? []));
+  fd.append(
+    `styles[${index}].customSize`,
+    JSON.stringify(
+      (style.customSize ?? [])
+        .map((size: any) => getCustomSizeText(size))
+        .filter(Boolean),
+    ),
+  );
   fd.append(`styles[${index}].quantity`, style.quantity ?? "");
   fd.append(
     `styles[${index}].comments`,
@@ -217,45 +250,59 @@ export function buildPreviewData(
     return isSameAsSample ? `SAS(${resolvedValue})` : resolvedValue;
   };
 
-  const loop = responseOrders[0].styles.map((currentItem: any, index: number) => ({
-    quantity:
-      currentItem.customSizesQuantity.length < 1
-        ? currentItem.quantity
-        : currentItem.customSizesQuantity.reduce(
-            (sum: number, item: any) => sum + Number(item.quantity),
-            0,
-          ),
-    size:
-      currentItem.customSizesQuantity.length < 1
-        ? `${currentItem.size}/${currentItem.quantity}`
-        : currentItem.customSizesQuantity.map((i: any) => `${i.size}/${i.quantity}`).join(", "),
-    styleNo: currentItem.styleNo,
-    size_country: currentItem.sizeCountry,
-    comments: currentItem.comments.join(", "),
-    color: currentItem.colorType,
-    image: currentItem.convertedFirstProductImage,
-    barcode:
-      currentItem.barcode ??
-      buildTemporaryPreviewBarcode(
-        data.purchaseOrderNo,
-        currentItem.styleNo,
-        index,
+  const loop = responseOrders[0].styles.map((currentItem: any, index: number) => {
+    const customSizesQuantity = parseJsonArray(currentItem.customSizesQuantity);
+    const customSizeEntries = getCustomSizeEntries(
+      currentItem.customSize,
+      customSizesQuantity,
+    );
+    const isCustomSize =
+      String(currentItem.size ?? "").trim().toLowerCase() === "custom";
+    const hasCustomSizeEntries = isCustomSize && customSizeEntries.length > 0;
+
+    return {
+      quantity:
+        customSizesQuantity.length < 1
+          ? currentItem.quantity
+          : customSizesQuantity.reduce(
+              (sum: number, item: any) => sum + Number(item.quantity),
+              0,
+            ),
+      size: hasCustomSizeEntries
+        ? "Custom"
+        : customSizesQuantity.length < 1
+          ? `${currentItem.size}/${currentItem.quantity}`
+          : customSizesQuantity.map((i: any) => `${i.size}/${i.quantity}`).join(", "),
+      customSize: customSizeEntries,
+      customSizesQuantity,
+      styleNo: currentItem.styleNo,
+      size_country: currentItem.sizeCountry,
+      comments: currentItem.comments.join(", "),
+      color: currentItem.colorType,
+      image: currentItem.convertedFirstProductImage,
+      barcode:
+        currentItem.barcode ??
+        buildTemporaryPreviewBarcode(
+          data.purchaseOrderNo,
+          currentItem.styleNo,
+          index,
+        ),
+      meshColor: resolvePreviewColour(
+        currentItem.meshColor ?? currentItem.mesh,
+        currentItem.product?.mesh_color,
       ),
-    meshColor: resolvePreviewColour(
-      currentItem.meshColor ?? currentItem.mesh,
-      currentItem.product?.mesh_color,
-    ),
-    beadingColor: resolvePreviewColour(
-      currentItem.beadingColor ?? currentItem.beading,
-      currentItem.product?.beading_color,
-    ),
-    lining: currentItem.lining,
-    liningColor: resolvePreviewColour(
-      currentItem.liningColor,
-      currentItem.product?.lining_color,
-    ),
-    refImg: currentItem.photoUrls,
-  }));
+      beadingColor: resolvePreviewColour(
+        currentItem.beadingColor ?? currentItem.beading,
+        currentItem.product?.beading_color,
+      ),
+      lining: currentItem.lining,
+      liningColor: resolvePreviewColour(
+        currentItem.liningColor,
+        currentItem.product?.lining_color,
+      ),
+      refImg: currentItem.photoUrls,
+    };
+  });
 
   return {
     customerId: data.customerId,

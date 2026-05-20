@@ -7,6 +7,12 @@ type EuSizeEntry = {
   count: number | null;
 };
 
+type CustomSizeCapableItem = {
+  customSize?: unknown;
+  customSizesQuantity?: unknown;
+  size?: unknown;
+};
+
 const SIZE_CHART: SizeChartRow[] = [
   { EU: 32, IT: 36, UK: 4, US: 0 },
   { EU: 34, IT: 38, UK: 6, US: 2 },
@@ -47,13 +53,13 @@ const detectSizeUnitFromText = (value: string): SupportedSizeUnit | null => {
 };
 
 const parseSizeNumber = (value: string) => {
-  const matchedNumber = value.match(/\d+/)?.[0];
+  const normalizedValue = value.trim();
 
-  if (!matchedNumber) {
+  if (!/^\d+$/.test(normalizedValue)) {
     return null;
   }
 
-  const parsedNumber = Number.parseInt(matchedNumber, 10);
+  const parsedNumber = Number.parseInt(normalizedValue, 10);
   return Number.isFinite(parsedNumber) ? parsedNumber : null;
 };
 
@@ -80,6 +86,64 @@ const sortEuSizes = ([leftSize]: [string, number], [rightSize]: [string, number]
 
 const formatEuSizeEntry = (entry: EuSizeEntry) =>
   entry.count == null ? entry.size : `${entry.size}/${entry.count}`;
+
+const parseMaybeArray = (value: unknown): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return [];
+
+  try {
+    const parsedValue = JSON.parse(trimmedValue);
+    return Array.isArray(parsedValue) ? parsedValue : [];
+  } catch {
+    return [trimmedValue];
+  }
+};
+
+const getCustomSizeText = (value: unknown) => {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value).trim();
+  }
+
+  if (value && typeof value === "object") {
+    const item = value as Record<string, unknown>;
+    return String(item.size ?? item.value ?? item.label ?? "").trim();
+  }
+
+  return "";
+};
+
+const isCustomSizeMarker = (value: unknown) => {
+  const normalizedValue = String(value ?? "").trim();
+  return /^custom(?:\s*\/\s*\d+)?$/i.test(stripKnownSizeDecorators(normalizedValue));
+};
+
+const uniqueValues = (values: string[]) => Array.from(new Set(values));
+
+export const getCustomSizeEntries = (item: CustomSizeCapableItem = {}) => {
+  if (!isCustomSizeMarker(item.size)) {
+    return [];
+  }
+
+  const customSizeEntries = parseMaybeArray(item.customSize)
+    .map(getCustomSizeText)
+    .filter(Boolean);
+  const customSizeQuantityEntries = parseMaybeArray(item.customSizesQuantity)
+    .map(getCustomSizeText)
+    .filter(Boolean);
+
+  return uniqueValues(
+    customSizeEntries.length ? customSizeEntries : customSizeQuantityEntries,
+  );
+};
+
+export const formatCustomSizeBulletList = (item: CustomSizeCapableItem = {}) => {
+  const customSizeEntries = getCustomSizeEntries(item);
+
+  return customSizeEntries.map((entry) => `\u2022 ${entry}`).join("\n");
+};
 
 const getFallbackEuSizeEntries = (item: {
   admin_us_size?: unknown;
@@ -154,9 +218,15 @@ export const convertToEuSize = (sizeValue: unknown, unit?: unknown): string => {
 
 export const getEuSizeEntries = (item: {
   admin_us_size?: unknown;
+  customSize?: unknown;
+  customSizesQuantity?: unknown;
   size?: unknown;
   size_country?: unknown;
 } = {}) => {
+  if (getCustomSizeEntries(item).length) {
+    return [];
+  }
+
   const rawSize = String(item.size ?? "").trim();
 
   if (!rawSize) {
@@ -182,11 +252,19 @@ export const getEuSizeEntries = (item: {
 export const formatEuSizeText = (
   item: {
     admin_us_size?: unknown;
+    customSize?: unknown;
+    customSizesQuantity?: unknown;
     size?: unknown;
     size_country?: unknown;
   },
   options?: { includeUnit?: boolean },
 ) => {
+  const customSizeText = formatCustomSizeBulletList(item);
+
+  if (customSizeText) {
+    return customSizeText;
+  }
+
   const entries = getEuSizeEntries(item);
 
   if (!entries.length) {
@@ -205,6 +283,8 @@ export const formatEuSizeText = (
 export const formatEuSizeSummary = (
   items: Array<{
     admin_us_size?: unknown;
+    customSize?: unknown;
+    customSizesQuantity?: unknown;
     quantity?: unknown;
     size?: unknown;
     size_country?: unknown;
@@ -212,8 +292,15 @@ export const formatEuSizeSummary = (
   options?: { alwaysShowCount?: boolean },
 ) => {
   const sizeCounts = new Map<string, number>();
+  const customSizeEntries = uniqueValues(
+    items.flatMap((item) => getCustomSizeEntries(item)),
+  );
 
   items.forEach((item) => {
+    if (getCustomSizeEntries(item).length) {
+      return;
+    }
+
     const entries = getEuSizeEntries(item);
 
     if (!entries.length) {
@@ -234,12 +321,17 @@ export const formatEuSizeSummary = (
     });
   });
 
-  return Array.from(sizeCounts.entries())
+  const regularSizeSummary = Array.from(sizeCounts.entries())
     .sort(sortEuSizes)
     .map(([size, count]) =>
       options?.alwaysShowCount || count > 1 ? `${size}/${count}` : size,
     )
-    .join(", ") || "-";
+    .join(", ");
+  const customSizeSummary = customSizeEntries
+    .map((entry) => `\u2022 ${entry}`)
+    .join("\n");
+
+  return [regularSizeSummary, customSizeSummary].filter(Boolean).join("\n") || "-";
 };
 
 export function convertToUSSize(size: any, country: string): string {
