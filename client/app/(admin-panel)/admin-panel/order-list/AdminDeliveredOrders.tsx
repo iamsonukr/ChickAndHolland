@@ -112,7 +112,7 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
         </div>
       )}
 
-      <Table>
+      <Table className="table-fixed w-full min-w-[1040px]">
         <TableHeader>
           <TableRow className="text-center text-sm sm:text-base">
             <TableHead>
@@ -122,13 +122,13 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
               />
             </TableHead>
             <TableHead className="">Date</TableHead>
-            <TableHead className="text-nowrap">Name</TableHead>
-            <TableHead className="text-nowrap">Order Id</TableHead>
-            <TableHead className="text-nowrap">Order Type</TableHead>
-            <TableHead className="text-nowrap">Status</TableHead>
-            <TableHead className="text-nowrap">Order Date</TableHead>
-            <TableHead className="text-nowrap">Paid</TableHead>
-            <TableHead className="text-nowrap">Balance</TableHead>
+            <TableHead className="whitespace-nowrap">Name</TableHead>
+            <TableHead className="whitespace-nowrap">Order Id</TableHead>
+            <TableHead className="whitespace-nowrap">Order Type</TableHead>
+            <TableHead className="whitespace-nowrap">Status</TableHead>
+            <TableHead className="whitespace-nowrap">Order Date</TableHead>
+            <TableHead className="whitespace-nowrap">Paid</TableHead>
+            <TableHead className="whitespace-nowrap">Balance</TableHead>
             <TableHead>Details</TableHead>
           </TableRow>
         </TableHeader>
@@ -139,7 +139,7 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
               return (
                 <TableRow
                   key={item.id}
-                  className="text-nowrap text-sm sm:text-base"
+                  className="text-sm sm:text-base"
                 >
                   <TableCell>
                     <Checkbox

@@ -521,7 +521,8 @@ const fetchDetails = async () => {
 
   <Button
     disabled={!file || uploading}
-    className="mt-3 w-full bg-purple-600 text-white"
+    variant="secondary"
+    className="mt-3 w-full"
     onClick={async () => {
       if (!file) return;
       setUploading(true);
@@ -586,14 +587,11 @@ const fetchDetails = async () => {
 
 {hasUploadedDocument && !isUploadedPdf && (
   <div className="flex justify-end gap-3 py-3">
-      <a
-        href={uploadedDocumentDownloadUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="rounded bg-green-600 px-4 py-2 text-white"
-      >
+    <Button asChild variant="secondary">
+      <a href={uploadedDocumentDownloadUrl} target="_blank" rel="noreferrer">
         Download Uploaded File
       </a>
+    </Button>
   </div>
 )}
 
@@ -621,25 +619,27 @@ const fetchDetails = async () => {
     </div>
   )
 ) : (
-  <PdfPreview
-    sourceDocument={data.orderSource === "retailer" ? (
-      <RetailerPdf orderData={previewData} />
-    ) : (
-      <FreshOrderPdf orderData={previewData} />
-    )}
-    fileName={`${previewData.purchaseOrderNo}.pdf`}
-    className="mt-4"
-    heightClassName="h-[90vh]"
-    extraActions={
-      <button
-        type="button"
-        onClick={() => downloadOrderPPT(previewData)}
-        className="inline-flex min-h-[38px] items-center rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700"
-      >
-        Download PPT
-      </button>
-    }
-  />
+      <PdfPreview
+        sourceDocument={data.orderSource === "retailer" ? (
+          <RetailerPdf orderData={previewData} />
+        ) : (
+          <FreshOrderPdf orderData={previewData} />
+        )}
+        fileName={`${previewData.purchaseOrderNo}.pdf`}
+        className="mt-4"
+        heightClassName="h-[90vh]"
+        extraActions={
+          <Button
+            type="button"
+            onClick={() => downloadOrderPPT(previewData)}
+            variant="secondary"
+            size="sm"
+            className="min-h-[38px]"
+          >
+            Download PPT
+          </Button>
+        }
+      />
 )}
 
   </>

@@ -106,7 +106,7 @@ const page = async (props: {
         </TabsContent>
         <TabsContent value="adminOrders">
           <div className="mt-0">
-            <Table className="table-fixed w-full border">
+            <Table className="table-fixed w-full min-w-[1040px] border">
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead className="text-center">Date</TableHead>

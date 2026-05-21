@@ -127,7 +127,7 @@ const RejectedOrders = ({
         </div>
       )}
 
-      <Table>
+      <Table className="table-fixed w-full min-w-[1040px]">
         <TableHeader>
           <TableRow className="text-sm sm:text-base">
             <TableHead>
@@ -137,8 +137,8 @@ const RejectedOrders = ({
               />
             </TableHead>
             <TableHead className="">Date</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Type</TableHead>
+            <TableHead className="whitespace-nowrap">Name</TableHead>
+            <TableHead className="whitespace-nowrap">Type</TableHead>
             <TableHead>Quantity</TableHead>
             <TableHead>Total Amount</TableHead>
             <TableHead className="text-right">Details</TableHead>

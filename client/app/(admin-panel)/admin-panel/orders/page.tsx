@@ -16,6 +16,7 @@ import AddressCard from "./AddressCard";
 import { cookies } from "next/headers";
 import { API_URL } from "@/lib/constants";
 import Delete, { DeleteButton, ItemsProvider } from "./Delete";
+import TableScrollWrapper from "@/components/TableScrollWrapper";
 import OrderDetailsSheet from "./OrderDetails";
 import AdjustSequenceButton from "./AdjustSequenceButton";
 import { Button } from "@/components/ui/button";
@@ -287,8 +288,9 @@ const OrdersPage = async (props: {
             </div>
 
             {/* Table */}
-            <div className="w-full overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[1240px] border-collapse text-sm">
+            <div className="w-full rounded-lg border border-border">
+              <TableScrollWrapper>
+                <table className="w-full min-w-[1240px] border-collapse text-sm">
                 <thead className="bg-muted/50">
                   <tr className="whitespace-nowrap [&>th]:align-middle">
                     <th className={cn(tableHeadClassName, "w-12 text-center")}>
@@ -433,7 +435,8 @@ const OrdersPage = async (props: {
                     </tr>
                   )}
                 </tbody>
-              </table>
+                </table>
+              </TableScrollWrapper>
             </div>
 
             {/* Pagination */}

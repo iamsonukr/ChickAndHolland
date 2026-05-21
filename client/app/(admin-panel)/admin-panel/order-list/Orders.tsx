@@ -5,9 +5,9 @@ import dayjs from "dayjs";
 import { cn, fresh } from "@/lib/utils";
 import Preview from "./Preview";
 import Details from "../../retailer-panel/my-orders/Details";
-import { Reject } from "./Reject";
 import useHttp from "@/lib/hooks/usePost";
 import { toast } from "sonner";
+
 import {
   Table,
   TableBody,
@@ -16,7 +16,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
 import { Button } from "@/components/ui/button";
+
 import {
   Dialog,
   DialogContent,
@@ -26,25 +28,44 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter } from "next/navigation";
 
-function formatDateTime(date: Date) {
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${day}-${month}-${year}`;
-}
+const ACCEPTED_ORDER_COLUMN_WIDTHS = [
+  56, 112, 240, 150, 140, 140, 140, 170, 124, 132, 112, 116, 116, 116,
+];
 
-const Orders = ({ data }: { data: any }) => {
+const ACCEPTED_ORDER_TABLE_WIDTH = ACCEPTED_ORDER_COLUMN_WIDTHS.reduce(
+  (total, width) => total + width,
+  0,
+);
+
+const getCellTitle = (value: unknown) =>
+  value === null || value === undefined || value === ""
+    ? undefined
+    : String(value);
+
+const TruncatedTableCell = ({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof TableCell>) => (
+  <TableCell className={cn("overflow-hidden", className)} {...props}>
+    <span className="block truncate">{children}</span>
+  </TableCell>
+);
+
+const Orders = ({ data }: { data: any[] }) => {
   const [selectedOrders, setSelectedOrders] = useState<
     { id: number; orderType: string }[]
   >([]);
+
   const [open, setOpen] = useState(false);
 
   const router = useRouter();
-  const { loading, error, executeAsync } = useHttp(
+
+  const { executeAsync } = useHttp(
     "/retailer-orders/admin/bulkOrder/reject",
     "PATCH",
   );
@@ -60,12 +81,14 @@ const Orders = ({ data }: { data: any }) => {
         id: order.id,
         orderType: order.type,
       }));
+
       setSelectedOrders(all);
     }
   };
 
   const toggleSelectOne = (id: number, orderType: string) => {
     const exists = selectedOrders.find((o) => o.id === id);
+
     if (exists) {
       setSelectedOrders((prev) => prev.filter((o) => o.id !== id));
     } else {
@@ -74,21 +97,22 @@ const Orders = ({ data }: { data: any }) => {
   };
 
   const handleDelete = async () => {
-    const res = await executeAsync({ bulk: selectedOrders });
-    if (res) {
+    const res = await executeAsync({
+      bulk: selectedOrders,
+    });
+
+    if (res?.success) {
       toast.success(res.msg);
 
-      const checkboxes = document.querySelectorAll("#check");
-      checkboxes.forEach((el) => {
-        (el as HTMLInputElement).checked = false;
-      });
+      setSelectedOrders([]);
+      setOpen(false);
 
       router.refresh();
-      setOpen(false);
     } else {
-      toast.error(res.msg);
+      toast.error(res?.msg || "Something went wrong");
     }
   };
+
   return (
     <>
       {selectedOrders.length > 0 && (
@@ -99,18 +123,22 @@ const Orders = ({ data }: { data: any }) => {
                 Delete Selected ({selectedOrders.length})
               </Button>
             </DialogTrigger>
+
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Confirm Deletion</DialogTitle>
+
                 <DialogDescription>
                   This action cannot be undone. Are you sure you want to delete{" "}
                   {selectedOrders.length} orders?
                 </DialogDescription>
               </DialogHeader>
+
               <DialogFooter>
                 <Button variant="secondary" onClick={() => setOpen(false)}>
                   Cancel
                 </Button>
+
                 <Button onClick={handleDelete} variant="destructive">
                   Delete
                 </Button>
@@ -119,43 +147,76 @@ const Orders = ({ data }: { data: any }) => {
           </Dialog>
         </div>
       )}
-      <Table>
+
+      <Table
+        className="w-full table-fixed"
+        style={{ minWidth: ACCEPTED_ORDER_TABLE_WIDTH }}
+      >
+        <colgroup>
+          {ACCEPTED_ORDER_COLUMN_WIDTHS.map((width, index) => (
+            <col key={index} style={{ width }} />
+          ))}
+        </colgroup>
         <TableHeader>
-          <TableRow className="text-center text-sm sm:text-base">
+          <TableRow className="text-sm sm:text-base">
             <TableHead>
               <Checkbox
                 checked={isAllSelected}
                 onCheckedChange={toggleSelectAll}
               />
             </TableHead>
+
             <TableHead>Date</TableHead>
-            <TableHead className="text-nowrap">Name</TableHead>
-            <TableHead className="text-nowrap">Order Id</TableHead>
-            <TableHead className="text-nowrap">Estimate Id</TableHead>
-            <TableHead className="text-nowrap">Invoice Id</TableHead>
-            <TableHead className="text-nowrap">Order Type</TableHead>
-            <TableHead className="text-nowrap">Status</TableHead>
-            <TableHead className="text-nowrap">Order Date</TableHead>
-            <TableHead className="text-nowrap">Shipping Date</TableHead>
-            <TableHead className="text-nowrap">Paid</TableHead>
-            <TableHead className="text-nowrap">Balance</TableHead>
+            <TableHead className="whitespace-nowrap">Name</TableHead>
+            <TableHead className="whitespace-nowrap">Order Id</TableHead>
+            <TableHead className="whitespace-nowrap">Estimate Id</TableHead>
+            <TableHead className="whitespace-nowrap">Invoice Id</TableHead>
+            <TableHead className="whitespace-nowrap">Order Type</TableHead>
+            <TableHead className="whitespace-nowrap">Status</TableHead>
+            <TableHead className="whitespace-nowrap">Order Date</TableHead>
+            <TableHead className="whitespace-nowrap">Shipping Date</TableHead>
+            <TableHead className="whitespace-nowrap">Paid</TableHead>
+            <TableHead className="whitespace-nowrap">Balance</TableHead>
             <TableHead>Details</TableHead>
             <TableHead>Preview</TableHead>
           </TableRow>
         </TableHeader>
+
         <TableBody>
           {data.map((item: any, index: number) => {
             const difference = dayjs(item?.orderCancellationDate).diff(
               dayjs(),
               "days",
             );
+
             const isSelected = selectedOrders.some((o) => o.id === item.id);
+            const formattedDate = dayjs(item.formatted_date).format(
+              "DD-MM-YYYY",
+            );
+            const customerName =
+              item.customerStoreName || item.retailer_name || "-";
+            const orderId = item.order_id || "-";
+            const estimateNo = item.estimateNo || "-";
+            const invoiceNo = item.invoiceNo || "-";
+            const orderType = item.type === "Fresh" ? fresh : item.type || "-";
+            const orderStatus = item.orderStatus || "-";
+            const receivedDate = dayjs(item.received_date).format("DD-MM-YYYY");
+            const shippingDate = item.shipping_date
+              ? dayjs(item.shipping_date).format("DD-MM-YYYY")
+              : "-";
+            const currencySymbol = item.currencySymbol || "\u20ac";
+            const paidAmount = `${currencySymbol} ${parseFloat(
+              item.paid_amount || 0,
+            ).toFixed(0)}`;
+            const balanceAmount = `${currencySymbol} ${parseFloat(
+              item.balance_amount || 0,
+            ).toFixed(0)}`;
 
             return (
               <TableRow
-                key={index}
+                key={item.id ?? index}
                 className={cn(
-                  "text-nowrap text-sm sm:text-base",
+                  "whitespace-nowrap text-sm sm:text-base",
                   difference < 7
                     ? "bg-red-600 text-gray-200 hover:bg-red-500"
                     : difference < 14
@@ -169,43 +230,58 @@ const Orders = ({ data }: { data: any }) => {
                     onCheckedChange={() => toggleSelectOne(item.id, item.type)}
                   />
                 </TableCell>
-                <TableCell className="font-medium">
-                  {dayjs(item.formatted_date).format("DD-MM-YYYY")}
-                </TableCell>
-                <TableCell>{item.customerStoreName || item.retailer_name}</TableCell>
-                <TableCell>{item.order_id}</TableCell>
-                <TableCell>{item.estimateNo}</TableCell>
-                <TableCell>{item.invoiceNo}</TableCell>
-                <TableCell>
-                  {item.type === "Fresh" ? fresh : item.type}
-                </TableCell>
-                <TableCell>{item.orderStatus}</TableCell>
-                <TableCell>
-                  {dayjs(item.received_date).format("DD-MM-YYYY")}
-                </TableCell>
-                <TableCell>
-                  {formatDateTime(item.orderCancellationDate)}
-                </TableCell>
-                <TableCell>
-                  {item.currencySymbol
-                    ? `${item.currencySymbol} ${parseFloat(item.paid_amount).toFixed(0)}`
-                    : `€ ${parseFloat(item.paid_amount).toFixed(0)}`}
-                </TableCell>
-                <TableCell>
-                  {item.currencySymbol
-                    ? `${item.currencySymbol} ${parseFloat(item.balance).toFixed(0)}`
-                    : `€ ${parseFloat(item.balance).toFixed(0)}`}
-                </TableCell>
+
+                <TruncatedTableCell
+                  className="font-medium"
+                  title={formattedDate}
+                >
+                  {formattedDate}
+                </TruncatedTableCell>
+
+                <TruncatedTableCell title={getCellTitle(customerName)}>
+                  {customerName}
+                </TruncatedTableCell>
+
+                <TruncatedTableCell title={getCellTitle(orderId)}>
+                  {orderId}
+                </TruncatedTableCell>
+
+                <TruncatedTableCell title={getCellTitle(estimateNo)}>
+                  {estimateNo}
+                </TruncatedTableCell>
+
+                <TruncatedTableCell title={getCellTitle(invoiceNo)}>
+                  {invoiceNo}
+                </TruncatedTableCell>
+
+                <TruncatedTableCell title={getCellTitle(orderType)}>
+                  {orderType}
+                </TruncatedTableCell>
+
+                <TruncatedTableCell title={getCellTitle(orderStatus)}>
+                  {orderStatus}
+                </TruncatedTableCell>
+
+                <TruncatedTableCell title={receivedDate}>
+                  {receivedDate}
+                </TruncatedTableCell>
+
+                <TruncatedTableCell title={shippingDate}>
+                  {shippingDate}
+                </TruncatedTableCell>
+
+                <TruncatedTableCell title={paidAmount}>
+                  {paidAmount}
+                </TruncatedTableCell>
+
+                <TruncatedTableCell title={balanceAmount}>
+                  {balanceAmount}
+                </TruncatedTableCell>
 
                 <TableCell>
-                  <Details
-                    id={item.stockOrderId || item.favouriteOrderId}
-                    retailerId={item.retailer_id}
-                    type={item.type}
-                    paymentId={item.payment_id}
-                    orderId={item.id}
-                  />
+                  <Details order={item} type={item.type} orderId={item.id} />
                 </TableCell>
+
                 <TableCell>
                   <div className="flex gap-4">
                     <Preview
@@ -213,7 +289,6 @@ const Orders = ({ data }: { data: any }) => {
                       type={item.type}
                       order={item}
                     />
-                    {/* <Reject id={item.id} type="retailer" /> */}
                   </div>
                 </TableCell>
               </TableRow>
