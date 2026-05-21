@@ -45,6 +45,9 @@ import {
   parseCustomSizesQuantity,
   resolveProductCurrencyPrice,
 } from "../lib/orderPricing";
+import ProductColour from "../models/ProductColours";
+import { mail } from "../lib/Utils";
+import { generateOrderPdf } from "../pdf/generateOrderPdf";
 
 import StoreStyleProgress from "../models/StoreStyleProgress";  // ⬅ top me import add karna
 // import { updateOrderAndStyleStatus } from "../services/orderStatus.service";
@@ -128,6 +131,249 @@ function mapOrderStyleCustomization(style: any) {
       productCode: style.styleNo || "",
     },
   };
+}
+
+const ORDER_PDF_EMAIL_LOG_PREFIX = "[AutoOrderPdfEmail]";
+
+const normalizeFieldArray = (value: any) => {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : value.trim() ? [value] : [];
+    } catch {
+      return value.trim() ? [value] : [];
+    }
+  }
+
+  return [value];
+};
+
+const getCustomSizeText = (value: any) => {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value).trim();
+  }
+
+  if (value && typeof value === "object") {
+    return String(value.size ?? value.value ?? value.label ?? "").trim();
+  }
+
+  return "";
+};
+
+const getCustomSizeEntriesForEmail = (
+  customSize: any,
+  customSizesQuantity: any[],
+) => {
+  const customSizeEntries = normalizeFieldArray(customSize)
+    .map(getCustomSizeText)
+    .filter(Boolean);
+
+  return customSizeEntries.length
+    ? customSizeEntries
+    : customSizesQuantity.map(getCustomSizeText).filter(Boolean);
+};
+
+const buildOrderPdfFilename = (purchaseOrderNo?: string | null) => {
+  const baseName = sanitizeText(purchaseOrderNo) || "order-details";
+  const safeBaseName = baseName.replace(/[\\/:*?"<>|]+/g, "-");
+
+  return safeBaseName.toLowerCase().endsWith(".pdf")
+    ? safeBaseName
+    : `${safeBaseName}.pdf`;
+};
+
+const buildCreatedOrderEmailHtml = (purchaseOrderNo?: string | null) => `
+  <div style="font-family: Arial, sans-serif; font-size:14px; color:#000;">
+    <p>Hello,</p>
+    <p>Please find the order PDF attached with this email.</p>
+    ${
+      purchaseOrderNo
+        ? `<p><strong>Purchase Order:</strong> ${purchaseOrderNo}</p>`
+        : ""
+    }
+    <br/>
+    <p>Best Regards,<br/>Chic & Holland Team</p>
+    <br/>
+    <hr style="border:none;border-top:1px solid #ddd;" />
+    <p style="font-size:12px; color:#666;">
+      &copy; ${new Date().getFullYear()} Chic & Holland. All rights reserved.
+    </p>
+  </div>
+`;
+
+const createColorNameResolver = async () => {
+  const productColours = await ProductColour.find({});
+
+  return (hex?: string | null) => {
+    if (!hex || hex === "SAS") return "SAS";
+
+    return (
+      productColours.find(
+        (colour) => colour.hexcode.toLowerCase() === hex.toLowerCase(),
+      )?.name || hex
+    );
+  };
+};
+
+const buildRegularOrderPdfDetails = (
+  order: any,
+  getColorName: (hex?: string | null) => string,
+) =>
+  (order.styles ?? []).reduce((acc: any[], item: any) => {
+    const sizes = normalizeFieldArray(item.customSizesQuantity);
+    const customSizeEntries = getCustomSizeEntriesForEmail(
+      item.customSize,
+      sizes,
+    );
+    const isCustomSize =
+      String(item.size ?? "").trim().toLowerCase() === "custom";
+
+    const detail = {
+      quantity:
+        sizes.length === 0
+          ? Number(item.quantity || 0)
+          : sizes.reduce(
+              (sum: number, sizeItem: any) =>
+                sum + Number(sizeItem?.quantity || 0),
+              0,
+            ),
+      size:
+        isCustomSize && customSizeEntries.length
+          ? "Custom"
+          : sizes.length === 0
+            ? `${item.size ?? ""}/${item.quantity ?? ""}`.trim()
+            : sizes
+                .map((sizeItem: any) => `${sizeItem.size}/${sizeItem.quantity}`)
+                .join(", "),
+      customSize: customSizeEntries,
+      customSizesQuantity: sizes,
+      styleNo: item.styleNo,
+      barcode: item.barcode,
+      size_country: item.sizeCountry,
+      comments: normalizeFieldArray(item.comments).join(", "),
+      color: item.colorType,
+      image: item.convertedFirstProductImage,
+      meshColor:
+        item.mesh_color === "SAS" ? "SAS" : getColorName(item.mesh_color),
+      beadingColor:
+        item.beading_color === "SAS" ? "SAS" : getColorName(item.beading_color),
+      lining: item.lining,
+      liningColor:
+        item.lining_color === "SAS" ? "SAS" : getColorName(item.lining_color),
+      refImg: normalizeFieldArray(item.photoUrls),
+    };
+
+    const existing = acc.find(
+      (existingItem) =>
+        JSON.stringify({ ...existingItem, refImg: undefined }) ===
+        JSON.stringify({ ...detail, refImg: undefined }),
+    );
+
+    if (existing) {
+      existing.quantity += detail.quantity;
+      if (detail.customSize.length) {
+        existing.customSize = Array.from(
+          new Set([...(existing.customSize ?? []), ...detail.customSize]),
+        );
+      } else if (detail.size) {
+        existing.size = existing.size
+          ? `${existing.size}, ${detail.size}`
+          : detail.size;
+      }
+    } else {
+      acc.push(detail);
+    }
+
+    return acc;
+  }, []);
+
+async function sendCreatedOrderPdfEmail(orderId: number) {
+  const order = await Order.findOne({
+    where: { id: orderId, status: 0 },
+    relations: ["customer", "styles"],
+  });
+
+  if (!order) {
+    console.warn(`${ORDER_PDF_EMAIL_LOG_PREFIX} Order not found`, { orderId });
+    return;
+  }
+
+  if (order.publishStatus === OrderPublishStatus.Draft) {
+    console.info(`${ORDER_PDF_EMAIL_LOG_PREFIX} Skipped draft order`, {
+      orderId,
+      purchaseOrderNo: order.purchaeOrderNo,
+    });
+    return;
+  }
+
+  const recipient = sanitizeText(order.manufacturingEmailAddress);
+
+  if (!recipient) {
+    console.warn(`${ORDER_PDF_EMAIL_LOG_PREFIX} Missing recipient email`, {
+      orderId,
+      purchaseOrderNo: order.purchaeOrderNo,
+    });
+    return;
+  }
+
+  const [processedOrder] = await processOrders([order]);
+  const getColorName = await createColorNameResolver();
+  const details = buildRegularOrderPdfDetails(processedOrder, getColorName);
+
+  if (!details.length) {
+    console.warn(`${ORDER_PDF_EMAIL_LOG_PREFIX} No order styles to email`, {
+      orderId,
+      purchaseOrderNo: order.purchaeOrderNo,
+      recipient,
+    });
+    return;
+  }
+
+  const orderData = {
+    id: order.id,
+    customerId: order.customer?.id,
+    manufacturingEmailAddress: recipient,
+    orderCancellationDate: order.orderCancellationDate,
+    orderReceivedDate: order.orderReceivedDate,
+    orderType: order.orderType,
+    purchaseOrderNo: order.purchaeOrderNo,
+    details,
+  };
+
+  const pdfBuffer = await generateOrderPdf(orderData);
+
+  await mail({
+    to: recipient,
+    subject: orderData.purchaseOrderNo || "Order Confirmation",
+    html: buildCreatedOrderEmailHtml(orderData.purchaseOrderNo),
+    attachments: [
+      {
+        filename: buildOrderPdfFilename(orderData.purchaseOrderNo),
+        content: pdfBuffer,
+      },
+    ],
+  });
+
+  console.info(`${ORDER_PDF_EMAIL_LOG_PREFIX} Email sent`, {
+    orderId,
+    purchaseOrderNo: orderData.purchaseOrderNo,
+    recipient,
+  });
+}
+
+function queueCreatedOrderPdfEmail(orderId: number) {
+  setImmediate(() => {
+    sendCreatedOrderPdfEmail(orderId).catch((error) => {
+      console.error(`${ORDER_PDF_EMAIL_LOG_PREFIX} Failed`, {
+        orderId,
+        message: error instanceof Error ? error.message : String(error),
+        error,
+      });
+    });
+  });
 }
 
 function buildOrderAddress(
@@ -597,6 +843,10 @@ router.post(
               : "Order created with barcode successfully",
           purchaseOrderNo: order.purchaeOrderNo,
         });
+
+        if (order.publishStatus !== OrderPublishStatus.Draft) {
+          queueCreatedOrderPdfEmail(order.id);
+        }
       } catch (error) {
         console.error(error);
         res.status(500).json({
