@@ -28,9 +28,22 @@ const OrderDetailsSheet = ({
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
+      {/* <SheetTrigger asChild>
         <Button variant={"secondary"}>View More Details</Button>
-      </SheetTrigger>
+      </SheetTrigger> */}
+       <Link
+      href={{
+        pathname: `/admin-panel/orders/${orderDetails.id}/status`,
+        query: {
+          source:
+            orderDetails.orderSource ||
+            (orderDetails.retailer ? "retailer" : "regular"),
+          type: orderDetails.orderType || "",
+        },
+      }}
+    >
+      <Button>View Status Progress</Button>
+    </Link>
       <SheetContent className="min-w-[100%] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Order Details</SheetTitle>
