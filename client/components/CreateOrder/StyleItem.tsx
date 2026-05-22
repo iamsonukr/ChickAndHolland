@@ -551,22 +551,20 @@ const StyleItem = ({
             />
           )}
 
-          {/* ── Quantity (only when size is NOT custom) ── */}
-          {watchSize !== "Custom" && (
-            <FormField
-              control={form.control}
-              name={`styles[${index}].quantity` as any}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Quantity</FormLabel>
-                  <FormControl>
-                    <Input placeholder="100" type="number" min={0} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* ── Quantity ── */}
+          <FormField
+            control={form.control}
+            name={`styles[${index}].quantity` as any}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Quantity</FormLabel>
+                <FormControl>
+                  <Input placeholder="100" type="number" min={0} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           {selectedStyleCode && (
             <div className="md:col-span-3 hidden">
