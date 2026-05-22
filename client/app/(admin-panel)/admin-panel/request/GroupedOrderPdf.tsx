@@ -82,6 +82,16 @@ const getCommentsSummary = (variants: any[], fallback?: string) => {
   return uniqueComments.join("\n") || fallback || "-";
 };
 
+const getDynamicFontSize = (text: string): number => {
+  const length = text?.length ?? 0;
+  if (length <= 10) return 26;
+  if (length <= 15) return 24;
+  if (length <= 20) return 22;
+  if (length <= 28) return 20;
+  if (length <= 36) return 18;
+  return 7;
+};
+
 const getReferenceImages = (variants: any[]) =>
   Array.from(new Set(variants.flatMap((item) => normalizeImages(item.refImg))));
 
@@ -116,7 +126,12 @@ const GroupedOrderPdf = ({
                   {baseItem?.styleNo}
                   {/* {totalPages > 1 ? ` (${pageIndex + 1}/${totalPages})` : ""} */}
                 </Text>
-                <Text style={styles.bannerTextPurchaseOrderNo}>
+                <Text
+                  style={[
+                    styles.bannerTextPurchaseOrderNo,
+                    { fontSize: getDynamicFontSize(orderData.purchaseOrderNo) },
+                  ]}
+                >
                   {orderData.purchaseOrderNo}
                 </Text>
                 <View>
