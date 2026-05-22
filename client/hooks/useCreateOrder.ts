@@ -392,11 +392,14 @@ export function useCreateOrder({
 
   // ── HTTP hooks ──────────────────────────────────────────────────────────────
   const { loading, error, executeAsync } = useHttp("/orders");
+  const updateOrderUrl = editPassword
+    ? `/orders/check/${editOrder?.id ?? ""}`
+    : `/orders/${editOrder?.id ?? ""}`;
   const {
     loading: updateLoading,
     error: updateError,
     executeAsync: executeUpdateAsync,
-  } = useHttp(`/orders/${editOrder?.id ?? ""}`, "PATCH");
+  } = useHttp(updateOrderUrl, "PATCH");
   const { loading: previewLoading, executeAsync: executePreviewAsync } = useHttp("/orders/preview");
 
   // ── Colour helpers ──────────────────────────────────────────────────────────

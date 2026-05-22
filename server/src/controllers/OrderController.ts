@@ -554,9 +554,36 @@ function parseStylesFromFields(fields: Field) {
   return styles.filter(Boolean);
 }
 
+function parseStylesFromFieldsWithIndexes(fields: Field) {
+  const stylesMap: Record<number, any> = {};
+
+  for (const key in fields) {
+    if (!key.startsWith("styles[")) continue;
+
+    const matches = key.match(/\[(\d+)\]\.(.+)/);
+    if (!matches) continue;
+
+    const index = Number(matches[1]);
+    const field = matches[2];
+
+    if (!stylesMap[index]) stylesMap[index] = {};
+    stylesMap[index][field] = fields[key];
+  }
+
+  return Object.keys(stylesMap)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((index) => ({ _index: index, ...stylesMap[index] }));
+}
+
 function parseDateField(value: unknown) {
   const date = new Date(String(value ?? ""));
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parsePositiveInteger(value: unknown) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function parsePublishStatus(value: unknown) {
@@ -702,7 +729,7 @@ router.post(
         const orderReceivedDate = new Date(fields["orderReceivedDate"]);
         const orderCancellationDate = new Date(fields["orderCancellationDate"]);
         const address = fields["address"];
-        const customerId = Number(fields["customerId"]);
+        const customerId = parsePositiveInteger(fields["customerId"]);
         const publishStatus = parsePublishStatus(fields["publishStatus"]);
 
         const styles: any = [];
@@ -721,10 +748,23 @@ router.post(
           }
         }
 
-        const customer = await Customer.findOneOrFail({
+        if (!customerId) {
+          return res.status(400).json({
+            success: false,
+            message: "Customer is required",
+          });
+        }
+
+        const customer = await Customer.findOne({
           where: { id: customerId },
           relations: ["currency"],
         });
+        if (!customer) {
+          return res.status(404).json({
+            success: false,
+            message: "Customer not found",
+          });
+        }
         const pricingProductsMap = await fetchPricingProductsMap(styles);
         const resolvedPurchaseOrderNo = await resolveRegularPurchaseOrderNo(
           getCustomerStoreName(customer),
@@ -908,37 +948,61 @@ router.patch(
     busboy.on("finish", async () => {
       try {
         const files = await Promise.all(filePromises);
-        const orderId = Number(req.params.id);
+        const orderId = parsePositiveInteger(req.params.id);
+        if (!orderId) {
+          return res.status(400).json({
+            success: false,
+            message: "Valid order id is required",
+          });
+        }
 
         // ================================
         // LOAD EXISTING ORDER
         // ================================
         const order = await Order.findOneOrFail({
           where: { id: orderId },
-          relations: ["customer", "styles"],
+          relations: ["customer", "customer.currency", "styles"],
         });
 
-        const customerId = Number(fields["customerId"]);
-        const customer = await Customer.findOneOrFail({
-          where: { id: customerId },
-          relations: ["currency"],
-        });
+        const hasField = (fieldName: string) =>
+          Object.prototype.hasOwnProperty.call(fields, fieldName);
+
+        let customer = order.customer;
+        if (hasField("customerId")) {
+          const customerId = parsePositiveInteger(fields["customerId"]);
+          if (!customerId) {
+            return res.status(400).json({
+              success: false,
+              message: "Customer is required",
+            });
+          }
+
+          const updatedCustomer = await Customer.findOne({
+            where: { id: customerId },
+            relations: ["currency"],
+          });
+          if (!updatedCustomer) {
+            return res.status(404).json({
+              success: false,
+              message: "Customer not found",
+            });
+          }
+
+          customer = updatedCustomer;
+          order.customer = customer;
+        }
+
+        if (!customer) {
+          return res.status(400).json({
+            success: false,
+            message: "Customer is required",
+          });
+        }
 
         // ================================
         // PARSE STYLES FROM FIELDS
         // ================================
-        const styles: any = [];
-        for (const key in fields) {
-          if (key.startsWith("styles[")) {
-            const matches = key.match(/\[(\d+)\]\.(.+)/);
-            if (matches) {
-              const index = Number(matches[1]);
-              const field = matches[2];
-              if (!styles[index]) styles[index] = {};
-              styles[index][field] = fields[key];
-            }
-          }
-        }
+        const styles = parseStylesFromFieldsWithIndexes(fields);
 
         // ================================
         // UPDATE ORDER-LEVEL FIELDS (only if present in payload)
@@ -1003,28 +1067,22 @@ router.patch(
         // ================================
         const pricingProductsMap = await fetchPricingProductsMap(styles);
 
-        // IDs that came in from the client (existing styles being kept/updated)
-        const incomingStyleIds = styles
-          .filter((s: any) => s.id)
-          .map((s: any) => Number(s.id));
+        const deleteStyleIds = parseJsonArrayField(fields.deleteStyleIds)
+          .map((styleId) => Number(styleId))
+          .filter(Boolean);
 
-        // IDs currently in DB for this order
-        const existingStyleIds = order.styles.map((s) => s.id);
-
-        // Styles to delete: exist in DB but not in incoming payload
-        const styleIdsToDelete = existingStyleIds.filter(
-          (id) => !incomingStyleIds.includes(id)
-        );
-
-        if (styleIdsToDelete.length > 0) {
-          await Style.delete(styleIdsToDelete);
+        for (const styleId of deleteStyleIds) {
+          const style = order.styles?.find((item) => item.id === styleId);
+          if (style) {
+            await style.remove();
+          }
         }
 
         // ================================
         // PROCESS EACH STYLE (UPDATE or INSERT)
         // ================================
-        for (let i = 0; i < styles.length; i++) {
-          const s = styles[i];
+        for (const s of styles) {
+          const i = s._index;
           const isExisting = !!s.id;
 
           let styleEntity: Style;
@@ -1196,7 +1254,7 @@ router.patch(
       }
 
       if (hasField("customerId")) {
-        const customerId = Number(fields.customerId);
+        const customerId = parsePositiveInteger(fields.customerId);
         if (!customerId) {
           return res.status(400).json({
             success: false,
@@ -1559,7 +1617,7 @@ router.patch(
     }
 
     if (hasField("customerId")) {
-      const customerId = Number(fields.customerId);
+      const customerId = parsePositiveInteger(fields.customerId);
       if (!customerId) {
         return res.status(400).json({
           success: false,
@@ -2528,7 +2586,7 @@ router.post(
         const orderReceivedDate = new Date(fields["orderReceivedDate"]);
         const orderCancellationDate = new Date(fields["orderCancellationDate"]);
         const address = fields["address"];
-        const customerId = Number(fields["customerId"]);
+        const customerId = parsePositiveInteger(fields["customerId"]);
 
         // Parse styles from fields
         const styles: any = [];
@@ -2547,11 +2605,24 @@ router.post(
         }
 
         // Fetch the customer
-        const customer = await Customer.findOneOrFail({
+        if (!customerId) {
+          return res.status(400).json({
+            success: false,
+            message: "Customer is required",
+          });
+        }
+
+        const customer = await Customer.findOne({
           where: {
             id: customerId,
           },
         });
+        if (!customer) {
+          return res.status(404).json({
+            success: false,
+            message: "Customer not found",
+          });
+        }
 
         // Create a temporary order object (not saved to database)
         const orderPreview = {
