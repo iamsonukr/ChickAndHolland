@@ -51,13 +51,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const lining = [
   "No Lining",
-  "Fully Stitched Lined",
+  "Fully Stitched Lining",
   "Full Separate Lining",
   "Separate Short Lining",
   "Waist to Hips Stitched Lining",
   "Waist to floor Stitched Lining",
-  "Bust to Hips Stitched lining",
-  "Bust to Hips Seperate lining",
+  "Bust To Hips Stitched Lining",
+  "Bust To Hips Seperate Lining",
 ];
 
 const formSchema = z.object({

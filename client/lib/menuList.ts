@@ -95,12 +95,12 @@ export function getMenuList(pathname: string, userType: any): Group[] {
             submenus: [],
           },
           {
-  href: "/admin-panel/contactus",
-  label: "Enquiries",
-  active: pathname.includes("/contactus"),
-  icon: User,
-  submenus: [],
-},
+            href: "/admin-panel/contactus",
+            label: "Enquiries",
+            active: pathname.includes("/contactus"),
+            icon: User,
+            submenus: [],
+          },
 
 
         ],
@@ -180,12 +180,12 @@ export function getMenuList(pathname: string, userType: any): Group[] {
             submenus: [],
           },
           {
-  href: "/admin-panel/color-chart",
-  label: "Color Chart",
-  active: pathname.includes("/color-chart"),
-  icon: Paintbrush,
-  submenus: [],
-},
+            href: "/admin-panel/color-chart",
+            label: "Color Chart",
+            active: pathname.includes("/color-chart"),
+            icon: Paintbrush,
+            submenus: [],
+          },
 
         ],
       },
