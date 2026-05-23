@@ -1,0 +1,199 @@
+import {
+  Document,
+  Image,
+  Page,
+  StyleSheet,
+  Text,
+  View,
+} from "@react-pdf/renderer";
+import { build2dBarcodeUrl } from "@/lib/barcodes";
+import {
+  formatEuSizeSummary,
+  PDF_DISPLAY_SIZE_UNIT,
+} from "@/lib/sizeConversion";
+
+const LABELS_PER_PAGE = 4;
+
+const chunkItems = <T,>(items: T[], size: number) => {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
+};
+
+const formatMeshColor = (meshColor?: string) => {
+  if (!meshColor) return { prefix: "COLOR", name: "UNKNOWN" };
+
+  const match = meshColor.match(/^([A-Z0-9]+)\((.+)\)$/);
+
+  if (!match) {
+    return { prefix: "COLOR", name: meshColor };
+  }
+
+  return {
+    prefix: match[1],
+    name: match[2],
+  };
+};
+
+function LabelTile({ item }: { item: any }) {
+  const { prefix, name } = formatMeshColor(item.meshColor || item.color);
+  const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], {
+    alwaysShowCount: true,
+  })}`;
+  const barcodeUrl = build2dBarcodeUrl(item.barcode, 120);
+
+  return (
+    <View style={styles.label}>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>{item.styleNo}</Text>
+      </View>
+
+      <View style={styles.row}>
+        <View style={styles.box}>
+          <Text style={styles.sizeText}>{sizeText}</Text>
+        </View>
+
+        <View style={[styles.box, styles.colorBox]}>
+          <Text style={styles.colorPrefix}>{prefix}</Text>
+          <Text style={styles.colorName}>{name}</Text>
+        </View>
+      </View>
+
+      <View style={styles.poBlock}>
+        <Text style={styles.poText}>{item.purchaseOrderNo}</Text>
+      </View>
+
+      {barcodeUrl && (
+        <View style={styles.barcodeBlock}>
+          <Text style={styles.scanText}>2D SCAN</Text>
+          {/* eslint-disable-next-line jsx-a11y/alt-text */}
+          <Image src={barcodeUrl} style={styles.barcode} />
+        </View>
+      )}
+
+      <View style={styles.footer}>
+        <Text>Chic&Holland</Text>
+        <Text>
+          {new Date().toLocaleDateString("en-US", {
+            month: "short",
+            day: "2-digit",
+            year: "numeric",
+          })}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+export default function LabelSheetPdf({ items }: { items: any[] }) {
+  const pages = chunkItems(items, LABELS_PER_PAGE);
+
+  return (
+    <Document>
+      {pages.map((pageItems, pageIndex) => (
+        <Page key={pageIndex} size={[250, 260]} style={styles.page}>
+          {pageItems.map((item, itemIndex) => (
+            <LabelTile
+              key={`${item.barcode ?? itemIndex}-${itemIndex}`}
+              item={item}
+            />
+          ))}
+        </Page>
+      ))}
+    </Document>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: {
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 0,
+  },
+  label: {
+    width: 125,
+    height: 130,
+    border: "1px solid #000000",
+  },
+  header: {
+    paddingVertical: 3,
+    alignItems: "center",
+  },
+  headerText: {
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+  },
+  box: {
+    width: "48%",
+    minHeight: 30,
+    border: "1px solid #000000",
+    paddingVertical: 4,
+    paddingHorizontal: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sizeText: {
+    fontSize: 9,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  colorBox: {
+    justifyContent: "center",
+  },
+  colorPrefix: {
+    fontSize: 7,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 2,
+  },
+  colorName: {
+    fontSize: 6,
+    fontWeight: "normal",
+    textAlign: "center",
+    lineHeight: 1.2,
+  },
+  poBlock: {
+    marginHorizontal: 6,
+    marginBottom: 6,
+    marginTop: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+    alignItems: "center",
+  },
+  poText: {
+    fontSize: 8,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  barcodeBlock: {
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  scanText: {
+    fontSize: 6,
+    marginBottom: 2,
+    fontWeight: "bold",
+  },
+  barcode: {
+    width: 54,
+    height: 54,
+  },
+  footer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+    fontSize: 6,
+  },
+});

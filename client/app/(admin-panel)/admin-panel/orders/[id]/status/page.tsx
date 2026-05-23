@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, use, useCallback, useEffect, useRef, useState } from "react";
+import {
+  FormEvent,
+  use,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { API_URL } from "@/lib/constants";
@@ -10,6 +17,7 @@ import StatusLabelBox1 from "@/components/StoreLable";
 import StatusScannerButton from "./StatusScannerButton";
 
 import LabelPdf from "@/components/LabelPdf";
+import LabelSheetPdf from "@/components/LabelSheetPdf";
 import LabelPdf1 from "@/components/LabelBox";
 import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
 import { normalizeBarcodeValue } from "@/lib/barcodes";
@@ -32,8 +40,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const formatReportValue = (value: unknown) =>
-  String(value ?? "").trim() || "-";
+const formatReportValue = (value: unknown) => String(value ?? "").trim() || "-";
 
 const formatReportSize = (item: any) =>
   formatEuSizeText(item, { includeUnit: false });
@@ -64,96 +71,42 @@ const TYPE_DOT: Record<ReportType, string> = {
 };
 
 /* ─────────────────────────────────────────────
-   Merge multiple PDF blobs into one using
-   pdf-lib (no extra dep needed if you already
-   have it; otherwise install pdf-lib).
-   Falls back to sequential individual downloads
-   if pdf-lib isn't available.
+   Bulk label sheet PDF helpers
 ───────────────────────────────────────────── */
 async function mergeAndDownloadPdfs(items: NormalizedItem[], fileName: string) {
-  // Generate all blobs in parallel
-  const blobs = await Promise.all(
-    items.map(({ raw }) => pdf(<LabelPdf item={raw} />).toBlob())
-  );
+  const blob = await pdf(
+    <LabelSheetPdf items={items.map(({ raw }) => raw)} />,
+  ).toBlob();
+  const url = URL.createObjectURL(blob);
 
-  try {
-    // Try to merge with pdf-lib
-    // @ts-expect-error pdf-lib is optional; the fallback below handles missing installs.
-    const { PDFDocument } = await import("pdf-lib");
-    const merged = await PDFDocument.create();
-
-    for (const blob of blobs) {
-      const arrayBuffer = await blob.arrayBuffer();
-      const doc = await PDFDocument.load(arrayBuffer);
-      const pages = await merged.copyPages(doc, doc.getPageIndices());
-      pages.forEach((p: any) => merged.addPage(p));
-    }
-
-    const mergedBytes = await merged.save();
-    const mergedBlob = new Blob([mergedBytes], { type: "application/pdf" });
-    const url = URL.createObjectURL(mergedBlob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  } catch {
-    // pdf-lib not available — download individually
-    for (let i = 0; i < blobs.length; i++) {
-      const url = URL.createObjectURL(blobs[i]);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${items[i].raw.styleNo ?? i}-label.pdf`;
-      a.click();
-      await new Promise((r) => setTimeout(r, 300)); // stagger downloads
-      URL.revokeObjectURL(url);
-    }
-  }
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 async function mergeAndPrintPdfs(items: NormalizedItem[]) {
-  const blobs = await Promise.all(
-    items.map(({ raw }) => pdf(<LabelPdf item={raw} />).toBlob())
-  );
+  const blob = await pdf(
+    <LabelSheetPdf items={items.map(({ raw }) => raw)} />,
+  ).toBlob();
+  const url = URL.createObjectURL(blob);
 
-  try {
-    // @ts-expect-error pdf-lib is optional; the fallback below handles missing installs.
-    const { PDFDocument } = await import("pdf-lib");
-    const merged = await PDFDocument.create();
-
-    for (const blob of blobs) {
-      const arrayBuffer = await blob.arrayBuffer();
-      const doc = await PDFDocument.load(arrayBuffer);
-      const pages = await merged.copyPages(doc, doc.getPageIndices());
-      pages.forEach((p: any) => merged.addPage(p));
-    }
-
-    const mergedBytes = await merged.save();
-    const mergedBlob = new Blob([mergedBytes], { type: "application/pdf" });
-    const url = URL.createObjectURL(mergedBlob);
-
-    const printTab = window.open(url, "_blank");
-    if (!printTab) {
-      // Pop-up blocked — download instead
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "selected-labels.pdf";
-      a.click();
-    } else {
-      printTab.addEventListener("load", () => {
-        try { printTab.print(); } catch {}
-      });
-    }
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  } catch {
-    // Fallback: open each PDF in a new tab
-    for (const blob of blobs) {
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      await new Promise((r) => setTimeout(r, 400));
-    }
+  const printTab = window.open(url, "_blank");
+  if (!printTab) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "selected-labels.pdf";
+    a.click();
+  } else {
+    printTab.addEventListener("load", () => {
+      try {
+        printTab.print();
+      } catch {}
+    });
   }
+
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 /* ─────────────────────────────────────────────
@@ -187,17 +140,17 @@ function BulkActionBar({
   if (selected === 0) return null;
 
   return (
-    <div className="sticky top-0 z-30 mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white/95 backdrop-blur px-3 py-2 shadow-md">
+    <div className="sticky top-0 z-30 mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white/95 px-3 py-2 shadow-md backdrop-blur">
       {/* Count */}
       <span className="text-xs font-semibold text-gray-700">
         {selected} of {total} selected
       </span>
 
-      <div className="flex flex-wrap gap-1.5 ml-auto">
+      <div className="ml-auto flex flex-wrap gap-1.5">
         {/* Select / Deselect all */}
         <button
           onClick={allSelected ? onClearAll : onSelectAll}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
         >
           {allSelected ? "Deselect all" : "Select all"}
         </button>
@@ -205,7 +158,7 @@ function BulkActionBar({
         {/* Clear selection */}
         <button
           onClick={onClearAll}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50"
         >
           Clear
         </button>
@@ -214,7 +167,7 @@ function BulkActionBar({
         <button
           onClick={onDownloadAll}
           disabled={downloading || resetting}
-          className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-60 transition-colors"
+          className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-60"
         >
           {downloading ? "Generating…" : `Download PDF (${selected})`}
         </button>
@@ -223,7 +176,7 @@ function BulkActionBar({
         <button
           onClick={onPrintAll}
           disabled={printing || resetting}
-          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-60 transition-colors"
+          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-60"
         >
           {printing ? "Preparing…" : `Print (${selected})`}
         </button>
@@ -231,7 +184,7 @@ function BulkActionBar({
         <button
           onClick={onResetSelected}
           disabled={resetting}
-          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500 disabled:opacity-60 transition-colors"
+          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-60"
         >
           {resetting ? "Resetting..." : `Reset QR (${selected})`}
         </button>
@@ -251,16 +204,16 @@ function ProgressPopup({
   onClose: () => void;
 }) {
   const sorted = [...progress].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-2xl bg-white p-4 sm:p-5 shadow-2xl space-y-4 max-h-[80vh] overflow-y-auto"
+        className="max-h-[80vh] w-full max-w-sm space-y-4 overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -268,29 +221,34 @@ function ProgressPopup({
           <button
             onClick={onClose}
             aria-label="Close"
-            className="h-11 w-11 flex items-center justify-center rounded-full text-xl leading-none text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           >
             ×
           </button>
         </div>
-        <ol className="relative border-l border-gray-200 space-y-4 pl-4">
+        <ol className="relative space-y-4 border-l border-gray-200 pl-4">
           {sorted.map((p, i) => (
             <li key={p.id ?? i} className="relative">
               <span
-                className={`absolute -left-[19px] top-1 w-3 h-3 rounded-full border-2 border-white ${
-                  i === sorted.length - 1 ? "bg-green-500 animate-pulse" : "bg-gray-300"
+                className={`absolute -left-[19px] top-1 h-3 w-3 rounded-full border-2 border-white ${
+                  i === sorted.length - 1
+                    ? "animate-pulse bg-green-500"
+                    : "bg-gray-300"
                 }`}
               />
-              <p className="text-xs font-medium text-gray-800 break-words">
+              <p className="break-words text-xs font-medium text-gray-800">
                 {p.stage || p.status}
               </p>
               <p className="mt-0.5 text-[10px] text-gray-400">
                 {new Date(p.createdAt).toLocaleDateString("en-GB", {
-                  day: "2-digit", month: "short", year: "numeric",
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
                 })}
                 {" · "}
                 {new Date(p.createdAt).toLocaleTimeString("en-GB", {
-                  hour: "2-digit", minute: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })}
               </p>
             </li>
@@ -304,7 +262,13 @@ function ProgressPopup({
 /* ─────────────────────────────────────────────
    Single-item Print button
 ───────────────────────────────────────────── */
-function PrintPdfButton({ item, className }: { item: any; className?: string }) {
+function PrintPdfButton({
+  item,
+  className,
+}: {
+  item: any;
+  className?: string;
+}) {
   const [printing, setPrinting] = useState(false);
 
   const handlePrint = async () => {
@@ -322,7 +286,9 @@ function PrintPdfButton({ item, className }: { item: any; className?: string }) 
         return;
       }
       printTab.addEventListener("load", () => {
-        try { printTab.print(); } catch {}
+        try {
+          printTab.print();
+        } catch {}
       });
       setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
     } catch (err) {
@@ -333,7 +299,12 @@ function PrintPdfButton({ item, className }: { item: any; className?: string }) 
   };
 
   return (
-    <button type="button" className={className} disabled={printing} onClick={handlePrint}>
+    <button
+      type="button"
+      className={className}
+      disabled={printing}
+      onClick={handlePrint}
+    >
       {printing ? "Preparing…" : "Print"}
     </button>
   );
@@ -362,53 +333,68 @@ function ItemCard({
 
   const progress: any[] = raw.progress ?? [];
   const sorted = [...progress].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
   const currentStage = sorted[sorted.length - 1];
 
   return (
     <>
       {showProgress && (
-        <ProgressPopup progress={progress} onClose={() => setShowProgress(false)} />
+        <ProgressPopup
+          progress={progress}
+          onClose={() => setShowProgress(false)}
+        />
       )}
 
       <div
-  className={`rounded-lg border bg-white shadow-sm ring-1 transition-all p-2.5 sm:p-3 flex flex-col gap-2.5 relative
-    w-[240px] flex-shrink-0
-    ${isSelected ? `${TYPE_RING[type]} ring-2` : "ring-gray-200"}`}
->
+        className={`relative flex w-[240px] flex-shrink-0 flex-col gap-2.5 rounded-lg border bg-white p-2.5 shadow-sm ring-1 transition-all sm:p-3 ${isSelected ? `${TYPE_RING[type]} ring-2` : "ring-gray-200"}`}
+      >
         {/* ── Checkbox (top-left) ── */}
         <button
           onClick={onToggle}
           aria-label={isSelected ? "Deselect item" : "Select item"}
-          className={`absolute top-2 left-2 z-10 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors
-            ${isSelected
+          className={`absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded border-2 transition-colors ${
+            isSelected
               ? "border-blue-500 bg-blue-500"
               : "border-gray-300 bg-white hover:border-blue-400"
-            }`}
+          }`}
         >
           {isSelected && (
             <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none">
-              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d="M2 6l3 3 5-5"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           )}
         </button>
 
         {/* Header row: badge + size (offset for checkbox) */}
         <div className="flex items-center justify-between gap-2 pl-6">
-          <span className={`shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${TYPE_BADGE[type]}`}>
+          <span
+            className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${TYPE_BADGE[type]}`}
+          >
             {type}
           </span>
           <div className="min-w-0 text-right">
-            <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-none mb-0.5">Size</p>
-            <p className="text-xs font-medium break-words leading-none">{formatReportSize(raw)}</p>
+            <p className="mb-0.5 text-[9px] uppercase leading-none tracking-wide text-muted-foreground">
+              Size
+            </p>
+            <p className="break-words text-xs font-medium leading-none">
+              {formatReportSize(raw)}
+            </p>
           </div>
         </div>
 
         {/* Style No */}
         <div className="min-w-0">
-          <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-none mb-0.5">Style No</p>
-          <p className="font-bold text-xs sm:text-sm text-foreground break-words leading-tight">
+          <p className="mb-0.5 text-[9px] uppercase leading-none tracking-wide text-muted-foreground">
+            Style No
+          </p>
+          <p className="break-words text-xs font-bold leading-tight text-foreground sm:text-sm">
             {formatReportValue(raw.styleNo)}
           </p>
         </div>
@@ -416,23 +402,35 @@ function ItemCard({
         {/* Stage button */}
         <button
           onClick={() => progress.length > 0 && setShowProgress(true)}
-          className={`w-full flex items-center gap-1.5 rounded-md px-2 py-2 text-left transition-colors min-h-[36px] ${
-            progress.length > 0 ? "bg-gray-50 hover:bg-gray-100 cursor-pointer" : "bg-gray-50 cursor-default"
+          className={`flex min-h-[36px] w-full items-center gap-1.5 rounded-md px-2 py-2 text-left transition-colors ${
+            progress.length > 0
+              ? "cursor-pointer bg-gray-50 hover:bg-gray-100"
+              : "cursor-default bg-gray-50"
           }`}
         >
-          <span className={`shrink-0 h-2 w-2 rounded-full ${currentStage ? TYPE_DOT[type] : "bg-gray-300"}`} />
-          <span className="text-[11px] font-medium text-gray-700 flex-1 break-words">
-            {currentStage ? currentStage.stage || currentStage.status : "No stages"}
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full ${currentStage ? TYPE_DOT[type] : "bg-gray-300"}`}
+          />
+          <span className="flex-1 break-words text-[11px] font-medium text-gray-700">
+            {currentStage
+              ? currentStage.stage || currentStage.status
+              : "No stages"}
           </span>
           {progress.length > 1 && (
-            <span className="text-[9px] text-gray-400 shrink-0">{progress.length} ›</span>
+            <span className="shrink-0 text-[9px] text-gray-400">
+              {progress.length} ›
+            </span>
           )}
         </button>
 
         {/* Actions */}
-        <div className="mt-auto flex flex-col gap-1.5 pt-2 border-t">
+        <div className="mt-auto flex flex-col gap-1.5 border-t pt-2">
           <div className="w-full">
-            <StatusScannerButton barcode={barcode} orderType={type} onScanned={onRefresh} />
+            <StatusScannerButton
+              barcode={barcode}
+              orderType={type}
+              onScanned={onRefresh}
+            />
           </div>
           <div className="w-full">
             <LabelComponent item={raw} orderType={type} />
@@ -447,7 +445,7 @@ function ItemCard({
             />
             <PrintPdfButton
               item={raw}
-              className="min-h-[36px] w-full rounded-md bg-gray-700 px-2 py-2 text-[11px] font-medium text-white hover:bg-gray-600 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="min-h-[36px] w-full rounded-md bg-gray-700 px-2 py-2 text-[11px] font-medium text-white hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-70"
             />
           </div>
           <button
@@ -502,17 +500,28 @@ export default function OrderStatusPage({
         const res = await fetch(url);
         const json = await res.json();
         if (json.success) {
-          (json.data || []).forEach((item: any) => collected.push({ raw: item, type }));
+          (json.data || []).forEach((item: any) =>
+            collected.push({ raw: item, type }),
+          );
         }
       } catch {}
     };
 
     if (orderSource === "regular") {
-      await fetchAndCollect(`${API_URL}/orders/store-status/report/${id}`, "STORE");
+      await fetchAndCollect(
+        `${API_URL}/orders/store-status/report/${id}`,
+        "STORE",
+      );
     } else if (orderSource === "retailer" && orderType === "Stock") {
-      await fetchAndCollect(`${API_URL}/report/stock-status/report/${id}`, "STOCK");
+      await fetchAndCollect(
+        `${API_URL}/report/stock-status/report/${id}`,
+        "STOCK",
+      );
     } else if (orderSource === "retailer") {
-      await fetchAndCollect(`${API_URL}/report/status/report/${id}`, "RETAILER");
+      await fetchAndCollect(
+        `${API_URL}/report/status/report/${id}`,
+        "RETAILER",
+      );
     } else {
       await Promise.all([
         fetchAndCollect(`${API_URL}/report/status/report/${id}`, "RETAILER"),
@@ -525,7 +534,9 @@ export default function OrderStatusPage({
     setLoading(false);
   }, [id, orderSource, orderType]);
 
-  useEffect(() => { fetchReport(); }, [fetchReport]);
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
 
   if (loading) {
     return (
@@ -547,8 +558,11 @@ export default function OrderStatusPage({
   });
 
   // ── Helpers ──
-  const filteredKeys = filtered.map(({ raw, type }, i) => getItemKey(raw, type, i));
-  const allSelected = filteredKeys.length > 0 && filteredKeys.every((k) => selectedKeys.has(k));
+  const filteredKeys = filtered.map(({ raw, type }, i) =>
+    getItemKey(raw, type, i),
+  );
+  const allSelected =
+    filteredKeys.length > 0 && filteredKeys.every((k) => selectedKeys.has(k));
 
   const toggleItem = (key: string) => {
     setSelectedKeys((prev) => {
@@ -561,7 +575,9 @@ export default function OrderStatusPage({
   const selectAll = () => setSelectedKeys(new Set(filteredKeys));
   const clearAll = () => setSelectedKeys(new Set());
 
-  const selectedItems = filtered.filter((_, i) => selectedKeys.has(filteredKeys[i]));
+  const selectedItems = filtered.filter((_, i) =>
+    selectedKeys.has(filteredKeys[i]),
+  );
 
   const handleBulkDownload = async () => {
     if (!selectedItems.length) return;
@@ -641,13 +657,15 @@ export default function OrderStatusPage({
 
   return (
     <div className="px-3 py-4 sm:p-4 md:p-6">
-      <div className="rounded-lg bg-white shadow p-3 sm:p-4 md:p-6">
-        <div className="mb-4 sm:mb-5 flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="rounded-lg bg-white p-3 shadow sm:p-4 md:p-6">
+        <div className="mb-4 flex flex-col gap-3 sm:mb-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <GoBackButton className="mb-2" label="Back to Orders" />
-              <h1 className="text-xl sm:text-2xl font-bold break-words">Order Status Report</h1>
-              <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+              <h1 className="break-words text-xl font-bold sm:text-2xl">
+                Order Status Report
+              </h1>
+              <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
                 Total items: {filtered.length}
               </p>
             </div>
@@ -657,7 +675,7 @@ export default function OrderStatusPage({
                 placeholder="Search by style no or size..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full sm:w-72 md:w-80 rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:w-72 md:w-80"
               />
             </div>
           </div>
@@ -669,7 +687,10 @@ export default function OrderStatusPage({
             const count = filtered.filter((i) => i.type === t).length;
             if (!count) return null;
             return (
-              <span key={t} className={`px-2.5 py-1 rounded-full border font-medium ${TYPE_BADGE[t]}`}>
+              <span
+                key={t}
+                className={`rounded-full border px-2.5 py-1 font-medium ${TYPE_BADGE[t]}`}
+              >
                 {t}: {count}
               </span>
             );

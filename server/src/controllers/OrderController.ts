@@ -666,6 +666,50 @@ function applyPricingToStyle(
   }
 }
 
+const getPositivePieceCount = (quantity: unknown) => {
+  const numericQuantity = Math.trunc(Number(quantity));
+  return Number.isFinite(numericQuantity) && numericQuantity > 0
+    ? numericQuantity
+    : 0;
+};
+
+const buildRegularOrderStylePieces = (styleInput: any) => {
+  const customSizeRows = parseCustomSizesQuantity(
+    styleInput?.customSizesQuantity,
+  ).filter((item) => getPositivePieceCount(item?.quantity) > 0);
+
+  if (customSizeRows.length > 0) {
+    return customSizeRows.flatMap((sizeRow) => {
+      const pieceCount = getPositivePieceCount(sizeRow.quantity);
+      const size = getCustomSizeText(sizeRow) || styleInput?.size;
+
+      return Array.from({ length: pieceCount }, () => ({
+        ...styleInput,
+        size,
+        quantity: 1,
+        customSize: JSON.stringify([]),
+        customSizesQuantity: JSON.stringify([]),
+      }));
+    });
+  }
+
+  const quantity = getPositivePieceCount(styleInput?.quantity);
+
+  if (quantity <= 1) {
+    return [
+      {
+        ...styleInput,
+        quantity: quantity || Number(styleInput?.quantity || 0),
+      },
+    ];
+  }
+
+  return Array.from({ length: quantity }, () => ({
+    ...styleInput,
+    quantity: 1,
+  }));
+};
+
 
 router.post(
   "/",
@@ -813,8 +857,16 @@ router.post(
         // ================================
         // PROCESS ALL STYLES (EACH GETS UNIQUE BARCODE)
         // ================================
-        for (let i = 0; i < styles.length; i++) {
-          const s = styles[i];
+        const stylesForBarcodeRows = styles.flatMap((style: any, index: number) =>
+          buildRegularOrderStylePieces(style).map((piece) => ({
+            ...piece,
+            _sourceIndex: index,
+          })),
+        );
+        const uploadedStyleImageUrlsBySourceIndex = new Map<number, string[]>();
+
+        for (let i = 0; i < stylesForBarcodeRows.length; i++) {
+          const s = stylesForBarcodeRows[i];
 
           const newStyle = new Style();
           newStyle.order = order;
@@ -847,29 +899,41 @@ router.post(
           await newStyle.save();
 
           // STEP 3 — UPLOAD IMAGES
-          const styleImages = files.filter(
-            (file) => file.fieldname === `styles[${i}].modifiedPhotoImage`
-          );
+          const sourceIndex = Number(s._sourceIndex ?? i);
+          let uploadedPhotoUrls =
+            uploadedStyleImageUrlsBySourceIndex.get(sourceIndex);
 
-          const imageUrls = await Promise.all(
-            styleImages.map(async (file) => {
-              if (!file) return null;
+          if (!uploadedPhotoUrls) {
+            const styleImages = files.filter(
+              (file) =>
+                file.fieldname ===
+                `styles[${sourceIndex}].modifiedPhotoImage`
+            );
 
-              const fileName = `orders/${orderID}/${Math.random()
-                .toString(36)
-                .substring(7)}.jpeg`;
+            const imageUrls = await Promise.all(
+              styleImages.map(async (file) => {
+                if (!file) return null;
 
-              const compressedImage = await sharp(file.buffer)
-                .jpeg()
-                .toBuffer();
+                const fileName = `orders/${orderID}/${Math.random()
+                  .toString(36)
+                  .substring(7)}.jpeg`;
 
-              return await storeFileInS3(compressedImage, fileName);
-            })
-          );
+                const compressedImage = await sharp(file.buffer)
+                  .jpeg()
+                  .toBuffer();
 
-          newStyle.photoUrls = JSON.stringify(
-            imageUrls.filter((x) => x).map((x) => x?.fileName)
-          );
+                return await storeFileInS3(compressedImage, fileName);
+              })
+            );
+
+            uploadedPhotoUrls = imageUrls
+              .filter((x) => x)
+              .map((x) => x?.fileName)
+              .filter((fileName): fileName is string => Boolean(fileName));
+            uploadedStyleImageUrlsBySourceIndex.set(sourceIndex, uploadedPhotoUrls);
+          }
+
+          newStyle.photoUrls = JSON.stringify(uploadedPhotoUrls);
 
           // STEP 4 — SAVE FINAL STYLE
           await newStyle.save();
