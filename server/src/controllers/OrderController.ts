@@ -2050,6 +2050,14 @@ router.post(
           });
         }
 
+        const stylesForPreview = styles.flatMap((style: any, index: number) =>
+          buildRegularOrderStylePieces(style).map((piece) => ({
+            ...piece,
+            _sourceIndex: index,
+          })),
+        );
+        const previewPhotoUrlsBySourceIndex = new Map<number, Promise<string[]>>();
+
         // Create a temporary order object (not saved to database)
         const orderPreview = {
           id: -1, // Temporary ID for preview
@@ -2065,30 +2073,42 @@ router.post(
           },
           isPreview: true,
           styles: await Promise.all(
-            styles.map(async (style: any, index: number) => {
-              // Process style images
-              const styleImages = files.filter(
-                (file) =>
-                  file.fieldname === `styles[${index}].modifiedPhotoImage`
-              );
+            stylesForPreview.map(async (style: any, index: number) => {
+              const sourceIndex = Number(style._sourceIndex ?? index);
+              let photoUrlsPromise =
+                previewPhotoUrlsBySourceIndex.get(sourceIndex);
 
-              const imageUrls = await Promise.all(
-                styleImages.map(async (file) => {
-                  if (!file) return null;
+              if (!photoUrlsPromise) {
+                const styleImages = files.filter(
+                  (file) =>
+                    file.fieldname ===
+                    `styles[${sourceIndex}].modifiedPhotoImage`
+                );
 
-                  // Generate a temporary preview URL or base64 image
-                  const compressedImage = await sharp(file.buffer)
-                    .jpeg()
-                    .toBuffer();
+                photoUrlsPromise = Promise.all(
+                  styleImages.map(async (file) => {
+                    if (!file) return null;
 
-                  // Return base64 for preview
-                  return {
-                    fileName: `data:image/jpeg;base64,${compressedImage.toString(
-                      "base64"
-                    )}`,
-                  };
-                })
-              );
+                    const compressedImage = await sharp(file.buffer)
+                      .jpeg()
+                      .toBuffer();
+
+                    return {
+                      fileName: `data:image/jpeg;base64,${compressedImage.toString(
+                        "base64"
+                      )}`,
+                    };
+                  })
+                ).then((imageUrls) =>
+                  imageUrls
+                    .filter((url) => url !== null)
+                    .map((url) => url?.fileName)
+                    .filter((url): url is string => Boolean(url)),
+                );
+                previewPhotoUrlsBySourceIndex.set(sourceIndex, photoUrlsPromise);
+              }
+
+              const photoUrls = await photoUrlsPromise;
 
               return {
                 colorType: style.colorType,
@@ -2116,9 +2136,7 @@ router.post(
                   typeof style.customSizesQuantity === "string"
                     ? JSON.parse(style.customSizesQuantity)
                     : style.customSizesQuantity,
-                photoUrls: imageUrls
-                  .filter((url) => url !== null)
-                  .map((url) => url?.fileName),
+                photoUrls,
                 color: style.colorType || "",
                 meshColor: style.mesh || "SAS",
                 beadingColor: style.beading || "SAS",

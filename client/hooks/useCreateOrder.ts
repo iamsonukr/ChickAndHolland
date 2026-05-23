@@ -83,6 +83,13 @@ const getCustomSizeEntries = (customSize: any, customSizesQuantity?: any) => {
     .filter(Boolean);
 };
 
+const getPositivePieceCount = (quantity: unknown) => {
+  const numericQuantity = Math.trunc(Number(quantity));
+  return Number.isFinite(numericQuantity) && numericQuantity > 0
+    ? numericQuantity
+    : 0;
+};
+
 const toDateValue = (value: any) => {
   if (!value) return undefined;
   const date = new Date(value);
@@ -250,7 +257,50 @@ export function buildPreviewData(
     return isSameAsSample ? `SAS(${resolvedValue})` : resolvedValue;
   };
 
-  const loop = responseOrders[0].styles.map((currentItem: any, index: number) => {
+  const buildPreviewStylePieces = (style: any) => {
+    const customSizeRows = parseJsonArray(style.customSizesQuantity)
+      .map((sizeRow: any) => ({
+        ...sizeRow,
+        quantity: getPositivePieceCount(sizeRow?.quantity),
+      }))
+      .filter((sizeRow: any) => sizeRow.quantity > 0);
+
+    if (customSizeRows.length > 0) {
+      return customSizeRows.flatMap((sizeRow: any) => {
+        const size = getCustomSizeText(sizeRow) || style.size;
+
+        return Array.from({ length: sizeRow.quantity }, () => ({
+          ...style,
+          size,
+          quantity: 1,
+          customSize: [],
+          customSizesQuantity: [],
+        }));
+      });
+    }
+
+    const quantity = getPositivePieceCount(style.quantity);
+
+    if (quantity <= 1) {
+      return [
+        {
+          ...style,
+          quantity: quantity || Number(style.quantity || 0),
+        },
+      ];
+    }
+
+    return Array.from({ length: quantity }, () => ({
+      ...style,
+      quantity: 1,
+    }));
+  };
+
+  const previewStyles = (responseOrders[0]?.styles ?? []).flatMap(
+    buildPreviewStylePieces,
+  );
+
+  const loop = previewStyles.map((currentItem: any, index: number) => {
     const customSizesQuantity = parseJsonArray(currentItem.customSizesQuantity);
     const customSizeEntries = getCustomSizeEntries(
       currentItem.customSize,
