@@ -32,21 +32,29 @@ export const getCategories = async () => {
     const response = await fetch(`${API_URL}/categories`, {
       cache: "no-store",
     });
+
     const data = await response.json();
 
     console.log("Categories received at data.ts ", data);
 
     // 🧠 Handle different API shapes gracefully
+    let categories = [];
+
     if (Array.isArray(data)) {
-      return data;
+      categories = data;
     } else if (Array.isArray(data.categories)) {
-      return data.categories;
+      categories = data.categories;
     } else if (Array.isArray(data.data)) {
-      return data.data;
+      categories = data.data;
     } else {
       console.warn("⚠️ Unexpected /categories API response:", data);
       return [];
     }
+
+    // ❌ Remove CUSTOM category
+    return categories.filter(
+      (category) => category.name?.toUpperCase() !== "CUSTOM"
+    );
   } catch (error) {
     console.error("❌ Error fetching categories:", error);
     return [];

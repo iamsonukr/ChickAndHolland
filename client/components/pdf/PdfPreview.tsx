@@ -2,6 +2,8 @@
 
 import { pdf } from "@react-pdf/renderer";
 import {
+  ChevronDown,
+  ChevronUp,
   Download,
   ExternalLink,
   FileWarning,
@@ -9,13 +11,7 @@ import {
   RotateCw,
 } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   PDFDocumentLoadingTask,
   PDFDocumentProxy,
@@ -59,13 +55,31 @@ const PDF_MIME_TYPE = "application/pdf";
 const AUTO_FALLBACK_DELAY_MS = 12000;
 const MAX_CANVAS_PIXELS = 8_000_000;
 
+type PdfSearchMatch = {
+  id: string;
+  pageNumber: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  text: string;
+};
+
+type PdfSearchStatus = "idle" | "searching" | "ready" | "none" | "error";
+
+const normalizePdfSearchQuery = (value: string) =>
+  value.replace(/\s+/g, " ").trim().toLowerCase();
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
 function getPdfHostFlags() {
   const ua = navigator.userAgent || "";
   const isAndroid = /Android/i.test(ua);
   const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
   const isGoogleApp = /\bGSA\/|GoogleApp/i.test(ua);
   const isAndroidWebView =
-    isAndroid && (/\bwv\b|; wv\)|Version\/[\d.]+ Chrome\//i.test(ua));
+    isAndroid && /\bwv\b|; wv\)|Version\/[\d.]+ Chrome\//i.test(ua);
 
   return { isAndroidWebView, isGoogleApp, isMobile };
 }
@@ -134,6 +148,61 @@ function getExternalHref(...hrefs: Array<string | null | undefined>) {
   return hrefs.find((href) => Boolean(href && href.trim())) || "";
 }
 
+function getTextItemSearchMatch({
+  item,
+  itemIndex,
+  matchIndex,
+  pageNumber,
+  query,
+  viewport,
+}: {
+  item: any;
+  itemIndex: number;
+  matchIndex: number;
+  pageNumber: number;
+  query: string;
+  viewport: any;
+}): PdfSearchMatch | null {
+  const text = typeof item?.str === "string" ? item.str : "";
+  const transform = Array.isArray(item?.transform) ? item.transform : null;
+
+  if (!text || !transform) return null;
+
+  const normalizedText = normalizePdfSearchQuery(text);
+  const textLength = Math.max(normalizedText.length, text.length, 1);
+  const [baselineLeft, baselineTop] = viewport.convertToViewportPoint(
+    transform[4] || 0,
+    transform[5] || 0,
+  );
+  const viewportScale = Number(viewport.scale) || 1;
+  const textWidth = Math.max(
+    Math.abs(Number(item.width) || 0) * viewportScale,
+    20,
+  );
+  const textHeight = Math.max(
+    Math.abs(Number(item.height) || 0) * viewportScale,
+    10,
+  );
+  const matchLeftOffset =
+    (textWidth * clamp(matchIndex, 0, textLength - 1)) / textLength;
+  const matchWidth = Math.max(
+    (textWidth * clamp(query.length, 1, textLength)) / textLength,
+    18,
+  );
+  const left = clamp(baselineLeft + matchLeftOffset - 2, 0, viewport.width);
+  const top = clamp(baselineTop - textHeight - 3, 0, viewport.height);
+
+  return {
+    id: `${pageNumber}-${itemIndex}-${matchIndex}`,
+    pageNumber,
+    left,
+    top,
+    width: clamp(matchWidth + 4, 18, Math.max(viewport.width - left, 18)),
+    height: Math.min(textHeight + 6, 36),
+    text,
+  };
+}
+
 interface PdfDownloadButtonProps {
   sourceDocument: ReactElement;
   fileName: string;
@@ -159,7 +228,9 @@ export function PdfDownloadButton({
     try {
       const blob = await pdf(sourceDocument as any).toBlob();
       const pdfBlob =
-        blob.type === PDF_MIME_TYPE ? blob : new Blob([blob], { type: PDF_MIME_TYPE });
+        blob.type === PDF_MIME_TYPE
+          ? blob
+          : new Blob([blob], { type: PDF_MIME_TYPE });
       await shareOrDownloadBlob(pdfBlob, fileName);
     } catch (error) {
       console.error("Failed to generate PDF download:", error);
@@ -186,6 +257,10 @@ interface PdfPageCanvasProps {
   pageNumber: number;
   containerWidth: number;
   onRendered: (pageNumber: number) => void;
+  estimatedPageSize?: { width: number; height: number };
+  highlights?: PdfSearchMatch[];
+  activeSearchMatchId?: string;
+  onPageElement: (pageNumber: number, element: HTMLDivElement | null) => void;
 }
 
 function PdfPageCanvas({
@@ -193,11 +268,23 @@ function PdfPageCanvas({
   pageNumber,
   containerWidth,
   onRendered,
+  estimatedPageSize,
+  highlights = [],
+  activeSearchMatchId,
+  onPageElement,
 }: PdfPageCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [pageSize, setPageSize] = useState<{ width: number; height: number }>();
   const [shouldRender, setShouldRender] = useState(pageNumber <= 2);
   const [renderFailed, setRenderFailed] = useState(false);
+  const displayedPageSize = pageSize ?? estimatedPageSize;
+  const setPageElement = useCallback(
+    (element: HTMLDivElement | null) => {
+      onPageElement(pageNumber, element);
+    },
+    [onPageElement, pageNumber],
+  );
 
   useEffect(() => {
     if (shouldRender) return;
@@ -261,6 +348,7 @@ function PdfPageCanvas({
         canvas.style.width = `${cssWidth}px`;
         canvas.style.height = "auto";
         canvas.style.aspectRatio = `${cssWidth} / ${cssHeight}`;
+        setPageSize({ width: cssWidth, height: cssHeight });
 
         context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
         context.clearRect(0, 0, viewport.width, viewport.height);
@@ -294,11 +382,44 @@ function PdfPageCanvas({
           Page {pageNumber} could not be rendered.
         </div>
       ) : (
-        <canvas
-          ref={canvasRef}
-          aria-label={`PDF page ${pageNumber}`}
-          className="block h-auto max-w-full rounded bg-white shadow-sm"
-        />
+        <div
+          ref={setPageElement}
+          className="relative inline-block max-w-full"
+          style={
+            displayedPageSize
+              ? {
+                  width: displayedPageSize.width,
+                  minHeight: displayedPageSize.height,
+                }
+              : undefined
+          }
+        >
+          <canvas
+            ref={canvasRef}
+            aria-label={`PDF page ${pageNumber}`}
+            className="block h-auto max-w-full rounded bg-white shadow-sm"
+          />
+          {highlights.map((highlight) => {
+            const isActive = highlight.id === activeSearchMatchId;
+
+            return (
+              <div
+                key={highlight.id}
+                className={cn(
+                  "pointer-events-none absolute rounded-sm border border-amber-500 bg-amber-300/35 transition-all",
+                  isActive &&
+                    "z-10 border-amber-600 bg-amber-300/65 ring-2 ring-amber-500",
+                )}
+                style={{
+                  left: highlight.left,
+                  top: highlight.top,
+                  width: highlight.width,
+                  height: highlight.height,
+                }}
+              />
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -316,6 +437,8 @@ interface PdfPreviewProps {
   showActions?: boolean;
   autoExternalFallback?: boolean;
   extraActions?: ReactNode;
+  searchQuery?: string;
+  searchRequestKey?: number;
 }
 
 export default function PdfPreview({
@@ -330,10 +453,13 @@ export default function PdfPreview({
   showActions = true,
   autoExternalFallback = true,
   extraActions,
+  searchQuery = "",
+  searchRequestKey = 0,
 }: PdfPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fallbackAttemptedRef = useRef(false);
   const renderedPagesRef = useRef(new Set<number>());
+  const pageElementsRef = useRef(new Map<number, HTMLDivElement>());
   const [containerWidth, setContainerWidth] = useState(0);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [pageCount, setPageCount] = useState(0);
@@ -344,17 +470,31 @@ export default function PdfPreview({
   const [resolvedUrl, setResolvedUrl] = useState("");
   const [renderedPageCount, setRenderedPageCount] = useState(0);
   const [fallbackTriggered, setFallbackTriggered] = useState(false);
+  const [searchStatus, setSearchStatus] = useState<PdfSearchStatus>("idle");
+  const [searchMatches, setSearchMatches] = useState<PdfSearchMatch[]>([]);
+  const [searchPageSizes, setSearchPageSizes] = useState<
+    Record<number, { width: number; height: number }>
+  >({});
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
 
   const resolvedFileName = useMemo(() => getPdfFileName(fileName), [fileName]);
   const externalHref = getExternalHref(openUrl, resolvedUrl, url, downloadUrl);
   const downloadHref = getExternalHref(downloadUrl, resolvedUrl, url, openUrl);
+  const normalizedSearchQuery = useMemo(
+    () => normalizePdfSearchQuery(searchQuery),
+    [searchQuery],
+  );
+  const activeSearchMatch = searchMatches[activeSearchIndex] ?? null;
+  const activeSearchMatchId = activeSearchMatch?.id;
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const updateWidth = () => {
-      setContainerWidth(Math.max(container.clientWidth - 16, 240));
+      setContainerWidth(
+        Math.max(Math.min(container.clientWidth - 16, 1100), 240),
+      );
     };
 
     updateWidth();
@@ -376,6 +516,10 @@ export default function PdfPreview({
       setPageCount(0);
       setResolvedBlob(null);
       setResolvedUrl("");
+      setSearchStatus("idle");
+      setSearchMatches([]);
+      setSearchPageSizes({});
+      setActiveSearchIndex(0);
       return;
     }
 
@@ -392,6 +536,10 @@ export default function PdfPreview({
       setResolvedUrl("");
       setRenderedPageCount(0);
       setFallbackTriggered(false);
+      setSearchStatus("idle");
+      setSearchMatches([]);
+      setSearchPageSizes({});
+      setActiveSearchIndex(0);
       fallbackAttemptedRef.current = false;
       renderedPagesRef.current = new Set<number>();
 
@@ -407,7 +555,8 @@ export default function PdfPreview({
         const pdfjs = await loadPdfJs();
 
         if (file || sourceDocument) {
-          const blobSource = file ?? (await pdf(sourceDocument as any).toBlob());
+          const blobSource =
+            file ?? (await pdf(sourceDocument as any).toBlob());
           const pdfBlob =
             blobSource.type === PDF_MIME_TYPE
               ? blobSource
@@ -450,7 +599,7 @@ export default function PdfPreview({
         console.info("[PdfPreview] load:ready", {
           fileName: resolvedFileName,
           pages: loadedDocument.numPages,
-          url: resolvedUrl || url || null,
+          url: url || objectUrlToRevoke || null,
         });
       } catch (error) {
         if (cancelled) return;
@@ -482,6 +631,207 @@ export default function PdfPreview({
     setRenderedPageCount(renderedPagesRef.current.size);
   }, []);
 
+  const handlePageElement = useCallback(
+    (pageNumber: number, element: HTMLDivElement | null) => {
+      if (element) {
+        pageElementsRef.current.set(pageNumber, element);
+      } else {
+        pageElementsRef.current.delete(pageNumber);
+      }
+    },
+    [],
+  );
+
+  const scrollToSearchMatch = useCallback((match: PdfSearchMatch) => {
+    const container = containerRef.current;
+    const pageElement = pageElementsRef.current.get(match.pageNumber);
+
+    if (!container || !pageElement) return;
+
+    const overlayOffset = Math.min(container.clientHeight * 0.22, 160);
+    const targetTop = Math.max(
+      pageElement.offsetTop + match.top - overlayOffset,
+      0,
+    );
+
+    container.scrollTo({ top: targetTop, behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    if (!activeSearchMatch || searchStatus !== "ready") return;
+
+    const frame = window.requestAnimationFrame(() => {
+      scrollToSearchMatch(activeSearchMatch);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeSearchMatch, scrollToSearchMatch, searchStatus]);
+
+  useEffect(() => {
+    if (
+      !pdfDocument ||
+      status !== "ready" ||
+      !normalizedSearchQuery ||
+      searchRequestKey <= 0 ||
+      !containerWidth
+    ) {
+      setSearchStatus("idle");
+      setSearchMatches([]);
+      setSearchPageSizes({});
+      setActiveSearchIndex(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    const findMatches = async () => {
+      setSearchStatus("searching");
+      setSearchMatches([]);
+      setActiveSearchIndex(0);
+
+      try {
+        const nextMatches: PdfSearchMatch[] = [];
+        const nextPageSizes: Record<number, { width: number; height: number }> =
+          {};
+
+        for (
+          let pageNumber = 1;
+          pageNumber <= pdfDocument.numPages;
+          pageNumber += 1
+        ) {
+          if (cancelled) return;
+
+          const page = await pdfDocument.getPage(pageNumber);
+          const baseViewport = page.getViewport({ scale: 1 });
+          const cssScale = Math.max(containerWidth / baseViewport.width, 0.1);
+          const viewport = page.getViewport({ scale: cssScale });
+          const content = await page.getTextContent();
+          const textItems = content.items.filter(
+            (item: any) => typeof item?.str === "string" && item.str.trim(),
+          );
+          let pageText = "";
+          const textSegments = textItems.reduce<
+            Array<{ item: any; itemIndex: number; start: number; end: number }>
+          >((segments, item: any, itemIndex) => {
+            const text = normalizePdfSearchQuery(item.str);
+            if (!text) return segments;
+
+            const spacer = pageText ? " " : "";
+            const start = pageText.length + spacer.length;
+            pageText = `${pageText}${spacer}${text}`;
+            segments.push({
+              item,
+              itemIndex,
+              start,
+              end: start + text.length,
+            });
+            return segments;
+          }, []);
+          const pageMatchStart = pageText.indexOf(normalizedSearchQuery);
+
+          nextPageSizes[pageNumber] = {
+            width: Math.max(1, Math.floor(viewport.width)),
+            height: Math.max(1, Math.floor(viewport.height)),
+          };
+
+          if (pageMatchStart < 0) {
+            page.cleanup();
+            continue;
+          }
+
+          let matchedTextItem = false;
+
+          textItems.forEach((item: any, itemIndex) => {
+            const itemText = normalizePdfSearchQuery(item.str);
+            let matchIndex = itemText.indexOf(normalizedSearchQuery);
+
+            while (matchIndex >= 0) {
+              const match = getTextItemSearchMatch({
+                item,
+                itemIndex,
+                matchIndex,
+                pageNumber,
+                query: normalizedSearchQuery,
+                viewport,
+              });
+
+              if (match) {
+                nextMatches.push(match);
+                matchedTextItem = true;
+              }
+
+              matchIndex = itemText.indexOf(
+                normalizedSearchQuery,
+                matchIndex + normalizedSearchQuery.length,
+              );
+            }
+          });
+
+          if (!matchedTextItem) {
+            const firstMatchingSegment =
+              textSegments.find((segment) => segment.end >= pageMatchStart) ??
+              textSegments[0];
+            const fallbackMatch = firstMatchingSegment
+              ? getTextItemSearchMatch({
+                  item: firstMatchingSegment.item,
+                  itemIndex: firstMatchingSegment.itemIndex,
+                  matchIndex: Math.max(
+                    pageMatchStart - firstMatchingSegment.start,
+                    0,
+                  ),
+                  pageNumber,
+                  query: normalizedSearchQuery,
+                  viewport,
+                })
+              : null;
+
+            if (fallbackMatch) nextMatches.push(fallbackMatch);
+          }
+
+          page.cleanup();
+        }
+
+        if (cancelled) return;
+
+        setSearchPageSizes(nextPageSizes);
+        setSearchMatches(nextMatches);
+        setActiveSearchIndex(0);
+        setSearchStatus(nextMatches.length ? "ready" : "none");
+      } catch (error) {
+        if (cancelled) return;
+        console.error("PDF search failed:", error);
+        setSearchStatus("error");
+        setSearchMatches([]);
+      }
+    };
+
+    void findMatches();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    containerWidth,
+    normalizedSearchQuery,
+    pdfDocument,
+    searchRequestKey,
+    status,
+  ]);
+
+  const goToPreviousSearchMatch = useCallback(() => {
+    setActiveSearchIndex((currentIndex) =>
+      searchMatches.length
+        ? (currentIndex - 1 + searchMatches.length) % searchMatches.length
+        : 0,
+    );
+  }, [searchMatches.length]);
+
+  const goToNextSearchMatch = useCallback(() => {
+    setActiveSearchIndex((currentIndex) =>
+      searchMatches.length ? (currentIndex + 1) % searchMatches.length : 0,
+    );
+  }, [searchMatches.length]);
+
   const downloadPdf = useCallback(async () => {
     if (resolvedBlob) {
       await shareOrDownloadBlob(resolvedBlob, resolvedFileName);
@@ -504,7 +854,8 @@ export default function PdfPreview({
     if (renderedPageCount > 0) return;
     if (fallbackAttemptedRef.current) return;
     if (!isRestrictedMobilePdfHost()) return;
-    if (status !== "loading" && status !== "ready" && status !== "error") return;
+    if (status !== "loading" && status !== "ready" && status !== "error")
+      return;
 
     const delay = status === "error" ? 0 : AUTO_FALLBACK_DELAY_MS;
     const timeout = window.setTimeout(() => {
@@ -530,6 +881,22 @@ export default function PdfPreview({
     resolvedFileName,
     status,
   ]);
+
+  const shouldShowSearchOverlay =
+    searchRequestKey > 0 &&
+    Boolean(normalizedSearchQuery) &&
+    searchStatus !== "idle";
+  const searchOverlayLabel =
+    searchStatus === "searching"
+      ? "Searching..."
+      : searchStatus === "ready" && searchMatches.length
+        ? `${activeSearchIndex + 1} / ${searchMatches.length}`
+        : searchStatus === "none"
+          ? "No matches"
+          : searchStatus === "error"
+            ? "Search failed"
+            : "";
+  const canNavigateSearchMatches = searchMatches.length > 1;
 
   return (
     <div className={cn("overflow-hidden rounded border bg-gray-50", className)}>
@@ -569,50 +936,88 @@ export default function PdfPreview({
         </div>
       )}
 
-      <div
-        ref={containerRef}
-        className={cn("overflow-y-auto bg-gray-100", heightClassName)}
-      >
-        {status === "loading" && (
-          <div className="flex h-full min-h-[280px] items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading PDF...
-          </div>
-        )}
-
-        {status === "error" && (
-          <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-3 px-4 text-center">
-            <FileWarning className="h-8 w-8 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium">Preview could not be rendered.</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Use Open or Download to continue with the PDF externally.
-              </p>
+      <div className="relative">
+        {shouldShowSearchOverlay && (
+          <div className="pointer-events-none absolute right-3 top-3 z-20">
+            <div className="pointer-events-auto inline-flex items-center gap-1 rounded-full border bg-white/95 px-2 py-1 text-xs font-medium text-foreground shadow-lg backdrop-blur">
+              <button
+                type="button"
+                title="Previous match"
+                onClick={goToPreviousSearchMatch}
+                disabled={!canNavigateSearchMatches}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </button>
+              <span className="min-w-[72px] text-center">
+                {searchOverlayLabel}
+              </span>
+              <button
+                type="button"
+                title="Next match"
+                onClick={goToNextSearchMatch}
+                disabled={!canNavigateSearchMatches}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="inline-flex min-h-[38px] items-center gap-1.5 rounded border bg-white px-3 py-2 text-xs font-medium"
-            >
-              <RotateCw className="h-3.5 w-3.5" />
-              Retry page
-            </button>
           </div>
         )}
 
-        {status === "ready" && pdfDocument && (
-          <div className="mx-auto w-full max-w-[1100px] py-2">
-            {Array.from({ length: pageCount }, (_, index) => (
-              <PdfPageCanvas
-                key={index + 1}
-                pdfDocument={pdfDocument}
-                pageNumber={index + 1}
-                containerWidth={containerWidth}
-                onRendered={handlePageRendered}
-              />
-            ))}
-          </div>
-        )}
+        <div
+          ref={containerRef}
+          className={cn("overflow-y-auto bg-gray-100", heightClassName)}
+        >
+          {status === "loading" && (
+            <div className="flex h-full min-h-[280px] items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading PDF...
+            </div>
+          )}
+
+          {status === "error" && (
+            <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-3 px-4 text-center">
+              <FileWarning className="h-8 w-8 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">
+                  Preview could not be rendered.
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Use Open or Download to continue with the PDF externally.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex min-h-[38px] items-center gap-1.5 rounded border bg-white px-3 py-2 text-xs font-medium"
+              >
+                <RotateCw className="h-3.5 w-3.5" />
+                Retry page
+              </button>
+            </div>
+          )}
+
+          {status === "ready" && pdfDocument && (
+            <div className="mx-auto w-full max-w-[1100px] py-2">
+              {Array.from({ length: pageCount }, (_, index) => (
+                <PdfPageCanvas
+                  key={index + 1}
+                  pdfDocument={pdfDocument}
+                  pageNumber={index + 1}
+                  containerWidth={containerWidth}
+                  onRendered={handlePageRendered}
+                  estimatedPageSize={searchPageSizes[index + 1]}
+                  highlights={searchMatches.filter(
+                    (match) => match.pageNumber === index + 1,
+                  )}
+                  activeSearchMatchId={activeSearchMatchId}
+                  onPageElement={handlePageElement}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
