@@ -89,6 +89,18 @@ const hasDirtyFields = (dirtyFields: any): boolean => {
   );
 };
 
+const getFirstFormErrorMessage = (errors: any): string | undefined => {
+  if (!errors || typeof errors !== "object") return undefined;
+  if (typeof errors.message === "string") return errors.message;
+
+  for (const value of Object.values(errors)) {
+    const message = getFirstFormErrorMessage(value);
+    if (message) return message;
+  }
+
+  return undefined;
+};
+
 const normalizeAcceptedStockDetails = (details: any[] = []) => {
   const first = details[0];
   if (!first) return null;
@@ -746,7 +758,9 @@ const StockAcceptedForm = ({
 
   const onErrors = (errors: any) => {
     toast.error(isEditMode ? "Failed to update order" : "Failed to add order", {
-      description: "Make sure all fields are filled correctly",
+      description:
+        getFirstFormErrorMessage(errors) ??
+        "Make sure all fields are filled correctly",
     });
   };
 

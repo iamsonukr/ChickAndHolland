@@ -559,7 +559,13 @@ const StyleItem = ({
               <FormItem>
                 <FormLabel>Quantity</FormLabel>
                 <FormControl>
-                  <Input placeholder="100" type="number" min={0} {...field} />
+                  <Input
+                    placeholder="100"
+                    type="number"
+                    min={1}
+                    step={1}
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

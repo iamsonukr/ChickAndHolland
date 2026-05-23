@@ -107,6 +107,18 @@ const hasDirtyFields = (dirtyFields: any): boolean => {
   );
 };
 
+const getFirstFormErrorMessage = (errors: any): string | undefined => {
+  if (!errors || typeof errors !== "object") return undefined;
+  if (typeof errors.message === "string") return errors.message;
+
+  for (const value of Object.values(errors)) {
+    const message = getFirstFormErrorMessage(value);
+    if (message) return message;
+  }
+
+  return undefined;
+};
+
 const groupAcceptedFreshRows = (rows: any[] = []) => {
   const groupedRows = new Map<string, any>();
 
@@ -693,9 +705,9 @@ const FreshOrdersAcceptedForm = ({
       onSuccess?.();
       setPreviewData(null);
       router.refresh();
-    } catch (err) {
+    } catch (err: any) {
       toast.error("Failed to add order", {
-        description: error?.message ?? "Something went wrong",
+        description: err?.message ?? error?.message ?? "Something went wrong",
       });
     }
   };
@@ -744,7 +756,9 @@ const FreshOrdersAcceptedForm = ({
 
   const onErrors = (errors: any) => {
     toast.error(isEditMode ? "Failed to update order" : "Failed to add order", {
-      description: "Make sure all fields are filled correctly",
+      description:
+        getFirstFormErrorMessage(errors) ??
+        "Make sure all fields are filled correctly",
     });
   };
   const formChange = () => {
@@ -1397,7 +1411,7 @@ const FreshOrdersAcceptedForm = ({
                     type={"button"}
                     className={"flex-1"}
                     variant={"outline"}
-                    onClick={form.handleSubmit(onPreviewSubmit)}
+                    onClick={form.handleSubmit(onPreviewSubmit, onErrors)}
                   >
                     {" "}
                     Preview Order{" "}
@@ -1602,6 +1616,8 @@ const FreshOrdersAcceptedForm = ({
                       <label className="text-black text-sm">Quantity</label>
                       <input
                         type="number"
+                        min={1}
+                        step={1}
                         className="border w-full p-2 rounded text-black bg-white"
                         value={style.quantity}
                         onChange={(e) => {

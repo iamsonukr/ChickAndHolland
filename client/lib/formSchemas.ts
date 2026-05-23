@@ -61,6 +61,32 @@ const customSizeEntrySchema = z.union([
   }),
 ]);
 
+const quantityValidationMessage = "Quantity must be greater than 0";
+const quantityRequiredMessage = "Quantity is required";
+
+const isPositiveWholeQuantity = (value: unknown) => {
+  const textValue = String(value ?? "").trim();
+  if (!textValue) return false;
+
+  const quantity = Number(textValue);
+  return Number.isInteger(quantity) && quantity > 0;
+};
+
+const positiveQuantityStringSchema = z.preprocess(
+  (value) =>
+    value === null || value === undefined ? value : String(value),
+  z
+    .string({
+      required_error: quantityRequiredMessage,
+      invalid_type_error: quantityRequiredMessage,
+    })
+    .trim()
+    .min(1, { message: quantityRequiredMessage })
+    .refine(isPositiveWholeQuantity, {
+      message: quantityValidationMessage,
+    }),
+);
+
 const disposableEmailDomains = [
   "10minutemail.com",
   "dispostable.com",
@@ -563,14 +589,12 @@ export const createOrderFormSchema = z.object({
           liningColor: z.string().optional(),
 
           addLining: z.boolean().optional(),
-          quantity: z.string().optional(),
+          quantity: positiveQuantityStringSchema,
 
           customSizesQuantity: z
             .object({
               size: z.string().optional(),
-              quantity: z.string().min(1, {
-                message: "Quantity is required",
-              }),
+              quantity: positiveQuantityStringSchema,
             })
             .array()
             .optional(),
@@ -664,17 +688,11 @@ export const createFreshOrderFormSchema = z.object({
           customSize: z
             .array(customSizeEntrySchema)
             .optional(),
-          quantity: z
-            .string({
-              coerce: true,
-            })
-            .optional(),
+          quantity: positiveQuantityStringSchema,
           customSizesQuantity: z
             .object({
               size: z.string().optional(),
-              quantity: z.string().min(1, {
-                message: "Quantity is required",
-              }),
+              quantity: positiveQuantityStringSchema,
             })
             .array()
             .optional(),
@@ -741,7 +759,7 @@ export const createStockOrderFormSchema = z.object({
 
   size: z.string().min(1, { message: "Size is required" }),
   advance: z.string({ coerce: true }),
-  quantity: z.string({ coerce: true }).optional(),
+  quantity: positiveQuantityStringSchema,
 });
 
 export type CreateStockOrderForm = z.infer<typeof createStockOrderFormSchema>;
@@ -790,14 +808,7 @@ export const placeRetailerOrderFormSchema = z.object({
     message: "Stock is required",
   }),
   address: z.string().optional(),
-  quantity: z
-    .string()
-    .min(1, {
-      message: "Quantity is required",
-    })
-    .refine((value) => {
-      return !isNaN(Number(value));
-    }, "Quantity should be a number"),
+  quantity: positiveQuantityStringSchema,
   color: z.string().min(1, {
     message: "Color is required",
   }),

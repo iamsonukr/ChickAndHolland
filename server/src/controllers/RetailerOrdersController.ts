@@ -200,6 +200,24 @@ const parseIncomingDate = (value: unknown) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const ORDER_QUANTITY_VALIDATION_MESSAGE =
+  "Quantity must be greater than 0 for every product/style/size";
+
+const parsePositiveOrderQuantity = (value: unknown) => {
+  const textValue = String(value ?? "").trim();
+  if (!textValue) return null;
+
+  const quantity = Number(textValue);
+  return Number.isInteger(quantity) && quantity > 0 ? quantity : null;
+};
+
+const sendQuantityValidationError = (res: Response) =>
+  res.status(400).json({
+    success: false,
+    message: ORDER_QUANTITY_VALIDATION_MESSAGE,
+    msg: ORDER_QUANTITY_VALIDATION_MESSAGE,
+  });
+
 async function upsertRetailerOrderAdvance(
   order: RetailerOrder,
   amount: unknown,
@@ -222,7 +240,12 @@ async function upsertRetailerOrderAdvance(
 
 async function syncFreshOrderStyleRows(order: RetailerOrder, style: any) {
   const normalizedSize = normalizeAcceptedStyleSize(style?.size, style?.size_country);
-  const desiredQuantity = Math.max(Number(style?.quantity) || 0, 0);
+  const desiredQuantity = parsePositiveOrderQuantity(style?.quantity);
+
+  if (!desiredQuantity) {
+    throw new Error(ORDER_QUANTITY_VALIDATION_MESSAGE);
+  }
+
   const incomingBarcodes = Array.isArray(style?.barcodes)
     ? style.barcodes.map((barcode: any) => String(barcode)).filter(Boolean)
     : [];
@@ -269,7 +292,12 @@ async function syncFreshOrderStyleRows(order: RetailerOrder, style: any) {
 
 async function syncStockOrderStyleRows(order: RetailerOrder, data: any) {
   const normalizedSize = normalizeAcceptedStyleSize(data?.size, data?.size_country);
-  const desiredQuantity = Math.max(Number(data?.quantity) || 0, 0);
+  const desiredQuantity = parsePositiveOrderQuantity(data?.quantity);
+
+  if (!desiredQuantity) {
+    throw new Error(ORDER_QUANTITY_VALIDATION_MESSAGE);
+  }
+
   const existingRows = await StockOrderStyles.find({
     where: { retailerOrder: { id: order.id } },
   });
@@ -328,6 +356,41 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { favourateData } = req.body;
     const { retailerId } = req.params;
+    const favouriteItems = Array.isArray(favourateData)
+      ? favourateData
+      : favourateData
+        ? [favourateData]
+        : [];
+
+    if (
+      favouriteItems.length === 0 ||
+      favouriteItems.some(
+        (item: any) => parsePositiveOrderQuantity(item?.quantity) === null,
+      )
+    ) {
+      return sendQuantityValidationError(res);
+    }
+
+    const favouriteIds = favouriteItems
+      .map((item: any) => Number(item?.id))
+      .filter(Boolean);
+
+    if (favouriteIds.length !== favouriteItems.length) {
+      return sendQuantityValidationError(res);
+    }
+
+    const favouritesInDb = await Favourites.find({
+      where: { id: In(favouriteIds) },
+    });
+
+    if (
+      favouritesInDb.length !== favouriteIds.length ||
+      favouritesInDb.some(
+        (favorite) => parsePositiveOrderQuantity(favorite.quantity) === null,
+      )
+    ) {
+      return sendQuantityValidationError(res);
+    }
 
     if (favourateData && favourateData.length > 0) {
       for (let index = 0; index < favourateData.length; index++) {
@@ -428,6 +491,11 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { retailerId, stockId, quantity } = req.params;
     const { currencyId } = req.body;
+    const requestedQty = parsePositiveOrderQuantity(quantity);
+
+    if (!requestedQty) {
+      return sendQuantityValidationError(res);
+    }
 
     const retailer = await Retailer.findOne({
       where: {
@@ -450,6 +518,14 @@ router.post(
       });
       return;
     }
+
+    if (Number(stock.quantity) < requestedQty) {
+      return res.status(400).json({
+        success: false,
+        message: "Entered quantity exceeds available stock",
+      });
+    }
+
     const stock_orders = new RetailerStockOrders();
     stock_orders.admin_us_size = convertToUSSize(
       stock.size,
@@ -458,7 +534,7 @@ router.post(
 
 
     stock_orders.retailer = retailer;
-    stock_orders.quantity = Number(quantity);
+    stock_orders.quantity = requestedQty;
     stock_orders.stock = stock;
     stock_orders.mesh_color = stock.mesh_color;
     stock_orders.beading_color = stock.beading_color;
@@ -1200,6 +1276,11 @@ router.post(
   "/admin/accepted/stock-order",
   asyncHandler(async (req: Request, res: Response) => {
     const { data } = req.body;
+    const requestedQty = parsePositiveOrderQuantity(data?.quantity);
+
+    if (!data || !requestedQty) {
+      return sendQuantityValidationError(res);
+    }
 
     // ------------------------
     // 🔥 1. Find stock
@@ -1212,7 +1293,7 @@ router.post(
       return res.json({ success: false, msg: "Stock not found" });
     }
 
-    if (stock.quantity < data.quantity) {
+    if (stock.quantity < requestedQty) {
       return res.json({
         success: false,
         message: "No Stock Available",
@@ -1273,7 +1354,7 @@ router.post(
     order.Size = data.size;
     order.StyleNo = data.styleNo;
     order.size_country = data.size_country;
-    order.quantity = data.quantity;
+    order.quantity = String(requestedQty);
 
     order.invoiceNo = data.invoice;
     order.estimateNo = data.estimate;
@@ -1282,7 +1363,7 @@ router.post(
     stock_retailer.is_approved = 1;
 
     // Reduce stock quantity
-    stock.quantity = stock.quantity - data.quantity;
+    stock.quantity = stock.quantity - requestedQty;
 
     await order.save();
 
@@ -1296,7 +1377,7 @@ router.post(
       quantity: number;
       barcode: string;
     }> = [];
-    const pieceCount = Math.max(Number(data.quantity) || 0, 0);
+    const pieceCount = requestedQty;
 
     for (let pieceIndex = 0; pieceIndex < pieceCount; pieceIndex++) {
       const stockStyle = new StockOrderStyles();
@@ -1402,10 +1483,17 @@ router.post(
               ...style,
               normalizedSize: normalizedSize.displaySize,
               normalizedSizeCountry: normalizedSize.sizeCountry,
-              normalizedQuantity: Number(style?.quantity) || 0,
+              normalizedQuantity: parsePositiveOrderQuantity(style?.quantity),
             };
           })
         : [];
+
+      if (
+        normalizedStyles.length === 0 ||
+        normalizedStyles.some((style: any) => !style.normalizedQuantity)
+      ) {
+        return sendQuantityValidationError(res);
+      }
 
       // -------------------------------
       // 🔹 Update favourites (price + customization)
@@ -1420,7 +1508,7 @@ router.post(
         if (fav) {
           fav.product_price = Number(favItem.amount) || fav.product_price || 0;
           fav.customization_price = Number(favItem.customization_p) || 0;
-          fav.quantity = favItem.normalizedQuantity || fav.quantity;
+          fav.quantity = favItem.normalizedQuantity;
           fav.customization =
             typeof favItem.comments === "string"
               ? favItem.comments
@@ -1542,7 +1630,7 @@ router.post(
       if (normalizedStyles.length > 0) {
         for (let i = 0; i < normalizedStyles.length; i++) {
           const style = normalizedStyles[i];
-          const pieceCount = Math.max(Number(style.normalizedQuantity) || 0, 0);
+          const pieceCount = style.normalizedQuantity;
 
           for (let pieceIndex = 0; pieceIndex < pieceCount; pieceIndex++) {
             const ros = new RetailerOrderStyles();
@@ -2514,8 +2602,14 @@ router.patch(
       }
 
       if (hasDirtyPath(changedFields, "quantity")) {
-        order.quantity = String(payload.quantity ?? "");
-        await syncStockOrderStyleRows(order, payload);
+        const quantity = parsePositiveOrderQuantity(payload.quantity);
+
+        if (!quantity) {
+          return sendQuantityValidationError(res);
+        }
+
+        order.quantity = String(quantity);
+        await syncStockOrderStyleRows(order, { ...payload, quantity });
       }
     } else if (Array.isArray(payload.styles) && stylesChanged) {
       const normalizedStyles = payload.styles.map((style: any) => ({
@@ -2524,7 +2618,15 @@ router.patch(
           style?.size,
           style?.size_country,
         ),
+        normalizedQuantity: parsePositiveOrderQuantity(style?.quantity),
       }));
+
+      if (
+        normalizedStyles.length === 0 ||
+        normalizedStyles.some((style: any) => !style.normalizedQuantity)
+      ) {
+        return sendQuantityValidationError(res);
+      }
 
       for (let index = 0; index < normalizedStyles.length; index++) {
         const style = normalizedStyles[index];
@@ -2541,7 +2643,7 @@ router.patch(
             if (styleDirty.customization_p) {
               fav.customization_price = Number(style.customization_p) || 0;
             }
-            if (styleDirty.quantity) fav.quantity = Number(style.quantity) || fav.quantity;
+            if (styleDirty.quantity) fav.quantity = style.normalizedQuantity;
             if (styleDirty.comments) fav.customization = String(style.comments ?? "");
             if (styleDirty.customColor) fav.color = String(style.customColor ?? "");
             if (styleDirty.meshColor) fav.mesh_color = String(style.meshColor ?? "");
@@ -2565,7 +2667,10 @@ router.patch(
           styleDirty.size ||
           styleDirty.styleNo
         ) {
-          await syncFreshOrderStyleRows(order, style);
+          await syncFreshOrderStyleRows(order, {
+            ...style,
+            quantity: style.normalizedQuantity,
+          });
         }
       }
 
@@ -2577,7 +2682,7 @@ router.patch(
         .map((style: any) => style.normalizedSize.sizeCountry)
         .join(",");
       order.quantity = normalizedStyles
-        .map((style: any) => String(style.quantity ?? ""))
+        .map((style: any) => String(style.normalizedQuantity))
         .join(",");
     }
 

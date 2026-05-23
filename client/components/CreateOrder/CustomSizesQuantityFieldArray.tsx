@@ -46,7 +46,8 @@ const CustomSizesQuantityFieldArray = ({
                     {...quantityField}
                     placeholder="100"
                     type="number"
-                    min={0}
+                    min={1}
+                    step={1}
                     aria-label={`Quantity for size ${field.size}`}
                   />
                 </FormControl>

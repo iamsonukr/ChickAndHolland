@@ -586,6 +586,47 @@ function parsePositiveInteger(value: unknown) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+const ORDER_QUANTITY_VALIDATION_MESSAGE =
+  "Quantity must be greater than 0 for every style/size";
+
+function parsePositiveOrderQuantity(value: unknown) {
+  const textValue = String(value ?? "").trim();
+  if (!textValue) return null;
+
+  const parsed = Number(textValue);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function getRegularOrderQuantityValidationError(styles: any[]) {
+  if (!Array.isArray(styles) || styles.length === 0) {
+    return "At least one style is required";
+  }
+
+  for (const style of styles) {
+    const customSizesQuantity = parseCustomSizesQuantity(
+      style?.customSizesQuantity,
+    );
+
+    if (customSizesQuantity.length > 0) {
+      const hasInvalidCustomSizeQuantity = customSizesQuantity.some(
+        (item) => parsePositiveOrderQuantity(item?.quantity) === null,
+      );
+
+      if (hasInvalidCustomSizeQuantity) {
+        return ORDER_QUANTITY_VALIDATION_MESSAGE;
+      }
+
+      continue;
+    }
+
+    if (parsePositiveOrderQuantity(style?.quantity) === null) {
+      return ORDER_QUANTITY_VALIDATION_MESSAGE;
+    }
+  }
+
+  return null;
+}
+
 function parsePublishStatus(value: unknown) {
   return value === OrderPublishStatus.Draft
     ? OrderPublishStatus.Draft
@@ -667,16 +708,13 @@ function applyPricingToStyle(
 }
 
 const getPositivePieceCount = (quantity: unknown) => {
-  const numericQuantity = Math.trunc(Number(quantity));
-  return Number.isFinite(numericQuantity) && numericQuantity > 0
-    ? numericQuantity
-    : 0;
+  return parsePositiveOrderQuantity(quantity) ?? 0;
 };
 
 const buildRegularOrderStylePieces = (styleInput: any) => {
   const customSizeRows = parseCustomSizesQuantity(
     styleInput?.customSizesQuantity,
-  ).filter((item) => getPositivePieceCount(item?.quantity) > 0);
+  );
 
   if (customSizeRows.length > 0) {
     return customSizeRows.flatMap((sizeRow) => {
@@ -695,11 +733,15 @@ const buildRegularOrderStylePieces = (styleInput: any) => {
 
   const quantity = getPositivePieceCount(styleInput?.quantity);
 
-  if (quantity <= 1) {
+  if (quantity <= 0) {
+    return [];
+  }
+
+  if (quantity === 1) {
     return [
       {
         ...styleInput,
-        quantity: quantity || Number(styleInput?.quantity || 0),
+        quantity,
       },
     ];
   }
@@ -814,6 +856,16 @@ router.post(
           getCustomerStoreName(customer),
           purchaseOrderNo,
         );
+
+        const quantityValidationError =
+          getRegularOrderQuantityValidationError(styles);
+
+        if (quantityValidationError) {
+          return res.status(400).json({
+            success: false,
+            message: quantityValidationError,
+          });
+        }
 
         // CREATE ORDER
         const order = new Order();
@@ -1067,6 +1119,30 @@ router.patch(
         // PARSE STYLES FROM FIELDS
         // ================================
         const styles = parseStylesFromFieldsWithIndexes(fields);
+        const deleteStyleIds = parseJsonArrayField(fields.deleteStyleIds)
+          .map((styleId) => Number(styleId))
+          .filter(Boolean);
+        const incomingStylesById = new Map(
+          styles
+            .filter((style) => style.id)
+            .map((style) => [Number(style.id), style]),
+        );
+        const effectiveStylesForValidation = [
+          ...(order.styles ?? [])
+            .filter((style) => !deleteStyleIds.includes(style.id))
+            .map((style) => incomingStylesById.get(style.id) ?? style),
+          ...styles.filter((style) => !style.id),
+        ];
+        const quantityValidationError = getRegularOrderQuantityValidationError(
+          effectiveStylesForValidation,
+        );
+
+        if (quantityValidationError) {
+          return res.status(400).json({
+            success: false,
+            message: quantityValidationError,
+          });
+        }
 
         // ================================
         // UPDATE ORDER-LEVEL FIELDS (only if present in payload)
@@ -1130,10 +1206,6 @@ router.patch(
         // RECONCILE STYLES
         // ================================
         const pricingProductsMap = await fetchPricingProductsMap(styles);
-
-        const deleteStyleIds = parseJsonArrayField(fields.deleteStyleIds)
-          .map((styleId) => Number(styleId))
-          .filter(Boolean);
 
         for (const styleId of deleteStyleIds) {
           const style = order.styles?.find((item) => item.id === styleId);
@@ -1254,12 +1326,24 @@ router.patch(
 
     const order = await Order.findOne({
       where: { id: Number(id), status: 0 },
+      relations: ["styles"],
     });
 
     if (!order) {
       return res.status(404).json({
         success: false,
         message: "Order not found",
+      });
+    }
+
+    const quantityValidationError = getRegularOrderQuantityValidationError(
+      order.styles ?? [],
+    );
+
+    if (quantityValidationError) {
+      return res.status(400).json({
+        success: false,
+        message: quantityValidationError,
       });
     }
 
@@ -2028,6 +2112,16 @@ router.post(
               styles[index][field] = fields[key];
             }
           }
+        }
+
+        const quantityValidationError =
+          getRegularOrderQuantityValidationError(styles.filter(Boolean));
+
+        if (quantityValidationError) {
+          return res.status(400).json({
+            success: false,
+            message: quantityValidationError,
+          });
         }
 
         // Fetch the customer

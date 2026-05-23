@@ -71,7 +71,7 @@ interface CreateOrderFormFieldsProps {
   onSubmit: (data: CreateOrderForm) => Promise<void>;
   onSaveDraft: (data: CreateOrderForm) => Promise<void>;
   onPreviewSubmit: (data: CreateOrderForm) => Promise<void>;
-  onErrors: () => void;
+  onErrors: (errors?: any) => void;
   addStyle: () => void;
   onRemove: (index: number) => void;
   getColourBasedOnId: (id: number) => string | undefined;

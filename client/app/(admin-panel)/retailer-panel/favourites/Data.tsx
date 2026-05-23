@@ -9,6 +9,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 
+const quantityValidationMessage =
+  "Quantity must be greater than 0 before placing an order";
+
+const hasValidOrderQuantity = (quantity: unknown) => {
+  const numericQuantity = Number(String(quantity ?? "").trim());
+  return Number.isInteger(numericQuantity) && numericQuantity > 0;
+};
+
 const Data = ({
   favourites,
   retailerId,
@@ -28,6 +36,13 @@ const Data = ({
   );
 
   const bulkOrderIdFun = (product: any) => {
+    const alreadySelected = bulkOrder.some((item) => item.id === product.id);
+
+    if (!alreadySelected && !hasValidOrderQuantity(product.quantity)) {
+      toast.error(quantityValidationMessage);
+      return;
+    }
+
     setBulkOrder((prevOrder) => {
       const exists = prevOrder.some((item) => item.id === product.id);
       return exists
@@ -54,6 +69,11 @@ const Data = ({
   };
 
   const onSubmit = async () => {
+    if (bulkOrder.some((item) => !hasValidOrderQuantity(item.quantity))) {
+      toast.error(quantityValidationMessage);
+      return;
+    }
+
     try {
       const response = await addFav({
         favourateData: bulkOrder,
@@ -66,8 +86,8 @@ const Data = ({
       }
 
       router.refresh();
-    } catch (error) {
-      toast.error("Error place order");
+    } catch (error: any) {
+      toast.error(error?.message ?? "Error place order");
     }
   };
 
@@ -83,10 +103,18 @@ const Data = ({
 
   const selectAll = () => {
     if (favourites.favourites && favourites.favourites.length > 0) {
-      if (bulkOrder.length === favourites.favourites.length) {
+      const validFavourites = favourites.favourites.filter((item: any) =>
+        hasValidOrderQuantity(item.quantity),
+      );
+
+      if (validFavourites.length !== favourites.favourites.length) {
+        toast.error(quantityValidationMessage);
+      }
+
+      if (bulkOrder.length === validFavourites.length) {
         setBulkOrder([]);
       } else {
-        setBulkOrder([...favourites.favourites]);
+        setBulkOrder([...validFavourites]);
       }
     }
   };

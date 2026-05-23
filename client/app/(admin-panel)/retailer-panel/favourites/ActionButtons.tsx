@@ -6,6 +6,14 @@ import { toast } from "sonner";
 import useHttp from "@/lib/hooks/usePost";
 import { useRouter } from "next/navigation";
 
+const quantityValidationMessage =
+  "Quantity must be greater than 0 before placing an order";
+
+const hasValidOrderQuantity = (quantity: unknown) => {
+  const numericQuantity = Number(String(quantity ?? "").trim());
+  return Number.isInteger(numericQuantity) && numericQuantity > 0;
+};
+
 const ActionButtons = ({
   productDetails,
   retailerId,
@@ -48,6 +56,11 @@ const ActionButtons = ({
   };
 
   const onSubmitFun = async () => {
+    if (!hasValidOrderQuantity(productDetails.quantity)) {
+      toast.error(quantityValidationMessage);
+      return;
+    }
+
     try {
       const response = await addFav({
         favourateData: {
@@ -63,8 +76,8 @@ const ActionButtons = ({
       }
 
       router.refresh();
-    } catch (error) {
-      toast.error("Error place order");
+    } catch (error: any) {
+      toast.error(error?.message ?? "Error place order");
     }
   };
 

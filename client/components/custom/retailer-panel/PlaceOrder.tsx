@@ -28,13 +28,35 @@ import useHttp from "@/lib/hooks/usePost";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
+const quantityValidationMessage = "Quantity must be greater than 0";
+
+const isPositiveWholeQuantity = (value: unknown) => {
+  const quantity = Number(String(value ?? "").trim());
+  return Number.isInteger(quantity) && quantity > 0;
+};
+
 export const placeOrderFormSchema = z.object({
-  quantity: z.string(),
+  quantity: z
+    .string({
+      required_error: "Quantity is required",
+      invalid_type_error: "Quantity is required",
+    })
+    .trim()
+    .min(1, { message: "Quantity is required" })
+    .refine(isPositiveWholeQuantity, {
+      message: quantityValidationMessage,
+    }),
 });
 
 export type PlaceOrderForm = z.infer<typeof placeOrderFormSchema>;
 
-const PlaceOrder = ({ stockId, quantity }) => {
+const PlaceOrder = ({
+  stockId,
+  quantity,
+}: {
+  stockId: number | string;
+  quantity: number | string;
+}) => {
   const [open, setOpen] = useState(false);
 
   const [retailerId, setRetailerId] = useState<string | null>(null);
@@ -71,13 +93,24 @@ const PlaceOrder = ({ stockId, quantity }) => {
 
   const onSubmit = async () => {
     const qty = Number(getValues("quantity"));
+    const availableQuantity = Number(quantity);
 
     if (!retailerId) {
       toast.error("Retailer ID missing. Please login again.");
       return;
     }
 
-    if (qty > quantity) {
+    if (!Number.isInteger(qty) || qty <= 0) {
+      toast.error(quantityValidationMessage);
+      return;
+    }
+
+    if (!Number.isInteger(availableQuantity) || availableQuantity <= 0) {
+      toast.error("No stock available for this item.");
+      return;
+    }
+
+    if (qty > availableQuantity) {
       toast.error("Entered quantity exceeds available stock!");
       return;
     }
@@ -130,6 +163,7 @@ const PlaceOrder = ({ stockId, quantity }) => {
                       <Input
                         type="number"
                         min={1}
+                        step={1}
                         max={Number(quantity)}
                         placeholder="1"
                         {...field}
