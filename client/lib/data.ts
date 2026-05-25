@@ -310,6 +310,7 @@ export const getStock = async ({
 
   const response = await fetch(`${API_URL}/stock?${queryParams.toString()}`, {
     headers,
+    cache: "no-store",
   });
 
   return response.json();
@@ -346,7 +347,7 @@ export const getImageByStockId = async (stockId: string) => {
 
   const response = await fetch(`${API_URL}/stock/${stockId}/image`, {
     headers,
-    // cache: "force-cache",
+    cache: "no-store",
   });
 
   return response.json();

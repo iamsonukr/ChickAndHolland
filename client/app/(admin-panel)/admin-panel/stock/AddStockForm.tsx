@@ -56,6 +56,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import StockImageManager, { StockImage } from "./StockImageManager";
 const lining = [
   "No Lining",
   "Fully Stitched Lining",
@@ -67,7 +68,7 @@ const lining = [
   "Bust To Hips Seperate Lining",
 ];
 
-const sizeOptions = {
+const sizeOptions: Record<string, number[]> = {
   EU: [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60],
   US: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
   IT: [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64],
@@ -79,6 +80,10 @@ const AddStockForm = ({ colours, currencies }: { colours: any[]; currencies: any
   const [products, setProducts] = useState<any[]>([]);
   const [price, setPrice] = useState("0");
   const [mcolors, setMColors] = useState<any>();
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [productImages, setProductImages] = useState<StockImage[]>([]);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [removingImageId, setRemovingImageId] = useState<number | null>(null);
   const [currencyComboboxOpen, setCurrencyComboboxOpen] = useState<{
     [key: string]: boolean;
   }>({});
@@ -135,13 +140,15 @@ const AddStockForm = ({ colours, currencies }: { colours: any[]; currencies: any
  const addCurrencyPricing = (index: number) => {
   const available = getAvailableCurrencies(index);
   if (!available || available.length === 0) return;
+  const firstCurrency = available[0];
+  if (!firstCurrency) return;
 
   const current = form.watch(`colorsQuantity.${index}.currencyBasedPricing`) || [];
 
   form.setValue(`colorsQuantity.${index}.currencyBasedPricing`, [
     ...current,
     {
-      currencyId: available[0].id.toString(),
+      currencyId: firstCurrency.id.toString(),
       price: 0,
       discount: 0,
     },
@@ -203,11 +210,73 @@ const AddStockForm = ({ colours, currencies }: { colours: any[]; currencies: any
   };
 
   const { loading, error, executeAsync } = useHttp("/stock");
+  const { executeAsync: fetchProductImages } = useHttp(
+    "/stock/product/0/images",
+    "GET",
+  );
+  const { executeAsync: uploadProductImages, loading: uploadingImages } =
+    useHttp("/stock/product/0/images", "POST");
+  const { executeAsync: deleteStockImage } = useHttp(
+    "/stock/images/0",
+    "DELETE",
+  );
 
   const router = useRouter();
 
+  const loadProductImages = async (productId: string) => {
+    if (!productId) {
+      setProductImages([]);
+      return;
+    }
+
+    try {
+      const response = await fetchProductImages(undefined, {
+        url: `/stock/product/${productId}/images`,
+      });
+      setProductImages(response?.images ?? []);
+    } catch {
+      setProductImages([]);
+    }
+  };
+
+  const uploadSelectedImages = async (productId: string) => {
+    if (!selectedImages.length || !productId) return;
+
+    const formData = new FormData();
+    selectedImages.forEach((file) => formData.append("images", file));
+
+    const response = await uploadProductImages(formData, {
+      url: `/stock/product/${productId}/images`,
+    });
+
+    setProductImages(response?.images ?? []);
+    setSelectedImages([]);
+  };
+
+  const removeExistingImage = async (image: StockImage) => {
+    if (!image.id) return;
+
+    try {
+      setRemovingImageId(image.id);
+      const response = await deleteStockImage(undefined, {
+        url: `/stock/images/${image.id}`,
+      });
+      setProductImages(
+        response?.images ??
+          productImages.filter((item) => item.id !== image.id),
+      );
+      toast.success("Image removed");
+      router.refresh();
+    } catch {
+      toast.error("Error deleting image");
+    } finally {
+      setRemovingImageId(null);
+    }
+  };
+
   const onSubmit = async (data: AddStockFormType) => {
     try {
+      const productId = data.styleNo?.[0]?.value ?? selectedProductId;
       // Transform the data to match the backend expected format
       const transformedData = {
         ...data,
@@ -227,12 +296,27 @@ const AddStockForm = ({ colours, currencies }: { colours: any[]; currencies: any
         });
       });
 
+      if (selectedImages.length > 0) {
+        try {
+          await uploadSelectedImages(productId);
+        } catch {
+          toast.error("Stock saved, but image upload failed");
+          router.refresh();
+          return;
+        }
+      }
+
       form.reset();
+      setSelectedProductId("");
+      setProductImages([]);
+      setSelectedImages([]);
       setOpen(false);
       toast.success(response.message ?? "Stock added successfully");
       router.refresh();
     } catch (err) {
-      console.error("Error adding stock:", err);
+      toast.error("Failed to add stock", {
+        description: err instanceof Error ? err.message : error?.message,
+      });
     }
   };
 
@@ -283,8 +367,19 @@ const AddStockForm = ({ colours, currencies }: { colours: any[]; currencies: any
                       <p className="text-muted-foreground">No results found</p>
                     }
                     onChange={(selectedOption) => {
+                      const selectedProduct = selectedOption[0];
                       setPrice("0");
-                      priceByCode(selectedOption[0].value);
+                      setSelectedImages([]);
+                      setSelectedProductId(selectedProduct?.value ?? "");
+                      setProductImages([]);
+
+                      if (selectedProduct?.value) {
+                        priceByCode(selectedProduct.value);
+                        loadProductImages(selectedProduct.value);
+                      } else {
+                        setMColors(undefined);
+                      }
+
                       field.onChange(selectedOption);
                     }}
                     maxSelected={1}
@@ -293,6 +388,18 @@ const AddStockForm = ({ colours, currencies }: { colours: any[]; currencies: any
                 </FormItem>
               )}
             />
+
+            {selectedProductId && (
+              <StockImageManager
+                images={productImages}
+                selectedFiles={selectedImages}
+                onSelectedFilesChange={setSelectedImages}
+                onRemoveExistingImage={removeExistingImage}
+                removingImageId={removingImageId}
+                disabled={loading || uploadingImages}
+                label="Product Images"
+              />
+            )}
 
             {fields.map((item, index: number) => (
               <div key={item.id} className="space-y-2">
@@ -674,7 +781,7 @@ const AddStockForm = ({ colours, currencies }: { colours: any[]; currencies: any
                     </Button>
                   </div>
 
-                  {form.watch(`colorsQuantity.${index}.currencyBasedPricing`)?.length > 0 && (
+                  {(form.watch(`colorsQuantity.${index}.currencyBasedPricing`)?.length ?? 0) > 0 && (
                     <div className="space-y-3 rounded-lg bg-gray-50 p-4">
                       {form.watch(`colorsQuantity.${index}.currencyBasedPricing`)?.map((currencyField: any, currencyIndex: number) => {
                         const currency = getCurrencyDetails(currencyField.currencyId);
@@ -721,9 +828,23 @@ const AddStockForm = ({ colours, currencies }: { colours: any[]; currencies: any
                                           <CommandEmpty>No currency found.</CommandEmpty>
                                           <CommandGroup className="max-h-64 overflow-auto">
                                             {getAvailableCurrencies(index)
-                                              .concat(field.value ? [getCurrencyDetails(field.value)].filter(Boolean) : [])
-                                              .filter((currency, idx, arr) => arr.findIndex(c => c.id === currency.id) === idx)
-                                              .map((currency) => (
+                                              .concat(
+                                                field.value
+                                                  ? ([getCurrencyDetails(field.value)].filter(Boolean) as any[])
+                                                  : [],
+                                              )
+                                              .filter(
+                                                (
+                                                  currency: any,
+                                                  idx: number,
+                                                  arr: any[],
+                                                ) =>
+                                                  arr.findIndex(
+                                                    (c: any) =>
+                                                      c.id === currency.id,
+                                                  ) === idx,
+                                              )
+                                              .map((currency: any) => (
                                                 <CommandItem
                                                   key={currency.id}
                                                   value={currency.name?.toLowerCase() || ""}
@@ -838,8 +959,12 @@ const AddStockForm = ({ colours, currencies }: { colours: any[]; currencies: any
             ))}
 
             <div>
-              <Button type="submit" className="mt-4 w-full" disabled={loading}>
-                {loading ? "Loading..." : "Add Stock"}
+              <Button
+                type="submit"
+                className="mt-4 w-full"
+                disabled={loading || uploadingImages}
+              >
+                {loading || uploadingImages ? "Loading..." : "Add Stock"}
               </Button>
             </div>
           </form>

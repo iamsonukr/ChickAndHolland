@@ -11,12 +11,14 @@ export default function AdminPanelLayout({
   freshCount,
   stockCount,
   unreadEnquiryCount,
+  draftCount,
 }: {
   children: React.ReactNode;
   userDetails: any;
   freshCount: number;
   stockCount: number;
   unreadEnquiryCount: number;
+  draftCount?: number;
 }) {
   const sidebar = useStore(useSidebarToggle, (state) => state);
   if (!sidebar) return null;
@@ -27,6 +29,7 @@ export default function AdminPanelLayout({
         freshCount={freshCount}
         stockCount={stockCount}
         unreadEnquiryCount={unreadEnquiryCount}
+        draftCount={draftCount}
       />
       <main
         className={cn(

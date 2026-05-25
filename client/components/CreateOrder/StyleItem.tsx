@@ -194,14 +194,13 @@ const StyleItem = ({
                           e.stopPropagation();
                         }}
                         onClick={() => {
-                          // Open add Product Form (programmatically trigger global event)
+                          // Open add Style Form (programmatically trigger global event)
                           try {
                             window.dispatchEvent(new Event("openAddProductForm"));
                           } catch (err) {
                             // fallback: no-op
                           }
                         }}
-                        
                       >
                         Add New Style
                       </div>

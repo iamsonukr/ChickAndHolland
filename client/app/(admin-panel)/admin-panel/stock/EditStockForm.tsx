@@ -51,6 +51,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import StockImageManager, { StockImage } from "./StockImageManager";
 const lining = [
   "No Lining",
   "Fully Stitched Lining",
@@ -61,8 +62,19 @@ const lining = [
   "Bust To Hips Stitched Lining",
   "Bust To Hips Seperate Lining",
 ];
+
+const normalizeImages = (images: unknown): StockImage[] => {
+  if (Array.isArray(images)) return images.filter(Boolean) as StockImage[];
+  return images ? [images as StockImage] : [];
+};
+
 const EditStockForm = ({ previousData, colours, currencies }: any) => {
   const [open, setOpen] = useState(false);
+  const [productImages, setProductImages] = useState<StockImage[]>(
+    normalizeImages(previousData.images ?? previousData.product?.images),
+  );
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [removingImageId, setRemovingImageId] = useState<number | null>(null);
   const [currencyComboboxOpen, setCurrencyComboboxOpen] = useState<{
     [key: string]: boolean;
   }>({});
@@ -85,6 +97,14 @@ const EditStockForm = ({ previousData, colours, currencies }: any) => {
     "/stock/" + previousData.id,
     "PUT",
   );
+  const { executeAsync: uploadStockImages, loading: uploadingImages } = useHttp(
+    "/stock/" + previousData.id + "/images",
+    "POST",
+  );
+  const { executeAsync: deleteStockImage } = useHttp(
+    "/stock/images/0",
+    "DELETE",
+  );
 
   const router = useRouter();
 
@@ -93,13 +113,13 @@ const EditStockForm = ({ previousData, colours, currencies }: any) => {
 
 // Safe currency list
 // Safe currency list fix
-const currencyList = Array.isArray(currencies)
+const currencyList: any[] = Array.isArray(currencies)
   ? currencies
   : currencies?.currencies ?? [];
 
 // Get currency details
 const getCurrencyDetails = (currencyId: string) => {
-  return currencyList.find(c => c.id.toString() === currencyId);
+  return currencyList.find((c: any) => c.id.toString() === currencyId);
 };
 
 // Filter available currencies
@@ -107,7 +127,7 @@ const getAvailableCurrencies = () => {
   const selected = (form.watch("currencyBasedPricing") || [])
     .map((i: any) => i.currencyId.toString());
 
-  return currencyList.filter(c => !selected.includes(c.id.toString()));
+  return currencyList.filter((c: any) => !selected.includes(c.id.toString()));
 };
 
 
@@ -135,6 +155,38 @@ const getAvailableCurrencies = () => {
     form.setValue("currencyBasedPricing", updatedPricing);
   };
 
+  const uploadSelectedImages = async () => {
+    if (!selectedImages.length) return;
+
+    const formData = new FormData();
+    selectedImages.forEach((file) => formData.append("images", file));
+
+    const response = await uploadStockImages(formData);
+    setProductImages(response?.images ?? []);
+    setSelectedImages([]);
+  };
+
+  const removeExistingImage = async (image: StockImage) => {
+    if (!image.id) return;
+
+    try {
+      setRemovingImageId(image.id);
+      const response = await deleteStockImage(undefined, {
+        url: `/stock/images/${image.id}`,
+      });
+      setProductImages(
+        response?.images ??
+          productImages.filter((item) => item.id !== image.id),
+      );
+      toast.success("Image removed");
+      router.refresh();
+    } catch {
+      toast.error("Error deleting image");
+    } finally {
+      setRemovingImageId(null);
+    }
+  };
+
   const onSubmit = async (data: AddStockFormType) => {
     try {
       // Transform the data to match the backend expected format
@@ -151,6 +203,16 @@ const getAvailableCurrencies = () => {
 
       if (error) {
         return toast.error("Failed to edit stock");
+      }
+
+      if (selectedImages.length > 0) {
+        try {
+          await uploadSelectedImages();
+        } catch {
+          toast.error("Stock updated, but image upload failed");
+          router.refresh();
+          return;
+        }
       }
 
       form.reset();
@@ -186,6 +248,10 @@ const getAvailableCurrencies = () => {
       lining: previousData.lining.toString(),
       currencyBasedPricing: existingCurrencyPricing,
     });
+    setProductImages(
+      normalizeImages(previousData.images ?? previousData.product?.images),
+    );
+    setSelectedImages([]);
   }, [previousData]);
 
   return (
@@ -202,7 +268,7 @@ const getAvailableCurrencies = () => {
           <SheetDescription>
             Fill in the form below to edit stock
             <span className="ms-2 text-lg text-black">
-              ({previousData.product.productCode})
+              ({previousData.product?.productCode})
             </span>
           </SheetDescription>
         </SheetHeader>
@@ -212,6 +278,16 @@ const getAvailableCurrencies = () => {
             className="mt-8 space-y-2"
             onSubmit={form.handleSubmit(onSubmit)}
           >
+            <StockImageManager
+              images={productImages}
+              selectedFiles={selectedImages}
+              onSelectedFilesChange={setSelectedImages}
+              onRemoveExistingImage={removeExistingImage}
+              removingImageId={removingImageId}
+              disabled={loading || uploadingImages}
+              label="Product Images"
+            />
+
             <FormField
               control={form.control}
               name="price"
@@ -284,7 +360,7 @@ const getAvailableCurrencies = () => {
                               }}
                             />
                             <span className="ml-2">
-                              {previousData.product.mesh_color == colour.hexcode
+                              {previousData.product?.mesh_color == colour.hexcode
                                 ? ` SAS(${colour.name})`
                                 : colour.name}
                             </span>
@@ -325,7 +401,7 @@ const getAvailableCurrencies = () => {
                               }}
                             />
                             <span className="ml-2">
-                              {previousData.product.beading_color ==
+                              {previousData.product?.beading_color ==
                               colour.hexcode
                                 ? ` SAS(${colour.name})`
                                 : colour.name}
@@ -364,7 +440,7 @@ const getAvailableCurrencies = () => {
                     <SelectContent>
                       {lining.map((item) => (
                         <SelectItem value={item} key={item}>
-                          {item == previousData.product.lining
+                          {item == previousData.product?.lining
                             ? `SAS(${item})`
                             : item}
                         </SelectItem>
@@ -405,7 +481,7 @@ const getAvailableCurrencies = () => {
                                 }}
                               />
                               <span className="ml-2">
-                                {previousData.product.lining_color ==
+                                {previousData.product?.lining_color ==
                                 colour.hexcode
                                   ? `SAS(${colour.name})`
                                   : colour.name}
@@ -440,7 +516,7 @@ const getAvailableCurrencies = () => {
                 </Button>
               </div>
 
-              {form.watch("currencyBasedPricing")?.length > 0 && (
+              {(form.watch("currencyBasedPricing")?.length ?? 0) > 0 && (
                 <div className="space-y-3 rounded-lg bg-gray-50 p-4">
                   {form.watch("currencyBasedPricing")?.map((currencyField: any, currencyIndex: number) => {
                     const currency = getCurrencyDetails(currencyField.currencyId);
@@ -487,9 +563,23 @@ const getAvailableCurrencies = () => {
                                       <CommandEmpty>No currency found.</CommandEmpty>
                                       <CommandGroup className="max-h-64 overflow-auto">
                                         {getAvailableCurrencies()
-                                          .concat(field.value ? [getCurrencyDetails(field.value)].filter(Boolean) : [])
-                                          .filter((currency, idx, arr) => arr.findIndex(c => c.id === currency.id) === idx)
-                                          .map((currency) => (
+                                          .concat(
+                                            field.value
+                                              ? ([getCurrencyDetails(field.value)].filter(Boolean) as any[])
+                                              : [],
+                                          )
+                                          .filter(
+                                            (
+                                              currency: any,
+                                              idx: number,
+                                              arr: any[],
+                                            ) =>
+                                              arr.findIndex(
+                                                (c: any) =>
+                                                  c.id === currency.id,
+                                              ) === idx,
+                                          )
+                                          .map((currency: any) => (
                                             <CommandItem
                                               key={currency.id}
                                               value={currency.name?.toLowerCase() || ""}
@@ -577,8 +667,12 @@ const getAvailableCurrencies = () => {
             </div>
 
             <div>
-              <Button type="submit" className="mt-4 w-full" disabled={loading}>
-                {loading ? "Loading..." : "Update Stock"}
+              <Button
+                type="submit"
+                className="mt-4 w-full"
+                disabled={loading || uploadingImages}
+              >
+                {loading || uploadingImages ? "Loading..." : "Update Stock"}
               </Button>
             </div>
           </form>

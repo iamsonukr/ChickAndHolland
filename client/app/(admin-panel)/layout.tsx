@@ -85,6 +85,7 @@ import { cookies } from "next/headers";
 import {
   getAdminRetailersFreshOrders,
   getAdminRetailersStockOrders,
+  getOrders,
 } from "@/lib/data";
 import { getApiUrl } from "@/lib/constants";
 
@@ -130,6 +131,12 @@ export default async function RootLayout({
     page: 1,
     query: "",
   });
+
+  const myDraftOrders = await getOrders({
+    page: 1,
+    publishStatus: "draft",
+  });
+  const draftCount = myDraftOrders?.totalCount ?? myDraftOrders?.orders?.length ?? 0;
 
 
   const unreadEnquiryCount = async () => {
@@ -194,7 +201,8 @@ const unreadCount = await unreadEnquiryCount();
             userDetails={userDetails}
             freshCount={myFreshOrders.favoritesOrders?.length || 0}
             stockCount={myStockOrders.stockOrders?.length || 0}
-              unreadEnquiryCount={unreadCount}
+            draftCount={draftCount}
+            unreadEnquiryCount={unreadCount}
           >
             {children}
           </AdminPanelLayout>

@@ -63,6 +63,13 @@ const Stock = async (props: {
           {stock.stock?.map((item: any) => {
             if (!item.product) return null;
 
+            const price = Number(item.price ?? 0);
+            const discountedPrice = Number(item.discountedPrice ?? price);
+            const discountPct =
+              price > 0 && discountedPrice < price
+                ? Math.round(((price - discountedPrice) / price) * 100)
+                : 0;
+
             return (
               <div
                 key={item.id}
@@ -93,9 +100,16 @@ const Stock = async (props: {
                       </span>
 
                       {item.price !== item.discountedPrice && (
-                        <span className="font-semibold text-green-600">
-                          €{item.discountedPrice}
-                        </span>
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-semibold text-green-600">
+                            €{item.discountedPrice}
+                          </span>
+                          {discountPct > 0 && (
+                            <span className="text-xs text-red-600 font-medium">
+                              -{discountPct}%
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -170,6 +184,7 @@ const Stock = async (props: {
         <CustomPagination
           currentPage={currentPage}
           totalLength={stock?.totalCount}
+          itemsPerPage={100}
         />
       </div>
     </ContentLayout>

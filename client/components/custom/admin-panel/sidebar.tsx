@@ -8,7 +8,7 @@ import { Menu } from "@/components/custom/admin-panel/menu";
 import { useSidebarToggle } from "@/lib/hooks/useSidebarToggle";
 import { SidebarToggle } from "@/components/custom/admin-panel/sideBarToggle";
 
-export function Sidebar({ userDetails,freshCount, stockCount,unreadEnquiryCount  }: any) {
+export function Sidebar({ userDetails, freshCount, stockCount, unreadEnquiryCount, draftCount }: any) {
   const sidebar = useStore(useSidebarToggle, (state) => state);
 
   if (!sidebar) return null;
@@ -44,8 +44,14 @@ export function Sidebar({ userDetails,freshCount, stockCount,unreadEnquiryCount 
             </h1>
           </Link>
         </Button>
-        <Menu isOpen={sidebar?.isOpen} userDetails={userDetails} freshCount={freshCount} stockCount={stockCount}   unreadEnquiryCount={unreadEnquiryCount}
-  />
+        <Menu
+          isOpen={sidebar?.isOpen}
+          userDetails={userDetails}
+          freshCount={freshCount}
+          stockCount={stockCount}
+          unreadEnquiryCount={unreadEnquiryCount}
+          draftCount={draftCount}
+        />
       </div>
     </aside>
   );

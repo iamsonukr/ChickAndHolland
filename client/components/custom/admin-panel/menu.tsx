@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Ellipsis } from "lucide-react";
 import { usePathname } from "next/navigation";
+import React, { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { parseRolePermissions } from "@/lib/adminPermissions";
@@ -22,6 +23,7 @@ interface MenuProps {
   freshCount?: number;
   stockCount?: number;
   unreadEnquiryCount?: number;
+  draftCount?: number;
 }
 
 export function Menu({
@@ -30,6 +32,7 @@ export function Menu({
   freshCount = 0,
   stockCount = 0,
   unreadEnquiryCount = 0,
+  draftCount = 0,
 }: MenuProps) {
   const pathname = usePathname();
   const menuListWithPermissions = getMenuListWithPermissions(
@@ -40,6 +43,30 @@ export function Menu({
       : [],
   );
   const totalCount = freshCount + stockCount;
+  const [liveDraftCount, setLiveDraftCount] = useState(draftCount);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchCount = async () => {
+      try {
+        const res = await fetch("/api/draft-count", { cache: "no-store" });
+        const json = await res.json();
+        if (!mounted) return;
+        setLiveDraftCount(json?.count ?? 0);
+      } catch (err) {
+        console.error("Error fetching draft count", err);
+      }
+    };
+
+    // initial fetch
+    fetchCount();
+    // poll every 15 seconds
+    const id = setInterval(fetchCount, 15000);
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+  }, []);
 
   return (
     // ✅ Removed ScrollArea — the parent div in Sidebar already handles overflow-y-auto
@@ -105,6 +132,11 @@ export function Menu({
                                   )}
                                 >
                                   <Icon size={18} />
+                                  {label === "Draft Orders" && liveDraftCount > 0 && (
+                                    <span className="absolute -right-2 -top-1 flex h-4 w-4 animate-bounce items-center justify-center rounded-full bg-red-600 text-[10px] text-white">
+                                      {liveDraftCount}
+                                    </span>
+                                  )}
                                   {label === "Order Request" &&
                                     totalCount > 0 && (
                                       <span className="absolute -right-2 -top-1 flex h-4 w-4 animate-bounce items-center justify-center rounded-full bg-red-600 text-[10px] text-white">

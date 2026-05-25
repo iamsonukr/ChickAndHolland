@@ -7,8 +7,91 @@ import db from "../db";
 import ProductImage from "../models/ProductImage";
 import StockCurrencyPricing from "../models/StockCurrencyPricing";
 import Currency from "../models/Currency";
+import { productUpload } from "../lib/upload";
+import CONFIG from "../config";
+import { deleteFileFromS3 } from "../lib/s3";
 
 const router = Router();
+
+const maxStockImageUploads =
+  typeof CONFIG.MAX_PRODUCT_IMAGE_LIMIT === "string"
+    ? parseInt(CONFIG.MAX_PRODUCT_IMAGE_LIMIT)
+    : CONFIG.MAX_PRODUCT_IMAGE_LIMIT;
+
+const stockImageUpload = productUpload.array("images", maxStockImageUploads);
+
+const getProductImages = async (productId: number) =>
+  ProductImage.find({
+    where: { product: { id: productId } },
+    order: {
+      isMain: "DESC",
+      createdAt: "ASC",
+    },
+  });
+
+const getProductForStock = async (stockId: number) => {
+  const stock = await Stock.findOne({ where: { id: stockId, isDeleted: false } });
+
+  if (!stock) {
+    return { stock: null, product: null };
+  }
+
+  const product = await Product.findOne({
+    where: { id: Number(stock.styleNo) },
+  });
+
+  return { stock, product };
+};
+
+const saveUploadedProductImages = async (
+  product: Product,
+  files: Express.MulterS3.File[] = []
+) => {
+  if (!files.length) return getProductImages(product.id);
+
+  const mainImageCount = await ProductImage.count({
+    where: { product: { id: product.id }, isMain: true },
+  });
+  const hasMainImage = mainImageCount > 0;
+
+  const productImages = files.map((image, index) => {
+    const imagePath = `https://${CONFIG.S3_BUCKET}.${CONFIG.S3_AWS_ENDPOINT}/${image.key}`;
+
+    return ProductImage.create({
+      isMain: !hasMainImage && index === 0,
+      name: imagePath,
+      product,
+    });
+  });
+
+  await ProductImage.save(productImages);
+
+  return getProductImages(product.id);
+};
+
+const validateImageFiles = async (files: Express.MulterS3.File[]) => {
+  const invalidFiles = files.filter((file) => !file.mimetype?.startsWith("image/"));
+
+  if (invalidFiles.length > 0) {
+    await Promise.all(
+      files
+        .filter((file) => file.key)
+        .map((file) => deleteFileFromS3(file.key))
+    );
+  }
+
+  return invalidFiles.length === 0;
+};
+
+const getS3KeyFromImageUrl = (imageUrl: string) => {
+  try {
+    const parsedUrl = new URL(imageUrl);
+    return decodeURIComponent(parsedUrl.pathname.replace(/^\/+/, ""));
+  } catch {
+    const keyStart = imageUrl.indexOf("chicandholland/");
+    return keyStart >= 0 ? imageUrl.slice(keyStart) : null;
+  }
+};
 
 // Helper function to get currency-aware pricing for stock items
 const getStockWithCurrencyPricing = (stock: any[], currencyId?: string) => {
@@ -184,11 +267,11 @@ router.get(
           "products",
           "stock.styleNo = products.id"
         )
-        .leftJoinAndMapOne(
+        .leftJoinAndMapMany(
           "stock.images",
-          "ProductImage",
-          "ProductImage",
-          "ProductImage.productId = stock.styleNo"
+          ProductImage,
+          "productImages",
+          "productImages.productId = stock.styleNo"
         )
         .leftJoinAndMapMany(
           "stock.currencyPricing",
@@ -214,6 +297,8 @@ router.get(
         )
         .andWhere("stock.isDeleted = false")
         .orderBy("stock.createdAt", "DESC")
+        .addOrderBy("productImages.isMain", "DESC")
+        .addOrderBy("productImages.createdAt", "ASC")
         .skip(skip)
         .take(100)
         .getMany();
@@ -414,29 +499,18 @@ router.post(
 );
 
 router.get(
-  "/:stockId/image",
+  "/product/:productId/images",
   asyncHandler(async (req: Request, res: Response) => {
-    const { stockId } = req.params;
+    const productId = Number(req.params.productId);
 
-    if (!stockId || isNaN(parseInt(stockId))) {
+    if (!productId || Number.isNaN(productId)) {
       return res.status(400).json({
         success: false,
-        message: "Please provide stockId in params",
+        message: "Please provide productId in params",
       });
     }
 
-    const stock = await Stock.findOne({ where: { id: parseInt(stockId) } });
-
-    if (!stock) {
-      return res.status(404).json({
-        success: false,
-        message: "Stock not found",
-      });
-    }
-
-    const product = await Product.findOne({
-      where: { id: Number(stock?.styleNo) },
-    });
+    const product = await Product.findOne({ where: { id: productId } });
 
     if (!product) {
       return res.status(404).json({
@@ -445,27 +519,181 @@ router.get(
       });
     }
 
-    const productImages = await ProductImage.find({
-      where: { product: { id: product.id } },
+    return res.json({
+      success: true,
+      product,
+      images: await getProductImages(product.id),
     });
+  })
+);
 
-    if (!productImages.length) {
-      return res.status(404).json({
+router.post(
+  "/product/:productId/images",
+  stockImageUpload,
+  asyncHandler(async (req: Request, res: Response) => {
+    const productId = Number(req.params.productId);
+    const files = (req.files ?? []) as Express.MulterS3.File[];
+
+    if (!productId || Number.isNaN(productId)) {
+      return res.status(400).json({
         success: false,
-        message: "Product images not found",
+        message: "Please provide productId in params",
       });
     }
 
-    if (!stock) {
+    if (!files.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload at least one image",
+      });
+    }
+
+    if (!(await validateImageFiles(files))) {
+      return res.status(400).json({
+        success: false,
+        message: "Only image files are allowed",
+      });
+    }
+
+    const product = await Product.findOne({ where: { id: productId } });
+
+    if (!product) {
       return res.status(404).json({
         success: false,
-        message: "Stock not found",
+        message: "Product not found",
+      });
+    }
+
+    const images = await saveUploadedProductImages(product, files);
+
+    return res.json({
+      success: true,
+      message: "Images uploaded successfully",
+      images,
+    });
+  })
+);
+
+router.post(
+  "/:stockId/images",
+  stockImageUpload,
+  asyncHandler(async (req: Request, res: Response) => {
+    const stockId = Number(req.params.stockId);
+    const files = (req.files ?? []) as Express.MulterS3.File[];
+
+    if (!stockId || Number.isNaN(stockId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide stockId in params",
+      });
+    }
+
+    if (!files.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload at least one image",
+      });
+    }
+
+    if (!(await validateImageFiles(files))) {
+      return res.status(400).json({
+        success: false,
+        message: "Only image files are allowed",
+      });
+    }
+
+    const { product } = await getProductForStock(stockId);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found for this stock",
+      });
+    }
+
+    const images = await saveUploadedProductImages(product, files);
+
+    return res.json({
+      success: true,
+      message: "Images uploaded successfully",
+      images,
+    });
+  })
+);
+
+router.delete(
+  "/images/:imageId",
+  asyncHandler(async (req: Request, res: Response) => {
+    const imageId = Number(req.params.imageId);
+
+    if (!imageId || Number.isNaN(imageId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide imageId in params",
+      });
+    }
+
+    const image = await ProductImage.findOne({
+      where: { id: imageId },
+      relations: ["product"],
+    });
+
+    if (!image) {
+      return res.status(404).json({
+        success: false,
+        message: "Image not found",
+      });
+    }
+
+    const productId = image.product?.id;
+    const s3Key = getS3KeyFromImageUrl(image.name);
+
+    if (s3Key) {
+      await deleteFileFromS3(s3Key);
+    }
+
+    await ProductImage.delete({ id: imageId });
+
+    if (image.isMain && productId) {
+      const [nextImage] = await getProductImages(productId);
+      if (nextImage) {
+        nextImage.isMain = true;
+        await nextImage.save();
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: "Image deleted",
+      images: productId ? await getProductImages(productId) : [],
+    });
+  })
+);
+
+router.get(
+  "/:stockId/image",
+  asyncHandler(async (req: Request, res: Response) => {
+    const stockId = Number(req.params.stockId);
+
+    if (!stockId || Number.isNaN(stockId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide stockId in params",
+      });
+    }
+
+    const { product } = await getProductForStock(stockId);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found for this stock",
       });
     }
 
     return res.json({
       success: true,
-      images: productImages,
+      images: await getProductImages(product.id),
     });
   })
 );
@@ -552,7 +780,7 @@ router.get(
     }
 
     const stocks = await Stock.find({
-      where: { styleNo: product.productCode },
+      where: { styleNo: product.id.toString(), isDeleted: false },
       relations: ["currencyPricing", "currencyPricing.currency"],
     });
 

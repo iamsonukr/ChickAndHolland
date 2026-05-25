@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getImageByStockId } from "@/lib/data";
 import {
   Carousel,
@@ -18,15 +18,42 @@ import {
 } from "@/components/ui/carousel";
 import { CustomizedImage } from "@/components/custom/CustomizedImage";
 
+const normalizeImages = (images: unknown) => {
+  if (Array.isArray(images)) return images.filter(Boolean);
+  return images ? [images] : [];
+};
+
 const StyleNoImage = ({ details }: { details: any }) => {
+  const initialImages = useMemo(
+    () =>
+      [
+        ...normalizeImages(details.images),
+        ...normalizeImages(details.product?.images),
+      ].filter((image: any, index, self) => {
+        const key = image?.id ?? image?.name;
+        return key && self.findIndex((item: any) => (item?.id ?? item?.name) === key) === index;
+      }),
+    [details.images, details.product?.images],
+  );
   const [open, setOpen] = useState(false);
-  const [images, setImages] = useState<any[]>([]);
+  const [images, setImages] = useState<any[]>(initialImages);
+
+  useEffect(() => {
+    setImages(initialImages);
+  }, [initialImages]);
 
   const openDialog = async () => {
-    const res = await getImageByStockId(details.id);
-    setImages(res?.images ?? []);
+    try {
+      const res = await getImageByStockId(details.id);
+      setImages(res?.images ?? []);
+    } catch {
+      setImages(initialImages);
+    }
     setOpen(true);
   };
+
+  const productCode = details.product?.productCode || details.productCode || "Stock";
+  const thumbnail = initialImages[0]?.name || "";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -38,15 +65,13 @@ const StyleNoImage = ({ details }: { details: any }) => {
         >
           {/* PRODUCT CODE */}
           <span className="absolute right-1 top-1 z-10 rounded bg-black/80 px-1.5 py-0.5 text-xs text-white">
-            {details.product?.productCode || details.productCode}
+            {productCode}
           </span>
 
           {/* EXACT INVENTORY IMAGE */}
           <CustomizedImage
-            src={
-              details.images?.[0]?.name || details.product?.images?.[0]?.name || ""
-            }
-            alt={details.product?.productCode || "product-image"}
+            src={thumbnail}
+            alt={productCode}
             fill
             className="object-cover"
           />
@@ -56,33 +81,44 @@ const StyleNoImage = ({ details }: { details: any }) => {
       {/* MODAL */}
       <DialogContent className="h-[95vh] max-w-[90vw] md:max-w-[50vw] lg:max-w-[40vw]">
         <DialogHeader>
-          <DialogTitle>{details.product.productCode}</DialogTitle>
+          <DialogTitle>{productCode}</DialogTitle>
         </DialogHeader>
 
-        <Carousel opts={{ loop: true }}>
-          <CarouselContent>
-            {images.map((img: any) => (
-              <CarouselItem key={img.id}>
-                <div className="relative h-[80vh] w-full">
-                  <CustomizedImage
-                    src={img.name}
-                    alt={img.alt || "product"}
-                    fill
-                    className="object-contain"
-                    unoptimized
-                  />
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
+        {images.length > 0 ? (
+          <Carousel opts={{ loop: true }}>
+            <CarouselContent>
+              {images.map((img: any, index: number) => (
+                <CarouselItem key={img.id ?? `${img.name}-${index}`}>
+                  <div className="relative h-[80vh] w-full">
+                    <CustomizedImage
+                      src={img.name}
+                      alt={img.alt || productCode}
+                      fill
+                      className="object-contain"
+                      unoptimized
+                    />
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
 
-          {images.length > 1 && (
-            <>
-              <CarouselPrevious />
-              <CarouselNext />
-            </>
-          )}
-        </Carousel>
+            {images.length > 1 && (
+              <>
+                <CarouselPrevious />
+                <CarouselNext />
+              </>
+            )}
+          </Carousel>
+        ) : (
+          <div className="relative h-[80vh] w-full overflow-hidden rounded-md border">
+            <CustomizedImage
+              src=""
+              alt={productCode}
+              fill
+              className="object-contain"
+            />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
