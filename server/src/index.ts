@@ -84,6 +84,7 @@ import { ensureAdminSettingsTable } from "./services/resetPassword.service";
 import { ensurePurchaseOrderNoIsNotUnique } from "./utils/ensurePurchaseOrderNoIsNotUnique";
 import { ensureOrderPublishStatusColumn } from "./utils/ensureOrderPublishStatusColumn";
 import { ensureOrderStylePricingColumns } from "./utils/ensureOrderStylePricingColumns";
+import { ensureCustomerPostalCodeColumn } from "./utils/ensureCustomerPostalCodeColumn";
 
 const router = Router();
 
@@ -161,6 +162,7 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
     await ensurePurchaseOrderNoIsNotUnique();
     await ensureOrderPublishStatusColumn();
     await ensureOrderStylePricingColumns();
+    await ensureCustomerPostalCodeColumn();
     await ensureProductQueriesTable();
     await ensureAdminSettingsTable();
     console.log("✅ Database connected");

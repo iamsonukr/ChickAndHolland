@@ -52,6 +52,7 @@ router.get(
         { name: Like(likeQuery), isDeleted: false },
         { storeName: Like(likeQuery), isDeleted: false },
         { storeAddress: Like(likeQuery), isDeleted: false },
+        { postalCode: Like(likeQuery), isDeleted: false },
         { website: Like(likeQuery), isDeleted: false },
         { phoneNumber: Like(likeQuery), isDeleted: false },
         { contactPerson: Like(likeQuery), isDeleted: false },
@@ -87,6 +88,7 @@ router.post(
     customer.name = req.body.name;
     customer.storeName = customerStoreName;
     customer.storeAddress = req.body.address;
+    customer.postalCode = req.body.postalCode || null;
     customer.website = req.body.website;
     customer.phoneNumber = req.body.phoneNumber;
     customer.contactPerson = req.body.contactPerson;
@@ -184,6 +186,7 @@ router.put(
     customer.name = req.body.name;
     customer.storeName = customerStoreName;
     customer.storeAddress = req.body.address;
+    customer.postalCode = req.body.postalCode || null;
     customer.website = req.body.website;
     customer.phoneNumber = req.body.phoneNumber;
     customer.contactPerson = req.body.contactPerson;

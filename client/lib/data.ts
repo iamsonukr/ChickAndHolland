@@ -1845,12 +1845,16 @@ export async function getCustomers(params?: { page?: number; query?: string }) {
       cache: "no-store",
     });
 
+    console.log("All Customers ", res);
+    console.log("🟢 Response status:", res.status);
+
     if (!res.ok) {
       console.error("❌ Failed to fetch customers:", res.status);
       return { customers: [], totalCount: 0 };
     }
 
     const data = await res.json();
+    console.log("✅ getCustomers data:", data);
     // customer response intentionally not logged to reduce terminal noise
 
     return {

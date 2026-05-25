@@ -412,6 +412,7 @@ const formDetailsSchema = z.object({
     .trim()
     .min(1, "Store address is required")
     .max(200, "Store address must not exceed 200 characters"),
+  postalCode: z.string().optional(),
   city_name: z.string().optional(),
   country_id: z.string().optional(),
 });
@@ -425,6 +426,7 @@ const getPersonalDetailsDefaultValues = (data?: any): FormValues => ({
   storeName: data?.storeName || "",
   name: data?.name || "",
   storeAddress: data?.storeAddress || "",
+  postalCode: data?.postalCode || "",
   city_name: data?.client?.city_name || "",
   country_id: data?.countryId ? String(data.countryId) : "",
 });
@@ -572,6 +574,22 @@ export function PersonalDetailsForm({
                   <FormLabel className="text-sm font-medium text-gray-700">City</FormLabel>
                   <FormControl>
                     <Input placeholder="City" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="postalCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium text-gray-700">
+                    Postal Code
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="Postal code" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

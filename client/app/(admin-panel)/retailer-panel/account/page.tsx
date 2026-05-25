@@ -138,6 +138,18 @@ console.log("Admin Banks =>", JSON.stringify(adminBanks, null, 2));
                     {retailerDetails?.retailer?.storeAddress}
                   </TableCell>
                 </TableRow>
+
+                <TableRow>
+                  <TableCell className="flex items-center gap-2 py-3 font-medium text-gray-500">
+                    <Hash className="h-4 w-4 text-primary" />
+                    Postal Code
+                  </TableCell>
+                  <TableCell className="py-3 font-semibold">
+                    {retailerDetails?.retailer?.postalCode || (
+                      <span className="text-gray-400">Not provided</span>
+                    )}
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </CardContent>

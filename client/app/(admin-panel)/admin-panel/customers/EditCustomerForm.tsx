@@ -58,6 +58,7 @@ const EditCustomerForm = ({
       storeName: "",
       proximity: "",
       address: "",
+      postalCode: "",
       city_name: "",
       coordinates: {
         latitude: "",
@@ -86,6 +87,7 @@ const EditCustomerForm = ({
       storeName: previousData.storeName,
       proximity: previousData?.client?.proximity?.toString() || "",
       address: previousData?.client?.address || "",
+      postalCode: previousData?.postalCode || "",
       coordinates: {
         latitude: previousData?.client?.latitude || "",
         longitude: previousData?.client?.longitude || "",
@@ -116,6 +118,11 @@ const EditCustomerForm = ({
     if (!place.geometry?.location || !place.formatted_address) return;
 
     form.setValue("address", place.formatted_address);
+    const postalCode =
+      place.address_components?.find((component) =>
+        component.types.includes("postal_code")
+      )?.long_name || "";
+    form.setValue("postalCode", postalCode);
 
     form.setValue("coordinates", {
       latitude: place.geometry.location.lat().toString(),
@@ -207,6 +214,20 @@ const EditCustomerForm = ({
                   <FormLabel>City Name</FormLabel>
                   <FormControl>
                     <Input placeholder="City name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="postalCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Postal Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Postal code" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

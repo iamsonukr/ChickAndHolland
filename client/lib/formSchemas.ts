@@ -200,7 +200,8 @@ export const addCustomerFormSchema = z.object({
     message: "Proximity is required",
   }),
 
-    address: z.string().optional(),
+  address: z.string().optional(),
+  postalCode: z.string().optional(),
 
 
   // ✅ COORDINATES OPTIONAL (Edit + QuickBooks safe)

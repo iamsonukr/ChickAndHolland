@@ -586,6 +586,7 @@ router.get(
         customerStoreName: getCustomerStoreName(retailer.customer),
         storeName: retailer.customer.storeName,
         storeAddress: retailer.customer.storeAddress,
+        postalCode: retailer.customer.postalCode,
 
         email: retailer.customer.email,
         phoneNumber: retailer.customer.phoneNumber,
@@ -617,6 +618,7 @@ router.patch(
       storeName,
       name,
       storeAddress,
+      postalCode,
       address,
       city_name,
       coordinates,
@@ -665,6 +667,9 @@ router.patch(
     if (typeof nextStoreAddress === "string") {
       customer.storeAddress = nextStoreAddress.trim();
     }
+    if (typeof postalCode !== "undefined") {
+      customer.postalCode = postalCode?.trim() || null;
+    }
 
     // Update or create associated client record so admin panel sees city/country/address
     try {
@@ -703,6 +708,7 @@ router.patch(
         name: customer.name,
         storeName: customer.storeName,
         storeAddress: customer.storeAddress,
+        postalCode: customer.postalCode,
         email: customer.email,
         phoneNumber: customer.phoneNumber,
         client: customer.client,

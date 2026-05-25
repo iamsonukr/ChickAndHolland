@@ -17,6 +17,9 @@ export default class Customer extends BaseModel {
   @Column("varchar", { length: 200, nullable: false })
   storeAddress: string;
 
+  @Column("varchar", { length: 30, nullable: true })
+  postalCode: string | null;
+
   @Column("varchar", { length: 225, nullable: true })
   website: string;
 

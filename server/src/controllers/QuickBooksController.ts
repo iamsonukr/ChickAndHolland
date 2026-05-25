@@ -201,11 +201,12 @@ router.post(
           }
 
          const addr = qbCustomer.ShipAddr || qbCustomer.BillAddr;
+         const postalCode = addr?.PostalCode || "";
 
 const formattedAddress = addr
   ? `${addr.Line1 || ""} ${addr.City || ""} ${
       addr.CountrySubDivisionCode || ""
-    } ${addr.PostalCode || ""}`.trim()
+    } ${postalCode}`.trim()
   : "Address not available";
 
 const newClient = Clients.create({
@@ -235,6 +236,7 @@ customer.client = newClient;
           customer.storeName =
             qbCustomer.CompanyName || qbCustomer.DisplayName || "Unknown Store";
           customer.storeAddress = formattedAddress;
+          customer.postalCode = postalCode;
           customer.website = "";
           customer.phoneNumber =
             qbCustomer.PrimaryPhone?.FreeFormNumber || "No phone";

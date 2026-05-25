@@ -56,6 +56,7 @@ const AddCustomerForm = ({
       storeName: "",
       proximity: "",
       address: "",
+      postalCode: "",
       city_name: "",
       coordinates: {
         latitude: "",
@@ -109,9 +110,14 @@ const AddCustomerForm = ({
     });
 
     const city_name = city?.long_name || place.name;
+    const postalCode =
+      place.address_components?.find((component) =>
+        component.types.includes("postal_code")
+      )?.long_name || "";
 
     // form.setValue("city_name", city_name as string);
     form.setValue("address", place?.formatted_address);
+    form.setValue("postalCode", postalCode);
 
     const latitude = place?.geometry?.location?.lat();
     const longitude = place?.geometry?.location?.lng();
