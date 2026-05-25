@@ -107,9 +107,9 @@ const StyleItem = ({
     : null;
   const resolvedPrice = productDetails
     ? resolveProductCurrencyPrice(
-        productDetails,
-        selectedCustomer?.currencyId ?? selectedCustomer?.currency?.id,
-      )
+      productDetails,
+      selectedCustomer?.currencyId ?? selectedCustomer?.currency?.id,
+    )
     : null;
   const sampleMeshValue = getSelectItemValue(stylesSelect?.mesh);
   const sampleBeadingValue = getSelectItemValue(stylesSelect?.beading);
@@ -122,11 +122,11 @@ const StyleItem = ({
     );
   const stylePricing = resolvedPrice
     ? calculateRetailerStylePricing({
-        basePrice: resolvedPrice.amount,
-        size: currentStyle.size,
-        quantity: currentStyle.quantity,
-        customSizesQuantity: currentStyle.customSizesQuantity,
-      })
+      basePrice: resolvedPrice.amount,
+      size: currentStyle.size,
+      quantity: currentStyle.quantity,
+      customSizesQuantity: currentStyle.customSizesQuantity,
+    })
     : null;
   const formatPrice = (value: number) =>
     formatOrderCurrency(
@@ -146,8 +146,7 @@ const StyleItem = ({
       <div className="flex items-center gap-4">
         <CollapsibleTrigger asChild>
           <div className="flex w-full flex-1 cursor-pointer justify-between border-2 border-primary p-2">
-            <p>{index + 1}. Style</p>
-            <ChevronDown />
+            <p>{index + 1}. Style {selectedStyleCode ? `(${selectedStyleCode})` : ""}</p>            <ChevronDown />
           </div>
         </CollapsibleTrigger>
         <Button

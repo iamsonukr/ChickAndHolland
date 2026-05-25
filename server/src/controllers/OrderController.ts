@@ -991,18 +991,42 @@ router.post(
           await newStyle.save();
         }
 
-        res.json({
+        // If this is a draft, respond immediately.
+        if (order.publishStatus === OrderPublishStatus.Draft) {
+          return res.json({
+            success: true,
+            message: "Draft saved successfully",
+            purchaseOrderNo: order.purchaeOrderNo,
+          });
+        }
+
+        // For published orders, attempt to send the email synchronously.
+        try {
+          await sendCreatedOrderPdfEmail(order.id);
+        } catch (emailError: any) {
+          console.error("Order create: email send failed, reverting to draft", {
+            orderId: order.id,
+            error: emailError?.message ?? String(emailError),
+          });
+
+          // Revert to draft so the admin can retry and data is preserved
+          order.publishStatus = OrderPublishStatus.Draft;
+          await order.save();
+
+          return res.status(500).json({
+            success: false,
+            message:
+              "Failed to send order email. The order was saved as a draft. Please check the email address or try again.",
+            error: emailError?.message ?? String(emailError),
+            purchaseOrderNo: order.purchaeOrderNo,
+          });
+        }
+
+        return res.json({
           success: true,
-          message:
-            order.publishStatus === OrderPublishStatus.Draft
-              ? "Draft saved successfully"
-              : "Order created with barcode successfully",
+          message: "Order created with barcode successfully",
           purchaseOrderNo: order.purchaeOrderNo,
         });
-
-        if (order.publishStatus !== OrderPublishStatus.Draft) {
-          queueCreatedOrderPdfEmail(order.id);
-        }
       } catch (error) {
         console.error(error);
         res.status(500).json({
@@ -1350,9 +1374,32 @@ router.patch(
     order.publishStatus = OrderPublishStatus.Published;
     await order.save();
 
+    // Try to send the order PDF email immediately. If sending fails,
+    // revert the order back to Draft so the admin can retry and inform
+    // the client about the failure.
+    try {
+      await sendCreatedOrderPdfEmail(order.id);
+    } catch (emailError: any) {
+      console.error("Order publish: email send failed, reverting to draft", {
+        orderId: order.id,
+        error: emailError?.message ?? String(emailError),
+      });
+
+      // Revert to draft so data is preserved and admin can retry
+      order.publishStatus = OrderPublishStatus.Draft;
+      await order.save();
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to send order email. The order was saved as a draft. Please check the email address or try again.",
+        error: emailError?.message ?? String(emailError),
+      });
+    }
+
     return res.json({
       success: true,
-      message: "Order published successfully",
+      message: "Order published and email sent successfully",
     });
   }),
 );

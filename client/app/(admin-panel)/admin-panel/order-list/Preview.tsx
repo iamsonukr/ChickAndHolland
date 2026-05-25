@@ -489,15 +489,23 @@ const Preview = ({
   }, [open]);
 
   const sendMail = async () => {
-    const res =
-      data.orderType === "Fresh"
-        ? await freshMail({ orderData: data })
-        : await stockMail({ orderData: data });
+    try {
+      const res =
+        data.orderType === "Fresh"
+          ? await freshMail({ orderData: data })
+          : await stockMail({ orderData: data });
 
-    if (res?.success) {
-      toast.success("Email sent successfully");
-    } else {
-      toast.error("Something went wrong");
+      if (res?.success) {
+        toast.success("Email sent successfully");
+      } else {
+        toast.error(res?.message || "Something went wrong");
+        toast("Order saved in draft");
+      }
+    } catch (err: any) {
+      console.error("sendMail:error", err);
+      const message = err?.message || (err?.message ?? "Failed to send email");
+      toast.error(message);
+      toast("Order saved in draft");
     }
   };
 

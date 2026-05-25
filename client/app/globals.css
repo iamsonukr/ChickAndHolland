@@ -398,6 +398,12 @@
 }
 
 .video-overlay {
+
+/* Add spacing between Sonner toasts so they stack without overlapping */
+.toaster .toast + .toast {
+  margin-top: 0.75rem; /* 12px spacing between toasts */
+}
+
   position: absolute;
   inset: 0;
   background: linear-gradient(
