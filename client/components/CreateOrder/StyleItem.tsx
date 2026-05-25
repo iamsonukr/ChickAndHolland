@@ -29,6 +29,9 @@ import { ColorType, CreateOrderForm, SizeCountry, sizes } from "@/lib/formSchema
 import CommentsFieldArray from "./CommentsFieldArray";
 import FileUploadField from "./FileUploadField";
 import { searchStyleNumbers } from "@/lib/data";
+import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+
 import {
   calculateRetailerStylePricing,
   formatOrderCurrency,
@@ -89,6 +92,9 @@ const StyleItem = ({
   getColourBasedOnId,
   getColourBasedOnhex,
 }: StyleItemProps) => {
+  // ✅ FIXED: moved to top of component, before any conditional logic
+  const router = useRouter();
+
   const watchColorType = form.watch(`styles[${index}].colorType` as any);
   const watchSize = form.watch(`styles[${index}].size` as any);
   const stylesSelect = form.watch(`styles[${index}].styleNo[0]` as any) as any;
@@ -129,6 +135,12 @@ const StyleItem = ({
       resolvedPrice?.currencySymbol,
     );
 
+  // Dynamically mount the AddProductForm on the page (only once on the first StyleItem)
+  const AddProductFormDynamic = dynamic(
+    () => import("@/app/(admin-panel)/admin-panel/products/AddProductForm"),
+    { ssr: false },
+  );
+
   return (
     <Collapsible key={fieldId} defaultOpen={index === 0} className="space-y-2">
       <div className="flex items-center gap-4">
@@ -167,13 +179,32 @@ const StyleItem = ({
                       const res = await searchStyleNumbers(value);
                       return res.products;
                     }}
-                    creatable
                     placeholder="Please enter at least 1 character to search"
                     loadingIndicator={
                       <p className="text-muted-foreground">Loading...</p>
                     }
                     emptyIndicator={
-                      <p className="text-muted-foreground">No results found</p>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className="cursor-pointer rounded-md border px-3 py-2 text-sm hover:bg-muted bg-popover text-popover-foreground shadow-sm"
+                        // ✅ FIXED: stopPropagation on pointerDown to block Radix,
+                        //    then navigate on click which fires after Radix is done
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onClick={() => {
+                          // Open add Product Form (programmatically trigger global event)
+                          try {
+                            window.dispatchEvent(new Event("openAddProductForm"));
+                          } catch (err) {
+                            // fallback: no-op
+                          }
+                        }}
+                        
+                      >
+                        Add New Style
+                      </div>
                     }
                     maxSelected={1}
                   />
@@ -637,6 +668,8 @@ const StyleItem = ({
           </div>
         </div>
       </CollapsibleContent>
+      {/* Mount AddProductForm once so it can listen for the global open event */}
+      {index === 0 && <AddProductFormDynamic />}
     </Collapsible>
   );
 };

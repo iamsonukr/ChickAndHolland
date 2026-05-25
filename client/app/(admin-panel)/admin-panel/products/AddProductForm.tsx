@@ -176,6 +176,13 @@ const filteredCollections = selectedCategory
     colorsFun();
   }, []);
 
+  // Listen for a global event to open the Add Product sheet programmatically
+  useEffect(() => {
+    const listener = (e: Event) => setOpen(true);
+    window.addEventListener("openAddProductForm", listener);
+    return () => window.removeEventListener("openAddProductForm", listener);
+  }, []);
+
   // console.log(form.formState.errors , "ERROR");
 
   return (

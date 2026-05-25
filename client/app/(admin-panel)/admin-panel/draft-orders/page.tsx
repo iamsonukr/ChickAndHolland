@@ -34,7 +34,6 @@ const DraftOrdersPage = async (props: {
   ]);
 
   const draftOrders = orders?.orders ?? [];
-
   return (
     <ContentLayout title="Draft Orders">
       <div className="flex flex-col gap-4">

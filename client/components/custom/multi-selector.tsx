@@ -410,10 +410,20 @@ const MultipleSelector = React.forwardRef<
 
       // For async search that showing emptyIndicator
       if (onSearch && !creatable && Object.keys(options).length === 0) {
+        // Render a plain wrapper instead of a disabled CommandItem so inner
+        // click handlers (like opening a sheet) can run. Stop propagation
+        // on pointer down to avoid cmdk/radix intercepting the event.
         return (
-          <CommandItem value="-" disabled>
+          <div
+            role="button"
+            tabIndex={0}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+            }}
+            className="py-2 px-3 text-sm"
+          >
             {emptyIndicator}
-          </CommandItem>
+          </div>
         );
       }
 
