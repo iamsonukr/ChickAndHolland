@@ -10,6 +10,7 @@ type EuSizeEntry = {
 type CustomSizeCapableItem = {
   customSize?: unknown;
   customSizesQuantity?: unknown;
+  quantity?: unknown;
   size?: unknown;
 };
 
@@ -63,7 +64,10 @@ const parseSizeNumber = (value: string) => {
   return Number.isFinite(parsedNumber) ? parsedNumber : null;
 };
 
-const sortEuSizes = ([leftSize]: [string, number], [rightSize]: [string, number]) => {
+const sortEuSizes = (
+  [leftSize]: [string, number],
+  [rightSize]: [string, number],
+) => {
   const leftNumeric = Number.parseInt(leftSize, 10);
   const rightNumeric = Number.parseInt(rightSize, 10);
   const hasLeftNumeric = Number.isFinite(leftNumeric);
@@ -115,34 +119,86 @@ const getCustomSizeText = (value: unknown) => {
   return "";
 };
 
+const getPositiveCount = (value: unknown) => {
+  const parsedCount = Math.trunc(Number(value));
+  return Number.isFinite(parsedCount) && parsedCount > 0 ? parsedCount : null;
+};
+
+const mergeSizeEntries = (entries: EuSizeEntry[]) => {
+  const mergedEntries = new Map<string, EuSizeEntry>();
+
+  entries.forEach((entry) => {
+    const existingEntry = mergedEntries.get(entry.size);
+
+    if (!existingEntry) {
+      mergedEntries.set(entry.size, { ...entry });
+      return;
+    }
+
+    if (existingEntry.count != null || entry.count != null) {
+      existingEntry.count = (existingEntry.count ?? 0) + (entry.count ?? 0);
+    }
+  });
+
+  return Array.from(mergedEntries.values());
+};
+
 const isCustomSizeMarker = (value: unknown) => {
   const normalizedValue = String(value ?? "").trim();
-  return /^custom(?:\s*\/\s*\d+)?$/i.test(stripKnownSizeDecorators(normalizedValue));
+  return /^custom(?:\s*\/\s*\d+)?$/i.test(
+    stripKnownSizeDecorators(normalizedValue),
+  );
 };
 
 const uniqueValues = (values: string[]) => Array.from(new Set(values));
 
-export const getCustomSizeEntries = (item: CustomSizeCapableItem = {}) => {
+const getCustomSizeQuantityEntries = (
+  item: CustomSizeCapableItem = {},
+): EuSizeEntry[] => {
   if (!isCustomSizeMarker(item.size)) {
     return [];
   }
 
-  const customSizeEntries = parseMaybeArray(item.customSize)
-    .map(getCustomSizeText)
-    .filter(Boolean);
   const customSizeQuantityEntries = parseMaybeArray(item.customSizesQuantity)
-    .map(getCustomSizeText)
-    .filter(Boolean);
+    .map((entry) => ({
+      size: getCustomSizeText(entry),
+      count:
+        entry && typeof entry === "object"
+          ? getPositiveCount((entry as Record<string, unknown>).quantity)
+          : null,
+    }))
+    .filter((entry): entry is EuSizeEntry => Boolean(entry.size));
 
-  return uniqueValues(
-    customSizeEntries.length ? customSizeEntries : customSizeQuantityEntries,
+  if (customSizeQuantityEntries.length) {
+    return mergeSizeEntries(customSizeQuantityEntries);
+  }
+
+  return mergeSizeEntries(
+    parseMaybeArray(item.customSize)
+      .map(
+        (entry): EuSizeEntry => ({
+          size: getCustomSizeText(entry),
+          count: null,
+        }),
+      )
+      .filter((entry): entry is EuSizeEntry => Boolean(entry.size)),
   );
 };
 
-export const formatCustomSizeBulletList = (item: CustomSizeCapableItem = {}) => {
-  const customSizeEntries = getCustomSizeEntries(item);
+export const getCustomSizeEntries = (item: CustomSizeCapableItem = {}) =>
+  uniqueValues(getCustomSizeQuantityEntries(item).map((entry) => entry.size));
 
-  return customSizeEntries.map((entry) => `\u2022 ${entry}`).join("\n");
+const formatCustomSizeEntry = (entry: EuSizeEntry) =>
+  entry.count == null
+    ? `\u2022 ${entry.size}`
+    : `\u2022 ${entry.size}/${entry.count}`;
+
+export const formatCustomSizeBulletList = (
+  item: CustomSizeCapableItem = {},
+) => {
+  const customSizeEntries = getCustomSizeQuantityEntries(item);
+
+  return customSizeEntries.map(formatCustomSizeEntry).join("\n");
 };
 
 const getFallbackEuSizeEntries = (item: {
@@ -150,7 +206,10 @@ const getFallbackEuSizeEntries = (item: {
   size?: unknown;
   size_country?: unknown;
 }) => {
-  const adminEuSize = convertToEuSize(item.admin_us_size, PDF_DISPLAY_SIZE_UNIT);
+  const adminEuSize = convertToEuSize(
+    item.admin_us_size,
+    PDF_DISPLAY_SIZE_UNIT,
+  );
 
   if (adminEuSize && adminEuSize.toUpperCase() !== "N/A") {
     return [{ size: adminEuSize, count: null }];
@@ -160,7 +219,10 @@ const getFallbackEuSizeEntries = (item: {
   return convertedSize ? [{ size: convertedSize, count: null }] : [];
 };
 
-const parseSizeToken = (token: string, fallbackUnit?: unknown): EuSizeEntry | null => {
+const parseSizeToken = (
+  token: string,
+  fallbackUnit?: unknown,
+): EuSizeEntry | null => {
   const trimmedToken = token.trim();
 
   if (!trimmedToken) {
@@ -186,7 +248,9 @@ const parseSizeToken = (token: string, fallbackUnit?: unknown): EuSizeEntry | nu
 };
 
 export const normalizeSizeUnit = (value: unknown): SupportedSizeUnit | null => {
-  const normalizedValue = String(value ?? "").trim().toUpperCase();
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toUpperCase();
 
   return SUPPORTED_SIZE_UNITS.includes(normalizedValue as SupportedSizeUnit)
     ? (normalizedValue as SupportedSizeUnit)
@@ -200,7 +264,8 @@ export const convertToEuSize = (sizeValue: unknown, unit?: unknown): string => {
     return "";
   }
 
-  const resolvedUnit = normalizeSizeUnit(unit) ?? detectSizeUnitFromText(rawValue);
+  const resolvedUnit =
+    normalizeSizeUnit(unit) ?? detectSizeUnitFromText(rawValue);
   const normalizedValue = stripKnownSizeDecorators(rawValue);
   const parsedSize = parseSizeNumber(normalizedValue);
 
@@ -212,17 +277,21 @@ export const convertToEuSize = (sizeValue: unknown, unit?: unknown): string => {
     return String(parsedSize);
   }
 
-  const matchedRow = SIZE_CHART.find((entry) => entry[resolvedUnit] === parsedSize);
+  const matchedRow = SIZE_CHART.find(
+    (entry) => entry[resolvedUnit] === parsedSize,
+  );
   return matchedRow ? String(matchedRow.EU) : String(parsedSize);
 };
 
-export const getEuSizeEntries = (item: {
-  admin_us_size?: unknown;
-  customSize?: unknown;
-  customSizesQuantity?: unknown;
-  size?: unknown;
-  size_country?: unknown;
-} = {}) => {
+export const getEuSizeEntries = (
+  item: {
+    admin_us_size?: unknown;
+    customSize?: unknown;
+    customSizesQuantity?: unknown;
+    size?: unknown;
+    size_country?: unknown;
+  } = {},
+) => {
   if (getCustomSizeEntries(item).length) {
     return [];
   }
@@ -292,8 +361,8 @@ export const formatEuSizeSummary = (
   options?: { alwaysShowCount?: boolean },
 ) => {
   const sizeCounts = new Map<string, number>();
-  const customSizeEntries = uniqueValues(
-    items.flatMap((item) => getCustomSizeEntries(item)),
+  const customSizeEntries = mergeSizeEntries(
+    items.flatMap((item) => getCustomSizeQuantityEntries(item)),
   );
 
   items.forEach((item) => {
@@ -309,15 +378,22 @@ export const formatEuSizeSummary = (
 
     if (entries.length === 1 && entries[0].count == null) {
       const quantity = Number(item.quantity);
-      const pieceCount = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+      const pieceCount =
+        Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 
-      sizeCounts.set(entries[0].size, (sizeCounts.get(entries[0].size) ?? 0) + pieceCount);
+      sizeCounts.set(
+        entries[0].size,
+        (sizeCounts.get(entries[0].size) ?? 0) + pieceCount,
+      );
       return;
     }
 
     entries.forEach((entry) => {
       const pieceCount = entry.count ?? 1;
-      sizeCounts.set(entry.size, (sizeCounts.get(entry.size) ?? 0) + pieceCount);
+      sizeCounts.set(
+        entry.size,
+        (sizeCounts.get(entry.size) ?? 0) + pieceCount,
+      );
     });
   });
 
@@ -328,10 +404,12 @@ export const formatEuSizeSummary = (
     )
     .join(", ");
   const customSizeSummary = customSizeEntries
-    .map((entry) => `\u2022 ${entry}`)
+    .map(formatCustomSizeEntry)
     .join("\n");
 
-  return [regularSizeSummary, customSizeSummary].filter(Boolean).join("\n") || "-";
+  return (
+    [regularSizeSummary, customSizeSummary].filter(Boolean).join("\n") || "-"
+  );
 };
 
 export function convertToUSSize(size: any, country: string): string {

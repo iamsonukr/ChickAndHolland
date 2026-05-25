@@ -3,7 +3,7 @@
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DefaultValues,
   useFieldArray,
@@ -89,6 +89,29 @@ const getPositivePieceCount = (quantity: unknown) => {
   return Number.isFinite(numericQuantity) && numericQuantity > 0
     ? numericQuantity
     : 0;
+};
+
+const isCustomSizeValue = (size: unknown) =>
+  String(size ?? "")
+    .trim()
+    .toLowerCase() === "custom";
+
+const normalizeStyleForPayload = (style: CreateOrderForm["styles"][number]) => {
+  if (!isCustomSizeValue(style.size)) {
+    return {
+      ...style,
+      customSize: [],
+      customSizesQuantity: [],
+    };
+  }
+
+  return {
+    ...style,
+    customSize: (style.customSize ?? [])
+      .map((size: any) => getCustomSizeText(size))
+      .filter(Boolean),
+    customSizesQuantity: [],
+  };
 };
 
 const toDateValue = (value: any) => {
@@ -188,38 +211,73 @@ function appendStyleFormData(
   detailsMap: Map<string, any>,
   customer?: any,
 ) {
-  const productDetails = detailsMap.get(style.styleNo?.[0]?.value ?? "");
+  const normalizedStyle = normalizeStyleForPayload(style);
+  const productDetails = detailsMap.get(
+    normalizedStyle.styleNo?.[0]?.value ?? "",
+  );
   const sas = (val: string | undefined, fallback: string | undefined) =>
     val === "SAS" ? (fallback ?? "") : (val ?? "");
 
-  if (style.styleId) fd.append(`styles[${index}].id`, String(style.styleId));
-  fd.append(`styles[${index}].styleNo`, style.styleNo?.[0]?.value ?? "");
-  fd.append(`styles[${index}].colorType`, style.colorType);
-  fd.append(`styles[${index}].beading`, sas(style.beading, productDetails?.beading_color));
-  fd.append(`styles[${index}].mesh`, sas(style.mesh, productDetails?.mesh_color));
-  fd.append(`styles[${index}].lining`, sas(style.lining, productDetails?.lining));
-  fd.append(`styles[${index}].liningColor`, sas(style.liningColor, productDetails?.lining_color));
-  fd.append(`styles[${index}].customColor`, JSON.stringify(style.customColor?.map((c) => c.value) ?? []));
-  fd.append(`styles[${index}].sizeCountry`, style.sizeCountry);
-  fd.append(`styles[${index}].size`, style.size);
+  if (normalizedStyle.styleId)
+    fd.append(`styles[${index}].id`, String(normalizedStyle.styleId));
+  fd.append(
+    `styles[${index}].styleNo`,
+    normalizedStyle.styleNo?.[0]?.value ?? "",
+  );
+  fd.append(`styles[${index}].colorType`, normalizedStyle.colorType);
+  fd.append(
+    `styles[${index}].beading`,
+    sas(normalizedStyle.beading, productDetails?.beading_color),
+  );
+  fd.append(
+    `styles[${index}].mesh`,
+    sas(normalizedStyle.mesh, productDetails?.mesh_color),
+  );
+  fd.append(
+    `styles[${index}].lining`,
+    sas(normalizedStyle.lining, productDetails?.lining),
+  );
+  fd.append(
+    `styles[${index}].liningColor`,
+    sas(normalizedStyle.liningColor, productDetails?.lining_color),
+  );
+  fd.append(
+    `styles[${index}].customColor`,
+    JSON.stringify(normalizedStyle.customColor?.map((c) => c.value) ?? []),
+  );
+  fd.append(`styles[${index}].sizeCountry`, normalizedStyle.sizeCountry);
+  fd.append(`styles[${index}].size`, normalizedStyle.size);
   fd.append(
     `styles[${index}].customSize`,
     JSON.stringify(
-      (style.customSize ?? [])
+      (normalizedStyle.customSize ?? [])
         .map((size: any) => getCustomSizeText(size))
         .filter(Boolean),
     ),
   );
-  fd.append(`styles[${index}].quantity`, style.quantity ?? "");
+  fd.append(`styles[${index}].quantity`, normalizedStyle.quantity ?? "");
   fd.append(
     `styles[${index}].comments`,
-    JSON.stringify(style.comments?.map((comment) => comment.trim()).filter(Boolean) ?? []),
+    JSON.stringify(
+      normalizedStyle.comments
+        ?.map((comment) => comment.trim())
+        .filter(Boolean) ?? [],
+    ),
   );
-  fd.append(`styles[${index}].customSizesQuantity`, JSON.stringify(style.customSizesQuantity));
-  appendStylePricingFormData(fd, style, index, productDetails, customer);
+  fd.append(
+    `styles[${index}].customSizesQuantity`,
+    JSON.stringify(normalizedStyle.customSizesQuantity),
+  );
+  appendStylePricingFormData(
+    fd,
+    normalizedStyle,
+    index,
+    productDetails,
+    customer,
+  );
 
-  if (style.modifiedPhotoImage) {
-    Array.from(style.modifiedPhotoImage).forEach((file: any) => {
+  if (normalizedStyle.modifiedPhotoImage) {
+    Array.from(normalizedStyle.modifiedPhotoImage).forEach((file: any) => {
       fd.append(`styles[${index}].modifiedPhotoImage`, file);
     });
   }
@@ -315,7 +373,9 @@ export function buildPreviewData(
       customSizesQuantity,
     );
     const isCustomSize =
-      String(currentItem.size ?? "").trim().toLowerCase() === "custom";
+      String(currentItem.size ?? "")
+        .trim()
+        .toLowerCase() === "custom";
     const hasCustomSizeEntries = isCustomSize && customSizeEntries.length > 0;
 
     return {
@@ -330,7 +390,9 @@ export function buildPreviewData(
         ? "Custom"
         : customSizesQuantity.length < 1
           ? `${currentItem.size}/${currentItem.quantity}`
-          : customSizesQuantity.map((i: any) => `${i.size}/${i.quantity}`).join(", "),
+          : customSizesQuantity
+              .map((i: any) => `${i.size}/${i.quantity}`)
+              .join(", "),
       customSize: customSizeEntries,
       customSizesQuantity,
       styleNo: currentItem.styleNo,
@@ -406,7 +468,10 @@ export function useCreateOrder({
   }));
 
   const [orderTypeArrayState, setOrderTypeArrayState] = useState([
-    ...Object.entries(OrderType).map(([key, value]) => ({ value: key, label: value })),
+    ...Object.entries(OrderType).map(([key, value]) => ({
+      value: key,
+      label: value,
+    })),
     { value: "CUSTOM", label: "Custom" },
   ]);
 
@@ -418,13 +483,17 @@ export function useCreateOrder({
   const [eachStyleProductDetails, setEachStyleProductDetails] = useState(
     new Map<string, any>(),
   );
+  const previewRequestIdRef = useRef(0);
 
   // ── Uploaded file state ─────────────────────────────────────────────────────
   // Holds the raw File the user drops/selects. null means "use generated output".
   const [uploadedFile, setUploadedFileRaw] = useState<File | null>(null);
-  const [uploadedFileType, setUploadedFileType] = useState<UploadedFileType>(null);
+  const [uploadedFileType, setUploadedFileType] =
+    useState<UploadedFileType>(null);
   // Object URL for in-browser preview (PDF iframe). Revoked on change / unmount.
-  const [uploadedFileObjectUrl, setUploadedFileObjectUrl] = useState<string | null>(null);
+  const [uploadedFileObjectUrl, setUploadedFileObjectUrl] = useState<
+    string | null
+  >(null);
 
   const setUploadedFile = useCallback((file: File | null) => {
     // Always revoke the previous object URL before creating a new one.
@@ -436,7 +505,10 @@ export function useCreateOrder({
     setUploadedFileType(file ? resolveFileType(file) : null);
   }, []);
 
-  const clearUploadedFile = useCallback(() => setUploadedFile(null), [setUploadedFile]);
+  const clearUploadedFile = useCallback(
+    () => setUploadedFile(null),
+    [setUploadedFile],
+  );
 
   // Revoke object URL when the hook unmounts.
   useEffect(() => {
@@ -455,16 +527,19 @@ export function useCreateOrder({
     error: updateError,
     executeAsync: executeUpdateAsync,
   } = useHttp(`/orders/${editOrder?.id ?? ""}`, "PATCH");
-  const { loading: previewLoading, executeAsync: executePreviewAsync } = useHttp("/orders/preview");
+  const { loading: previewLoading, executeAsync: executePreviewAsync } =
+    useHttp("/orders/preview");
 
   // ── Colour helpers ──────────────────────────────────────────────────────────
   const getColourBasedOnId = useCallback(
-    (id: number) => colors.find((c: any) => c.id === id)?.hexcode as string | undefined,
+    (id: number) =>
+      colors.find((c: any) => c.id === id)?.hexcode as string | undefined,
     [colors],
   );
 
   const getColourBasedOnhex = useCallback(
-    (hex: string) => colors.find((c: any) => c.hexcode === hex)?.name as string | undefined,
+    (hex: string) =>
+      colors.find((c: any) => c.hexcode === hex)?.name as string | undefined,
     [colors],
   );
 
@@ -492,7 +567,9 @@ export function useCreateOrder({
     addLining: false,
   });
 
-  const mapStyleToFormValue = (style: any): CreateOrderForm["styles"][number] => {
+  const mapStyleToFormValue = (
+    style: any,
+  ): CreateOrderForm["styles"][number] => {
     const styleNo = String(style?.styleNo ?? "");
     const customSizesQuantity = parseJsonArray(style?.customSizesQuantity);
     const customSize = parseJsonArray(style?.customSize);
@@ -564,7 +641,8 @@ export function useCreateOrder({
         manufacturingEmailAddress:
           editOrder?.manufacturingEmailAddress ?? "rubyinc@hotmail.com",
         orderType: editOrder?.orderType || orderTypeArrayState[0].value,
-        orderReceivedDate: toDateValue(editOrder?.orderReceivedDate) ?? new Date(),
+        orderReceivedDate:
+          toDateValue(editOrder?.orderReceivedDate) ?? new Date(),
         orderCancellationDate: toDateValue(editOrder?.orderCancellationDate),
         address: editOrder?.address ?? "",
         customerId: customerOption,
@@ -609,14 +687,18 @@ export function useCreateOrder({
   }, [isEditMode, open, editOrder?.id]);
 
   // ── PO number generation ────────────────────────────────────────────────────
-  const watchCustomerName = useWatch({ control: form.control, name: "customerId" });
+  const watchCustomerName = useWatch({
+    control: form.control,
+    name: "customerId",
+  });
   const selectedCustomer = useMemo(() => {
     const selectedCustomerId = watchCustomerName?.[0]?.value;
     if (!selectedCustomerId) return null;
 
     return (
-      customers.find((customer) => String(customer.id) === String(selectedCustomerId)) ??
-      null
+      customers.find(
+        (customer) => String(customer.id) === String(selectedCustomerId),
+      ) ?? null
     );
   }, [customers, watchCustomerName]);
 
@@ -647,7 +729,8 @@ export function useCreateOrder({
     try {
       const latestPO = await getLatestRegularOrder();
       const latestSequence = getTrailingPoNumber(latestPO?.purchaeOrderNo);
-      const nextSequence = latestSequence > 0 ? latestSequence + 1 : fallbackSequence;
+      const nextSequence =
+        latestSequence > 0 ? latestSequence + 1 : fallbackSequence;
 
       form.setValue("purchaseOrderNo", `PO#${prefix} ${nextSequence}`, {
         shouldDirty: false,
@@ -676,7 +759,7 @@ export function useCreateOrder({
   const watchedForm = useWatch({ control: form.control });
 
   useEffect(() => {
-      if (!open) return;                    // ← add this guard
+    if (!open) return; // ← add this guard
 
     if (uploadedFile) return; // user supplied their own file — skip generation
     if (!watchedForm?.orderReceivedDate) return;
@@ -688,11 +771,7 @@ export function useCreateOrder({
 
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    uploadedFile,
-    watchedForm,
-    form.formState.isValid,
-  ]);
+  }, [uploadedFile, watchedForm, form.formState.isValid]);
 
   // ── Product details loader ──────────────────────────────────────────────────
   const ensureProductDetailsLoaded = useCallback(
@@ -704,7 +783,9 @@ export function useCreateOrder({
         const styleSelect = style.styleNo?.[0];
         if (styleSelect?.value && !newMap.has(styleSelect.value)) {
           try {
-            const details = await getProductDetailsByProductCode(styleSelect.value);
+            const details = await getProductDetailsByProductCode(
+              styleSelect.value,
+            );
             newMap.set(styleSelect.value, {
               ...details,
               productCode: styleSelect.value,
@@ -715,7 +796,9 @@ export function useCreateOrder({
             });
             hasChanges = true;
           } catch {
-            console.error(`Failed to fetch product details for ${styleSelect.value}`);
+            console.error(
+              `Failed to fetch product details for ${styleSelect.value}`,
+            );
           }
         }
       }
@@ -738,7 +821,8 @@ export function useCreateOrder({
     const detailsMap = await ensureProductDetailsLoaded(data.styles);
     const orderCustomer =
       customers.find(
-        (customer) => String(customer.id) === String(data.customerId?.[0]?.value),
+        (customer) =>
+          String(customer.id) === String(data.customerId?.[0]?.value),
       ) ?? selectedCustomer;
 
     if (isEditMode) {
@@ -772,7 +856,8 @@ export function useCreateOrder({
 
       const fd = new FormData();
 
-      if (dirtyFields.purchaseOrderNo) fd.append("purchaseOrderNo", data.purchaseOrderNo);
+      if (dirtyFields.purchaseOrderNo)
+        fd.append("purchaseOrderNo", data.purchaseOrderNo);
       if (dirtyFields.manufacturingEmailAddress) {
         fd.append("manufacturingEmailAddress", data.manufacturingEmailAddress);
       }
@@ -785,7 +870,11 @@ export function useCreateOrder({
         appendDateField(fd, "orderReceivedDate", data.orderReceivedDate);
       }
       if (dirtyFields.orderCancellationDate) {
-        appendDateField(fd, "orderCancellationDate", data.orderCancellationDate);
+        appendDateField(
+          fd,
+          "orderCancellationDate",
+          data.orderCancellationDate,
+        );
       }
       if (deleteStyleIds.length) {
         fd.append("deleteStyleIds", JSON.stringify(deleteStyleIds));
@@ -797,7 +886,12 @@ export function useCreateOrder({
         const isNewStyle = !style.styleId;
         const hasNewImages = Boolean(style.modifiedPhotoImage?.length);
 
-        if (!isNewStyle && !styleDirty && !hasNewImages && !dirtyFields.customerId) {
+        if (
+          !isNewStyle &&
+          !styleDirty &&
+          !hasNewImages &&
+          !dirtyFields.customerId
+        ) {
           return;
         }
         appendStyleFormData(fd, style, index, detailsMap, orderCustomer);
@@ -811,7 +905,11 @@ export function useCreateOrder({
       try {
         const response = await executeUpdateAsync(
           fd,
-          { headers: editPassword ? { "X-Edit-Password": editPassword } : undefined },
+          {
+            headers: editPassword
+              ? { "X-Edit-Password": editPassword }
+              : undefined,
+          },
           (err) => {
             toast.error("Failed to update order", {
               description: err?.message ?? "Something went wrong",
@@ -829,7 +927,9 @@ export function useCreateOrder({
         clearUploadedFile();
         toast.success(
           response.message ??
-            (publishStatus === "draft" ? "Draft saved successfully" : "Order updated successfully"),
+            (publishStatus === "draft"
+              ? "Draft saved successfully"
+              : "Order updated successfully"),
         );
         onSuccess?.();
         setPreviewData(null);
@@ -872,7 +972,9 @@ export function useCreateOrder({
       clearUploadedFile();
       toast.success(
         response.message ??
-          (publishStatus === "draft" ? "Draft saved successfully" : "Order added successfully"),
+          (publishStatus === "draft"
+            ? "Draft saved successfully"
+            : "Order added successfully"),
       );
       onSuccess?.();
       setPreviewData(null);
@@ -885,34 +987,50 @@ export function useCreateOrder({
   };
 
   const onSubmit = async (data: CreateOrderForm) => submitOrder(data);
-  const onSaveDraft = async (data: CreateOrderForm) => submitOrder(data, "draft");
+  const onSaveDraft = async (data: CreateOrderForm) =>
+    submitOrder(data, "draft");
 
   // ── onPreviewSubmit ─────────────────────────────────────────────────────────
   const onPreviewSubmit = async (data: CreateOrderForm) => {
+    const previewRequestId = previewRequestIdRef.current + 1;
+    previewRequestIdRef.current = previewRequestId;
     const detailsMap = await ensureProductDetailsLoaded(data.styles);
     const fd = buildSharedFormData(data);
     appendDateField(fd, "orderReceivedDate", data.orderReceivedDate);
     appendDateField(fd, "orderCancellationDate", data.orderCancellationDate);
     const orderCustomer =
       customers.find(
-        (customer) => String(customer.id) === String(data.customerId?.[0]?.value),
+        (customer) =>
+          String(customer.id) === String(data.customerId?.[0]?.value),
       ) ?? selectedCustomer;
     appendStylesFormData(fd, data.styles, detailsMap, orderCustomer);
 
     try {
       const response = await executePreviewAsync(fd, {}, (err) => {
+        if (previewRequestId !== previewRequestIdRef.current) return;
+
         toast.error("Failed to preview order", {
           description: err?.message ?? "Something went wrong",
         });
       });
 
+      if (previewRequestId !== previewRequestIdRef.current) {
+        return;
+      }
+
       if (response.success) {
-        setPreviewData(buildPreviewData(data, response.orders, getColourBasedOnhex));
+        setPreviewData(
+          buildPreviewData(data, response.orders, getColourBasedOnhex),
+        );
         // setOpen(true);
       } else {
         toast.error("Failed to preview order");
       }
     } catch {
+      if (previewRequestId !== previewRequestIdRef.current) {
+        return;
+      }
+
       toast.error("Failed to preview order", {
         description: error?.message ?? "Something went wrong",
       });

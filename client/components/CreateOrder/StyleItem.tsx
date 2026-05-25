@@ -25,11 +25,15 @@ import {
 import MultipleSelector from "@/components/custom/multi-selector";
 import { ChevronDown, Delete } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
-import { ColorType, CreateOrderForm, SizeCountry, sizes } from "@/lib/formSchemas";
+import {
+  ColorType,
+  CreateOrderForm,
+  SizeCountry,
+  sizes,
+} from "@/lib/formSchemas";
 import CommentsFieldArray from "./CommentsFieldArray";
 import FileUploadField from "./FileUploadField";
 import { searchStyleNumbers } from "@/lib/data";
-import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
 import {
@@ -92,9 +96,6 @@ const StyleItem = ({
   getColourBasedOnId,
   getColourBasedOnhex,
 }: StyleItemProps) => {
-  // ✅ FIXED: moved to top of component, before any conditional logic
-  const router = useRouter();
-
   const watchColorType = form.watch(`styles[${index}].colorType` as any);
   const watchSize = form.watch(`styles[${index}].size` as any);
   const stylesSelect = form.watch(`styles[${index}].styleNo[0]` as any) as any;
@@ -107,9 +108,9 @@ const StyleItem = ({
     : null;
   const resolvedPrice = productDetails
     ? resolveProductCurrencyPrice(
-      productDetails,
-      selectedCustomer?.currencyId ?? selectedCustomer?.currency?.id,
-    )
+        productDetails,
+        selectedCustomer?.currencyId ?? selectedCustomer?.currency?.id,
+      )
     : null;
   const sampleMeshValue = getSelectItemValue(stylesSelect?.mesh);
   const sampleBeadingValue = getSelectItemValue(stylesSelect?.beading);
@@ -122,11 +123,11 @@ const StyleItem = ({
     );
   const stylePricing = resolvedPrice
     ? calculateRetailerStylePricing({
-      basePrice: resolvedPrice.amount,
-      size: currentStyle.size,
-      quantity: currentStyle.quantity,
-      customSizesQuantity: currentStyle.customSizesQuantity,
-    })
+        basePrice: resolvedPrice.amount,
+        size: currentStyle.size,
+        quantity: currentStyle.quantity,
+        customSizesQuantity: currentStyle.customSizesQuantity,
+      })
     : null;
   const formatPrice = (value: number) =>
     formatOrderCurrency(
@@ -146,7 +147,11 @@ const StyleItem = ({
       <div className="flex items-center gap-4">
         <CollapsibleTrigger asChild>
           <div className="flex w-full flex-1 cursor-pointer justify-between border-2 border-primary p-2">
-            <p>{index + 1}. Style {selectedStyleCode ? `(${selectedStyleCode})` : ""}</p>            <ChevronDown />
+            <p>
+              {index + 1}. Style{" "}
+              {selectedStyleCode ? `(${selectedStyleCode})` : ""}
+            </p>{" "}
+            <ChevronDown />
           </div>
         </CollapsibleTrigger>
         <Button
@@ -163,7 +168,6 @@ const StyleItem = ({
 
       <CollapsibleContent asChild>
         <div className="grid grid-cols-1 gap-2 p-2 md:grid-cols-3">
-
           {/* ── Style No ── */}
           <FormField
             control={form.control}
@@ -186,7 +190,7 @@ const StyleItem = ({
                       <div
                         role="button"
                         tabIndex={0}
-                        className="cursor-pointer rounded-md border px-3 py-2 text-sm hover:bg-muted bg-popover text-popover-foreground shadow-sm"
+                        className="cursor-pointer rounded-md border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-sm hover:bg-muted"
                         // ✅ FIXED: stopPropagation on pointerDown to block Radix,
                         //    then navigate on click which fires after Radix is done
                         onPointerDown={(e) => {
@@ -195,7 +199,9 @@ const StyleItem = ({
                         onClick={() => {
                           // Open add Style Form (programmatically trigger global event)
                           try {
-                            window.dispatchEvent(new Event("openAddProductForm"));
+                            window.dispatchEvent(
+                              new Event("openAddProductForm"),
+                            );
                           } catch (err) {
                             // fallback: no-op
                           }
@@ -248,7 +254,10 @@ const StyleItem = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Mesh Color</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select Mesh Color" />
@@ -280,7 +289,9 @@ const StyleItem = ({
                               <div
                                 className="h-4 w-4 rounded-full"
                                 style={{
-                                  backgroundColor: getColourBasedOnId(colour.id),
+                                  backgroundColor: getColourBasedOnId(
+                                    colour.id,
+                                  ),
                                   border: "1px solid #000",
                                 }}
                               />
@@ -302,7 +313,10 @@ const StyleItem = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Beading Color</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select Beading Color" />
@@ -334,7 +348,9 @@ const StyleItem = ({
                               <div
                                 className="h-4 w-4 rounded-full"
                                 style={{
-                                  backgroundColor: getColourBasedOnId(colour.id),
+                                  backgroundColor: getColourBasedOnId(
+                                    colour.id,
+                                  ),
                                   border: "1px solid #000",
                                 }}
                               />
@@ -434,11 +450,14 @@ const StyleItem = ({
                                     <p
                                       className="mx-1 h-4 w-4 rounded-full"
                                       style={{
-                                        backgroundColor: stylesSelect?.liningColor,
+                                        backgroundColor:
+                                          stylesSelect?.liningColor,
                                         border: "1px solid #000",
                                       }}
                                     />
-                                    {getColourBasedOnhex(stylesSelect?.liningColor)}
+                                    {getColourBasedOnhex(
+                                      stylesSelect?.liningColor,
+                                    )}
                                   </div>
                                   )
                                 </div>
@@ -452,7 +471,9 @@ const StyleItem = ({
                                     <div
                                       className="h-4 w-4 rounded-full"
                                       style={{
-                                        backgroundColor: getColourBasedOnId(colour.id),
+                                        backgroundColor: getColourBasedOnId(
+                                          colour.id,
+                                        ),
                                         border: "1px solid #000",
                                       }}
                                     />
@@ -484,6 +505,10 @@ const StyleItem = ({
                     field.onChange(val);
                     form.setValue(`styles[${index}].size` as any, "");
                     form.setValue(`styles[${index}].customSize` as any, []);
+                    form.setValue(
+                      `styles[${index}].customSizesQuantity` as any,
+                      [],
+                    );
                   }}
                   value={field.value}
                 >
@@ -519,7 +544,26 @@ const StyleItem = ({
                 <FormItem>
                   <FormLabel>Size</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+
+                      if (value !== "Custom") {
+                        form.setValue(`styles.${index}.customSize` as any, [], {
+                          shouldDirty: true,
+                          shouldTouch: true,
+                          shouldValidate: true,
+                        });
+                        form.setValue(
+                          `styles.${index}.customSizesQuantity` as any,
+                          [],
+                          {
+                            shouldDirty: true,
+                            shouldTouch: true,
+                            shouldValidate: true,
+                          },
+                        );
+                      }
+                    }}
                     value={field.value}
                     defaultValue={field.value}
                   >
@@ -602,14 +646,16 @@ const StyleItem = ({
           />
 
           {selectedStyleCode && (
-            <div className="md:col-span-3 hidden">
+            <div className="hidden md:col-span-3">
               <div className="grid gap-3 rounded-md border bg-muted/30 p-3 text-sm md:grid-cols-5">
                 <div>
                   <p className="text-xs font-medium text-muted-foreground">
                     Product Price
                   </p>
                   <p className="mt-1 font-semibold">
-                    {stylePricing ? formatPrice(stylePricing.baseUnitPrice) : "Loading..."}
+                    {stylePricing
+                      ? formatPrice(stylePricing.baseUnitPrice)
+                      : "Loading..."}
                   </p>
                 </div>
                 <div>
@@ -617,7 +663,9 @@ const StyleItem = ({
                     Variant Price
                   </p>
                   <p className="mt-1 font-semibold">
-                    {stylePricing ? formatPrice(stylePricing.unitPrice) : "Loading..."}
+                    {stylePricing
+                      ? formatPrice(stylePricing.unitPrice)
+                      : "Loading..."}
                   </p>
                   {stylePricing && stylePricing.markupPercent > 0 && (
                     <p className="text-xs text-muted-foreground">
@@ -630,7 +678,9 @@ const StyleItem = ({
                     Subtotal
                   </p>
                   <p className="mt-1 font-semibold">
-                    {stylePricing ? formatPrice(stylePricing.subtotal) : "Loading..."}
+                    {stylePricing
+                      ? formatPrice(stylePricing.subtotal)
+                      : "Loading..."}
                   </p>
                 </div>
                 <div>
@@ -638,7 +688,9 @@ const StyleItem = ({
                     Discount
                   </p>
                   <p className="mt-1 font-semibold">
-                    {stylePricing ? formatPrice(stylePricing.discount) : "Loading..."}
+                    {stylePricing
+                      ? formatPrice(stylePricing.discount)
+                      : "Loading..."}
                   </p>
                 </div>
                 <div>
@@ -646,7 +698,9 @@ const StyleItem = ({
                     Total Price
                   </p>
                   <p className="mt-1 font-semibold">
-                    {stylePricing ? formatPrice(stylePricing.total) : "Loading..."}
+                    {stylePricing
+                      ? formatPrice(stylePricing.total)
+                      : "Loading..."}
                   </p>
                 </div>
               </div>
@@ -654,7 +708,11 @@ const StyleItem = ({
           )}
 
           {/* ── File upload ── */}
-          <FileUploadField form={form} index={index} name="modifiedPhotoImage" />
+          <FileUploadField
+            form={form}
+            index={index}
+            name="modifiedPhotoImage"
+          />
 
           {/* ── Comments ── */}
           <div className="md:col-span-3">
@@ -667,7 +725,13 @@ const StyleItem = ({
         </div>
       </CollapsibleContent>
       {/* Mount AddProductForm once so it can listen for the global open event */}
-      {index === 0 && <AddProductFormDynamic />}
+      {index === 0 && (
+        <AddProductFormDynamic
+          categories={[]}
+          subCategories={[]}
+          currencies={[]}
+        />
+      )}
     </Collapsible>
   );
 };
