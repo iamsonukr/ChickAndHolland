@@ -225,7 +225,45 @@ const StyleItem = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Color Type</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    // When switching away from Custom, clear custom color fields
+                    if (value !== ColorType.Custom) {
+                      form.setValue(`styles.${index}.customColor`, [], {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      });
+                      form.setValue(`styles.${index}.mesh`, "SAS", {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      });
+                      form.setValue(`styles.${index}.beading`, "SAS", {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      });
+                      form.setValue(`styles.${index}.lining`, "SAS", {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      });
+                      form.setValue(`styles.${index}.liningColor`, "SAS", {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      });
+                      form.setValue(`styles.${index}.addLining`, false, {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      });
+                    }
+                  }}
+                  value={field.value}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select the color type" />
