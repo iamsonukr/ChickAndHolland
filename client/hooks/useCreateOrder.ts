@@ -680,6 +680,8 @@ export function useCreateOrder({
   const watchedForm = useWatch({ control: form.control });
 
   useEffect(() => {
+      if (!open) return;                    // ← add this guard
+
     if (uploadedFile) return; // user supplied their own file — skip generation
     if (!watchedForm?.orderReceivedDate) return;
     if (!form.formState.isValid) return;
@@ -915,7 +917,7 @@ export function useCreateOrder({
 
       if (response.success) {
         setPreviewData(buildPreviewData(data, response.orders, getColourBasedOnhex));
-        setOpen(true);
+        // setOpen(true);
       } else {
         toast.error("Failed to preview order");
       }
