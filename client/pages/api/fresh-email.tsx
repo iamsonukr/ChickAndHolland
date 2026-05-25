@@ -11,7 +11,7 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
-import dayjs from "dayjs";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 import Mail from "nodemailer/lib/mailer";
 import RetailerPdf from "@/app/(admin-panel)/admin-panel/request/RetailerPdf";
 import path from "path";
@@ -400,14 +400,12 @@ const FreshOrderPdf: React.FC<FreshOrderPdfProps> = ({
               <View>
                 <Text style={styles.bannerText}>
                   Order Received Date:{" "}
-                  {dayjs(orderData.orderReceivedDate).format("DD MMM YYYY")}
+                  {formatDateOnlyDisplay(orderData.orderReceivedDate)}
                 </Text>
                 {orderData.orderCancellationDate && (
                   <Text style={styles.bannerText}>
                     Order Shipping Date:{" "}
-                    {dayjs(orderData.orderCancellationDate).format(
-                      "DD MMM YYYY",
-                    )}
+                    {formatDateOnlyDisplay(orderData.orderCancellationDate)}
                   </Text>
                 )}
               </View>

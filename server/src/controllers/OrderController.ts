@@ -48,6 +48,7 @@ import {
 import ProductColour from "../models/ProductColours";
 import { mail } from "../lib/Utils";
 import { generateOrderPdf } from "../pdf/generateOrderPdf";
+import { formatDateOnly, parseDateOnly } from "../lib/dateOnly";
 
 import StoreStyleProgress from "../models/StoreStyleProgress";  // ⬅ top me import add karna
 // import { updateOrderAndStyleStatus } from "../services/orderStatus.service";
@@ -336,8 +337,8 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
     id: order.id,
     customerId: order.customer?.id,
     manufacturingEmailAddress: recipient,
-    orderCancellationDate: order.orderCancellationDate,
-    orderReceivedDate: order.orderReceivedDate,
+    orderCancellationDate: formatDateOnly(order.orderCancellationDate),
+    orderReceivedDate: formatDateOnly(order.orderReceivedDate),
     orderType: order.orderType,
     purchaseOrderNo: order.purchaeOrderNo,
     details,
@@ -577,8 +578,7 @@ function parseStylesFromFieldsWithIndexes(fields: Field) {
 }
 
 function parseDateField(value: unknown) {
-  const date = new Date(String(value ?? ""));
-  return Number.isNaN(date.getTime()) ? null : date;
+  return parseDateOnly(value);
 }
 
 function parsePositiveInteger(value: unknown) {
@@ -812,11 +812,18 @@ router.post(
         const purchaseOrderNo = fields["purchaseOrderNo"];
         const manufacturingEmailAddress = fields["manufacturingEmailAddress"];
         const orderType = fields["orderType"];
-        const orderReceivedDate = new Date(fields["orderReceivedDate"]);
-        const orderCancellationDate = new Date(fields["orderCancellationDate"]);
+        const orderReceivedDate = parseDateOnly(fields["orderReceivedDate"]);
+        const orderCancellationDate = parseDateOnly(fields["orderCancellationDate"]);
         const address = fields["address"];
         const customerId = parsePositiveInteger(fields["customerId"]);
         const publishStatus = parsePublishStatus(fields["publishStatus"]);
+
+        if (!orderReceivedDate || !orderCancellationDate) {
+          return res.status(400).json({
+            success: false,
+            message: "Valid order received and shipping dates are required",
+          });
+        }
 
         const styles: any = [];
 
@@ -1184,10 +1191,24 @@ router.patch(
           order.orderType = fields["orderType"] as OrderType;
         }
         if (fields["orderReceivedDate"]) {
-          order.orderReceivedDate = new Date(fields["orderReceivedDate"]);
+          const date = parseDateOnly(fields["orderReceivedDate"]);
+          if (!date) {
+            return res.status(400).json({
+              success: false,
+              message: "Valid order received date is required",
+            });
+          }
+          order.orderReceivedDate = date;
         }
         if (fields["orderCancellationDate"]) {
-          order.orderCancellationDate = new Date(fields["orderCancellationDate"]);
+          const date = parseDateOnly(fields["orderCancellationDate"]);
+          if (!date) {
+            return res.status(400).json({
+              success: false,
+              message: "Valid order shipping date is required",
+            });
+          }
+          order.orderCancellationDate = date;
         }
         if (fields["address"]) {
           order.address = fields["address"];
@@ -1895,8 +1916,8 @@ router.get(
         purchaeOrderNo: baseOrder.purchaeOrderNo,
         manufacturingEmailAddress: baseOrder.manufacturingEmailAddress,
         orderType: baseOrder.orderType,
-        orderReceivedDate: baseOrder.orderReceivedDate,
-        orderCancellationDate: baseOrder.orderCancellationDate,
+        orderReceivedDate: formatDateOnly(baseOrder.orderReceivedDate),
+        orderCancellationDate: formatDateOnly(baseOrder.orderCancellationDate),
         address: resolvedAddress,
         orderStatus: baseOrder.orderStatus,
         shippingStatus: baseOrder.shippingStatus,
@@ -2140,10 +2161,17 @@ router.post(
         const purchaseOrderNo = fields["purchaseOrderNo"];
         const manufacturingEmailAddress = fields["manufacturingEmailAddress"];
         const orderType = fields["orderType"];
-        const orderReceivedDate = new Date(fields["orderReceivedDate"]);
-        const orderCancellationDate = new Date(fields["orderCancellationDate"]);
+        const orderReceivedDate = parseDateOnly(fields["orderReceivedDate"]);
+        const orderCancellationDate = parseDateOnly(fields["orderCancellationDate"]);
         const address = fields["address"];
         const customerId = parsePositiveInteger(fields["customerId"]);
+
+        if (!orderReceivedDate || !orderCancellationDate) {
+          return res.status(400).json({
+            success: false,
+            message: "Valid order received and shipping dates are required",
+          });
+        }
 
         // Parse styles from fields
         const styles: any = [];
@@ -2205,8 +2233,8 @@ router.post(
           purchaseOrderNo,
           manufacturingEmailAddress,
           orderType,
-          orderReceivedDate,
-          orderCancellationDate,
+          orderReceivedDate: formatDateOnly(orderReceivedDate),
+          orderCancellationDate: formatDateOnly(orderCancellationDate),
           address,
           customer: {
             ...customer,

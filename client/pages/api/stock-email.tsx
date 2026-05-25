@@ -10,9 +10,9 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
-import dayjs from "dayjs";
 import Mail from "nodemailer/lib/mailer";
 import { fresh } from "@/lib/utils";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 type Response = {
   success: boolean;
@@ -140,7 +140,7 @@ const StockOrdersPdf = ({ orderData }: { orderData: any }) => {
               <View>
                 <Text style={styles.bannerText}>
                   Order Received Date:{" "}
-                  {dayjs(orderData.orderReceivedDate).format("DD MMM YYYY")}
+                  {formatDateOnlyDisplay(orderData.orderReceivedDate)}
                 </Text>
                 {/* <Text style={styles.bannerText}>
                       Order Shipping Date:{" "}

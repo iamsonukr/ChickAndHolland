@@ -6,9 +6,9 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
-import dayjs from "dayjs";
 import { generateRandomColour } from "@/lib/utils";
 import { getCustomSizeEntries } from "@/lib/sizeConversion";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 const parseMaybeArray = (value: unknown): any[] => {
   if (Array.isArray(value)) return value;
@@ -46,11 +46,11 @@ const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
               <View>
                 <Text style={styles.bannerText}>
                   Order Received date:{" "}
-                  {dayjs(orderData.orderReceivedDate).format("DD MMM YYYY")}
+                  {formatDateOnlyDisplay(orderData.orderReceivedDate)}
                 </Text>
                 <Text style={styles.bannerText}>
                   Order Shipping date:{" "}
-                  {dayjs(orderData.orderCancellationDate).format("DD MMM YYYY")}
+                  {formatDateOnlyDisplay(orderData.orderCancellationDate)}
                 </Text>
               </View>
             </View>

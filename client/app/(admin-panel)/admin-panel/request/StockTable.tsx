@@ -26,7 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import useHttp from "@/lib/hooks/usePost";
 import { toast } from "sonner";
-import dayjs from "dayjs";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 const StockTable = ({ data }: { data: any[] }) => {
   const router = useRouter();
@@ -81,7 +81,7 @@ const StockTable = ({ data }: { data: any[] }) => {
             data.map((invoice) => (
               <TableRow key={invoice.id} className="text-sm sm:text-base">
                 <TableCell className="font-medium">
-                  {dayjs(invoice.formatted_date).format("DD-MM-YYYY")}
+                  {formatDateOnlyDisplay(invoice.formatted_date, "DD-MM-YYYY")}
                 </TableCell>
 
                 <TableCell className="font-medium">{invoice.name}</TableCell>

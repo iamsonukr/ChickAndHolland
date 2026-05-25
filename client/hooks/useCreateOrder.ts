@@ -29,6 +29,7 @@ import {
   calculateRetailerStylePricing,
   resolveProductCurrencyPrice,
 } from "@/lib/orderPricing";
+import { formatDateOnly, parseDateOnly } from "@/lib/dateOnly";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -91,9 +92,7 @@ const getPositivePieceCount = (quantity: unknown) => {
 };
 
 const toDateValue = (value: any) => {
-  if (!value) return undefined;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date;
+  return parseDateOnly(value);
 };
 
 const hasDirtyFields = (dirtyFields: any): boolean => {
@@ -136,14 +135,11 @@ function appendDateField(
   fd: FormData,
   fieldName: string,
   value: Date | null | undefined,
-  serializer: "string" | "iso" = "string",
 ) {
-  if (!value || Number.isNaN(value.getTime())) return;
+  const dateOnly = formatDateOnly(value);
+  if (!dateOnly) return;
 
-  fd.append(
-    fieldName,
-    serializer === "iso" ? value.toISOString() : value.toString(),
-  );
+  fd.append(fieldName, dateOnly);
 }
 
 function getCustomerCurrencyId(customer?: any) {
@@ -895,13 +891,8 @@ export function useCreateOrder({
   const onPreviewSubmit = async (data: CreateOrderForm) => {
     const detailsMap = await ensureProductDetailsLoaded(data.styles);
     const fd = buildSharedFormData(data);
-    appendDateField(fd, "orderReceivedDate", data.orderReceivedDate, "iso");
-    appendDateField(
-      fd,
-      "orderCancellationDate",
-      data.orderCancellationDate,
-      "iso",
-    );
+    appendDateField(fd, "orderReceivedDate", data.orderReceivedDate);
+    appendDateField(fd, "orderCancellationDate", data.orderCancellationDate);
     const orderCustomer =
       customers.find(
         (customer) => String(customer.id) === String(data.customerId?.[0]?.value),

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import ActionButtons from "../pending-orders/ActionButtons";
 import { fresh } from "@/lib/utils";
-import dayjs from "dayjs";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 /**
  * Shared column widths for the Rejected view.
@@ -52,7 +52,7 @@ const RejectedOrders = ({
                 className="text-center hover:bg-muted/20 transition-colors"
               >
                 <TableCell className="font-medium">
-                  {dayjs(item.formatted_date).format("DD-MM-YYYY")}
+                  {formatDateOnlyDisplay(item.formatted_date, "DD-MM-YYYY")}
                 </TableCell>
 
                 <TableCell>

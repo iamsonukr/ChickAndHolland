@@ -7,6 +7,7 @@ import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import dayjs from "dayjs";
 import TableActions from "./TableActions";
 import { cn, fresh } from "@/lib/utils";
+import { formatDateOnly, formatDateOnlyDisplay } from "@/lib/dateOnly";
 import UpdateOrderStatus from "@/app/(admin-panel)/admin-panel/orders/UpdateOrderStatus";
 import OrderTypeFilter from "@/app/(admin-panel)/admin-panel/orders/OrderTypeFilter";
 import UpdateTrackingId from "./UpdateTrackingId";
@@ -164,7 +165,10 @@ const OrdersPage = async (props: {
     orders?.orders?.filter((order: any) => {
       const hasDueDate = !!order?.orderCancellationDate;
       const difference = hasDueDate
-        ? dayjs(order.orderCancellationDate).diff(dayjs(), "days")
+        ? dayjs(formatDateOnly(order.orderCancellationDate)).diff(
+            dayjs().startOf("day"),
+            "days",
+          )
         : Infinity;
 
       if (dueFilter === "lt14") {
@@ -317,7 +321,10 @@ const OrdersPage = async (props: {
                   {filteredOrders.length > 0 ? (
                     filteredOrders.map((order: any) => {
                       const difference = order?.orderCancellationDate
-                        ? dayjs(order.orderCancellationDate).diff(dayjs(), "days")
+                        ? dayjs(formatDateOnly(order.orderCancellationDate)).diff(
+                            dayjs().startOf("day"),
+                            "days",
+                          )
                         : Infinity;
                       const rowClass = getRowClassName(difference, order.orderStatus);
 
@@ -354,12 +361,12 @@ const OrdersPage = async (props: {
 
                           {/* Order Date */}
                           <td className={tableCellClassName}>
-                            {dayjs(order.orderReceivedDate).format("DD MMM YYYY")}
+                            {formatDateOnlyDisplay(order.orderReceivedDate)}
                           </td>
 
                           {/* Ship Date */}
                           <td className={tableCellClassName}>
-                            {dayjs(order.orderCancellationDate).format("DD MMM YYYY")}
+                            {formatDateOnlyDisplay(order.orderCancellationDate)}
                           </td>
 
                           {/* Order Status */}

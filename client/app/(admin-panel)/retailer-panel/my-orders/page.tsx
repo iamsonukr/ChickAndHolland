@@ -23,6 +23,7 @@ import Preview from "../../admin-panel/order-list/Preview";
 import { fresh } from "@/lib/utils";
 import dayjs from "dayjs";
 import TableScrollWrapper from "@/components/TableScrollWrapper";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 /**
  * Shared column widths to ensure perfect alignment across different tabs.
@@ -106,7 +107,9 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
               <TableBody>
                 {acceptedOrders?.retailerOrders?.map((item: any) => (
                   <TableRow key={item.order_id || item.stockOrderId} className="text-center hover:bg-muted/20">
-                    <TableCell className="truncate">{dayjs(item.formatted_date).format("DD-MM-YYYY")}</TableCell>
+                    <TableCell className="truncate">
+                      {formatDateOnlyDisplay(item.formatted_date, "DD-MM-YYYY")}
+                    </TableCell>
                     <TableCell className="font-medium">{item.order_id}</TableCell>
                     <TableCell>{item.type === "Fresh" ? fresh : item.type}</TableCell>
                     <TableCell>
@@ -115,7 +118,12 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                         : item.orderStatus}
                     </TableCell>
                     <TableCell className="truncate">{item.trackingNo || "-"}</TableCell>
-                    <TableCell>{dayjs(item.orderReceivedDate).format("DD-MM-YYYY")}</TableCell>
+                    <TableCell>
+                      {formatDateOnlyDisplay(
+                        item.orderReceivedDate ?? item.received_date,
+                        "DD-MM-YYYY",
+                      )}
+                    </TableCell>
                     <TableCell>
                       {item.currencySymbol || "€"} {parseFloat(item.paid_amount || 0).toFixed(0)}
                     </TableCell>
@@ -177,7 +185,9 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                     <TableCell>{item.orderType === "Store" ? "Store Web Order" : item.orderType}</TableCell>
                     <TableCell>{item.orderStatus}</TableCell>
                     <TableCell>{item.trackingNo || "-"}</TableCell>
-                    <TableCell>{dayjs(item.orderReceivedDate).format("DD-MM-YYYY")}</TableCell>
+                    <TableCell>
+                      {formatDateOnlyDisplay(item.orderReceivedDate, "DD-MM-YYYY")}
+                    </TableCell>
                     <TableCell>{formatMoney(item, item.paid_amount)}</TableCell>
                     <TableCell>{formatMoney(item, item.balance)}</TableCell>
                     <TableCell>

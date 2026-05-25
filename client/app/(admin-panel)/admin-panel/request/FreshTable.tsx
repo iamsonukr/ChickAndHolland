@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import FreshOrdersAcceptedForm from "./FreshOrdersAcceptedForm";
 import useHttp from "@/lib/hooks/usePost";
 import { toast } from "sonner";
-import dayjs from "dayjs";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 const splitCsvValues = (value: unknown) =>
   String(value ?? "")
@@ -124,7 +124,7 @@ export function FreshTable({ data }: { data: any[] }) {
         {data?.map((invoice) => (
           <TableRow key={invoice.id} className="text-sm sm:text-base">
             <TableCell className="font-medium">
-              {dayjs(invoice.formatted_date).format("DD-MM-YYYY")}
+              {formatDateOnlyDisplay(invoice.formatted_date, "DD-MM-YYYY")}
             </TableCell>
             <TableCell className="text-center">{getCustomerStoreName(invoice)}</TableCell>
             <TableCell className="max-w-[150px] truncate text-center">

@@ -68,6 +68,7 @@ import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
 import FreshOrderPdf from "./FreshOrderPdf";
+import { formatDateOnly, parseDateOnly } from "@/lib/dateOnly";
 import { convertWebPToJPG } from "./StockAcceptedForm";
 import RetailerPdf from "./RetailerPdf";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
@@ -308,15 +309,19 @@ const FreshOrdersAcceptedForm = ({
           editOrder?.manufacturingEmailAddress ||
           "rubyinc@hotmail.com",
       );
-      form.setValue(
-        "orderReceivedDate",
-        new Date(data[0].orderReceivedDate || editOrder?.orderReceivedDate),
+      const receivedDate = parseDateOnly(
+        data[0].orderReceivedDate || editOrder?.orderReceivedDate,
       );
+      if (receivedDate) {
+        form.setValue("orderReceivedDate", receivedDate);
+      }
       if (data[0].orderCancellationDate || editOrder?.orderCancellationDate) {
-        form.setValue(
-          "orderCancellationDate",
-          new Date(data[0].orderCancellationDate || editOrder?.orderCancellationDate),
+        const shippingDate = parseDateOnly(
+          data[0].orderCancellationDate || editOrder?.orderCancellationDate,
         );
+        if (shippingDate) {
+          form.setValue("orderCancellationDate", shippingDate);
+        }
       }
       form.setValue("address", data[0].address || editOrder?.address || "");
       form.setValue("phoneNumber", data[0].phoneNumber || editOrder?.customer?.phoneNumber || "");
@@ -540,8 +545,8 @@ const FreshOrdersAcceptedForm = ({
       purchaseOrderNo: data.purchaseOrderNo,
       hasId: data.styles.map((i: any) => i.colorType).join(","),
       manufacturingEmailAddress: data.manufacturingEmailAddress,
-      orderCancellationDate: data.orderCancellationDate,
-      orderReceivedDate: data.orderReceivedDate,
+      orderCancellationDate: formatDateOnly(data.orderCancellationDate),
+      orderReceivedDate: formatDateOnly(data.orderReceivedDate),
       Size: data.styles.map((i: any) => i.size).join(","),
       size_country: details.map((i) => i.size_country).join(","),
       StyleNo: data.styles.map((i: any) => i.styleNo).join(","),
@@ -686,8 +691,8 @@ const FreshOrdersAcceptedForm = ({
         const preData = {
           customerId: data.customerId,
           manufacturingEmailAddress: data.manufacturingEmailAddress,
-          orderCancellationDate: data.orderCancellationDate,
-          orderReceivedDate: data.orderReceivedDate,
+          orderCancellationDate: formatDateOnly(data.orderCancellationDate),
+          orderReceivedDate: formatDateOnly(data.orderReceivedDate),
           orderType: "Fresh",
           purchaseOrderNo,
           details: finalStyles,
@@ -739,8 +744,8 @@ const FreshOrdersAcceptedForm = ({
       setPreviewData({
         customerId: data.customerId,
         manufacturingEmailAddress: data.manufacturingEmailAddress,
-        orderCancellationDate: data.orderCancellationDate,
-        orderReceivedDate: data.orderReceivedDate,
+        orderCancellationDate: formatDateOnly(data.orderCancellationDate),
+        orderReceivedDate: formatDateOnly(data.orderReceivedDate),
         orderType: "Fresh",
         purchaseOrderNo: data.purchaseOrderNo,
         details: finalStyles,

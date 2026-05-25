@@ -10,11 +10,11 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import React, { useState } from "react";
-import dayjs from "dayjs";
 import Link from "next/link";
 import Image from "next/image";
 import { QRCodeCanvas } from "qrcode.react";
 import StatusCount from "./StatusCount";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 
 const OrderDetailsSheet = ({
@@ -70,13 +70,13 @@ const OrderDetailsSheet = ({
           <div className={"flex flex-col gap-0.5"}>
             <h3 className={"text-lg font-semibold"}>Order Received date:</h3>
             <p>
-              {dayjs(orderDetails.orderReceivedDate).format("MMMM D, YYYY")}
+              {formatDateOnlyDisplay(orderDetails.orderReceivedDate, "MMMM D, YYYY")}
             </p>
           </div>
           <div className={"flex flex-col gap-0.5"}>
             <h3 className={"text-lg font-semibold"}>Order Shipping date:</h3>
             <p>
-              {dayjs(orderDetails.orderCancellationDate).format("MMMM D, YYYY")}
+              {formatDateOnlyDisplay(orderDetails.orderCancellationDate, "MMMM D, YYYY")}
             </p>
           </div>
           <div className={"flex flex-col gap-0.5"}>

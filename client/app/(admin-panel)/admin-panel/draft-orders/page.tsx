@@ -1,5 +1,3 @@
-import dayjs from "dayjs";
-
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
@@ -10,6 +8,7 @@ import AddressCard from "../orders/AddressCard";
 import CreateOrder from "../orders/CreateOrder";
 import OrderDetailsSheet from "../orders/OrderDetails";
 import DraftOrderActions from "./DraftOrderActions";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 const tableHeadClassName =
   "border border-border px-2 py-1.5 text-center text-[15px] font-semibold text-foreground align-middle";
@@ -76,11 +75,11 @@ const DraftOrdersPage = async (props: {
                       {order.orderType === "Fresh" ? fresh : order.orderType}
                     </td>
                     <td className={tableCellClassName}>
-                      {dayjs(order.orderReceivedDate).format("DD MMM YYYY")}
+                      {formatDateOnlyDisplay(order.orderReceivedDate)}
                     </td>
                     <td className={tableCellClassName}>
                       {order.orderCancellationDate
-                        ? dayjs(order.orderCancellationDate).format("DD MMM YYYY")
+                        ? formatDateOnlyDisplay(order.orderCancellationDate)
                         : "-"}
                     </td>
                     <td

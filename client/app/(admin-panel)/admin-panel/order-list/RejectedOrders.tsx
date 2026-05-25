@@ -27,8 +27,8 @@ import ActionButtons from "../../retailer-panel/pending-orders/ActionButtons";
 import { getRetailersOrders } from "@/lib/data";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import { fresh } from "@/lib/utils";
-import dayjs from "dayjs";
 import { useState } from "react";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 const RejectedOrders = ({
   searchParams,
@@ -159,7 +159,7 @@ const RejectedOrders = ({
                   />
                 </TableCell>
                 <TableCell className="font-medium">
-                  {dayjs(item.formatted_date).format("DD-MM-YYYY")}
+                  {formatDateOnlyDisplay(item.formatted_date, "DD-MM-YYYY")}
                 </TableCell>
                 <TableCell>{item.name}</TableCell>
 

@@ -12,8 +12,8 @@ import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import ActionButtons from "./ActionButtons";
 import { fresh } from "@/lib/utils";
-import dayjs from "dayjs";
 import TableScrollWrapper from "@/components/TableScrollWrapper";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 const COL_WIDTHS = {
   date:    "w-[140px]",
@@ -88,7 +88,7 @@ const MyOrders = async (props: {
                     >
                       {/* Date */}
                       <TableCell className="truncate">
-                        {dayjs(order.formatted_date).format("DD-MM-YYYY")}
+                        {formatDateOnlyDisplay(order.formatted_date, "DD-MM-YYYY")}
                       </TableCell>
 
                       {/* Order Type */}

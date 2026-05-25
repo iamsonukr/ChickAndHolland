@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
-import dayjs from "dayjs";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 const StockOrdersPdf = ({ orderData }: { orderData: any }) => {
   const item = orderData.details?.[0] || {};
@@ -33,13 +33,13 @@ const StockOrdersPdf = ({ orderData }: { orderData: any }) => {
           <Text style={styles.dateText}>
             Received:{" "}
             {orderData.orderReceivedDate
-              ? dayjs(orderData.orderReceivedDate).format("DD MMM YYYY")
+              ? formatDateOnlyDisplay(orderData.orderReceivedDate)
               : "-"}
           </Text>
           <Text style={styles.dateText}>
             Shipping:{" "}
             {orderData.orderCancellationDate
-              ? dayjs(orderData.orderCancellationDate).format("DD MMM YYYY")
+              ? formatDateOnlyDisplay(orderData.orderCancellationDate)
               : "-"}
           </Text>
         </View>

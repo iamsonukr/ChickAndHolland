@@ -23,10 +23,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import Details from "../../retailer-panel/my-orders/Details";
 import { fresh } from "@/lib/utils";
-import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
 import { OrderType } from "@/lib/formSchemas";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
   const [selectedOrders, setSelectedOrders] = useState<
     { id: number; orderType: string }[]
@@ -150,7 +150,7 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
                     />
                   </TableCell>
                   <TableCell className="font-medium">
-                    {dayjs(item.formatted_date).format("DD-MM-YYYY")}
+                    {formatDateOnlyDisplay(item.formatted_date, "DD-MM-YYYY")}
                   </TableCell>
                   <TableCell>{item.customerStoreName || item.retailer_name}</TableCell>
 
@@ -160,7 +160,7 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
                   </TableCell>
                   <TableCell>{item.orderStatus}</TableCell>
                   <TableCell>
-                    {dayjs(item.received_date).format("DD-MM-YYYY")}
+                    {formatDateOnlyDisplay(item.received_date, "DD-MM-YYYY")}
                   </TableCell>
                   <TableCell>
                     {item.currencySymbol

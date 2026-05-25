@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getCookie } from "../utils";
 import { API_URL } from "../constants";
+import { normalizeOrderDatePayload } from "../dateOnly";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
@@ -52,7 +53,7 @@ function useHttp<T = any>(
           body = data;
         } else {
           headers["Content-Type"] = "application/json";
-          body = JSON.stringify(data);
+          body = JSON.stringify(normalizeOrderDatePayload(data));
         }
       }
 

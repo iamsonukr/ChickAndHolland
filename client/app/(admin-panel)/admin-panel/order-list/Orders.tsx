@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import dayjs from "dayjs";
 import { cn, fresh } from "@/lib/utils";
+import { formatDateOnly, formatDateOnlyDisplay } from "@/lib/dateOnly";
 import Preview from "./Preview";
 import Details from "../../retailer-panel/my-orders/Details";
 import useHttp from "@/lib/hooks/usePost";
@@ -184,15 +185,16 @@ const Orders = ({ data }: { data: any[] }) => {
 
         <TableBody>
           {data.map((item: any, index: number) => {
-            const difference = dayjs(item?.orderCancellationDate).diff(
-              dayjs(),
+            const orderShippingDateValue =
+              item.shipping_date ?? item.orderCancellationDate;
+            const difference = dayjs(formatDateOnly(orderShippingDateValue)).diff(
+              dayjs().startOf("day"),
               "days",
             );
 
             const isSelected = selectedOrders.some((o) => o.id === item.id);
-            const formattedDate = dayjs(item.formatted_date).format(
-              "DD-MM-YYYY",
-            );
+            const formattedDate =
+              formatDateOnlyDisplay(item.formatted_date, "DD-MM-YYYY") || "-";
             const customerName =
               item.customerStoreName || item.retailer_name || "-";
             const orderId = item.order_id || "-";
@@ -200,9 +202,13 @@ const Orders = ({ data }: { data: any[] }) => {
             const invoiceNo = item.invoiceNo || "-";
             const orderType = item.type === "Fresh" ? fresh : item.type || "-";
             const orderStatus = item.orderStatus || "-";
-            const receivedDate = dayjs(item.received_date).format("DD-MM-YYYY");
-            const shippingDate = item.shipping_date
-              ? dayjs(item.shipping_date).format("DD-MM-YYYY")
+            const receivedDate =
+              formatDateOnlyDisplay(
+                item.received_date ?? item.orderReceivedDate,
+                "DD-MM-YYYY",
+              ) || "-";
+            const shippingDate = orderShippingDateValue
+              ? formatDateOnlyDisplay(orderShippingDateValue, "DD-MM-YYYY")
               : "-";
             const currencySymbol = item.currencySymbol || "\u20ac";
             const paidAmount = `${currencySymbol} ${parseFloat(

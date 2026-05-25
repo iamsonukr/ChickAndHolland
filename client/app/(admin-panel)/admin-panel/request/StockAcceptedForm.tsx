@@ -69,6 +69,7 @@ import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
 import { UploadedFileType } from "@/hooks/useCreateOrder";
 import { API_URL } from "@/lib/constants";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
+import { formatDateOnly, parseDateOnly } from "@/lib/dateOnly";
 
 const getTrailingPoNumber = (poNumber?: string | null) => {
   const match = poNumber?.match(/(\d+)\s*$/);
@@ -297,10 +298,10 @@ const StockAcceptedForm = ({
       estimate: customerDetails?.estimateNo || editOrder?.estimateNo || estimate,
       invoice: customerDetails?.invoiceNo || editOrder?.invoiceNo || invoice,
       orderReceivedDate: (customerDetails?.orderReceivedDate || customerDetails?.received)
-        ? new Date(customerDetails.orderReceivedDate || customerDetails.received)
+        ? parseDateOnly(customerDetails.orderReceivedDate || customerDetails.received)
         : undefined,
       orderCancellationDate: (customerDetails?.orderCancellationDate || editOrder?.orderCancellationDate)
-        ? new Date(customerDetails.orderCancellationDate || editOrder?.orderCancellationDate)
+        ? parseDateOnly(customerDetails.orderCancellationDate || editOrder?.orderCancellationDate)
         : undefined,
       address: customerDetails?.address || editOrder?.address || customerDetails?.storeAddress || "",
       customerId: customerStoreName,
@@ -381,8 +382,8 @@ const StockAcceptedForm = ({
     return {
       customerId: data.customerId,
       manufacturingEmailAddress: data.manufacturingEmailAddress,
-      orderCancellationDate: data.orderCancellationDate,
-      orderReceivedDate: data.orderReceivedDate,
+      orderCancellationDate: formatDateOnly(data.orderCancellationDate),
+      orderReceivedDate: formatDateOnly(data.orderReceivedDate),
       orderType: "Stock",
       purchaseOrderNo,
       details: Array.from({ length: pieceCount }, (_, pieceIndex) => ({
@@ -455,8 +456,8 @@ const StockAcceptedForm = ({
   const buildAcceptedOrderPayload = (data: CreateStockOrderForm) => ({
     purchaseOrderNo: data.purchaseOrderNo,
     email: data.manufacturingEmailAddress,
-    received_date: `${data.orderReceivedDate}`,
-    orderCancellationDate: `${data.orderCancellationDate}`,
+    received_date: formatDateOnly(data.orderReceivedDate),
+    orderCancellationDate: formatDateOnly(data.orderCancellationDate),
     address: data.address,
     customerId: data.customerId,
     styleNo: data.styleNo,
@@ -663,8 +664,8 @@ const StockAcceptedForm = ({
       const preview = {
         customerId: data.customerId,
         manufacturingEmailAddress: data.manufacturingEmailAddress,
-        orderCancellationDate: data.orderCancellationDate,
-        orderReceivedDate: data.orderReceivedDate,
+        orderCancellationDate: formatDateOnly(data.orderCancellationDate),
+        orderReceivedDate: formatDateOnly(data.orderReceivedDate),
         orderType: "Stock",
         purchaseOrderNo: response.purchaseOrderNo,
         details: [

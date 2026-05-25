@@ -1,5 +1,5 @@
 import pptxgen from "pptxgenjs";
-import dayjs from "dayjs";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 export async function downloadOrderPPT(orderData: any) {
   const ppt = new pptxgen();
@@ -48,12 +48,12 @@ export async function downloadOrderPPT(orderData: any) {
 
     let shippingText =
       `Order Received Date: ` +
-      dayjs(orderData.orderReceivedDate).format("DD MMM YYYY");
+      formatDateOnlyDisplay(orderData.orderReceivedDate);
 
     if (orderData.orderCancellationDate) {
       shippingText +=
         `\nOrder Shipping Date: ` +
-        dayjs(orderData.orderCancellationDate).format("DD MMM YYYY");
+        formatDateOnlyDisplay(orderData.orderCancellationDate);
     }
 
 slide.addText(shippingText, {

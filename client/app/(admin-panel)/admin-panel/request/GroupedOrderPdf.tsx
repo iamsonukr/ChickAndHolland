@@ -5,8 +5,8 @@ import {
   formatEuSizeText,
   PDF_DISPLAY_SIZE_UNIT,
 } from "@/lib/sizeConversion";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
-import dayjs from "dayjs";
 import { styles } from "./PDFStyle";
 
 const chunkItems = <T,>(items: T[], size: number) => {
@@ -137,12 +137,12 @@ const GroupedOrderPdf = ({
                 <View>
                   <Text style={styles.bannerText}>
                     Order Received Date:{" "}
-                    {dayjs(orderData.orderReceivedDate).format("DD MMM YYYY")}
+                    {formatDateOnlyDisplay(orderData.orderReceivedDate)}
                   </Text>
                   {showShippingDate && orderData.orderCancellationDate && (
                     <Text style={styles.bannerText}>
                       Order Shipping Date:{" "}
-                      {dayjs(orderData.orderCancellationDate).format("DD MMM YYYY")}
+                      {formatDateOnlyDisplay(orderData.orderCancellationDate)}
                     </Text>
                   )}
                 </View>

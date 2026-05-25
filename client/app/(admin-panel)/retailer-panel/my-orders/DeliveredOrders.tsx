@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import Details from "./Details";
 import { fresh } from "@/lib/utils";
-import dayjs from "dayjs";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 // Match these exactly with your main page for perfect alignment across tabs
 const COL_WIDTHS = {
@@ -47,7 +47,7 @@ const DeliveredOrders = ({ data, id }: { data: any[]; id: number }) => {
                 className="text-center hover:bg-muted/20"
               >
                 <TableCell className="truncate">
-                  {dayjs(item.formatted_date).format("DD-MM-YYYY")}
+                  {formatDateOnlyDisplay(item.formatted_date, "DD-MM-YYYY")}
                 </TableCell>
                 
                 <TableCell className="font-medium">{item.order_id}</TableCell>
@@ -65,7 +65,10 @@ const DeliveredOrders = ({ data, id }: { data: any[]; id: number }) => {
                 <TableCell className="truncate">{item.trackingNo || "-"}</TableCell>
                 
                 <TableCell>
-                  {dayjs(item.orderReceivedDate).format("DD-MM-YYYY")}
+                  {formatDateOnlyDisplay(
+                    item.orderReceivedDate ?? item.received_date,
+                    "DD-MM-YYYY",
+                  )}
                 </TableCell>
                 
                 <TableCell>

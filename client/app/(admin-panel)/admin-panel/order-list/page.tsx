@@ -25,6 +25,7 @@ import Orders from "./Orders";
 import TableScrollWrapper from "@/components/TableScrollWrapper";
 import Preview from "./Preview";
 import Details from "../../retailer-panel/my-orders/Details";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 // import AdminDeliveredOrders from
 
@@ -129,7 +130,12 @@ const page = async (props: {
                     <TableCell>{item.orderType === "Store" ? "Store Web Order" : item.orderType}</TableCell>
                     <TableCell>{item.orderStatus}</TableCell>
                     <TableCell>{item.trackingNo || "-"}</TableCell>
-                    <TableCell>{formatDateTime(new Date(item.orderReceivedDate || item.createdAt))}</TableCell>
+                    <TableCell>
+                      {formatDateOnlyDisplay(
+                        item.orderReceivedDate || item.createdAt,
+                        "YYYY-MM-DD",
+                      )}
+                    </TableCell>
                     <TableCell>{formatMoney(item, item.paid_amount)}</TableCell>
                     <TableCell>{formatMoney(item, item.balance)}</TableCell>
                     <TableCell>

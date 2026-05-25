@@ -1,11 +1,11 @@
 import { build2dBarcodeUrl, normalizeBarcodeValue } from "../lib/barcodes";
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
-import dayjs from "dayjs";
 import {
   formatEuSizeSummary,
   formatEuSizeText,
   PDF_DISPLAY_SIZE_UNIT,
 } from "../lib/sizeConversion";
+import { formatDateOnlyDisplay } from "../lib/dateOnly";
 import { styles } from "./PDFStyle";
 
 const fresh = "Fresh Order";
@@ -136,12 +136,12 @@ const GroupedOrderPdf = ({
                 <View>
                   <Text style={styles.bannerText}>
                     Order Received Date:{" "}
-                    {dayjs(orderData.orderReceivedDate).format("DD MMM YYYY")}
+                    {formatDateOnlyDisplay(orderData.orderReceivedDate)}
                   </Text>
                   {showShippingDate && orderData.orderCancellationDate && (
                     <Text style={styles.bannerText}>
                       Order Shipping Date:{" "}
-                      {dayjs(orderData.orderCancellationDate).format("DD MMM YYYY")}
+                      {formatDateOnlyDisplay(orderData.orderCancellationDate)}
                     </Text>
                   )}
                 </View>

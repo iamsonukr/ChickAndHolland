@@ -42,6 +42,7 @@ import {
   buildRegularOrderMissingStyleTotalSql,
   buildRegularOrderStyleTotalSql,
 } from "../lib/orderTotals";
+import { parseDateOnly } from "../lib/dateOnly";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
@@ -196,8 +197,7 @@ const hasDirtyValue = (dirtyFields: any): boolean => {
 };
 
 const parseIncomingDate = (value: unknown) => {
-  const date = new Date(String(value ?? ""));
-  return Number.isNaN(date.getTime()) ? null : date;
+  return parseDateOnly(value);
 };
 
 const ORDER_QUANTITY_VALIDATION_MESSAGE =
@@ -1345,8 +1345,18 @@ router.post(
     order.manufacturingEmailAddress =
       data.email || retailer.customer.email;
 
-    order.orderCancellationDate = new Date(data.orderCancellationDate);
-    order.orderReceivedDate = new Date(data.received_date);
+    const orderCancellationDate = parseIncomingDate(data.orderCancellationDate);
+    const orderReceivedDate = parseIncomingDate(data.received_date);
+
+    if (!orderCancellationDate || !orderReceivedDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid order received and shipping dates are required",
+      });
+    }
+
+    order.orderCancellationDate = orderCancellationDate;
+    order.orderReceivedDate = orderReceivedDate;
 
     order.Stock_order = stock_retailer;
     order.retailer = retailer;
@@ -1583,8 +1593,18 @@ router.post(
       order.manufacturingEmailAddress = orderData.manufacturingEmailAddress;
       order.phoneNumber = orderData.phoneNumber || retailer.customer.phoneNumber;
 
-      order.orderReceivedDate = new Date(orderData.orderReceivedDate);
-      order.orderCancellationDate = new Date(orderData.orderCancellationDate);
+      const orderReceivedDate = parseIncomingDate(orderData.orderReceivedDate);
+      const orderCancellationDate = parseIncomingDate(orderData.orderCancellationDate);
+
+      if (!orderReceivedDate || !orderCancellationDate) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid order received and shipping dates are required",
+        });
+      }
+
+      order.orderReceivedDate = orderReceivedDate;
+      order.orderCancellationDate = orderCancellationDate;
 
       order.purchaseAmount = orderData.total_amount;
       order.shippingAmount = orderData.shipping;
@@ -2124,7 +2144,8 @@ router.get(
         ro.retailerId as retailer_id,
         ro.invoiceNo,
         ro.estimateNo,
-        ro.orderCancellationDate as orderCancellationDate,
+        DATE_FORMAT(ro.orderCancellationDate,'%Y-%m-%d') AS orderCancellationDate,
+        DATE_FORMAT(ro.orderCancellationDate,'%Y-%m-%d') AS shipping_date,
         IFNULL(payments.paid_amount, 0) AS paid_amount,
         (ro.purchaseAmount - IFNULL(payments.paid_amount, 0)) AS balance,
         COALESCE(NULLIF(c.storeName, ''), c.name) as customerStoreName,
@@ -3403,7 +3424,7 @@ router.get(
       o.trackingNo,
       o.ppt_path,
       o.createdAt,
-      o.orderReceivedDate,
+      DATE_FORMAT(o.orderReceivedDate, '%Y-%m-%d') AS orderReceivedDate,
       COALESCE(total_pay.total_amount, 0) AS total,
       COALESCE(total_pay.total_amount, 0) AS grandTotal,
       COALESCE(paid_pay.paid_amount, 0) AS paid_amount,
@@ -3448,7 +3469,7 @@ router.get(
       o.trackingNo,
       o.ppt_path,
       o.createdAt,
-      o.orderReceivedDate,
+      DATE_FORMAT(o.orderReceivedDate, '%Y-%m-%d') AS orderReceivedDate,
       COALESCE(total_pay.total_amount, 0) AS total,
       COALESCE(total_pay.total_amount, 0) AS grandTotal,
       COALESCE(paid_pay.paid_amount, 0) AS paid_amount,

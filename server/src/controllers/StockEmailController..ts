@@ -1,11 +1,11 @@
 
 import { Request, Response } from "express";
 import PPTXGenJS from "pptxgenjs";
-import dayjs from "dayjs";
 import { mail } from "../lib/Utils";
 import fetch from "node-fetch";
 import path from "path";
 import { generateOrderPdf } from "../pdf/generateOrderPdf";
+import { formatDateOnlyDisplay } from "../lib/dateOnly";
 
 const buildUploadedDocumentUrl = (req: Request, rawUrl: string) => {
   if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
@@ -145,11 +145,11 @@ export const sendStockEmail = async (req: Request, res: Response) => {
       });
 
       let dateText =
-        `Order Received Date: ${dayjs(orderData.orderReceivedDate).format("DD MMM YYYY")}`;
+        `Order Received Date: ${formatDateOnlyDisplay(orderData.orderReceivedDate)}`;
 
       if (orderData.orderCancellationDate) {
         dateText +=
-          `\nOrder Shipping Date: ${dayjs(orderData.orderCancellationDate).format("DD MMM YYYY")}`;
+          `\nOrder Shipping Date: ${formatDateOnlyDisplay(orderData.orderCancellationDate)}`;
       }
 
       slide.addText(dateText, {
