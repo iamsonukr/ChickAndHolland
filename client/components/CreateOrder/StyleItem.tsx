@@ -65,11 +65,24 @@ const getSelectItemValue = (value: unknown, fallback = "SAS") => {
   return stringValue || fallback;
 };
 
+const getColorSelectValue = (value: unknown, knownValues: string[]) => {
+  const stringValue = String(value ?? "").trim();
+  return knownValues.includes(stringValue) ? stringValue : "";
+};
+
+const getCustomColorText = (value: unknown, knownValues: string[]) => {
+  const stringValue = String(value ?? "").trim();
+  return stringValue && !knownValues.includes(stringValue) ? stringValue : "";
+};
+
 interface StyleItemProps {
   form: UseFormReturn<CreateOrderForm>;
   index: number;
   fieldId: string;
   colors: any[];
+  productCategories: any[];
+  productSubCategories: any[];
+  currencies: any[];
   colorTypeArray: { value: string; label: string }[];
   sizeCountryArray: { value: keyof typeof SizeCountry; label: string }[];
   fullComponentWatch: any[];
@@ -86,6 +99,9 @@ const StyleItem = ({
   index,
   fieldId,
   colors,
+  productCategories,
+  productSubCategories,
+  currencies,
   colorTypeArray,
   sizeCountryArray,
   fullComponentWatch,
@@ -120,6 +136,12 @@ const StyleItem = ({
     getSelectItemValue(
       getColourBasedOnId(colour.id),
       getSelectItemValue(colour.id, getSelectItemValue(colour.name)),
+    );
+  const getKnownColorValues = (sampleValue: string) =>
+    Array.from(
+      new Set(
+        [sampleValue, ...colors.map(getColorOptionValue)].filter(Boolean),
+      ),
     );
   const stylePricing = resolvedPrice
     ? calculateRetailerStylePricing({
@@ -289,118 +311,151 @@ const StyleItem = ({
               <FormField
                 control={form.control}
                 name={`styles.${index}.mesh`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mesh Color</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Mesh Color" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value={sampleMeshValue}>
-                          <div className="flex gap-1">
-                            SAS (
-                            <div className="flex items-center">
-                              <p
-                                className="mx-1 h-4 w-4 rounded-full"
-                                style={{
-                                  backgroundColor: stylesSelect?.mesh,
-                                  border: "1px solid #000",
-                                }}
-                              />
-                              {getColourBasedOnhex(stylesSelect?.mesh)}
-                            </div>
-                            )
-                          </div>
-                        </SelectItem>
-                        {colors.map((colour: any) => (
-                          <SelectItem
-                            key={colour.id}
-                            value={getColorOptionValue(colour)}
-                          >
-                            <div className="flex items-center">
-                              <div
-                                className="h-4 w-4 rounded-full"
-                                style={{
-                                  backgroundColor: getColourBasedOnId(
-                                    colour.id,
-                                  ),
-                                  border: "1px solid #000",
-                                }}
-                              />
-                              <span className="ml-2">{colour.name}</span>
+                render={({ field }) => {
+                  const knownColorValues = getKnownColorValues(sampleMeshValue);
+
+                  return (
+                    <FormItem>
+                      <FormLabel>Mesh Color</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={getColorSelectValue(
+                          field.value,
+                          knownColorValues,
+                        )}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Mesh Color" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={sampleMeshValue}>
+                            <div className="flex gap-1">
+                              SAS (
+                              <div className="flex items-center">
+                                <p
+                                  className="mx-1 h-4 w-4 rounded-full"
+                                  style={{
+                                    backgroundColor: stylesSelect?.mesh,
+                                    border: "1px solid #000",
+                                  }}
+                                />
+                                {getColourBasedOnhex(stylesSelect?.mesh)}
+                              </div>
+                              )
                             </div>
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                          {colors.map((colour: any) => (
+                            <SelectItem
+                              key={colour.id}
+                              value={getColorOptionValue(colour)}
+                            >
+                              <div className="flex items-center">
+                                <div
+                                  className="h-4 w-4 rounded-full"
+                                  style={{
+                                    backgroundColor: getColourBasedOnId(
+                                      colour.id,
+                                    ),
+                                    border: "1px solid #000",
+                                  }}
+                                />
+                                <span className="ml-2">{colour.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        className="mt-2"
+                        placeholder="Or type custom mesh text"
+                        value={getCustomColorText(
+                          field.value,
+                          knownColorValues,
+                        )}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               {/* Beading Color */}
               <FormField
                 control={form.control}
                 name={`styles.${index}.beading`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Beading Color</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Beading Color" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value={sampleBeadingValue}>
-                          <div className="flex gap-1">
-                            SAS (
-                            <div className="flex items-center">
-                              <p
-                                className="mx-1 h-4 w-4 rounded-full"
-                                style={{
-                                  backgroundColor: stylesSelect?.beading,
-                                  border: "1px solid #000",
-                                }}
-                              />
-                              {getColourBasedOnhex(stylesSelect?.beading)}
-                            </div>
-                            )
-                          </div>
-                        </SelectItem>
-                        {colors.map((colour: any) => (
-                          <SelectItem
-                            key={colour.id}
-                            value={getColorOptionValue(colour)}
-                          >
-                            <div className="flex items-center">
-                              <div
-                                className="h-4 w-4 rounded-full"
-                                style={{
-                                  backgroundColor: getColourBasedOnId(
-                                    colour.id,
-                                  ),
-                                  border: "1px solid #000",
-                                }}
-                              />
-                              <span className="ml-2">{colour.name}</span>
+                render={({ field }) => {
+                  const knownColorValues =
+                    getKnownColorValues(sampleBeadingValue);
+
+                  return (
+                    <FormItem>
+                      <FormLabel>Beading Color</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={getColorSelectValue(
+                          field.value,
+                          knownColorValues,
+                        )}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Beading Color" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={sampleBeadingValue}>
+                            <div className="flex gap-1">
+                              SAS (
+                              <div className="flex items-center">
+                                <p
+                                  className="mx-1 h-4 w-4 rounded-full"
+                                  style={{
+                                    backgroundColor: stylesSelect?.beading,
+                                    border: "1px solid #000",
+                                  }}
+                                />
+                                {getColourBasedOnhex(stylesSelect?.beading)}
+                              </div>
+                              )
                             </div>
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                          {colors.map((colour: any) => (
+                            <SelectItem
+                              key={colour.id}
+                              value={getColorOptionValue(colour)}
+                            >
+                              <div className="flex items-center">
+                                <div
+                                  className="h-4 w-4 rounded-full"
+                                  style={{
+                                    backgroundColor: getColourBasedOnId(
+                                      colour.id,
+                                    ),
+                                    border: "1px solid #000",
+                                  }}
+                                />
+                                <span className="ml-2">{colour.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        className="mt-2"
+                        placeholder="Or type custom beading text"
+                        value={getCustomColorText(
+                          field.value,
+                          knownColorValues,
+                        )}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               {/* Add Lining checkbox */}
@@ -468,62 +523,84 @@ const StyleItem = ({
                     <FormField
                       control={form.control}
                       name={`styles.${index}.liningColor`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Lining Color</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select Lining Color" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value={sampleLiningColorValue}>
-                                <div className="flex gap-1">
-                                  SAS (
-                                  <div className="flex items-center">
-                                    <p
-                                      className="mx-1 h-4 w-4 rounded-full"
-                                      style={{
-                                        backgroundColor:
-                                          stylesSelect?.liningColor,
-                                        border: "1px solid #000",
-                                      }}
-                                    />
-                                    {getColourBasedOnhex(
-                                      stylesSelect?.liningColor,
-                                    )}
-                                  </div>
-                                  )
-                                </div>
-                              </SelectItem>
-                              {colors.map((colour: any) => (
-                                <SelectItem
-                                  key={colour.id}
-                                  value={getColorOptionValue(colour)}
-                                >
-                                  <div className="flex items-center">
-                                    <div
-                                      className="h-4 w-4 rounded-full"
-                                      style={{
-                                        backgroundColor: getColourBasedOnId(
-                                          colour.id,
-                                        ),
-                                        border: "1px solid #000",
-                                      }}
-                                    />
-                                    <span className="ml-2">{colour.name}</span>
+                      render={({ field }) => {
+                        const knownColorValues = getKnownColorValues(
+                          sampleLiningColorValue,
+                        );
+
+                        return (
+                          <FormItem>
+                            <FormLabel>Lining Color</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={getColorSelectValue(
+                                field.value,
+                                knownColorValues,
+                              )}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select Lining Color" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value={sampleLiningColorValue}>
+                                  <div className="flex gap-1">
+                                    SAS (
+                                    <div className="flex items-center">
+                                      <p
+                                        className="mx-1 h-4 w-4 rounded-full"
+                                        style={{
+                                          backgroundColor:
+                                            stylesSelect?.liningColor,
+                                          border: "1px solid #000",
+                                        }}
+                                      />
+                                      {getColourBasedOnhex(
+                                        stylesSelect?.liningColor,
+                                      )}
+                                    </div>
+                                    )
                                   </div>
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                                {colors.map((colour: any) => (
+                                  <SelectItem
+                                    key={colour.id}
+                                    value={getColorOptionValue(colour)}
+                                  >
+                                    <div className="flex items-center">
+                                      <div
+                                        className="h-4 w-4 rounded-full"
+                                        style={{
+                                          backgroundColor: getColourBasedOnId(
+                                            colour.id,
+                                          ),
+                                          border: "1px solid #000",
+                                        }}
+                                      />
+                                      <span className="ml-2">
+                                        {colour.name}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              className="mt-2"
+                              placeholder="Or type custom lining color text"
+                              value={getCustomColorText(
+                                field.value,
+                                knownColorValues,
+                              )}
+                              onChange={(event) =>
+                                field.onChange(event.target.value)
+                              }
+                            />
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                   )}
                 </>
@@ -765,9 +842,9 @@ const StyleItem = ({
       {/* Mount AddProductForm once so it can listen for the global open event */}
       {index === 0 && (
         <AddProductFormDynamic
-          categories={[]}
-          subCategories={[]}
-          currencies={[]}
+          categories={productCategories}
+          subCategories={productSubCategories}
+          currencies={currencies}
         />
       )}
     </Collapsible>

@@ -5,7 +5,8 @@ import { Ellipsis } from "lucide-react";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
-import { cn } from "@/lib/utils";
+import { cn, getCookie } from "@/lib/utils";
+import { getApiUrl } from "@/lib/constants";
 import { parseRolePermissions } from "@/lib/adminPermissions";
 import { getMenuListWithPermissions } from "@/lib/menuList";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ export function Menu({
   unreadEnquiryCount = 0,
   draftCount = 0,
 }: MenuProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const menuListWithPermissions = getMenuListWithPermissions(
     pathname,
     userDetails.userType,
@@ -49,10 +50,19 @@ export function Menu({
     let mounted = true;
     const fetchCount = async () => {
       try {
-        const res = await fetch("/api/draft-count", { cache: "no-store" });
+        const requestUrl = new URL(getApiUrl("/orders"));
+        const token = getCookie("token") || localStorage.getItem("token");
+
+        requestUrl.searchParams.set("page", "1");
+        requestUrl.searchParams.set("publishStatus", "draft");
+
+        const res = await fetch(requestUrl.toString(), {
+          cache: "no-store",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
         const json = await res.json();
         if (!mounted) return;
-        setLiveDraftCount(json?.count ?? 0);
+        setLiveDraftCount(json?.totalCount ?? json?.orders?.length ?? 0);
       } catch (err) {
         console.error("Error fetching draft count", err);
       }
@@ -82,10 +92,7 @@ export function Menu({
           }
 
           return (
-            <li
-              className={cn("w-full", groupLabel ? "pt-5" : "")}
-              key={index}
-            >
+            <li className={cn("w-full", groupLabel ? "pt-5" : "")} key={index}>
               {(isOpen && groupLabel) || isOpen === undefined ? (
                 <p className="max-w-[248px] truncate px-4 pb-2 text-sm font-medium text-muted-foreground">
                   {groupLabel}
@@ -132,11 +139,12 @@ export function Menu({
                                   )}
                                 >
                                   <Icon size={18} />
-                                  {label === "Draft Orders" && liveDraftCount > 0 && (
-                                    <span className="absolute -right-2 -top-1 flex h-4 w-4 animate-bounce items-center justify-center rounded-full bg-red-600 text-[10px] text-white">
-                                      {liveDraftCount}
-                                    </span>
-                                  )}
+                                  {label === "Draft Orders" &&
+                                    liveDraftCount > 0 && (
+                                      <span className="absolute -right-2 -top-1 flex h-4 w-4 animate-bounce items-center justify-center rounded-full bg-red-600 text-[10px] text-white">
+                                        {liveDraftCount}
+                                      </span>
+                                    )}
                                   {label === "Order Request" &&
                                     totalCount > 0 && (
                                       <span className="absolute -right-2 -top-1 flex h-4 w-4 animate-bounce items-center justify-center rounded-full bg-red-600 text-[10px] text-white">

@@ -1,7 +1,13 @@
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import Link from "next/link";
 import CreateOrder from "./CreateOrder";
-import { getCustomers, getOrders } from "@/lib/data";
+import {
+  getCustomers,
+  getCurrencies,
+  getOrders,
+  getProductCategories,
+  getProductCollection,
+} from "@/lib/data";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import dayjs from "dayjs";
@@ -26,19 +32,20 @@ import EditOrderAction from "./EditOrderAction";
 
 const statusToDbField: Record<string, string | null> = {
   "Pattern/Khaka": "pattern",
-  "Pattern": "pattern",
-  "Khaka": "khaka",
+  Pattern: "pattern",
+  Khaka: "khaka",
   "Issue Beading": "issue_beading",
-  "Beading": "beading",
-  "Zarkan": "zarkan",
-  "Stitching": "stitching",
+  Beading: "beading",
+  Zarkan: "zarkan",
+  Stitching: "stitching",
   "Ready To Delivery": "ready_to_delivery",
-  "Shipped": "shipped",
+  Shipped: "shipped",
   "Balance Pending": "balance_pending",
 };
 
 const getRowClassName = (difference: number, orderStatus: string) => {
-  if (orderStatus === "Shipped") return "bg-green-500 text-black hover:bg-green-600";
+  if (orderStatus === "Shipped")
+    return "bg-green-500 text-black hover:bg-green-600";
   if (difference < 7) return "bg-red-600 text-white hover:bg-red-500";
   if (difference >= 7 && difference < 14) {
     return "bg-yellow-400 text-black hover:bg-yellow-500";
@@ -83,11 +90,23 @@ const OrdersPage = async (props: {
   const orderType = searchParams["orderType"] ?? "";
   const dueFilter = searchParams["due"] ?? "";
 
-  const orders = await getOrders({
-    page: currentPage,
-    query,
-    orderType: orderType === "All" ? "" : orderType,
-  });
+  const [
+    orders,
+    customers,
+    productCategories,
+    productCollection,
+    currenciesResponse,
+  ] = await Promise.all([
+    getOrders({
+      page: currentPage,
+      query,
+      orderType: orderType === "All" ? "" : orderType,
+    }),
+    getCustomers({}),
+    getProductCategories({}),
+    getProductCollection({}),
+    getCurrencies(),
+  ]);
 
   const getStatusDate = (status: string, order: any) => {
     const dbField = statusToDbField[status];
@@ -95,7 +114,9 @@ const OrdersPage = async (props: {
     return order?.[dbField] ? dayjs(order[dbField]).format("MMM D, YYYY") : "";
   };
 
-  const customers = await getCustomers({});
+  const categories = productCategories?.categories ?? [];
+  const subCategories = productCollection?.subCategories ?? [];
+  const currencies = currenciesResponse?.currencies ?? currenciesResponse ?? [];
   // determine whether to show address/phone based on current user's role
   const cookieStore = await cookies();
   const userType = cookieStore.get("userType")?.value;
@@ -114,28 +135,21 @@ const OrdersPage = async (props: {
         cache: "no-store",
       });
 
-
-
-
       const data = await res.json();
       const userData = data?.data ?? data?.user ?? data;
-      const roleName = String(userData?.roleName || userData?.role || "").trim().toLowerCase();
+      const roleName = String(userData?.roleName || userData?.role || "")
+        .trim()
+        .toLowerCase();
       // const allowed = [
       //   "admin",
       //   "shipping-master",
       //   "ready-to-delivery-master",
       // ];
-      const man = String(
-        cookieStore.get("accountUsername")?.value || ""
-      )
+      const man = String(cookieStore.get("accountUsername")?.value || "")
         .trim()
         .toLowerCase();
 
-      const allowed = [
-        "balancepending",
-        "admin",
-        "ready-to-delivery",
-      ];
+      const allowed = ["balancepending", "admin", "ready-to-delivery"];
 
       showContact = allowed.includes(man);
 
@@ -144,7 +158,6 @@ const OrdersPage = async (props: {
         role: userData?.role,
         roleName: userData?.roleName,
       });
-
     } catch (e) {
       // silently ignore and keep showContact = false
       console.error("Failed to fetch user data for contact info visibility", {
@@ -195,10 +208,9 @@ const OrdersPage = async (props: {
     <ContentLayout title="All Orders">
       <ItemsProvider>
         <div className="flex flex-col gap-4">
-
           {/* Page Header */}
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <h1 className="text-lg md:text-xl font-semibold">All Orders</h1>
+            <h1 className="text-lg font-semibold md:text-xl">All Orders</h1>
             <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
               <DeleteButton />
               <AdjustSequenceButton />
@@ -208,12 +220,14 @@ const OrdersPage = async (props: {
               <CreateOrder
                 customers={customers.customers}
                 ordersTotalCount={latestOrderPurchaseOrderNo}
+                productCategories={categories}
+                productSubCategories={subCategories}
+                currencies={currencies}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-
             {/* Search + Filter */}
             <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
               <CustomSearchBar query={query} />
@@ -227,7 +241,7 @@ const OrdersPage = async (props: {
                   })}
                   className={cn(
                     filterButtonClassName,
-                    dueFilter === "lt14" ? "bg-red-100 border-red-300" : ""
+                    dueFilter === "lt14" ? "border-red-300 bg-red-100" : "",
                   )}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -246,7 +260,9 @@ const OrdersPage = async (props: {
                   })}
                   className={cn(
                     filterButtonClassName,
-                    dueFilter === "lt28" ? "bg-yellow-100 border-yellow-300" : ""
+                    dueFilter === "lt28"
+                      ? "border-yellow-300 bg-yellow-100"
+                      : "",
                   )}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -265,7 +281,9 @@ const OrdersPage = async (props: {
                   })}
                   className={cn(
                     filterButtonClassName,
-                    dueFilter === "shipped" ? "bg-green-100 border-green-300" : ""
+                    dueFilter === "shipped"
+                      ? "border-green-300 bg-green-100"
+                      : "",
                   )}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -295,153 +313,211 @@ const OrdersPage = async (props: {
             <div className="w-full rounded-lg border border-border">
               <TableScrollWrapper>
                 <table className="w-full min-w-[1240px] border-collapse text-sm">
-                <thead className="bg-muted/50">
-                  <tr className="whitespace-nowrap [&>th]:align-middle">
-                    <th className={cn(tableHeadClassName, "w-12 text-center")}>
-                      <Delete bulk={bulkData} type="bulk" />
-                    </th>
-                    <th className={tableHeadClassName}>Customer</th>
-                    <th className={cn(tableHeadClassName, "w-[150px]")}>PO#</th>
-                    <th className={cn(tableHeadClassName, "w-[140px]")}>Order Type</th>
-                    <th className={cn(tableHeadClassName, "w-[130px]")}>Order Date</th>
-                    <th className={cn(tableHeadClassName, "w-[130px]")}>Ship Date</th>
-                    <th className={cn(tableHeadClassName, "w-[170px]")}>Order Status</th>
-                    {showContact && (
-                      <th className={cn(tableHeadClassName, "w-[220px]")}>Address</th>
-                    )}
-                    {showContact && (
-                      <th className={cn(tableHeadClassName, "w-[140px]")}>Phone</th>
-                    )}
-                    <th className={cn(tableHeadClassName, "w-[170px]")}>Tracking ID</th>
-                    <th className={cn(tableHeadClassName, "w-[260px] text-center")}>Actions</th>
-                  </tr>
-                </thead>
+                  <thead className="bg-muted/50">
+                    <tr className="whitespace-nowrap [&>th]:align-middle">
+                      <th
+                        className={cn(tableHeadClassName, "w-12 text-center")}
+                      >
+                        <Delete bulk={bulkData} type="bulk" />
+                      </th>
+                      <th className={tableHeadClassName}>Customer</th>
+                      <th className={cn(tableHeadClassName, "w-[150px]")}>
+                        PO#
+                      </th>
+                      <th className={cn(tableHeadClassName, "w-[140px]")}>
+                        Order Type
+                      </th>
+                      <th className={cn(tableHeadClassName, "w-[130px]")}>
+                        Order Date
+                      </th>
+                      <th className={cn(tableHeadClassName, "w-[130px]")}>
+                        Ship Date
+                      </th>
+                      <th className={cn(tableHeadClassName, "w-[170px]")}>
+                        Order Status
+                      </th>
+                      {showContact && (
+                        <th className={cn(tableHeadClassName, "w-[220px]")}>
+                          Address
+                        </th>
+                      )}
+                      {showContact && (
+                        <th className={cn(tableHeadClassName, "w-[140px]")}>
+                          Phone
+                        </th>
+                      )}
+                      <th className={cn(tableHeadClassName, "w-[170px]")}>
+                        Tracking ID
+                      </th>
+                      <th
+                        className={cn(
+                          tableHeadClassName,
+                          "w-[260px] text-center",
+                        )}
+                      >
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
 
-                <tbody>
-                  {filteredOrders.length > 0 ? (
-                    filteredOrders.map((order: any) => {
-                      const difference = order?.orderCancellationDate
-                        ? dayjs(formatDateOnly(order.orderCancellationDate)).diff(
-                            dayjs().startOf("day"),
-                            "days",
-                          )
-                        : Infinity;
-                      const rowClass = getRowClassName(difference, order.orderStatus);
+                  <tbody>
+                    {filteredOrders.length > 0 ? (
+                      filteredOrders.map((order: any) => {
+                        const difference = order?.orderCancellationDate
+                          ? dayjs(
+                              formatDateOnly(order.orderCancellationDate),
+                            ).diff(dayjs().startOf("day"), "days")
+                          : Infinity;
+                        const rowClass = getRowClassName(
+                          difference,
+                          order.orderStatus,
+                        );
 
-                      return (
-                        <tr
-                          key={`${order.id}-${order.purchaeOrderNo}-${order.orderType}`}
-                          className={cn(
-                            "whitespace-nowrap align-middle [&>td]:align-middle",
-                            rowClass,
-                          )}
-                        >
-                          {/* Delete */}
-                          <td className={cn(tableCellClassName, "text-center")}>
-                            <Delete id={order.id} orderType={order.orderType} type="single" />
-                          </td>
+                        return (
+                          <tr
+                            key={`${order.id}-${order.purchaeOrderNo}-${order.orderType}`}
+                            className={cn(
+                              "whitespace-nowrap align-middle [&>td]:align-middle",
+                              rowClass,
+                            )}
+                          >
+                            {/* Delete */}
+                            <td
+                              className={cn(tableCellClassName, "text-center")}
+                            >
+                              <Delete
+                                id={order.id}
+                                orderType={order.orderType}
+                                type="single"
+                              />
+                            </td>
 
-                          {/* Customer */}
-                          <td className={tableCellClassName}>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-semibold">{order.customer?.name}</span>
-                              <span className="opacity-50">#{order.id}</span>
-                            </div>
-                          </td>
+                            {/* Customer */}
+                            <td className={tableCellClassName}>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold">
+                                  {order.customer?.name}
+                                </span>
+                                <span className="opacity-50">#{order.id}</span>
+                              </div>
+                            </td>
 
-                          {/* PO# */}
-                          <td className={cn(tableCellClassName, "font-mono")}>
-                            {order.purchaeOrderNo}
-                          </td>
+                            {/* PO# */}
+                            <td className={cn(tableCellClassName, "font-mono")}>
+                              {order.purchaeOrderNo}
+                            </td>
 
-                          {/* Order Type */}
-                          <td className={tableCellClassName}>
-                            {order.orderType === "Fresh" ? fresh : order.orderType}
-                          </td>
+                            {/* Order Type */}
+                            <td className={tableCellClassName}>
+                              {order.orderType === "Fresh"
+                                ? fresh
+                                : order.orderType}
+                            </td>
 
-                          {/* Order Date */}
-                          <td className={tableCellClassName}>
-                            {formatDateOnlyDisplay(order.orderReceivedDate)}
-                          </td>
+                            {/* Order Date */}
+                            <td className={tableCellClassName}>
+                              {formatDateOnlyDisplay(order.orderReceivedDate)}
+                            </td>
 
-                          {/* Ship Date */}
-                          <td className={tableCellClassName}>
-                            {formatDateOnlyDisplay(order.orderCancellationDate)}
-                          </td>
+                            {/* Ship Date */}
+                            <td className={tableCellClassName}>
+                              {formatDateOnlyDisplay(
+                                order.orderCancellationDate,
+                              )}
+                            </td>
 
-                          {/* Order Status */}
-                          <td className={tableCellClassName}>
-                            <div className="flex flex-col gap-1">
+                            {/* Order Status */}
+                            <td className={tableCellClassName}>
+                              <div className="flex flex-col gap-1">
+                                <div className="text-black">
+                                  {order.orderSource === "retailer" ? (
+                                    <UpdateRetailerOrderStatus
+                                      orderData={order}
+                                    />
+                                  ) : (
+                                    <UpdateOrderStatus orderData={order} />
+                                  )}
+                                </div>
+                                <p className="text-xs opacity-70">
+                                  {getStatusDate(
+                                    order.orderStatus.toString(),
+                                    order,
+                                  )}
+                                </p>
+                              </div>
+                            </td>
+
+                            {/* Address */}
+                            {showContact && (
+                              <td
+                                className={cn(
+                                  tableCellClassName,
+                                  "max-w-[220px] whitespace-normal break-words",
+                                )}
+                              >
+                                <div className="whitespace-normal break-words leading-5">
+                                  <AddressCard ad={order.address} />
+                                </div>
+                              </td>
+                            )}
+
+                            {/* Phone */}
+                            {showContact && (
+                              <td className={tableCellClassName}>
+                                {order.customer?.phoneNumber || "N/A"}
+                              </td>
+                            )}
+
+                            {/* Tracking ID */}
+                            <td className={tableCellClassName}>
                               <div className="text-black">
                                 {order.orderSource === "retailer" ? (
-                                  <UpdateRetailerOrderStatus orderData={order} />
+                                  <UpdateRetailerTrackingId orderData={order} />
                                 ) : (
-                                  <UpdateOrderStatus orderData={order} />
+                                  <UpdateTrackingId
+                                    trackingId={order.trackingNo}
+                                    id={order.id}
+                                  />
                                 )}
                               </div>
-                              <p className="text-xs opacity-70">
-                                {getStatusDate(order.orderStatus.toString(), order)}
-                              </p>
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Address */}
-                          {showContact && (
-                            <td className={cn(tableCellClassName, "max-w-[220px] whitespace-normal break-words")}>
-                              <div className="whitespace-normal break-words leading-5">
-                                <AddressCard ad={order.address} />
+                            {/* Actions */}
+                            <td
+                              className={cn(tableCellClassName, "text-center")}
+                            >
+                              <div className="flex items-center justify-center gap-2">
+                                <OrderDetailsSheet orderDetails={order} />
+                                <EditOrderAction
+                                  order={order}
+                                  customers={customers.customers}
+                                  productCategories={categories}
+                                  productSubCategories={subCategories}
+                                  currencies={currencies}
+                                />
+                                <TableActions data={order} />
+                                <ResetScanButton order={order} />
                               </div>
                             </td>
-                          )}
-
-                          {/* Phone */}
-                          {showContact && (
-                            <td className={tableCellClassName}>
-                              {order.customer?.phoneNumber || "N/A"}
-                            </td>
-                          )}
-
-                          {/* Tracking ID */}
-                          <td className={tableCellClassName}>
-                            <div className="text-black">
-                              {order.orderSource === "retailer" ? (
-                                <UpdateRetailerTrackingId orderData={order} />
-                              ) : (
-                                <UpdateTrackingId trackingId={order.trackingNo} id={order.id} />
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Actions */}
-                          <td className={cn(tableCellClassName, "text-center")}>
-                            <div className="flex items-center justify-center gap-2">
-                              <OrderDetailsSheet orderDetails={order} />
-                              <EditOrderAction
-                                order={order}
-                                customers={customers.customers}
-                              />
-                              <TableActions data={order} />
-                              <ResetScanButton order={order} />
-                            </div>
-                          </td>
-
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={showContact ? 11 : 9}
-                        className="border border-border py-10 text-center text-base text-muted-foreground"
-                      >
-                        <div className="flex flex-col items-center gap-1">
-                          <p className="font-medium">No orders found</p>
-                          <p className="text-sm">Try adjusting your search or filters.</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={showContact ? 11 : 9}
+                          className="border border-border py-10 text-center text-base text-muted-foreground"
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            <p className="font-medium">No orders found</p>
+                            <p className="text-sm">
+                              Try adjusting your search or filters.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
                 </table>
               </TableScrollWrapper>
             </div>

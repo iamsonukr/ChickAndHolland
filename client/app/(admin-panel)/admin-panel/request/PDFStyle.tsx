@@ -209,7 +209,8 @@ export const styles = StyleSheet.create({
     flexDirection: "column",
   },
   mainImageFrame: {
-    flex: 1,
+    height: 360,
+    minHeight: 360,
     border: "1px solid #999",
     borderRadius: 4,
     padding: 6,
@@ -217,7 +218,7 @@ export const styles = StyleSheet.create({
     overflow: "hidden",
   },
   mainImagePlaceholder: {
-    flex: 1,
+    height: "100%",
     justifyContent: "center",
     alignItems: "center",
     padding: 12,

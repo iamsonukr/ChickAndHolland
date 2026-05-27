@@ -2,7 +2,13 @@ import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
 import TableScrollWrapper from "@/components/TableScrollWrapper";
-import { getCustomers, getOrders } from "@/lib/data";
+import {
+  getCustomers,
+  getCurrencies,
+  getOrders,
+  getProductCategories,
+  getProductCollection,
+} from "@/lib/data";
 import { cn, fresh } from "@/lib/utils";
 import AddressCard from "../orders/AddressCard";
 import CreateOrder from "../orders/CreateOrder";
@@ -23,16 +29,28 @@ const DraftOrdersPage = async (props: {
   const currentPage = searchParams["cPage"] ? Number(searchParams["cPage"]) : 1;
   const query = searchParams["q"] ?? "";
 
-  const [orders, customers] = await Promise.all([
+  const [
+    orders,
+    customers,
+    productCategories,
+    productCollection,
+    currenciesResponse,
+  ] = await Promise.all([
     getOrders({
       page: currentPage,
       query,
       publishStatus: "draft",
     }),
     getCustomers({}),
+    getProductCategories({}),
+    getProductCollection({}),
+    getCurrencies(),
   ]);
 
   const draftOrders = orders?.orders ?? [];
+  const categories = productCategories?.categories ?? [];
+  const subCategories = productCollection?.subCategories ?? [];
+  const currencies = currenciesResponse?.currencies ?? currenciesResponse ?? [];
   return (
     <ContentLayout title="Draft Orders">
       <div className="flex flex-col gap-4">
@@ -48,11 +66,19 @@ const DraftOrdersPage = async (props: {
               <tr className="whitespace-nowrap [&>th]:align-middle">
                 <th className={tableHeadClassName}>Customer</th>
                 <th className={cn(tableHeadClassName, "w-[150px]")}>PO#</th>
-                <th className={cn(tableHeadClassName, "w-[140px]")}>Order Type</th>
-                <th className={cn(tableHeadClassName, "w-[130px]")}>Order Date</th>
-                <th className={cn(tableHeadClassName, "w-[130px]")}>Ship Date</th>
+                <th className={cn(tableHeadClassName, "w-[140px]")}>
+                  Order Type
+                </th>
+                <th className={cn(tableHeadClassName, "w-[130px]")}>
+                  Order Date
+                </th>
+                <th className={cn(tableHeadClassName, "w-[130px]")}>
+                  Ship Date
+                </th>
                 <th className={cn(tableHeadClassName, "w-[240px]")}>Address</th>
-                <th className={cn(tableHeadClassName, "w-[280px] text-center")}>Actions</th>
+                <th className={cn(tableHeadClassName, "w-[280px] text-center")}>
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -64,12 +90,23 @@ const DraftOrdersPage = async (props: {
                   >
                     <td className={tableCellClassName}>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-semibold">{order.customer?.name}</span>
+                        <span className="font-semibold">
+                          {order.customer?.name}
+                        </span>
                         <span className="opacity-50">#{order.id}</span>
                       </div>
                     </td>
                     <td className={cn(tableCellClassName, "font-mono")}>
-                      {order.purchaeOrderNo}
+                      <div className="flex flex-col gap-1">
+                        <span>{order.purchaeOrderNo}</span>
+                        {["failed", "undelivered"].includes(
+                          String(order.emailStatus ?? "").toLowerCase(),
+                        ) && (
+                          <span className="w-fit rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                            Email failed
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className={tableCellClassName}>
                       {order.orderType === "Fresh" ? fresh : order.orderType}
@@ -99,6 +136,9 @@ const DraftOrdersPage = async (props: {
                         <CreateOrder
                           customers={customers.customers ?? []}
                           ordersTotalCount={0}
+                          productCategories={categories}
+                          productSubCategories={subCategories}
+                          currencies={currencies}
                           editOrder={order}
                           triggerLabel="Edit"
                         />
@@ -129,6 +169,7 @@ const DraftOrdersPage = async (props: {
             <CustomPagination
               currentPage={currentPage}
               totalLength={orders.totalCount}
+              itemsPerPage={50}
             />
           </div>
         )}

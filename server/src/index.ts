@@ -1,4 +1,3 @@
-
 /**
  * Index file for the server application for Rani fashions
  * @dev Written by WEB DEV TEAM - YMTS INDIA
@@ -31,7 +30,7 @@ import InventoryRouter from "./controllers/InventoryController";
 import ProductRouter from "./controllers/ProductController";
 import ProductQueryRouter from "./controllers/ProductQueryController";
 import EmployeeRouter from "./controllers/EmployeeController";
-import OrderRouter,{ PublicStoreRoutes } from "./controllers/OrderController";
+import OrderRouter, { PublicStoreRoutes } from "./controllers/OrderController";
 import ReportRouter from "./controllers/ReportController";
 import SellerRouter from "./controllers/SellerController";
 import AnalyticsRouter from "./controllers/AnalyticsController";
@@ -85,6 +84,7 @@ import { ensurePurchaseOrderNoIsNotUnique } from "./utils/ensurePurchaseOrderNoI
 import { ensureOrderPublishStatusColumn } from "./utils/ensureOrderPublishStatusColumn";
 import { ensureOrderStylePricingColumns } from "./utils/ensureOrderStylePricingColumns";
 import { ensureCustomerPostalCodeColumn } from "./utils/ensureCustomerPostalCodeColumn";
+import { ensureOrderEmailStatusColumns } from "./utils/ensureOrderEmailStatusColumns";
 
 const router = Router();
 
@@ -107,8 +107,8 @@ app.set("trust proxy", true);
 
 app.post(
   "/api/payment/webhook",
-   express.raw({ type: "application/json" }), // RAW BODY
-  stripeWebhookHandler
+  express.raw({ type: "application/json" }), // RAW BODY
+  stripeWebhookHandler,
 );
 
 app.use(express.json({ limit: "20mb" }));
@@ -122,63 +122,60 @@ app.use(
       "http://localhost:3000",
       "https://chicandholland.com",
       "https://www.chicandholland.com",
-      "http://188.166.61.115"
+      "http://188.166.61.115",
     ],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-Edit-Password"],
-    methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
-  })  
-);  
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  }),
+);
 
 app.use(cookieParser());
 morgan.token("time", () => {
   return new Date().toLocaleString();
 });
 
-app.use(
-  morgan(":method :url :status :response-time ms - :time")
-);
+app.use(morgan(":method :url :status :response-time ms - :time"));
 
 app.use(`/${FOLDER_NAMES.STATIC_PATH}`, express.static(publicFolder));
 // 🔓 Allow PPT download without Authorization
 app.use("/uploads/ppt", express.static("uploads/ppt"));
-
 
 // --------------------
 // Initialize Database
 (async () => {
   try {
     if (!db) throw new Error(`Error initializing the database`);
-    
+
     // Create static folders if not exist
     if (!fs.existsSync(publicFolder)) fs.mkdirSync(publicFolder);
     for (const name of foldersToCreate) {
       const dir = path.join(publicFolder, name);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir);
     }
-    
+
     await db.initialize();
     BaseEntity.useDataSource(db);
     await ensurePurchaseOrderNoIsNotUnique();
     await ensureOrderPublishStatusColumn();
     await ensureOrderStylePricingColumns();
     await ensureCustomerPostalCodeColumn();
+    await ensureOrderEmailStatusColumns();
     await ensureProductQueriesTable();
     await ensureAdminSettingsTable();
     console.log("✅ Database connected");
 
-if (process.env.RUN_SEEDER === "true") {
-  try {
-    await initializeData();
-  } catch (e) {
-    console.error("Seeder error (ignored):", e);
-  }
-}
+    if (process.env.RUN_SEEDER === "true") {
+      try {
+        await initializeData();
+      } catch (e) {
+        console.error("Seeder error (ignored):", e);
+      }
+    }
 
-app.listen(port, () => {
-  console.log(`✅ Server is running on port ${port}`);
-});
- 
+    app.listen(port, () => {
+      console.log(`✅ Server is running on port ${port}`);
+    });
   } catch (err: any) {
     console.error("Error occurred while connecting to database");
     console.error("Error:", err.message);
@@ -218,7 +215,6 @@ app.use("/api/orders", PublicStoreRoutes);
 app.use("/api/retailer-orders", RetailerOrders);
 app.use("/api/worker", WorkerController);
 
-
 // app.use("/api/orders", OrderRouter);
 
 // BARCODE TRACKING SYSTEM
@@ -227,7 +223,6 @@ app.use("/api/status", statusUpdateController);
 app.use("/api/report", reportController);
 app.use("/api/retailer-scan", retailerScanRoute);
 app.use("/api/stock-scan", stockScanRoute);
-
 
 // --------------------
 // 🔒 Protected Routes (require Authorization)

@@ -1,5 +1,3 @@
-
-
 import { BeforeUpdate, Column, Entity, ManyToOne, OneToMany } from "typeorm";
 import BaseModel from "./BaseModel";
 import { TABLE_NAMES } from "../constants";
@@ -34,6 +32,13 @@ export enum ShippingStatus {
 export enum OrderPublishStatus {
   Published = "published",
   Draft = "draft",
+}
+
+export enum OrderEmailStatus {
+  Pending = "pending",
+  Sent = "sent",
+  Failed = "failed",
+  Undelivered = "undelivered",
 }
 
 @Entity(TABLE_NAMES.ORDERS)
@@ -121,6 +126,15 @@ export default class Order extends BaseModel {
     default: OrderPublishStatus.Published,
   })
   publishStatus: OrderPublishStatus;
+
+  @Column("varchar", { length: 32, nullable: true })
+  emailStatus: OrderEmailStatus | null;
+
+  @Column("text", { nullable: true })
+  emailFailureReason: string | null;
+
+  @Column("datetime", { nullable: true })
+  emailLastAttemptAt: Date | null;
 
   @ManyToOne(() => Customer, (customer) => customer.orders, {
     onDelete: "CASCADE",

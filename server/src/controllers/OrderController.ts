@@ -1,4 +1,3 @@
-
 import { raw, Request, Response, Router } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
 import {
@@ -10,6 +9,7 @@ import Order, {
   OrderStatus,
   ShippingStatus,
   OrderPublishStatus,
+  OrderEmailStatus,
 } from "../models/Order";
 import { Equal, In, Like } from "typeorm";
 import Busboy from "busboy";
@@ -49,8 +49,9 @@ import ProductColour from "../models/ProductColours";
 import { mail } from "../lib/Utils";
 import { generateOrderPdf } from "../pdf/generateOrderPdf";
 import { formatDateOnly, parseDateOnly } from "../lib/dateOnly";
+import { assertDeliverableEmailAddress } from "../lib/emailValidation";
 
-import StoreStyleProgress from "../models/StoreStyleProgress";  // ⬅ top me import add karna
+import StoreStyleProgress from "../models/StoreStyleProgress"; // ⬅ top me import add karna
 // import { updateOrderAndStyleStatus } from "../services/orderStatus.service";
 
 const router = Router();
@@ -205,6 +206,21 @@ const buildCreatedOrderEmailHtml = (purchaseOrderNo?: string | null) => `
   </div>
 `;
 
+const recordOrderEmailStatus = async (
+  orderId: number,
+  emailStatus: OrderEmailStatus,
+  failureReason: string | null = null,
+) => {
+  await Order.update(
+    { id: orderId },
+    {
+      emailStatus,
+      emailFailureReason: failureReason,
+      emailLastAttemptAt: new Date(),
+    },
+  );
+};
+
 const createColorNameResolver = async () => {
   const productColours = await ProductColour.find({});
 
@@ -230,7 +246,9 @@ const buildRegularOrderPdfDetails = (
       sizes,
     );
     const isCustomSize =
-      String(item.size ?? "").trim().toLowerCase() === "custom";
+      String(item.size ?? "")
+        .trim()
+        .toLowerCase() === "custom";
 
     const detail = {
       quantity:
@@ -310,14 +328,21 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
     return;
   }
 
-  const recipient = sanitizeText(order.manufacturingEmailAddress);
+  let recipient: string;
 
-  if (!recipient) {
-    console.warn(`${ORDER_PDF_EMAIL_LOG_PREFIX} Missing recipient email`, {
+  try {
+    recipient = await assertDeliverableEmailAddress(
+      order.manufacturingEmailAddress,
+    );
+  } catch (error: any) {
+    const message = error?.message ?? "Invalid email address";
+    await recordOrderEmailStatus(order.id, OrderEmailStatus.Failed, message);
+    console.warn(`${ORDER_PDF_EMAIL_LOG_PREFIX} Invalid recipient email`, {
       orderId,
       purchaseOrderNo: order.purchaeOrderNo,
+      message,
     });
-    return;
+    throw error;
   }
 
   const [processedOrder] = await processOrders([order]);
@@ -325,12 +350,14 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
   const details = buildRegularOrderPdfDetails(processedOrder, getColorName);
 
   if (!details.length) {
-    console.warn(`${ORDER_PDF_EMAIL_LOG_PREFIX} No order styles to email`, {
+    const message = "No order styles to email";
+    await recordOrderEmailStatus(order.id, OrderEmailStatus.Failed, message);
+    console.warn(`${ORDER_PDF_EMAIL_LOG_PREFIX} ${message}`, {
       orderId,
       purchaseOrderNo: order.purchaeOrderNo,
       recipient,
     });
-    return;
+    throw new Error(message);
   }
 
   const orderData = {
@@ -346,17 +373,29 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
 
   const pdfBuffer = await generateOrderPdf(orderData);
 
-  await mail({
-    to: recipient,
-    subject: orderData.purchaseOrderNo || "Order Confirmation",
-    html: buildCreatedOrderEmailHtml(orderData.purchaseOrderNo),
-    attachments: [
-      {
-        filename: buildOrderPdfFilename(orderData.purchaseOrderNo),
-        content: pdfBuffer,
-      },
-    ],
-  });
+  await recordOrderEmailStatus(order.id, OrderEmailStatus.Pending);
+
+  try {
+    await mail({
+      to: recipient,
+      subject: orderData.purchaseOrderNo || "Order Confirmation",
+      html: buildCreatedOrderEmailHtml(orderData.purchaseOrderNo),
+      attachments: [
+        {
+          filename: buildOrderPdfFilename(orderData.purchaseOrderNo),
+          content: pdfBuffer,
+        },
+      ],
+    });
+    await recordOrderEmailStatus(order.id, OrderEmailStatus.Sent);
+  } catch (error: any) {
+    await recordOrderEmailStatus(
+      order.id,
+      OrderEmailStatus.Failed,
+      error?.message ?? String(error),
+    );
+    throw error;
+  }
 
   console.info(`${ORDER_PDF_EMAIL_LOG_PREFIX} Email sent`, {
     orderId,
@@ -379,13 +418,28 @@ function queueCreatedOrderPdfEmail(orderId: number) {
 
 function buildOrderAddress(
   orderAddress: unknown,
-  customer?: { storeAddress?: string | null; country?: { name?: string | null } | null } | null,
+  customer?: {
+    storeAddress?: string | null;
+    postalCode?: string | null;
+    country?: { name?: string | null } | null;
+  } | null,
 ) {
   const explicitAddress = sanitizeText(orderAddress);
   const defaultAddress = sanitizeText(customer?.storeAddress);
+  const postalCode = sanitizeText(customer?.postalCode);
   const countryName = sanitizeText(customer?.country?.name);
 
-  const baseAddress = explicitAddress || defaultAddress;
+  let baseAddress = explicitAddress || defaultAddress;
+
+  if (
+    postalCode &&
+    baseAddress &&
+    !baseAddress.toLowerCase().includes(postalCode.toLowerCase())
+  ) {
+    baseAddress = `${baseAddress}, ${postalCode}`;
+  } else if (!baseAddress) {
+    baseAddress = postalCode;
+  }
 
   if (!baseAddress) return countryName;
   if (!countryName) return baseAddress;
@@ -417,11 +471,11 @@ function buildOrderAddress(
   return `${baseAddress} (${countryName})`;
 }
 
-function getCustomerStoreName(customer?: { storeName?: string | null; name?: string | null } | null) {
+function getCustomerStoreName(
+  customer?: { storeName?: string | null; name?: string | null } | null,
+) {
   return sanitizeText(customer?.storeName) || sanitizeText(customer?.name);
 }
-
-
 
 interface Field {
   [key: string]: string;
@@ -437,10 +491,12 @@ interface FileData {
 
 function resolveUploadedOrderDocumentExtension(
   file: FileData,
-  uploadedOrderFileType?: string
+  uploadedOrderFileType?: string,
 ) {
   const filename =
-    typeof file.filename === "string" ? file.filename : String(file.filename || "");
+    typeof file.filename === "string"
+      ? file.filename
+      : String(file.filename || "");
   const ext = path.extname(filename).toLowerCase();
 
   if (ext) return ext;
@@ -481,59 +537,63 @@ function parseJsonArrayField(value: unknown) {
 }
 
 function parseMultipartRequest(req: Request) {
-  return new Promise<{ fields: Field; files: FileData[] }>((resolve, reject) => {
-    const busboy = Busboy({ headers: req.headers });
-    const fields: Field = {};
-    const filePromises: Promise<FileData>[] = [];
+  return new Promise<{ fields: Field; files: FileData[] }>(
+    (resolve, reject) => {
+      const busboy = Busboy({ headers: req.headers });
+      const fields: Field = {};
+      const filePromises: Promise<FileData>[] = [];
 
-    busboy.on("field", (fieldname: string, val: string) => {
-      fields[fieldname] = val;
-    });
+      busboy.on("field", (fieldname: string, val: string) => {
+        fields[fieldname] = val;
+      });
 
-    busboy.on(
-      "file",
-      (
-        fieldname: string,
-        file: NodeJS.ReadableStream,
-        filename: string,
-        encoding: string,
-        mimetype: string
-      ) => {
-        const buffers: Buffer[] = [];
+      busboy.on(
+        "file",
+        (
+          fieldname: string,
+          file: NodeJS.ReadableStream,
+          filename: string,
+          encoding: string,
+          mimetype: string,
+        ) => {
+          const buffers: Buffer[] = [];
 
-        const filePromise = new Promise<FileData>((fileResolve, fileReject) => {
-          file.on("data", (data: Buffer) => {
-            buffers.push(data);
-          });
+          const filePromise = new Promise<FileData>(
+            (fileResolve, fileReject) => {
+              file.on("data", (data: Buffer) => {
+                buffers.push(data);
+              });
 
-          file.on("end", () => {
-            fileResolve({
-              fieldname,
-              filename,
-              encoding,
-              mimetype,
-              buffer: Buffer.concat(buffers),
-            });
-          });
+              file.on("end", () => {
+                fileResolve({
+                  fieldname,
+                  filename,
+                  encoding,
+                  mimetype,
+                  buffer: Buffer.concat(buffers),
+                });
+              });
 
-          file.on("error", fileReject);
-        });
+              file.on("error", fileReject);
+            },
+          );
 
-        filePromises.push(filePromise);
-      }
-    );
+          filePromises.push(filePromise);
+        },
+      );
 
-    busboy.on("finish", async () => {
-      try {
-        resolve({ fields, files: await Promise.all(filePromises) });
-      } catch (error) {
-        reject(error);
-      }
-    });
+      busboy.on("finish", async () => {
+        try {
+          resolve({ fields, files: await Promise.all(filePromises) });
+        } catch (error) {
+          reject(error);
+        }
+      });
 
-    busboy.on("error", reject);
-    busboy.end(req.body);
-  });
+      busboy.on("error", reject);
+      busboy.end(req.body);
+    },
+  );
 }
 
 function parseStylesFromFields(fields: Field) {
@@ -636,9 +696,7 @@ function parsePublishStatus(value: unknown) {
 async function fetchPricingProductsMap(styles: any[]) {
   const styleNos = [
     ...new Set(
-      styles
-        .map((style) => sanitizeText(style?.styleNo))
-        .filter(Boolean),
+      styles.map((style) => sanitizeText(style?.styleNo)).filter(Boolean),
     ),
   ];
 
@@ -670,7 +728,9 @@ function applyPricingToStyle(
     style.subtotal = null;
     style.discount = 0;
     style.totalPrice = null;
-    style.currencyId = customer?.currencyId ? Number(customer.currencyId) : null;
+    style.currencyId = customer?.currencyId
+      ? Number(customer.currencyId)
+      : null;
     style.currencyCode = customer?.currency?.code ?? null;
     style.currencySymbol = customer?.currency?.symbol ?? null;
     return;
@@ -684,7 +744,9 @@ function applyPricingToStyle(
     basePrice: resolvedPrice.amount,
     size: styleInput.size,
     quantity: styleInput.quantity,
-    customSizesQuantity: parseCustomSizesQuantity(styleInput.customSizesQuantity),
+    customSizesQuantity: parseCustomSizesQuantity(
+      styleInput.customSizesQuantity,
+    ),
   });
 
   style.unitPrice = pricing.unitPrice;
@@ -752,7 +814,6 @@ const buildRegularOrderStylePieces = (styleInput: any) => {
   }));
 };
 
-
 router.post(
   "/",
   raw({
@@ -776,7 +837,7 @@ router.post(
         file: NodeJS.ReadableStream,
         filename: string,
         encoding: string,
-        mimetype: string
+        mimetype: string,
       ) => {
         const buffers: Buffer[] = [];
 
@@ -802,7 +863,7 @@ router.post(
         });
 
         filePromises.push(filePromise);
-      }
+      },
     );
 
     busboy.on("finish", async () => {
@@ -813,7 +874,9 @@ router.post(
         const manufacturingEmailAddress = fields["manufacturingEmailAddress"];
         const orderType = fields["orderType"];
         const orderReceivedDate = parseDateOnly(fields["orderReceivedDate"]);
-        const orderCancellationDate = parseDateOnly(fields["orderCancellationDate"]);
+        const orderCancellationDate = parseDateOnly(
+          fields["orderCancellationDate"],
+        );
         const address = fields["address"];
         const customerId = parsePositiveInteger(fields["customerId"]);
         const publishStatus = parsePublishStatus(fields["publishStatus"]);
@@ -890,19 +953,19 @@ router.post(
         const orderID = order.id;
 
         const uploadedOrderFile = files.find(
-          (file) => file.fieldname === "uploadedOrderFile"
+          (file) => file.fieldname === "uploadedOrderFile",
         );
         const uploadedOrderFileType = fields["uploadedOrderFileType"];
 
         if (uploadedOrderFile) {
           const extension = resolveUploadedOrderDocumentExtension(
             uploadedOrderFile,
-            uploadedOrderFileType
+            uploadedOrderFileType,
           );
 
           const uploadedDocument = await storeFileInS3(
             uploadedOrderFile.buffer,
-            `order-documents/${orderID}/${Date.now()}${extension}`
+            `order-documents/${orderID}/${Date.now()}${extension}`,
           );
 
           if (!uploadedDocument) {
@@ -916,11 +979,12 @@ router.post(
         // ================================
         // PROCESS ALL STYLES (EACH GETS UNIQUE BARCODE)
         // ================================
-        const stylesForBarcodeRows = styles.flatMap((style: any, index: number) =>
-          buildRegularOrderStylePieces(style).map((piece) => ({
-            ...piece,
-            _sourceIndex: index,
-          })),
+        const stylesForBarcodeRows = styles.flatMap(
+          (style: any, index: number) =>
+            buildRegularOrderStylePieces(style).map((piece) => ({
+              ...piece,
+              _sourceIndex: index,
+            })),
         );
         const uploadedStyleImageUrlsBySourceIndex = new Map<number, string[]>();
 
@@ -965,8 +1029,7 @@ router.post(
           if (!uploadedPhotoUrls) {
             const styleImages = files.filter(
               (file) =>
-                file.fieldname ===
-                `styles[${sourceIndex}].modifiedPhotoImage`
+                file.fieldname === `styles[${sourceIndex}].modifiedPhotoImage`,
             );
 
             const imageUrls = await Promise.all(
@@ -982,14 +1045,17 @@ router.post(
                   .toBuffer();
 
                 return await storeFileInS3(compressedImage, fileName);
-              })
+              }),
             );
 
             uploadedPhotoUrls = imageUrls
               .filter((x) => x)
               .map((x) => x?.fileName)
               .filter((fileName): fileName is string => Boolean(fileName));
-            uploadedStyleImageUrlsBySourceIndex.set(sourceIndex, uploadedPhotoUrls);
+            uploadedStyleImageUrlsBySourceIndex.set(
+              sourceIndex,
+              uploadedPhotoUrls,
+            );
           }
 
           newStyle.photoUrls = JSON.stringify(uploadedPhotoUrls);
@@ -1043,7 +1109,7 @@ router.post(
     });
 
     busboy.end(req.body);
-  })
+  }),
 );
 
 router.patch(
@@ -1069,7 +1135,7 @@ router.patch(
         file: NodeJS.ReadableStream,
         filename: string,
         encoding: string,
-        mimetype: string
+        mimetype: string,
       ) => {
         const buffers: Buffer[] = [];
 
@@ -1080,7 +1146,13 @@ router.patch(
 
           file.on("end", () => {
             const fileBuffer = Buffer.concat(buffers);
-            resolve({ fieldname, filename, encoding, mimetype, buffer: fileBuffer });
+            resolve({
+              fieldname,
+              filename,
+              encoding,
+              mimetype,
+              buffer: fileBuffer,
+            });
           });
 
           file.on("error", (error: Error) => {
@@ -1089,7 +1161,7 @@ router.patch(
         });
 
         filePromises.push(filePromise);
-      }
+      },
     );
 
     busboy.on("finish", async () => {
@@ -1181,7 +1253,7 @@ router.patch(
         if (fields["purchaseOrderNo"]) {
           order.purchaeOrderNo = await resolveRegularPurchaseOrderNo(
             getCustomerStoreName(customer),
-            fields["purchaseOrderNo"]
+            fields["purchaseOrderNo"],
           );
         }
         if (fields["manufacturingEmailAddress"]) {
@@ -1224,19 +1296,19 @@ router.patch(
         // HANDLE ORDER-LEVEL FILE UPLOAD (replace if new file sent)
         // ================================
         const uploadedOrderFile = files.find(
-          (file) => file.fieldname === "uploadedOrderFile"
+          (file) => file.fieldname === "uploadedOrderFile",
         );
         const uploadedOrderFileType = fields["uploadedOrderFileType"];
 
         if (uploadedOrderFile) {
           const extension = resolveUploadedOrderDocumentExtension(
             uploadedOrderFile,
-            uploadedOrderFileType
+            uploadedOrderFileType,
           );
 
           const uploadedDocument = await storeFileInS3(
             uploadedOrderFile.buffer,
-            `order-documents/${orderId}/${Date.now()}${extension}`
+            `order-documents/${orderId}/${Date.now()}${extension}`,
           );
 
           if (!uploadedDocument) {
@@ -1291,14 +1363,15 @@ router.patch(
           styleEntity.mesh_color = s.mesh;
           styleEntity.beading_color = s.beading;
           styleEntity.lining = s.lining;
-          styleEntity.lining_color = s.lining === "No Lining" ? null : s.liningColor;
+          styleEntity.lining_color =
+            s.lining === "No Lining" ? null : s.liningColor;
           styleEntity.quantity = s.quantity ? Number(s.quantity) : 0;
 
           applyPricingToStyle(
             styleEntity,
             s,
             pricingProductsMap.get(sanitizeText(s.styleNo).toLowerCase()),
-            customer
+            customer,
           );
 
           // STEP 1 — SAVE (gets ID if new)
@@ -1312,7 +1385,7 @@ router.patch(
 
           // STEP 3 — HANDLE IMAGES
           const styleImages = files.filter(
-            (file) => file.fieldname === `styles[${i}].modifiedPhotoImage`
+            (file) => file.fieldname === `styles[${i}].modifiedPhotoImage`,
           );
 
           if (styleImages.length > 0) {
@@ -1330,11 +1403,11 @@ router.patch(
                   .toBuffer();
 
                 return await storeFileInS3(compressedImage, fileName);
-              })
+              }),
             );
 
             styleEntity.photoUrls = JSON.stringify(
-              imageUrls.filter((x) => x).map((x) => x?.fileName)
+              imageUrls.filter((x) => x).map((x) => x?.fileName),
             );
 
             // STEP 4 — SAVE FINAL STYLE
@@ -1360,9 +1433,8 @@ router.patch(
     });
 
     busboy.end(req.body);
-  })
+  }),
 );
-
 
 router.patch(
   "/:id/publish",
@@ -1425,9 +1497,8 @@ router.patch(
   }),
 );
 
-
 export async function convertImageToBase64Jpeg(
-  imageUrl: string
+  imageUrl: string,
 ): Promise<string | null> {
   try {
     if (!imageUrl) return null;
@@ -1469,7 +1540,7 @@ export async function convertImageToBase64Jpeg(
         .toBuffer();
 
       const base64Image = `data:image/jpeg;base64,${processedBuffer.toString(
-        "base64"
+        "base64",
       )}`;
 
       imageCache.set(imageUrl, base64Image);
@@ -1538,7 +1609,7 @@ async function processOrders(orders: any[]) {
 
               if (!product) {
                 console.warn(
-                  `No product found with productCode: ${style.styleNo.toLowerCase()}`
+                  `No product found with productCode: ${style.styleNo.toLowerCase()}`,
                 );
                 // return {
                 //     ...style,
@@ -1557,7 +1628,7 @@ async function processOrders(orders: any[]) {
 
               if (product?.images[0]) {
                 convertFirstProductImage = await convertImageToBase64Jpeg(
-                  product.images[0].name
+                  product.images[0].name,
                 );
               }
 
@@ -1588,11 +1659,9 @@ async function processOrders(orders: any[]) {
               const photoUrls = order.isPreview
                 ? rawPhotoUrls
                 : rawPhotoUrls.map(
-                  (path: string) =>
-                    `https://${CONFIG.S3_BUCKET}.${CONFIG.S3_AWS_ENDPOINT}/${path}`
-                );
-
-
+                    (path: string) =>
+                      `https://${CONFIG.S3_BUCKET}.${CONFIG.S3_AWS_ENDPOINT}/${path}`,
+                  );
 
               return {
                 ...style,
@@ -1603,15 +1672,15 @@ async function processOrders(orders: any[]) {
                 //     null,
                 photoUrls: photoUrls,
               };
-            }
-          )
+            },
+          ),
         );
 
         return {
           ...order,
           styles: processedStyles,
         };
-      })
+      }),
     );
 
     return newOrders;
@@ -1620,9 +1689,6 @@ async function processOrders(orders: any[]) {
     throw error;
   }
 }
-
-
-
 
 router.get(
   "/",
@@ -1667,21 +1733,27 @@ router.get(
         "o.shippingDate as shippingDate",
         "o.trackingNo as trackingNo",
         "COALESCE(o.publishStatus, 'published') as publishStatus",
+        "o.emailStatus as emailStatus",
+        "o.emailFailureReason as emailFailureReason",
+        "o.emailLastAttemptAt as emailLastAttemptAt",
         "o.createdAt as createdAt",
         "'regular' as orderSource",
       ])
       .from(Order, "o")
       .leftJoin("o.customer", "customer") // Join the Customer table to filter by name
       .where("o.status = 0")
-      .andWhere("COALESCE(o.publishStatus, :publishedStatus) = :publishStatus", {
-        publishedStatus: OrderPublishStatus.Published,
-        publishStatus: requestedPublishStatus,
-      });
+      .andWhere(
+        "COALESCE(o.publishStatus, :publishedStatus) = :publishStatus",
+        {
+          publishedStatus: OrderPublishStatus.Published,
+          publishStatus: requestedPublishStatus,
+        },
+      );
 
     if (likeQuery) {
       regularOrdersQuery.andWhere(
         "(LOWER(o.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
-        { likeQuery }
+        { likeQuery },
       );
     }
 
@@ -1701,6 +1773,9 @@ router.get(
         "ro.shippingDate as shippingDate",
         "ro.trackingNo as trackingNo",
         "'published' as publishStatus",
+        "NULL as emailStatus",
+        "NULL as emailFailureReason",
+        "NULL as emailLastAttemptAt",
         "ro.createdAt as createdAt",
         "'retailer' as orderSource",
       ])
@@ -1712,7 +1787,7 @@ router.get(
     if (likeQuery) {
       retailerOrdersQuery.andWhere(
         "(LOWER(ro.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
-        { likeQuery }
+        { likeQuery },
       );
     }
 
@@ -1866,11 +1941,11 @@ router.get(
       let detailedOrder;
       if (baseOrder.orderSource === "regular") {
         detailedOrder = regularOrdersWithRelations.find(
-          (o: any) => o.id === baseOrder.id
+          (o: any) => o.id === baseOrder.id,
         );
       } else {
         detailedOrder = retailerOrdersWithRelations.find(
-          (o: any) => o.id === baseOrder.id
+          (o: any) => o.id === baseOrder.id,
         );
       }
 
@@ -1881,7 +1956,7 @@ router.get(
           // Fix photoUrls
           photoUrls: safeArray(style.photoUrls).map(
             (url: string) =>
-              `https://${CONFIG.S3_BUCKET}.${CONFIG.S3_AWS_ENDPOINT}/${url}`
+              `https://${CONFIG.S3_BUCKET}.${CONFIG.S3_AWS_ENDPOINT}/${url}`,
           ),
 
           // Fix comments
@@ -1897,7 +1972,7 @@ router.get(
 
       const recoveredStageDates =
         baseOrder.orderSource === "retailer"
-          ? retailerStageDatesMap.get(baseOrder.id) ?? {}
+          ? (retailerStageDatesMap.get(baseOrder.id) ?? {})
           : {};
 
       const resolvedCustomer =
@@ -1924,40 +1999,57 @@ router.get(
         shippingDate: baseOrder.shippingDate,
         trackingNo: baseOrder.trackingNo,
         publishStatus: baseOrder.publishStatus ?? OrderPublishStatus.Published,
+        emailStatus: baseOrder.emailStatus ?? null,
+        emailFailureReason: baseOrder.emailFailureReason ?? null,
+        emailLastAttemptAt: baseOrder.emailLastAttemptAt ?? null,
         pattern: detailedOrder?.pattern ?? recoveredStageDates.pattern ?? null,
         khaka: detailedOrder?.khaka ?? recoveredStageDates.khaka ?? null,
         issue_beading:
-          detailedOrder?.issue_beading ?? recoveredStageDates.issue_beading ?? null,
+          detailedOrder?.issue_beading ??
+          recoveredStageDates.issue_beading ??
+          null,
         beading: detailedOrder?.beading ?? recoveredStageDates.beading ?? null,
         zarkan: detailedOrder?.zarkan ?? recoveredStageDates.zarkan ?? null,
-        stitching: detailedOrder?.stitching ?? recoveredStageDates.stitching ?? null,
+        stitching:
+          detailedOrder?.stitching ?? recoveredStageDates.stitching ?? null,
         balance_pending:
-          detailedOrder?.balance_pending ?? recoveredStageDates.balance_pending ?? null,
+          detailedOrder?.balance_pending ??
+          recoveredStageDates.balance_pending ??
+          null,
         ready_to_delivery:
-          detailedOrder?.ready_to_delivery ?? recoveredStageDates.ready_to_delivery ?? null,
+          detailedOrder?.ready_to_delivery ??
+          recoveredStageDates.ready_to_delivery ??
+          null,
         shipped: detailedOrder?.shipped ?? recoveredStageDates.shipped ?? null,
         ppt_path: detailedOrder?.ppt_path || null,
         customer:
           baseOrder.orderSource === "regular"
             ? detailedOrder?.customer
               ? {
-                id: detailedOrder.customer.id,
-                name: getCustomerStoreName(detailedOrder.customer),
-                customerStoreName: getCustomerStoreName(detailedOrder.customer),
-                phoneNumber: detailedOrder.customer.phoneNumber,  // <-- ADD THIS
-                storeAddress: detailedOrder.customer.storeAddress,
-                country: detailedOrder.customer.country?.name ?? null,
-              }
+                  id: detailedOrder.customer.id,
+                  name: getCustomerStoreName(detailedOrder.customer),
+                  customerStoreName: getCustomerStoreName(
+                    detailedOrder.customer,
+                  ),
+                  phoneNumber: detailedOrder.customer.phoneNumber, // <-- ADD THIS
+                  storeAddress: detailedOrder.customer.storeAddress,
+                  postalCode: detailedOrder.customer.postalCode,
+                  country: detailedOrder.customer.country?.name ?? null,
+                }
               : null
             : detailedOrder?.retailer?.customer
               ? {
-                id: detailedOrder.retailer.customer.id,
-                name: getCustomerStoreName(detailedOrder.retailer.customer),
-                customerStoreName: getCustomerStoreName(detailedOrder.retailer.customer),
-                phoneNumber: detailedOrder.retailer.customer.phoneNumber,  // <-- ADD THIS
-                storeAddress: detailedOrder.retailer.customer.storeAddress,
-                country: detailedOrder.retailer.customer.country?.name ?? null,
-              }
+                  id: detailedOrder.retailer.customer.id,
+                  name: getCustomerStoreName(detailedOrder.retailer.customer),
+                  customerStoreName: getCustomerStoreName(
+                    detailedOrder.retailer.customer,
+                  ),
+                  phoneNumber: detailedOrder.retailer.customer.phoneNumber, // <-- ADD THIS
+                  storeAddress: detailedOrder.retailer.customer.storeAddress,
+                  postalCode: detailedOrder.retailer.customer.postalCode,
+                  country:
+                    detailedOrder.retailer.customer.country?.name ?? null,
+                }
               : null,
         styles: styles || [],
         orderSource: baseOrder.orderSource,
@@ -1992,9 +2084,8 @@ router.get(
       orders: formattedOrders,
       totalCount: parseInt(countResult?.count || "0"),
     });
-  })
+  }),
 );
-
 
 router.get(
   "/customization/:id",
@@ -2021,7 +2112,7 @@ router.get(
       success: true,
       data: (order.styles || []).map(mapOrderStyleCustomization),
     });
-  })
+  }),
 );
 
 router.patch(
@@ -2064,7 +2155,7 @@ router.patch(
       message: "Customization Edited successfully",
       data: (order.styles || []).map(mapOrderStyleCustomization),
     });
-  })
+  }),
 );
 
 router.get(
@@ -2079,9 +2170,12 @@ router.get(
       .leftJoinAndSelect("order.orderPayments", "orderPayments")
       .where("order.id = :orderId", { orderId: Number(orderId) })
       .andWhere("order.status = 0")
-      .andWhere("COALESCE(order.publishStatus, :publishedStatus) = :publishedStatus", {
-        publishedStatus: OrderPublishStatus.Published,
-      })
+      .andWhere(
+        "COALESCE(order.publishStatus, :publishedStatus) = :publishedStatus",
+        {
+          publishedStatus: OrderPublishStatus.Published,
+        },
+      )
       .getOne();
 
     if (!order) {
@@ -2098,9 +2192,8 @@ router.get(
       success: true,
       orders: processedOrders,
     });
-  })
+  }),
 );
-
 
 router.post(
   "/preview",
@@ -2124,7 +2217,7 @@ router.post(
         file: NodeJS.ReadableStream,
         filename: string,
         encoding: string,
-        mimetype: string
+        mimetype: string,
       ) => {
         const buffers: Buffer[] = [];
 
@@ -2150,7 +2243,7 @@ router.post(
         });
 
         filePromises.push(filePromise);
-      }
+      },
     );
 
     busboy.on("finish", async () => {
@@ -2162,7 +2255,9 @@ router.post(
         const manufacturingEmailAddress = fields["manufacturingEmailAddress"];
         const orderType = fields["orderType"];
         const orderReceivedDate = parseDateOnly(fields["orderReceivedDate"]);
-        const orderCancellationDate = parseDateOnly(fields["orderCancellationDate"]);
+        const orderCancellationDate = parseDateOnly(
+          fields["orderCancellationDate"],
+        );
         const address = fields["address"];
         const customerId = parsePositiveInteger(fields["customerId"]);
 
@@ -2189,8 +2284,9 @@ router.post(
           }
         }
 
-        const quantityValidationError =
-          getRegularOrderQuantityValidationError(styles.filter(Boolean));
+        const quantityValidationError = getRegularOrderQuantityValidationError(
+          styles.filter(Boolean),
+        );
 
         if (quantityValidationError) {
           return res.status(400).json({
@@ -2225,7 +2321,10 @@ router.post(
             _sourceIndex: index,
           })),
         );
-        const previewPhotoUrlsBySourceIndex = new Map<number, Promise<string[]>>();
+        const previewPhotoUrlsBySourceIndex = new Map<
+          number,
+          Promise<string[]>
+        >();
 
         // Create a temporary order object (not saved to database)
         const orderPreview = {
@@ -2251,7 +2350,7 @@ router.post(
                 const styleImages = files.filter(
                   (file) =>
                     file.fieldname ===
-                    `styles[${sourceIndex}].modifiedPhotoImage`
+                    `styles[${sourceIndex}].modifiedPhotoImage`,
                 );
 
                 photoUrlsPromise = Promise.all(
@@ -2264,17 +2363,20 @@ router.post(
 
                     return {
                       fileName: `data:image/jpeg;base64,${compressedImage.toString(
-                        "base64"
+                        "base64",
                       )}`,
                     };
-                  })
+                  }),
                 ).then((imageUrls) =>
                   imageUrls
                     .filter((url) => url !== null)
                     .map((url) => url?.fileName)
                     .filter((url): url is string => Boolean(url)),
                 );
-                previewPhotoUrlsBySourceIndex.set(sourceIndex, photoUrlsPromise);
+                previewPhotoUrlsBySourceIndex.set(
+                  sourceIndex,
+                  photoUrlsPromise,
+                );
               }
 
               const photoUrls = await photoUrlsPromise;
@@ -2312,7 +2414,7 @@ router.post(
                 liningColor: style.liningColor || "SAS",
                 lining: style.lining || "SAS",
               };
-            })
+            }),
           ),
         };
 
@@ -2333,9 +2435,8 @@ router.post(
     });
 
     busboy.end(req.body);
-  })
+  }),
 );
-
 
 router.put(
   "/orderStatus",
@@ -2410,7 +2511,7 @@ router.put(
       await updateOrderByBarcode(
         style.barcode,
         status,
-        0 // qty = 0 → admin/manual update
+        0, // qty = 0 → admin/manual update
       );
     }
 
@@ -2418,10 +2519,8 @@ router.put(
       success: true,
       message: `Order moved to ${status}`,
     });
-  })
+  }),
 );
-
-
 
 router.put(
   "/orderShippingStatus",
@@ -2449,7 +2548,7 @@ router.put(
       success: true,
       message: "Order status updated successfully",
     });
-  })
+  }),
 );
 
 router.put(
@@ -2481,7 +2580,7 @@ router.put(
       success: true,
       message: "Tracking ID updated successfully",
     });
-  })
+  }),
 );
 
 router.get(
@@ -2510,7 +2609,7 @@ router.get(
       success: true,
       data: order,
     });
-  })
+  }),
 );
 
 router.get(
@@ -2540,25 +2639,27 @@ router.get(
       success: true,
       data: order,
     });
-  })
+  }),
 );
 
 router.get(
   "/latest-regular-order",
   asyncHandler(async (req: Request, res: Response) => {
     const nextNumber = await peekGlobalNextPoNumber();
-    const purchaeOrderNo = nextNumber > 1 ? `PO#GLOBAL ${nextNumber - 1}` : null;
+    const purchaeOrderNo =
+      nextNumber > 1 ? `PO#GLOBAL ${nextNumber - 1}` : null;
     return res.json({ purchaeOrderNo });
-  })
+  }),
 );
 
 router.get(
   "/latest-retailer-order",
   asyncHandler(async (req: Request, res: Response) => {
     const nextNumber = await peekGlobalNextPoNumber();
-    const purchaeOrderNo = nextNumber > 1 ? `PO#GLOBAL ${nextNumber - 1}` : null;
+    const purchaeOrderNo =
+      nextNumber > 1 ? `PO#GLOBAL ${nextNumber - 1}` : null;
     return res.json({ purchaeOrderNo });
-  })
+  }),
 );
 
 router.put(
@@ -2576,9 +2677,9 @@ router.put(
     }
 
     // Final delivery stage according to your workflow
-    order.orderStatus = OrderStatus.Shipped;        // last step
-    order.shippingStatus = ShippingStatus.Shipped;  // marks shipped
-    order.shippingDate = new Date();               // delivery date
+    order.orderStatus = OrderStatus.Shipped; // last step
+    order.shippingStatus = ShippingStatus.Shipped; // marks shipped
+    order.shippingDate = new Date(); // delivery date
 
     await order.save();
 
@@ -2586,15 +2687,12 @@ router.put(
       success: true,
       message: "Order delivered successfully",
     });
-  })
+  }),
 );
 // ===============================
 
-
-
 export default router;
 export const PublicStoreRoutes = Router();
-
 
 PublicStoreRoutes.get(
   "/store-scan/:barcode",
@@ -2695,7 +2793,7 @@ PublicStoreRoutes.get(
         remainingQty,
       },
     });
-  })
+  }),
 );
 
 PublicStoreRoutes.post(
@@ -2740,10 +2838,9 @@ PublicStoreRoutes.post(
       order: { createdAt: "DESC" },
     });
 
-    const currentStage: OrderStatus | null =
-      lastProgress?.status
-        ? (lastProgress.status as OrderStatus)
-        : (DEFAULT_SCAN_STAGE as OrderStatus);
+    const currentStage: OrderStatus | null = lastProgress?.status
+      ? (lastProgress.status as OrderStatus)
+      : (DEFAULT_SCAN_STAGE as OrderStatus);
     const nextStage = getScannerRoleTargetStage(
       (req as any).scannerIdentity?.scannerRoleName,
       SCAN_STAGE_FLOW,
@@ -2779,7 +2876,7 @@ PublicStoreRoutes.post(
       await updateOrderByBarcode(
         barcode,
         nextStage,
-        1 // qty = 1 → store scan
+        1, // qty = 1 → store scan
       );
 
       return res.json({
@@ -2792,9 +2889,8 @@ PublicStoreRoutes.post(
       await releaseReservedBarcodeScan(scanReservation.scanId);
       throw error;
     }
-  })
+  }),
 );
-
 
 async function resolveStoreScannerStage(req: Request) {
   const barcode = String(req.body?.barcode ?? "").trim();
@@ -2836,8 +2932,6 @@ async function resolveStoreScannerStage(req: Request) {
   };
 }
 
-
-
 PublicStoreRoutes.get(
   "/store-status/report/:orderId",
   asyncHandler(async (req: Request, res: Response) => {
@@ -2874,7 +2968,7 @@ PublicStoreRoutes.get(
         AND COALESCE(o.publishStatus, 'published') = 'published'
       ORDER BY s.id ASC
       `,
-      [orderId]
+      [orderId],
     );
 
     const final = [];
@@ -2907,7 +3001,7 @@ PublicStoreRoutes.get(
     }
 
     res.json({ success: true, data: final });
-  })
+  }),
 );
 
 router.get(
@@ -2940,9 +3034,8 @@ router.get(
       success: true,
       data: { ...order, styles },
     });
-  })
+  }),
 );
-
 
 router.get(
   "/retailer/store-orders/:retailerId",
@@ -2969,7 +3062,7 @@ router.get(
       ORDER BY o.createdAt DESC
       LIMIT ? OFFSET ?
       `,
-      [take, skip]
+      [take, skip],
     );
 
     res.json({
@@ -2977,9 +3070,8 @@ router.get(
       orders,
       totalCount: orders.length,
     });
-  })
+  }),
 );
-
 
 router.put(
   "/mark-ready",
@@ -3019,7 +3111,7 @@ router.put(
       await updateOrderByBarcode(
         style.barcode,
         OrderStatus.Ready_To_Delivery,
-        0 // qty = 0 → admin action
+        0, // qty = 0 → admin action
       );
     }
 
@@ -3027,5 +3119,5 @@ router.put(
       success: true,
       message: "Order marked Ready To Delivery",
     });
-  })
+  }),
 );

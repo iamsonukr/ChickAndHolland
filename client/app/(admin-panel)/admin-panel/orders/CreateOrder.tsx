@@ -23,6 +23,9 @@ import PdfPreview from "@/components/pdf/PdfPreview";
 interface CreateOrderProps {
   customers: any[];
   ordersTotalCount: number;
+  productCategories?: any[];
+  productSubCategories?: any[];
+  currencies?: any[];
   editOrder?: any;
   triggerLabel?: string;
   onSuccess?: () => void;
@@ -45,6 +48,9 @@ const formatPreviewComments = (comments: unknown) => {
 const CreateOrder = ({
   customers,
   ordersTotalCount,
+  productCategories = [],
+  productSubCategories = [],
+  currencies = [],
   editOrder,
   triggerLabel,
   onSuccess,
@@ -90,7 +96,13 @@ const CreateOrder = ({
     // loading
     loading,
     previewLoading,
-  } = useCreateOrder({ customers, ordersTotalCount, editOrder, onSuccess, editPassword });
+  } = useCreateOrder({
+    customers,
+    ordersTotalCount,
+    editOrder,
+    onSuccess,
+    editPassword,
+  });
 
   // ── Decide what to show in the preview panel ────────────────────────────────
   //
@@ -141,6 +153,9 @@ const CreateOrder = ({
           fields={fields}
           fullComponentWatch={fullComponentWatch}
           colors={colors}
+          productCategories={productCategories}
+          productSubCategories={productSubCategories}
+          currencies={currencies}
           colorTypeArray={colorTypeArray}
           sizeCountryArray={sizeCountryArray}
           formattedCustomers={formattedCustomers}

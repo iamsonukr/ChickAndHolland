@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CircleDollarSign, Package, ShoppingCart, Users } from "lucide-react";
+import { MailWarning, Package, ShoppingCart, Users } from "lucide-react";
 import { useState } from "react";
 
 type SalesByCurrency = {
@@ -84,6 +84,7 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
     total: { orders: 0, total_quantity: 0, customers: 0 },
     salesByCurrency: [],
     productData: [],
+    emailNotifications: { failedCount: 0, latest: [] },
     ...data,
   };
 
@@ -97,6 +98,25 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {safeData.emailNotifications?.failedCount > 0 && (
+          <Card className="border-red-200 bg-red-50 hover:shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-semibold text-red-700">
+                Failed Emails
+              </CardTitle>
+              <MailWarning className="h-5 w-5 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-extrabold text-red-900">
+                {safeData.emailNotifications.failedCount}
+              </div>
+              <p className="mt-1 text-xs text-red-600">
+                Check Draft Orders to retry
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="bg-gradient-to-br from-blue-50 to-white hover:shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-semibold text-blue-700">
@@ -142,7 +162,6 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
           </CardContent>
         </Card>
 
-
         <Card className="bg-gradient-to-br from-amber-50 to-white hover:shadow-lg">
           <CardHeader className="flex flex-row items-start justify-between pb-2">
             <div>
@@ -154,11 +173,10 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
                 Currency based sales overview
               </p>
             </div>
-
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-lg font-bold text-amber-700">
-              {selectedSale.currencySymbol ||
-                selectedSale.currencyCode}
-            </div>          </CardHeader>
+              {selectedSale.currencySymbol || selectedSale.currencyCode}
+            </div>{" "}
+          </CardHeader>
 
           <CardContent className="space-y-4">
             {/* Currency Selector */}
@@ -169,10 +187,7 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
                 className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-medium text-amber-700 outline-none focus:border-amber-400"
               >
                 {salesByCurrency.map((sale) => (
-                  <option
-                    key={sale.currencyCode}
-                    value={sale.currencyCode}
-                  >
+                  <option key={sale.currencyCode} value={sale.currencyCode}>
                     {sale.currencyCode} — {sale.currencyName}
                   </option>
                 ))}
@@ -189,17 +204,13 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
                 )}
               </h2>
 
-              <p className="mt-1 text-xs text-amber-600">
-                Total Revenue
-              </p>
+              <p className="mt-1 text-xs text-amber-600">Total Revenue</p>
             </div>
 
             {/* Stats */}
             <div className="border-t border-amber-100 pt-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">
-                  Confirmed Orders
-                </span>
+                <span className="text-sm text-gray-600">Confirmed Orders</span>
 
                 <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
                   {selectedSale.orderCount || 0}
@@ -208,7 +219,6 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
             </div>
           </CardContent>
         </Card>
-
       </div>
 
       <Card className="border-none shadow-xl">

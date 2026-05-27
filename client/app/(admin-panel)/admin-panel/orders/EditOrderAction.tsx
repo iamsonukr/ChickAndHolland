@@ -22,9 +22,15 @@ import { toast } from "sonner";
 const EditOrderAction = ({
   order,
   customers,
+  productCategories = [],
+  productSubCategories = [],
+  currencies = [],
 }: {
   order: any;
   customers: any[];
+  productCategories?: any[];
+  productSubCategories?: any[];
+  currencies?: any[];
 }) => {
   const [openEdit, setOpenEdit] = useState(false);
   const [verified, setVerified] = useState(false);
@@ -98,7 +104,11 @@ const EditOrderAction = ({
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpenVerify(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpenVerify(false)}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={verifying}>
@@ -116,6 +126,9 @@ const EditOrderAction = ({
       <CreateOrder
         customers={customers}
         ordersTotalCount={0}
+        productCategories={productCategories}
+        productSubCategories={productSubCategories}
+        currencies={currencies}
         editOrder={order}
         editPassword={password}
         triggerLabel="Edit"

@@ -49,6 +49,9 @@ interface CreateOrderFormFieldsProps {
   fields: FieldArrayWithId<CreateOrderForm, "styles">[];
   fullComponentWatch: CreateOrderForm["styles"];
   colors: any[];
+  productCategories: any[];
+  productSubCategories: any[];
+  currencies: any[];
   colorTypeArray: { value: keyof typeof ColorType; label: string }[];
   sizeCountryArray: { value: keyof typeof SizeCountry; label: string }[];
   formattedCustomers: Option[];
@@ -85,6 +88,9 @@ export function CreateOrderFormFields({
   fields,
   fullComponentWatch,
   colors,
+  productCategories,
+  productSubCategories,
+  currencies,
   colorTypeArray,
   sizeCountryArray,
   formattedCustomers,
@@ -178,8 +184,12 @@ export function CreateOrderFormFields({
                     c.label.toLowerCase().includes(value.toLowerCase()),
                   )
                 }
-                loadingIndicator={<p className="text-muted-foreground">Loading...</p>}
-                emptyIndicator={<p className="text-muted-foreground">No results found</p>}
+                loadingIndicator={
+                  <p className="text-muted-foreground">Loading...</p>
+                }
+                emptyIndicator={
+                  <p className="text-muted-foreground">No results found</p>
+                }
                 maxSelected={1}
               />
               <FormMessage />
@@ -210,7 +220,12 @@ export function CreateOrderFormFields({
             <FormItem>
               <FormLabel>Manufacturing Email</FormLabel>
               <FormControl>
-                <Input placeholder="johndoe@email.com" {...field} />
+                <Input
+                  type="email"
+                  inputMode="email"
+                  placeholder="johndoe@email.com"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -391,6 +406,9 @@ export function CreateOrderFormFields({
               index={index}
               fieldId={fields[index]?.id ?? String(index)}
               colors={colors}
+              productCategories={productCategories}
+              productSubCategories={productSubCategories}
+              currencies={currencies}
               colorTypeArray={colorTypeArray}
               sizeCountryArray={sizeCountryArray}
               fullComponentWatch={fullComponentWatch}
@@ -405,7 +423,7 @@ export function CreateOrderFormFields({
         </div>
 
         {orderPricingSummary.pricedStyles > 0 && (
-          <div className="md:col-span-3 hidden">
+          <div className="hidden md:col-span-3">
             <div className="grid gap-3 rounded-md border bg-muted/30 p-3 text-sm md:grid-cols-3">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">
@@ -442,8 +460,8 @@ export function CreateOrderFormFields({
             <div>
               <Label>Upload order document</Label>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Optional — replaces the auto-generated PDF / PPT in the preview and on
-                submit.
+                Optional — replaces the auto-generated PDF / PPT in the preview
+                and on submit.
               </p>
             </div>
           </div>

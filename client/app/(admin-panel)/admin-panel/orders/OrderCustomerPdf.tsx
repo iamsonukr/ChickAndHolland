@@ -58,7 +58,7 @@ const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
               <View
                 style={{
                   flexDirection: "column",
-                  width: productImageUrl ? "70%" : "100%",
+                  width: "70%",
                 }}
               >
                 <View style={{ flexDirection: "column" }}>
@@ -236,25 +236,28 @@ const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
                         </View>
                       );
                     })}
-                    {/* BARCODE SECTION */}
-{oData.barcode && (
-  <View style={{ marginTop: 10, alignItems: "center" }}>
-    <Text style={{ fontSize: 14, marginBottom: 4 }}>Barcode</Text>
+                  {/* BARCODE SECTION */}
+                  {oData.barcode && (
+                    <View style={{ marginTop: 10, alignItems: "center" }}>
+                      <Text style={{ fontSize: 14, marginBottom: 4 }}>
+                        Barcode
+                      </Text>
 
-    <Image
-      src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${oData.barcode}`}
-      style={{ width: 80, height: 80 }}
-    />
+                      <Image
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${oData.barcode}`}
+                        style={{ width: 80, height: 80 }}
+                      />
 
-    <Text style={{ fontSize: 12, marginTop: 4 }}>{oData.barcode}</Text>
-  </View>
-)}
-
+                      <Text style={{ fontSize: 12, marginTop: 4 }}>
+                        {oData.barcode}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
-              {productImageUrl && (
-                <View style={{ width: "30%" }}>
+              <View style={{ width: "30%" }}>
+                {productImageUrl ? (
                   <Image
                     src={productImageUrl}
                     style={{
@@ -262,8 +265,23 @@ const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
                       height: "360px",
                     }}
                   />
-                </View>
-              )}
+                ) : (
+                  <View
+                    style={{
+                      width: "100%",
+                      height: "360px",
+                      border: "1px solid #999",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 12,
+                    }}
+                  >
+                    <Text style={{ color: "#666", fontSize: 11 }}>
+                      Product image unavailable
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
           </Page>
         );

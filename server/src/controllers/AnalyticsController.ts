@@ -581,12 +581,39 @@ router.get(
       orderCount: Number(row.orderCount || 0),
     }));
 
+    const failedEmailCountRows = await db.query(`
+      SELECT COUNT(*) AS count
+      FROM orders
+      WHERE status = 0
+        AND COALESCE(emailStatus, '') IN ('failed', 'undelivered')
+    `);
+
+    const failedEmailRows = await db.query(`
+      SELECT
+        id,
+        purchaeOrderNo,
+        manufacturingEmailAddress,
+        emailStatus,
+        emailFailureReason,
+        emailLastAttemptAt,
+        createdAt
+      FROM orders
+      WHERE status = 0
+        AND COALESCE(emailStatus, '') IN ('failed', 'undelivered')
+      ORDER BY COALESCE(emailLastAttemptAt, createdAt) DESC
+      LIMIT 5
+    `);
+
     res.json({
       success: true,
       productData,
       total,
       graphData,
       salesByCurrency,
+      emailNotifications: {
+        failedCount: Number(failedEmailCountRows?.[0]?.count || 0),
+        latest: failedEmailRows,
+      },
     });
   }),
 );
