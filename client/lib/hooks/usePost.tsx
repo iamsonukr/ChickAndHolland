@@ -75,26 +75,46 @@ function useHttp<T = any>(
       const responseJson = await response.json();
 
       if (!response.ok || !responseJson.success) {
-        const msg = responseJson.message || responseJson.error || "Request failed";
+        // Try to extract the most useful error message from various backend shapes
+        const extractMessage = (obj: any): string | null => {
+          if (!obj) return null;
+          if (typeof obj === "string") return obj;
+          if (obj.message && typeof obj.message === "string") return obj.message;
+          if (obj.error && typeof obj.error === "string") return obj.error;
+          // Rails/Express validation style: { errors: { field: ['msg'] } } or { errors: ['msg'] }
+          if (obj.errors) {
+            if (Array.isArray(obj.errors) && obj.errors.length > 0) return String(obj.errors[0]);
+            if (typeof obj.errors === "object") {
+              const first = Object.values(obj.errors)[0];
+              if (Array.isArray(first) && first.length > 0) return String(first[0]);
+              if (typeof first === "string") return first;
+            }
+          }
+          // Some APIs nest under data
+          if (obj.data) return extractMessage(obj.data);
+          return null;
+        };
+
+        const msg = extractMessage(responseJson) || "Request failed";
+
+        const errorObj = new Error(msg);
 
         // Tell the UI about the error (toast)
-        errorCallback?.(new Error(msg));
+        errorCallback?.(errorObj);
+        setError(errorObj);
 
-        // Do NOT crash React — reject instead
-        return Promise.reject({
-          success: false,
-          message: msg,
-        });
+        // Reject with an Error instance so callers can read `error.message`
+        return Promise.reject(errorObj);
       }
-      
+
       return responseJson as T;
     } catch (err) {
       console.error(err);
-      const newError =
-        err instanceof Error ? err : new Error("An error occurred");
-      setError(newError);
-      errorCallback?.(newError);
-      throw err;
+      const normalizedError =
+        err instanceof Error ? err : new Error(err?.message ?? "An error occurred");
+      setError(normalizedError);
+      errorCallback?.(normalizedError);
+      throw normalizedError;
     } finally {
       setLoading(false);
     }

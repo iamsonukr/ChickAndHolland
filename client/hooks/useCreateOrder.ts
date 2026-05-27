@@ -911,9 +911,7 @@ export function useCreateOrder({
               : undefined,
           },
           (err) => {
-            toast.error("Failed to update order", {
-              description: err?.message ?? "Something went wrong",
-            });
+            toast.error(err?.message ?? "Failed to update order");
           },
         );
 
@@ -934,10 +932,8 @@ export function useCreateOrder({
         onSuccess?.();
         setPreviewData(null);
         router.refresh();
-      } catch {
-        toast.error("Failed to update order", {
-          description: updateError?.message ?? "Something went wrong",
-        });
+      } catch (err: any) {
+        toast.error(err?.message ?? updateError?.message ?? "Failed to update order");
       }
       return;
     }
@@ -957,9 +953,7 @@ export function useCreateOrder({
 
     try {
       const response = await executeAsync(fd, {}, (err) => {
-        toast.error("Failed to add order", {
-          description: err?.message ?? "Something went wrong",
-        });
+        toast.error(err?.message ?? "Failed to add order");
       });
 
       if (!response.success) {
@@ -979,10 +973,8 @@ export function useCreateOrder({
       onSuccess?.();
       setPreviewData(null);
       router.refresh();
-    } catch {
-      toast.error("Failed to add order", {
-        description: error?.message ?? "Something went wrong",
-      });
+    } catch (err: any) {
+      toast.error(err?.message ?? error?.message ?? "Failed to add order");
     }
   };
 
@@ -1009,9 +1001,7 @@ export function useCreateOrder({
       const response = await executePreviewAsync(fd, {}, (err) => {
         if (previewRequestId !== previewRequestIdRef.current) return;
 
-        toast.error("Failed to preview order", {
-          description: err?.message ?? "Something went wrong",
-        });
+        toast.error(err?.message ?? "Failed to preview order");
       });
 
       if (previewRequestId !== previewRequestIdRef.current) {
@@ -1026,14 +1016,12 @@ export function useCreateOrder({
       } else {
         toast.error("Failed to preview order");
       }
-    } catch {
+    } catch (err: any) {
       if (previewRequestId !== previewRequestIdRef.current) {
         return;
       }
 
-      toast.error("Failed to preview order", {
-        description: error?.message ?? "Something went wrong",
-      });
+      toast.error(err?.message ?? error?.message ?? "Failed to preview order");
     }
   };
 

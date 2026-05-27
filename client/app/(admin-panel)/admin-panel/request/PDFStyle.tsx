@@ -193,9 +193,9 @@ export const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   additionalImage: {
-    width: "48%",
+    // width: "24%",
     height: 120,
-    objectFit: "contain",
+    objectFit: "contain", 
     borderRadius: 4,
     border: "1px solid #ccc",
     marginBottom: 8,

@@ -477,6 +477,7 @@ export default function OrderStatusPage({
   const [allItems, setAllItems] = useState<NormalizedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
 
   // ── Selection state ──
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -554,8 +555,28 @@ export default function OrderStatusPage({
   const filtered = allItems.filter(({ raw }) => {
     const styleNo = String(raw.styleNo ?? "").toLowerCase();
     const size = formatReportSize(raw).toLowerCase();
+    const progress: any[] = raw.progress ?? [];
+    const sorted = [...progress].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+    const currentStage = sorted[sorted.length - 1];
+    const itemStatus = String(currentStage ? currentStage.stage || currentStage.status : "No stages").toLowerCase();
     return styleNo.includes(q) || size.includes(q);
   });
+
+  // Apply status filter
+  const statusFiltered =
+    selectedStatus === "ALL"
+      ? filtered
+      : filtered.filter(({ raw }) => {
+          const progress: any[] = raw.progress ?? [];
+          const sorted = [...progress].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          );
+          const currentStage = sorted[sorted.length - 1];
+          const itemStatus = String(currentStage ? currentStage.stage || currentStage.status : "No stages").toLowerCase();
+          return itemStatus === selectedStatus.toLowerCase();
+        });
 
   // ── Helpers ──
   const filteredKeys = filtered.map(({ raw, type }, i) =>
@@ -669,15 +690,41 @@ export default function OrderStatusPage({
                 Total items: {filtered.length}
               </p>
             </div>
-            <div className="w-full sm:w-auto">
-              <input
-                type="text"
-                placeholder="Search by style no or size..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:w-72 md:w-80"
-              />
-            </div>
+              <div className="w-full sm:w-auto flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Search by style no or size..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:w-72 md:w-80"
+                />
+
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="hidden rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:block"
+                >
+                  <option value="ALL">All statuses</option>
+                  {Array.from(
+                    new Set(
+                      allItems.map(({ raw }) => {
+                        const progress: any[] = raw.progress ?? [];
+                        const sorted = [...progress].sort(
+                          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+                        );
+                        const currentStage = sorted[sorted.length - 1];
+                        return String(currentStage ? currentStage.stage || currentStage.status : "No stages");
+                      }),
+                    ),
+                  )
+                    .filter(Boolean)
+                    .map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                </select>
+              </div>
           </div>
         </div>
 
@@ -699,9 +746,9 @@ export default function OrderStatusPage({
         </div>
 
         {/* ── Sticky Bulk Action Bar ── */}
-        <BulkActionBar
+          <BulkActionBar
           selected={selectedItems.length}
-          total={filtered.length}
+          total={statusFiltered.length}
           allSelected={allSelected}
           onSelectAll={selectAll}
           onClearAll={clearAll}
@@ -765,7 +812,7 @@ export default function OrderStatusPage({
 
         {/* Grid */}
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 3xl:grid-cols-6 4xl:grid-cols-8  ">
-          {filtered.map(({ raw, type }, i) => {
+          {statusFiltered.map(({ raw, type }, i) => {
             const key = getItemKey(raw, type, i);
             return (
               <ItemCard
