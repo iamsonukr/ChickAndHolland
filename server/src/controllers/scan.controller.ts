@@ -107,6 +107,7 @@ async function resolveRetailerScannerStage(req: Request) {
     currentStage,
     targetStage,
     flowStages: RETAILER_FLOW,
+    adminGateStage: order.orderStatus,
   };
 }
 
@@ -160,6 +161,7 @@ async function resolveStockScannerStage(req: Request) {
     currentStage: last?.stage || DEFAULT_SCAN_STAGE,
     targetStage,
     flowStages: STOCK_GUARD_FLOW,
+    adminGateStage: order.orderStatus,
   };
 }
 

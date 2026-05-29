@@ -47,6 +47,7 @@ async function resolveStockRouteStage(req: Request) {
       FLOW,
     ),
     flowStages: FLOW,
+    adminGateStage: style.retailerOrder.orderStatus,
   };
 }
 

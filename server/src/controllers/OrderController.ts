@@ -2929,6 +2929,7 @@ async function resolveStoreScannerStage(req: Request) {
     currentStage,
     targetStage: nextStage,
     flowStages: SCAN_STAGE_FLOW,
+    adminGateStage: style.order.orderStatus,
   };
 }
 

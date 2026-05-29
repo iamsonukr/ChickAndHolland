@@ -160,6 +160,7 @@ async function resolveRetailerOrderQrStage(req: Request) {
         currentStage,
         targetStage,
         flowStages: RETAILER_QR_STATUS_FLOW,
+        adminGateStage: order.orderStatus,
       }
     : null;
 }

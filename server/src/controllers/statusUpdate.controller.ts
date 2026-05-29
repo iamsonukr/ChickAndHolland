@@ -50,6 +50,7 @@ async function resolveRetailerStatusUpdateStage(req: Request) {
       RETAILER_STATUS_FLOW,
     ),
     flowStages: RETAILER_STATUS_FLOW,
+    adminGateStage: style.retailerOrder.orderStatus,
   };
 }
 

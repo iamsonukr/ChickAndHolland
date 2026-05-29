@@ -59,7 +59,7 @@ const Stock = async (props: {
         <CustomSearchBar query={query} />
 
         {/* GRID */}
-<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2">
           {stock.stock?.map((item: any) => {
             if (!item.product) return null;
 
@@ -76,12 +76,12 @@ const Stock = async (props: {
                 className="flex flex-col rounded-md border shadow-sm hover:shadow-md p-2"
               >
                 {/* IMAGE */}
-<div className="aspect-[3/3.8] w-[auto] overflow-hidden rounded-md">
+                <div className="aspect-[3/6] w-[auto] overflow-hidden rounded-md">
                   <StyleNoImage details={item} />
                 </div>
 
                 {/* DETAILS */}
-<div className="flex flex-col flex-1 p-0 text-sm">
+                <div className="flex flex-col flex-1 p-0 text-sm">
                   {/* QTY + PRICE */}
                   <div className="mb-6 flex items-center justify-between">
                     <span className="rounded bg-gray-100 px-1 py-[1px]">
@@ -140,13 +140,13 @@ const Stock = async (props: {
                                 }}
                               />
                               {item.mesh_color ===
-                              item.product.mesh_color
+                                item.product.mesh_color
                                 ? `SAS(${getColourBasedOnhex(
-                                    item.product.mesh_color,
-                                  )})`
+                                  item.product.mesh_color,
+                                )})`
                                 : getColourBasedOnhex(
-                                    item.mesh_color,
-                                  )}
+                                  item.mesh_color,
+                                )}
                             </div>
                           </TableCell>
                         </TableRow>

@@ -34,6 +34,7 @@ export type ScanStageAccessContext = {
   currentStage?: string | null;
   targetStage?: string | null;
   flowStages?: string[];
+  adminGateStage?: string | null;
 };
 
 type ReserveScanResult =
@@ -77,6 +78,11 @@ const SCANNER_ROLE_STAGE_RULES: Record<string, string[]> = {
   "ready-to-delivery-master": ["Ready To Delivery"],
   "shipping-master": ["Shipped"],
 };
+
+const READY_TO_DELIVERY_STAGE = "Ready To Delivery";
+const ADMIN_ONLY_SCAN_STAGE_KEYS = new Set([
+  normalizeStageKey(READY_TO_DELIVERY_STAGE),
+]);
 
 export const getScannerRoleAllowedStages = (scannerRoleName?: string | null) => {
   const normalizedRole = normalizeRoleKey(scannerRoleName);
@@ -324,6 +330,17 @@ export const requireScannerRoleStageAccess =
         return next();
       }
 
+      if (ADMIN_ONLY_SCAN_STAGE_KEYS.has(normalizeStageKey(targetStage))) {
+        return res.status(403).json({
+          success: false,
+          code: "SCANNER_STAGE_ADMIN_ONLY",
+          message: "Ready To Delivery can only be updated by an admin.",
+          scannerRole: scanner.scannerRoleName,
+          currentStage: accessContext?.currentStage ?? null,
+          nextStage: targetStage,
+        });
+      }
+
       const allowedStages = getScannerRoleAllowedStages(scanner.scannerRoleName);
 
       if (!allowedStages?.length) {
@@ -383,6 +400,35 @@ export const requireScannerRoleStageAccess =
           scannerRole: scanner.scannerRoleName,
           allowedStages,
           currentStage,
+          nextStage: targetStage,
+        });
+      }
+
+      const rawAdminGateStage =
+        normalizeStageLabel(accessContext?.adminGateStage) || currentStage;
+      const adminGateStage =
+        getCanonicalStage(rawAdminGateStage, stageFlow) || rawAdminGateStage;
+      const adminGateStageIndex = getStageIndex(adminGateStage, stageFlow);
+      const readyToDeliveryStageIndex = getStageIndex(
+        READY_TO_DELIVERY_STAGE,
+        stageFlow,
+      );
+
+      if (
+        readyToDeliveryStageIndex !== -1 &&
+        adminGateStageIndex !== -1 &&
+        targetStageIndex > readyToDeliveryStageIndex &&
+        adminGateStageIndex < readyToDeliveryStageIndex
+      ) {
+        return res.status(403).json({
+          success: false,
+          code: "SCANNER_STAGE_ADMIN_GATE_REQUIRED",
+          message:
+            "Ready To Delivery must be updated by an admin before scanning later stages.",
+          scannerRole: scanner.scannerRoleName,
+          allowedStages,
+          currentStage,
+          adminGateStage,
           nextStage: targetStage,
         });
       }
