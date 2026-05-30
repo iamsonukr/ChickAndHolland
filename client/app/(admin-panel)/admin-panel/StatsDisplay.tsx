@@ -224,7 +224,7 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
       <Card className="border-none shadow-xl">
         <CardHeader className="rounded-t-lg bg-gray-50">
           <CardTitle className="text-xl font-bold text-gray-800">
-            Top 20 Products
+            Top 30 Products
           </CardTitle>
           <p className="text-sm text-gray-500">
             Best performing products by quantity
