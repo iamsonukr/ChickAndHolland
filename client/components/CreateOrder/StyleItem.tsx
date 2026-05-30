@@ -52,6 +52,7 @@ const lining = [
   "Bust To Hips Stitched Lining",
   "Bust To Hips Seperate Lining",
 ];
+const LINING_CUSTOM_VALUE = "Custom";
 
 const sizeOptions: Record<string, number[]> = {
   EU: [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60],
@@ -117,6 +118,10 @@ const StyleItem = ({
   const stylesSelect = form.watch(`styles[${index}].styleNo[0]` as any) as any;
   const addLining = fullComponentWatch[index]?.addLining;
   const currentLining = fullComponentWatch[index]?.lining;
+  const isCustomLining =
+    Boolean(currentLining) &&
+    currentLining !== "SAS" &&
+    !lining.includes(String(currentLining));
   const currentStyle = fullComponentWatch[index] ?? {};
   const selectedStyleCode = stylesSelect?.value ?? "";
   const productDetails = selectedStyleCode
@@ -490,12 +495,21 @@ const StyleItem = ({
                         <FormLabel>Lining</FormLabel>
                         <Select
                           onValueChange={(value) => {
-                            field.onChange(value);
+                            field.onChange(
+                              value === LINING_CUSTOM_VALUE ? "" : value,
+                            );
                             if (value === "No Lining") {
                               form.setValue(`styles.${index}.liningColor`, "");
                             }
+                            if (value !== LINING_CUSTOM_VALUE) {
+                              form.trigger(`styles.${index}.lining` as any);
+                            }
                           }}
-                          defaultValue={stylesSelect?.lining}
+                          value={
+                            isCustomLining || field.value === ""
+                              ? LINING_CUSTOM_VALUE
+                              : field.value
+                          }
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -511,8 +525,21 @@ const StyleItem = ({
                                 {item}
                               </SelectItem>
                             ))}
+                            <SelectItem value={LINING_CUSTOM_VALUE}>
+                              Custom
+                            </SelectItem>
                           </SelectContent>
                         </Select>
+                        {isCustomLining || field.value === "" ? (
+                          <Input
+                            className="mt-2"
+                            placeholder="Enter custom lining"
+                            value={isCustomLining ? String(currentLining) : ""}
+                            onChange={(event) =>
+                              field.onChange(event.target.value)
+                            }
+                          />
+                        ) : null}
                         <FormMessage />
                       </FormItem>
                     )}
