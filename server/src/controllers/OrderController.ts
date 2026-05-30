@@ -187,10 +187,68 @@ const buildOrderPdfFilename = (purchaseOrderNo?: string | null) => {
     : `${safeBaseName}.pdf`;
 };
 
+const getUploadedOrderDocumentFilename = (
+  filePath?: string | null,
+  purchaseOrderNo?: string | null,
+) => {
+  const cleanPath = sanitizeText(filePath).split(/[?#]/)[0];
+  const parsedName = cleanPath ? path.basename(cleanPath) : "";
+  const decodedName = (() => {
+    try {
+      return decodeURIComponent(parsedName);
+    } catch {
+      return parsedName;
+    }
+  })();
+  const safeParsedName = decodedName
+    .replace(/"/g, "")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .trim();
+
+  if (safeParsedName && path.extname(safeParsedName)) {
+    return safeParsedName;
+  }
+
+  const baseName = (sanitizeText(purchaseOrderNo) || "order-document")
+    .replace(/"/g, "")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .trim();
+  const extension = path.extname(cleanPath) || ".pdf";
+
+  return baseName.toLowerCase().endsWith(extension.toLowerCase())
+    ? baseName
+    : `${baseName}${extension}`;
+};
+
+const fetchUploadedOrderDocumentAttachment = async (order: Order) => {
+  const fileUrl = sanitizeText(order.ppt_path);
+
+  if (!fileUrl) return null;
+
+  if (!/^https?:\/\//i.test(fileUrl)) {
+    throw new Error("Uploaded order document URL is invalid.");
+  }
+
+  const response = await fetch(fileUrl);
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch uploaded order document (${response.status}).`,
+    );
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+
+  return {
+    filename: getUploadedOrderDocumentFilename(fileUrl, order.purchaeOrderNo),
+    content: Buffer.from(arrayBuffer),
+  };
+};
+
 const buildCreatedOrderEmailHtml = (purchaseOrderNo?: string | null) => `
   <div style="font-family: Arial, sans-serif; font-size:14px; color:#000;">
     <p>Hello,</p>
-    <p>Please find the order PDF attached with this email.</p>
+    <p>Please find the order document attached with this email.</p>
     ${
       purchaseOrderNo
         ? `<p><strong>Purchase Order:</strong> ${purchaseOrderNo}</p>`
@@ -345,47 +403,70 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
     throw error;
   }
 
-  const [processedOrder] = await processOrders([order]);
-  const getColorName = await createColorNameResolver();
-  const details = buildRegularOrderPdfDetails(processedOrder, getColorName);
+  let attachment: { filename: string; content: Buffer | string };
+  let emailSubject = order.purchaeOrderNo || "Order Confirmation";
 
-  if (!details.length) {
-    const message = "No order styles to email";
-    await recordOrderEmailStatus(order.id, OrderEmailStatus.Failed, message);
-    console.warn(`${ORDER_PDF_EMAIL_LOG_PREFIX} ${message}`, {
-      orderId,
-      purchaseOrderNo: order.purchaeOrderNo,
-      recipient,
-    });
-    throw new Error(message);
+  try {
+    const uploadedAttachment = await fetchUploadedOrderDocumentAttachment(order);
+
+    if (uploadedAttachment) {
+      attachment = uploadedAttachment;
+      console.info(`${ORDER_PDF_EMAIL_LOG_PREFIX} Using uploaded document`, {
+        orderId,
+        purchaseOrderNo: order.purchaeOrderNo,
+        filename: uploadedAttachment.filename,
+      });
+    } else {
+      const [processedOrder] = await processOrders([order]);
+      const getColorName = await createColorNameResolver();
+      const details = buildRegularOrderPdfDetails(processedOrder, getColorName);
+
+      if (!details.length) {
+        const message = "No order styles to email";
+        await recordOrderEmailStatus(order.id, OrderEmailStatus.Failed, message);
+        console.warn(`${ORDER_PDF_EMAIL_LOG_PREFIX} ${message}`, {
+          orderId,
+          purchaseOrderNo: order.purchaeOrderNo,
+          recipient,
+        });
+        throw new Error(message);
+      }
+
+      const orderData = {
+        id: order.id,
+        customerId: order.customer?.id,
+        manufacturingEmailAddress: recipient,
+        orderCancellationDate: formatDateOnly(order.orderCancellationDate),
+        orderReceivedDate: formatDateOnly(order.orderReceivedDate),
+        orderType: order.orderType,
+        purchaseOrderNo: order.purchaeOrderNo,
+        details,
+      };
+      const pdfBuffer = await generateOrderPdf(orderData);
+
+      attachment = {
+        filename: buildOrderPdfFilename(orderData.purchaseOrderNo),
+        content: pdfBuffer,
+      };
+      emailSubject = orderData.purchaseOrderNo || "Order Confirmation";
+    }
+  } catch (error: any) {
+    await recordOrderEmailStatus(
+      order.id,
+      OrderEmailStatus.Failed,
+      error?.message ?? String(error),
+    );
+    throw error;
   }
-
-  const orderData = {
-    id: order.id,
-    customerId: order.customer?.id,
-    manufacturingEmailAddress: recipient,
-    orderCancellationDate: formatDateOnly(order.orderCancellationDate),
-    orderReceivedDate: formatDateOnly(order.orderReceivedDate),
-    orderType: order.orderType,
-    purchaseOrderNo: order.purchaeOrderNo,
-    details,
-  };
-
-  const pdfBuffer = await generateOrderPdf(orderData);
 
   await recordOrderEmailStatus(order.id, OrderEmailStatus.Pending);
 
   try {
     await mail({
       to: recipient,
-      subject: orderData.purchaseOrderNo || "Order Confirmation",
-      html: buildCreatedOrderEmailHtml(orderData.purchaseOrderNo),
-      attachments: [
-        {
-          filename: buildOrderPdfFilename(orderData.purchaseOrderNo),
-          content: pdfBuffer,
-        },
-      ],
+      subject: emailSubject,
+      html: buildCreatedOrderEmailHtml(order.purchaeOrderNo),
+      attachments: [attachment],
     });
     await recordOrderEmailStatus(order.id, OrderEmailStatus.Sent);
   } catch (error: any) {
@@ -399,7 +480,7 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
 
   console.info(`${ORDER_PDF_EMAIL_LOG_PREFIX} Email sent`, {
     orderId,
-    purchaseOrderNo: orderData.purchaseOrderNo,
+    purchaseOrderNo: order.purchaeOrderNo,
     recipient,
   });
 }
