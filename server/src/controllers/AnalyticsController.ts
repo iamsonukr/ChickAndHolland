@@ -354,6 +354,13 @@ const processOrderStyle = (orderStyle: any) => {
   };
 };
 
+const retailerOrderQuantitySql = (alias = "ro") => `
+  CASE
+    WHEN ${alias}.quantity REGEXP '^[0-9]+$' THEN CAST(${alias}.quantity AS UNSIGNED)
+    ELSE 1
+  END
+`;
+
 router.get(
   "/dashboard",
   asyncHandler(async (req, res) => {
@@ -383,10 +390,11 @@ router.get(
     ) AS customers,
 
     (
-        (SELECT COUNT(ro.id) FROM retailer_orders AS ro 
+        (SELECT COALESCE(SUM(${retailerOrderQuantitySql("ro")}), 0) FROM retailer_orders AS ro
          WHERE ro.orderReceivedDate BETWEEN ? AND ? AND ro.status = 0)
         +
-        (SELECT COUNT(o.id) FROM orders AS o 
+        (SELECT COALESCE(SUM(os.quantity), 0) FROM orders AS o
+         INNER JOIN orderStyles os ON o.id = os.orderId
          WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published')
     ) AS total_quantity
 ;`;
@@ -410,15 +418,16 @@ router.get(
     order_date, 
     SUM(total_quantity) AS total_quantity
     FROM (
-        SELECT DATE(ro.orderReceivedDate) AS order_date, COUNT(ro.id) AS total_quantity
+        SELECT DATE(ro.orderReceivedDate) AS order_date, SUM(${retailerOrderQuantitySql("ro")}) AS total_quantity
         FROM retailer_orders ro
         WHERE ro.orderReceivedDate BETWEEN ? AND ? AND ro.status = 0
         GROUP BY DATE(ro.orderReceivedDate)
         
         UNION ALL
         
-        SELECT DATE(o.orderReceivedDate) AS order_date, COUNT(o.id) AS total_quantity
+        SELECT DATE(o.orderReceivedDate) AS order_date, SUM(os.quantity) AS total_quantity
         FROM orders o
+        INNER JOIN orderStyles os ON o.id = os.orderId
         WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published'
         GROUP BY DATE(o.orderReceivedDate)
     ) combined_orders
@@ -442,7 +451,7 @@ router.get(
     FROM (
         SELECT 
             ro.StyleNo AS product_id,
-            COUNT(ro.id) AS total_quantity,
+            SUM(${retailerOrderQuantitySql("ro")}) AS total_quantity,
             ro.Size AS combined_sizes,
             ro.size_country AS combined_country
         FROM retailer_orders ro
@@ -464,7 +473,7 @@ router.get(
     GROUP BY product_id
     HAVING total_quantity > 0
     ORDER BY total_quantity DESC
-    LIMIT 20;
+    LIMIT 30;
     `;
 
     const productData = await db.query(productsQa, [
