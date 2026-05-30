@@ -1,12 +1,20 @@
 "use client";
 
-import { Download, ExternalLink, Loader2, Presentation } from "lucide-react";
+import { Download, ExternalLink, Presentation } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-const canUseOfficeViewer = (url?: string | null) =>
-  Boolean(url && /^https?:\/\//i.test(url));
+const canUseOfficeViewer = (url?: string | null) => {
+  if (!url || !/^https?:\/\//i.test(url)) return false;
+
+  try {
+    const parsedUrl = new URL(url);
+    return !["localhost", "127.0.0.1", "::1"].includes(parsedUrl.hostname);
+  } catch {
+    return false;
+  }
+};
 
 export default function PptPreview({
   url,
@@ -19,8 +27,7 @@ export default function PptPreview({
   fileName?: string;
   heightClassName?: string;
 }) {
-  const [loading, setLoading] = useState(Boolean(url));
-  const [failed, setFailed] = useState(false);
+  const [showOnlinePreview, setShowOnlinePreview] = useState(false);
   const sourceUrl = url || "";
   const displayName = file?.name || fileName;
   const officeViewerUrl = useMemo(() => {
@@ -29,9 +36,8 @@ export default function PptPreview({
       sourceUrl,
     )}`;
   }, [sourceUrl]);
-  const inlineUrl = officeViewerUrl || sourceUrl;
 
-  if (!inlineUrl) {
+  if (!sourceUrl) {
     return (
       <div
         className={`flex ${heightClassName} flex-col items-center justify-center gap-3 rounded border border-dashed bg-muted/30 p-4 text-center`}
@@ -55,6 +61,18 @@ export default function PptPreview({
           <span className="truncate text-sm font-medium">{displayName}</span>
         </div>
         <div className="flex items-center gap-2">
+          {officeViewerUrl && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setShowOnlinePreview((value) => !value)}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              {showOnlinePreview ? "Hide Preview" : "Preview Online"}
+            </Button>
+          )}
           <a href={sourceUrl} target="_blank" rel="noreferrer">
             <Button type="button" variant="outline" size="sm" className="gap-1.5">
               <ExternalLink className="h-3.5 w-3.5" />
@@ -70,32 +88,27 @@ export default function PptPreview({
         </div>
       </div>
 
-      <div className={`relative overflow-hidden rounded border ${heightClassName}`}>
-        {loading && !failed && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            <span className="text-sm text-muted-foreground">Loading preview...</span>
-          </div>
-        )}
-        {failed ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 bg-muted/30 p-4 text-center">
-            <Presentation className="h-10 w-10 text-muted-foreground" />
-            <p className="text-sm font-medium">Preview is unavailable</p>
-            <p className="max-w-md text-xs text-muted-foreground">
-              The file is still saved. Open or download it to view locally.
-            </p>
-          </div>
-        ) : (
+      <div
+        className={`relative overflow-hidden rounded border bg-muted/30 ${heightClassName}`}
+      >
+        {showOnlinePreview && officeViewerUrl ? (
           <iframe
             title={`PPT preview - ${displayName}`}
-            src={inlineUrl}
+            src={officeViewerUrl}
             className="h-full w-full bg-background"
-            onLoad={() => setLoading(false)}
-            onError={() => {
-              setLoading(false);
-              setFailed(true);
-            }}
           />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
+            <Presentation className="h-12 w-12 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">{displayName}</p>
+              <p className="mt-1 max-w-md text-xs text-muted-foreground">
+                PPT/PPTX files are ready to open or download. Online preview is
+                loaded only when requested so the browser does not auto-download
+                the file.
+              </p>
+            </div>
+          </div>
         )}
       </div>
     </div>
