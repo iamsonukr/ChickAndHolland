@@ -21,10 +21,10 @@ import { convertWebPToJPG } from "../request/StockAcceptedForm";
 import useHttp from "@/lib/hooks/usePost";
 import { toast } from "sonner";
 import RetailerPdf from "../request/RetailerPdf";
-import { Presentation } from "lucide-react";
 import { API_URL } from "@/lib/constants";
 import PdfPreview from "@/components/pdf/PdfPreview";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
+import PptPreview from "@/components/ppt/PptPreview";
 
 const resolveUploadedDocumentUrl = (filePath?: string | null) => {
   if (!filePath) return "";
@@ -580,17 +580,11 @@ const Preview = ({
                   heightClassName="h-[75vh]"
                 />
               ) : (
-                <div className="mt-4 flex h-[50vh] flex-col items-center justify-center gap-3 rounded border border-dashed bg-muted/30 text-center">
-                  <Presentation className="h-10 w-10 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">{uploadedDocumentName}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      This order uses the uploaded file instead of a generated PDF.
-                      <br />
-                      PowerPoint files cannot be previewed inline here.
-                    </p>
-                  </div>
-                </div>
+                <PptPreview
+                  url={uploadedDocumentPreviewUrl}
+                  fileName={uploadedDocumentName}
+                  heightClassName="h-[75vh]"
+                />
               )
             ) : (
               <PdfPreview

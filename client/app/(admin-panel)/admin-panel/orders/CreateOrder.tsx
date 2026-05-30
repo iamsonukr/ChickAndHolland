@@ -9,7 +9,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Plus, Download, Presentation } from "lucide-react";
+import { Plus, Download } from "lucide-react";
 import { useMemo } from "react";
 
 import { useCreateOrder } from "@/hooks/useCreateOrder";
@@ -17,6 +17,7 @@ import { CreateOrderFormFields } from "@/components/CreateOrder/CreateOrderFormF
 import RetailerPdf from "../request/RetailerPdf";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
 import PdfPreview from "@/components/pdf/PdfPreview";
+import PptPreview from "@/components/ppt/PptPreview";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -212,19 +213,13 @@ const CreateOrder = ({
                 />
               )}
 
-              {/* PPT — browsers can't render .pptx inline; show a placeholder */}
               {uploadedFileType === "ppt" && (
-                <div className="flex h-[75vh] flex-col items-center justify-center gap-3 rounded border border-dashed bg-muted/30 text-center">
-                  <Presentation className="h-10 w-10 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">{uploadedFile?.name}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      PowerPoint files cannot be previewed in the browser.
-                      <br />
-                      Use the download button above to open it locally.
-                    </p>
-                  </div>
-                </div>
+                <PptPreview
+                  url={uploadedFileObjectUrl}
+                  file={uploadedFile}
+                  fileName={uploadedFile?.name ?? "order-presentation.pptx"}
+                  heightClassName="h-[75vh]"
+                />
               )}
             </div>
           </div>
