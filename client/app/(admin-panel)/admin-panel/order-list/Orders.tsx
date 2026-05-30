@@ -34,7 +34,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter } from "next/navigation";
 
 const ACCEPTED_ORDER_COLUMN_WIDTHS = [
-  56, 112, 240, 150, 140, 140, 140, 170, 124, 132, 112, 116, 116, 116,
+  56, 112, 240, 150, 140, 140, 140, 170, 126, 124, 132, 112, 116, 116, 116,
 ];
 
 const ACCEPTED_ORDER_TABLE_WIDTH = ACCEPTED_ORDER_COLUMN_WIDTHS.reduce(
@@ -174,6 +174,7 @@ const Orders = ({ data }: { data: any[] }) => {
             <TableHead className="whitespace-nowrap">Invoice Id</TableHead>
             <TableHead className="whitespace-nowrap">Order Type</TableHead>
             <TableHead className="whitespace-nowrap">Status</TableHead>
+            <TableHead className="whitespace-nowrap">Total Quantity</TableHead>
             <TableHead className="whitespace-nowrap">Order Date</TableHead>
             <TableHead className="whitespace-nowrap">Shipping Date</TableHead>
             <TableHead className="whitespace-nowrap">Paid</TableHead>
@@ -202,6 +203,7 @@ const Orders = ({ data }: { data: any[] }) => {
             const invoiceNo = item.invoiceNo || "-";
             const orderType = item.type === "Fresh" ? fresh : item.type || "-";
             const orderStatus = item.orderStatus || "-";
+            const totalQuantity = item.totalQuantity ?? item.total_quantity ?? 0;
             const receivedDate =
               formatDateOnlyDisplay(
                 item.received_date ?? item.orderReceivedDate,
@@ -266,6 +268,10 @@ const Orders = ({ data }: { data: any[] }) => {
 
                 <TruncatedTableCell title={getCellTitle(orderStatus)}>
                   {orderStatus}
+                </TruncatedTableCell>
+
+                <TruncatedTableCell title={getCellTitle(totalQuantity)}>
+                  {totalQuantity}
                 </TruncatedTableCell>
 
                 <TruncatedTableCell title={receivedDate}>

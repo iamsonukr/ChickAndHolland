@@ -29,6 +29,7 @@ import AdjustSequenceButton from "./AdjustSequenceButton";
 import { Button } from "@/components/ui/button";
 import ResetScanButton from "./ResetScanButton";
 import EditOrderAction from "./EditOrderAction";
+import StageFilter from "./StageFilter";
 
 const statusToDbField: Record<string, string | null> = {
   "Pattern/Khaka": "pattern",
@@ -65,16 +66,19 @@ const tableCellClassName =
 const buildOrdersFilterHref = ({
   query,
   orderType,
+  stage,
   due,
 }: {
   query: string;
   orderType: string;
+  stage?: string;
   due?: string;
 }) => {
   const params = new URLSearchParams();
 
   if (query) params.set("q", query);
   if (orderType) params.set("orderType", orderType);
+  if (stage) params.set("stage", stage);
   if (due) params.set("due", due);
 
   const search = params.toString();
@@ -89,6 +93,7 @@ const OrdersPage = async (props: {
   const query = searchParams["q"] ?? "";
   const orderType = searchParams["orderType"] ?? "";
   const dueFilter = searchParams["due"] ?? "";
+  const stage = searchParams["stage"] ?? "";
 
   const [
     orders,
@@ -101,6 +106,7 @@ const OrdersPage = async (props: {
       page: currentPage,
       query,
       orderType: orderType === "All" ? "" : orderType,
+      stage,
     }),
     getCustomers({}),
     getProductCategories({}),
@@ -232,11 +238,18 @@ const OrdersPage = async (props: {
             <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
               <CustomSearchBar query={query} />
               <OrderTypeFilter />
+              <StageFilter
+                query={query}
+                orderType={orderType}
+                due={dueFilter}
+                stage={stage}
+              />
               <div className="flex flex-wrap items-center gap-2">
                 <a
                   href={buildOrdersFilterHref({
                     query,
                     orderType,
+                    stage,
                     due: "lt14",
                   })}
                   className={cn(
@@ -256,6 +269,7 @@ const OrdersPage = async (props: {
                   href={buildOrdersFilterHref({
                     query,
                     orderType,
+                    stage,
                     due: "lt28",
                   })}
                   className={cn(
@@ -277,6 +291,7 @@ const OrdersPage = async (props: {
                   href={buildOrdersFilterHref({
                     query,
                     orderType,
+                    stage,
                     due: "shipped",
                   })}
                   className={cn(
@@ -298,6 +313,7 @@ const OrdersPage = async (props: {
                   href={buildOrdersFilterHref({
                     query,
                     orderType,
+                    stage,
                   })}
                   className={cn(
                     filterButtonClassName,
@@ -335,6 +351,9 @@ const OrdersPage = async (props: {
                       </th>
                       <th className={cn(tableHeadClassName, "w-[170px]")}>
                         Order Status
+                      </th>
+                      <th className={cn(tableHeadClassName, "w-[120px]")}>
+                        Total Quantity
                       </th>
                       {showContact && (
                         <th className={cn(tableHeadClassName, "w-[220px]")}>
@@ -447,6 +466,10 @@ const OrdersPage = async (props: {
                               </div>
                             </td>
 
+                            <td className={cn(tableCellClassName, "text-center")}>
+                              {order.totalQuantity ?? 0}
+                            </td>
+
                             {/* Address */}
                             {showContact && (
                               <td
@@ -505,7 +528,7 @@ const OrdersPage = async (props: {
                     ) : (
                       <tr>
                         <td
-                          colSpan={showContact ? 11 : 9}
+                          colSpan={showContact ? 12 : 10}
                           className="border border-border py-10 text-center text-base text-muted-foreground"
                         >
                           <div className="flex flex-col items-center gap-1">

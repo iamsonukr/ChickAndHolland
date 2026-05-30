@@ -362,11 +362,13 @@ export const getOrders = async ({
   page,
   query,
   orderType,
+  stage,
   publishStatus,
 }: {
   page?: number;
   query?: string;
   orderType?: string;
+  stage?: string;
   publishStatus?: "published" | "draft";
 }) => {
   const headers = {
@@ -376,6 +378,7 @@ export const getOrders = async ({
   if (page) params.set("page", String(page));
   if (query) params.set("query", query);
   if (orderType) params.set("orderType", orderType);
+  if (stage) params.set("stage", stage);
   if (publishStatus) params.set("publishStatus", publishStatus);
 
   const response = await fetch(
@@ -1073,12 +1076,14 @@ export const getQuickbookAccessToken = async ({
   return response.json();
 };
 
-export const getAdminOrders = async (retailerId: number) => {
+export const getAdminOrders = async (retailerId: number, stage?: string) => {
   const token = (await cookies()).get("token")?.value;
 
   console.log("🟦 FETCHING ADMIN ORDERS FOR:", retailerId);
 
-  const url = `${API_URL}/retailer-orders/retailer/admin-orders?retailerId=${retailerId}`;
+  const params = new URLSearchParams({ retailerId: String(retailerId) });
+  if (stage) params.set("stage", stage);
+  const url = `${API_URL}/retailer-orders/retailer/admin-orders?${params.toString()}`;
   console.log("🟦 REQUEST URL:", url);
 
   const res = await fetch(url, {
@@ -1296,30 +1301,26 @@ export const getRetailerAcceptedAdminFreshOrderDetails = async ({
   retailerId,
   page,
   query,
+  stage,
   id,
 }: {
   retailerId?: number;
   page?: number;
   query?: string;
+  stage?: string;
   id: number;
 }) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
 
-  if (!page) {
-    const response = await fetch(
-      `${API_URL}/retailer-orders/admin/orders/accepted/${id}`,
-      {
-        headers,
-      },
-    );
-
-    return response.json();
-  }
+  const params = new URLSearchParams();
+  if (page) params.set("page", String(page));
+  if (query) params.set("query", query);
+  if (stage) params.set("stage", stage);
 
   const response = await fetch(
-    `${API_URL}/retailer-orders/admin/orders/accepted/${id}?page=${page}&query=${encodeURIComponent(query as string)}`,
+    `${API_URL}/retailer-orders/admin/orders/accepted/${id}?${params.toString()}`,
     {
       headers,
     },

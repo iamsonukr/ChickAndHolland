@@ -1698,11 +1698,13 @@ router.get(
       page,
       query,
       orderType,
+      stage,
       publishStatus,
     }: {
       page?: string;
       query?: string;
       orderType?: string;
+      stage?: string;
       publishStatus?: string;
     } = req.query;
 
@@ -1758,6 +1760,10 @@ router.get(
       );
     }
 
+    if (stage) {
+      regularOrdersQuery.andWhere("o.orderStatus = :stage", { stage });
+    }
+
     // Second query for retailer orders
     const retailerOrdersQuery = db
       .createQueryBuilder()
@@ -1790,6 +1796,10 @@ router.get(
         "(LOWER(ro.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
         { likeQuery },
       );
+    }
+
+    if (stage) {
+      retailerOrdersQuery.andWhere("ro.orderStatus = :stage", { stage });
     }
 
     if (orderType) {
@@ -1970,6 +1980,13 @@ router.get(
           customSize: safeArray(style.customSize),
         };
       });
+      const totalQuantity =
+        baseOrder.orderSource === "regular"
+          ? (styles || []).reduce(
+              (sum: number, style: any) => sum + getStyleTotalQuantity(style),
+              0,
+            )
+          : Number(detailedOrder?.quantity || 0) || 0;
 
       const recoveredStageDates =
         baseOrder.orderSource === "retailer"
@@ -2052,6 +2069,7 @@ router.get(
                     detailedOrder.retailer.customer.country?.name ?? null,
                 }
               : null,
+        totalQuantity,
         styles: styles || [],
         orderSource: baseOrder.orderSource,
       };

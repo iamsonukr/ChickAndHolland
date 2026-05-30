@@ -26,6 +26,7 @@ import TableScrollWrapper from "@/components/TableScrollWrapper";
 import Preview from "./Preview";
 import Details from "../../retailer-panel/my-orders/Details";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
+import StageFilter from "../orders/StageFilter";
 
 // import AdminDeliveredOrders from
 
@@ -50,10 +51,12 @@ const page = async (props: {
   const searchParams = await props.searchParams;
   const currentPage = searchParams["cPage"] ? Number(searchParams["cPage"]) : 1;
   const query = searchParams["q"] ? searchParams["q"] : "";
+  const stage = searchParams["stage"] ?? "";
   
   const acceptedOrders = await getRetailerAcceptedAdminFreshOrderDetails({
     page: currentPage,
     query,
+    stage,
     id: 0,
   });
 
@@ -66,15 +69,19 @@ const page = async (props: {
   const deliveredOrder = await getRetailerAcceptedAdminFreshOrderDetails({
     page: currentPage,
     query,
+    stage,
     id: 1,
   });
 
-  const adminOrders = await getAdminOrders(0);
+  const adminOrders = await getAdminOrders(0, stage);
 
   return (
     <ContentLayout title="Order List">
       <div className="mb-2">
         <CustomSearchBar query={query} />
+        <div className="mt-2">
+          <StageFilter query={query} stage={stage} />
+        </div>
       </div>
       {/* <div className="flex justify-end">
         <DeleteButton />
@@ -114,6 +121,7 @@ const page = async (props: {
                   <TableHead className="text-center">Order Id</TableHead>
                   <TableHead className="text-center">Order Type</TableHead>
                   <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-center">Total Quantity</TableHead>
                   <TableHead className="text-center">Tracking ID</TableHead>
                   <TableHead className="text-center">Order Date</TableHead>
                   <TableHead className="text-center">Paid</TableHead>
@@ -129,6 +137,7 @@ const page = async (props: {
                     <TableCell className="font-medium">{item.order_id}</TableCell>
                     <TableCell>{item.orderType === "Store" ? "Store Web Order" : item.orderType}</TableCell>
                     <TableCell>{item.orderStatus}</TableCell>
+                    <TableCell>{item.totalQuantity ?? item.total_quantity ?? 0}</TableCell>
                     <TableCell>{item.trackingNo || "-"}</TableCell>
                     <TableCell>
                       {formatDateOnlyDisplay(

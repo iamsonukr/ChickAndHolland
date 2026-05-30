@@ -53,11 +53,18 @@ const RETAILER_QR_STATUS_FLOW = SCAN_STAGE_FLOW as OrderStatus[];
 const REGULAR_ORDER_STYLE_TOTAL_SQL = buildRegularOrderStyleTotalSql();
 const REGULAR_ORDER_MISSING_STYLE_TOTAL_SQL =
   buildRegularOrderMissingStyleTotalSql();
+const retailerOrderQuantitySql = (alias = "ro") => `
+  CASE
+    WHEN ${alias}.quantity REGEXP '^[0-9]+$' THEN CAST(${alias}.quantity AS UNSIGNED)
+    ELSE 1
+  END
+`;
 const REGULAR_ADMIN_ORDER_TOTALS_JOIN_SQL = `
     LEFT JOIN (
       SELECT
         os.orderId,
         SUM(${REGULAR_ORDER_STYLE_TOTAL_SQL}) AS total_amount,
+        SUM(COALESCE(NULLIF(os.quantity, 0), 0)) AS total_quantity,
         COUNT(*) AS style_count,
         SUM(${REGULAR_ORDER_MISSING_STYLE_TOTAL_SQL}) AS missing_total_values,
         SUM(
@@ -2111,9 +2118,10 @@ router.get(
   "/admin/orders/accepted/:isApprovedStatus", // Admin route
   asyncHandler(async (req: Request, res: Response) => {
     const { isApprovedStatus } = req.params;
-    const { page, query } = req.query as {
+    const { page, query, stage } = req.query as {
       page?: string;
       query?: string;
+      stage?: string;
     };
 
     // Validate isApprovedStatus
@@ -2136,6 +2144,7 @@ router.get(
         END AS type,
         payments.orderId as payment_id,
         ro.purchaseAmount AS total,
+        ${retailerOrderQuantitySql("ro")} AS totalQuantity,
         DATE_FORMAT(ro.orderReceivedDate,'%Y-%m-%d')  AS received_date,
         ro.manufacturingEmailAddress as email,
         ro.orderStatus,
@@ -2182,6 +2191,11 @@ router.get(
       } else if (query.toLowerCase() === "fresh") {
         whereClauses.push("ro.is_stock_order = 0");
       }
+    }
+
+    if (stage) {
+      whereClauses.push("ro.orderStatus = ?");
+      params.push(stage);
     }
 
     // Add WHERE conditions if any
@@ -3403,6 +3417,8 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
       const retailerIdRaw = req.query.retailerId;
       const retailerId = retailerIdRaw ? Number(retailerIdRaw) : null;
+      const stage = typeof req.query.stage === "string" ? req.query.stage : "";
+      const stageSql = stage ? " AND o.orderStatus = ?" : "";
 
       // If a specific retailerId is provided, return orders for that retailer's customer
       if (retailerId) {
@@ -3428,6 +3444,7 @@ router.get(
       DATE_FORMAT(o.orderReceivedDate, '%Y-%m-%d') AS orderReceivedDate,
       COALESCE(total_pay.total_amount, 0) AS total,
       COALESCE(total_pay.total_amount, 0) AS grandTotal,
+      COALESCE(total_pay.total_quantity, 0) AS totalQuantity,
       COALESCE(paid_pay.paid_amount, 0) AS paid_amount,
       (COALESCE(total_pay.total_amount, 0) - COALESCE(paid_pay.paid_amount, 0)) AS balance,
       COALESCE(total_pay.currencySymbol, curr.symbol, '€') AS currencySymbol,
@@ -3446,10 +3463,14 @@ router.get(
     WHERE o.customerId = ?
       AND o.status = 0
       AND COALESCE(o.publishStatus, 'published') = 'published'
+      ${stageSql}
     ORDER BY o.id DESC;
   `;
 
-        const rows = await db.query(SQL, [retailer.customer.id]);
+        const rows = await db.query(
+          SQL,
+          stage ? [retailer.customer.id, stage] : [retailer.customer.id],
+        );
         logAdminOrderTotalDiagnostics(rows, `retailer:${retailerId}`);
 
         return res.json({
@@ -3473,6 +3494,7 @@ router.get(
       DATE_FORMAT(o.orderReceivedDate, '%Y-%m-%d') AS orderReceivedDate,
       COALESCE(total_pay.total_amount, 0) AS total,
       COALESCE(total_pay.total_amount, 0) AS grandTotal,
+      COALESCE(total_pay.total_quantity, 0) AS totalQuantity,
       COALESCE(paid_pay.paid_amount, 0) AS paid_amount,
       (COALESCE(total_pay.total_amount, 0) - COALESCE(paid_pay.paid_amount, 0)) AS balance,
       COALESCE(total_pay.currencySymbol, curr.symbol, '€') AS currencySymbol,
@@ -3492,10 +3514,11 @@ router.get(
     ) paid_pay ON paid_pay.orderId = o.id
     WHERE o.status = 0
       AND COALESCE(o.publishStatus, 'published') = 'published'
+      ${stageSql}
     ORDER BY o.id DESC;
   `;
 
-      const rows = await db.query(GLOBAL_SQL);
+      const rows = await db.query(GLOBAL_SQL, stage ? [stage] : []);
       logAdminOrderTotalDiagnostics(rows, "admin-panel");
 
       return res.json({ success: true, orders: rows });
