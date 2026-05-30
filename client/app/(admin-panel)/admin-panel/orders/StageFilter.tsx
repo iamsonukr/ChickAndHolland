@@ -1,3 +1,15 @@
+"use client";
+
+import { usePathname, useRouter } from "next/navigation";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 const stageOptions = [
   "Pattern",
   "Khaka",
@@ -10,10 +22,7 @@ const stageOptions = [
   "Shipped",
 ];
 
-const filterButtonClassName =
-  "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted";
-
-const buildHref = ({
+const buildSearch = ({
   query,
   orderType,
   due,
@@ -31,8 +40,8 @@ const buildHref = ({
   if (due) params.set("due", due);
   if (stage) params.set("stage", stage);
 
-  const search = params.toString();
-  return search ? `?${search}` : "?";
+  params.delete("cPage");
+  return params.toString();
 };
 
 export default function StageFilter({
@@ -46,25 +55,28 @@ export default function StageFilter({
   due?: string;
   stage?: string;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const handleStageChange = (value: string) => {
+    const nextStage = value === "__all__" ? "" : value;
+    const search = buildSearch({ query, orderType, due, stage: nextStage });
+    router.push(search ? `${pathname}?${search}` : pathname);
+  };
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <a
-        href={buildHref({ query, orderType, due })}
-        className={`${filterButtonClassName} ${!stage ? "bg-muted" : ""}`}
-      >
-        All Stages
-      </a>
-      {stageOptions.map((option) => (
-        <a
-          key={option}
-          href={buildHref({ query, orderType, due, stage: option })}
-          className={`${filterButtonClassName} ${
-            stage === option ? "border-primary bg-primary/10" : ""
-          }`}
-        >
-          {option}
-        </a>
-      ))}
-    </div>
+    <Select value={stage || "__all__"} onValueChange={handleStageChange}>
+      <SelectTrigger className="w-full min-w-[180px] xl:w-[220px]">
+        <SelectValue placeholder="Filter by stage" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__all__">All Stages</SelectItem>
+        {stageOptions.map((option) => (
+          <SelectItem key={option} value={option}>
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
