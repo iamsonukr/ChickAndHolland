@@ -1069,6 +1069,7 @@ router.post(
           return res.json({
             success: true,
             message: "Draft saved successfully",
+            orderId: order.id,
             purchaseOrderNo: order.purchaeOrderNo,
           });
         }

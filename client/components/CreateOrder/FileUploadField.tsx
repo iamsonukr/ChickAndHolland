@@ -25,6 +25,14 @@ const FileUploadField = ({ form, index, name }: FileUploadFieldProps) => {
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const watchedFiles = form.watch(fieldPath);
+
+  useEffect(() => {
+    const files = Array.from((watchedFiles ?? []) as any).filter(
+      (file): file is File => file instanceof File,
+    );
+    setSelectedFiles(files);
+  }, [watchedFiles]);
 
   // Sync preview URLs whenever selectedFiles changes
   useEffect(() => {
