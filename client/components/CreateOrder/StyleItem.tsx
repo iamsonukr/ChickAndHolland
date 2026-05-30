@@ -31,6 +31,7 @@ import {
   SizeCountry,
   sizes,
 } from "@/lib/formSchemas";
+import { useEffect, useState } from "react";
 import CommentsFieldArray from "./CommentsFieldArray";
 import FileUploadField from "./FileUploadField";
 import { searchStyleNumbers } from "@/lib/data";
@@ -122,6 +123,8 @@ const StyleItem = ({
     Boolean(currentLining) &&
     currentLining !== "SAS" &&
     !lining.includes(String(currentLining));
+  const [customLiningActive, setCustomLiningActive] =
+    useState(isCustomLining);
   const currentStyle = fullComponentWatch[index] ?? {};
   const selectedStyleCode = stylesSelect?.value ?? "";
   const productDetails = selectedStyleCode
@@ -162,6 +165,17 @@ const StyleItem = ({
       resolvedPrice?.currencyCode,
       resolvedPrice?.currencySymbol,
     );
+
+  useEffect(() => {
+    if (!addLining) {
+      setCustomLiningActive(false);
+      return;
+    }
+
+    if (isCustomLining) {
+      setCustomLiningActive(true);
+    }
+  }, [addLining, isCustomLining]);
 
   // Dynamically mount the AddProductForm on the page (only once on the first StyleItem)
   const AddProductFormDynamic = dynamic(
@@ -495,18 +509,18 @@ const StyleItem = ({
                         <FormLabel>Lining</FormLabel>
                         <Select
                           onValueChange={(value) => {
-                            field.onChange(
-                              value === LINING_CUSTOM_VALUE ? "" : value,
-                            );
+                            const isCustom = value === LINING_CUSTOM_VALUE;
+                            setCustomLiningActive(isCustom);
+                            field.onChange(isCustom ? "" : value);
                             if (value === "No Lining") {
                               form.setValue(`styles.${index}.liningColor`, "");
                             }
-                            if (value !== LINING_CUSTOM_VALUE) {
+                            if (!isCustom) {
                               form.trigger(`styles.${index}.lining` as any);
                             }
                           }}
                           value={
-                            isCustomLining || field.value === ""
+                            customLiningActive || isCustomLining
                               ? LINING_CUSTOM_VALUE
                               : field.value
                           }
@@ -530,14 +544,15 @@ const StyleItem = ({
                             </SelectItem>
                           </SelectContent>
                         </Select>
-                        {isCustomLining || field.value === "" ? (
+                        {customLiningActive || isCustomLining ? (
                           <Input
                             className="mt-2"
                             placeholder="Enter custom lining"
                             value={isCustomLining ? String(currentLining) : ""}
-                            onChange={(event) =>
-                              field.onChange(event.target.value)
-                            }
+                            onChange={(event) => {
+                              setCustomLiningActive(true);
+                              field.onChange(event.target.value);
+                            }}
                           />
                         ) : null}
                         <FormMessage />
