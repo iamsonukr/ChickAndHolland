@@ -190,20 +190,30 @@ router.delete(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
+    const expenseId = Number(id);
 
-    const expense = await Expense.findOneOrFail({
+    if (!Number.isFinite(expenseId) || expenseId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid expense id",
+      });
+    }
+
+    const expense = await Expense.findOne({
       where: {
-        id: Number(id),
+        id: expenseId,
       },
     });
     if (!expense) {
+      console.warn("[ExpenseDelete] Expense not found", { expenseId });
       return res.status(404).json({
         success: false,
         message: "Expense not found",
       });
     }
 
-    await expense.remove();
+    await Expense.delete({ id: expenseId });
+    console.info("[ExpenseDelete] Expense deleted", { expenseId });
 
     res.json({
       success: true,

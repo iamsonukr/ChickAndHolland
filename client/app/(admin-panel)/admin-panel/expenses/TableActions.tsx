@@ -23,7 +23,7 @@ import { Button } from "@/components/custom/button";
 const TableActions = ({ data }: { data: any }) => {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const { executeAsync, loading } = useHttp(`expenses/${data.id}`, "DELETE");
+  const { executeAsync, loading } = useHttp(`/expenses/${data.id}`, "DELETE");
 
   return (
     <>
@@ -51,12 +51,18 @@ const TableActions = ({ data }: { data: any }) => {
                 <Button
                   onClick={async () => {
                     try {
-                      await executeAsync();
-                      toast("Deleted Expense Successfully");
+                      const response = await executeAsync();
+                      toast.success(
+                        response?.message ?? "Deleted Expense Successfully",
+                      );
+                      setOpen(false);
                       router.refresh();
                     } catch (err) {
+                      console.error("Failed to delete expense", err);
                       toast.error(
-                        "Something went wrong, please try again later",
+                        err instanceof Error
+                          ? err.message
+                          : "Something went wrong, please try again later",
                         {
                           className: "bg-destructive",
                         },
