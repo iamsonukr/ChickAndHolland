@@ -50,6 +50,11 @@ import { mail } from "../lib/Utils";
 import { generateOrderPdf } from "../pdf/generateOrderPdf";
 import { formatDateOnly, parseDateOnly } from "../lib/dateOnly";
 import { assertDeliverableEmailAddress } from "../lib/emailValidation";
+import {
+  DEFAULT_ORDER_STAGE,
+  getCanonicalStage,
+  getLowestStage,
+} from "../lib/stageFlow";
 
 import StoreStyleProgress from "../models/StoreStyleProgress"; // ⬅ top me import add karna
 // import { updateOrderAndStyleStatus } from "../services/orderStatus.service";
@@ -69,6 +74,54 @@ function safeArray(value: any) {
     }
   }
   return [];
+}
+
+function buildStageMap(rows: any[], field: "status" | "stage") {
+  const map = new Map<string, string>();
+
+  rows.forEach((row) => {
+    if (row?.barcode) {
+      map.set(String(row.barcode), getCanonicalStage(row[field]) ?? DEFAULT_ORDER_STAGE);
+    }
+  });
+
+  return map;
+}
+
+async function getLatestProgressRows(
+  tableName: "store_style_progress" | "styleProgress",
+  stageColumn: "status" | "stage",
+  barcodes: string[],
+) {
+  if (!barcodes.length) return [];
+
+  const placeholders = barcodes.map(() => "?").join(",");
+
+  return db.query(
+    `
+    SELECT progress.barcode, progress.${stageColumn}
+    FROM ${tableName} progress
+    INNER JOIN (
+      SELECT barcode, MAX(createdAt) AS latestCreatedAt
+      FROM ${tableName}
+      WHERE barcode IN (${placeholders})
+      GROUP BY barcode
+    ) latest
+      ON latest.barcode = progress.barcode
+     AND latest.latestCreatedAt = progress.createdAt
+    `,
+    barcodes,
+  );
+}
+
+function getComputedOrderStage(barcodes: string[], progressByBarcode: Map<string, string>) {
+  if (!barcodes.length) {
+    return DEFAULT_ORDER_STAGE;
+  }
+
+  return getLowestStage(
+    barcodes.map((barcode) => progressByBarcode.get(barcode) ?? DEFAULT_ORDER_STAGE),
+  );
 }
 
 function sanitizeText(value: unknown) {
@@ -1841,10 +1894,6 @@ router.get(
       );
     }
 
-    if (stage) {
-      regularOrdersQuery.andWhere("o.orderStatus = :stage", { stage });
-    }
-
     // Second query for retailer orders
     const retailerOrdersQuery = db
       .createQueryBuilder()
@@ -1879,10 +1928,6 @@ router.get(
       );
     }
 
-    if (stage) {
-      retailerOrdersQuery.andWhere("ro.orderStatus = :stage", { stage });
-    }
-
     if (orderType) {
       if (!includeRetailerOrders) {
         regularOrdersQuery.andWhere("o.orderType = :orderType", { orderType });
@@ -1907,9 +1952,11 @@ router.get(
       .createQueryBuilder()
       .select("*")
       .from(`(${unionQuery})`, "combined_orders")
-      .orderBy("createdAt", "DESC")
-      .limit(pageSize)
-      .offset(skip);
+      .orderBy("createdAt", "DESC");
+
+    if (!stage) {
+      finalQuery.limit(pageSize).offset(skip);
+    }
 
     const countQuery = db
       .createQueryBuilder()
@@ -2028,6 +2075,56 @@ router.get(
       });
     }
 
+    const regularOrderBarcodes = regularOrdersWithRelations.flatMap((order: any) =>
+      (order.styles || []).map((style: any) => String(style.barcode)).filter(Boolean),
+    );
+    const regularProgressByBarcode = buildStageMap(
+      await getLatestProgressRows(
+        "store_style_progress",
+        "status",
+        regularOrderBarcodes,
+      ),
+      "status",
+    );
+
+    const retailerBarcodesByOrderId = new Map<number, string[]>();
+    let retailerProgressByBarcode = new Map<string, string>();
+
+    if (retailerOrderIds.length > 0) {
+      const placeholders = retailerOrderIds.map(() => "?").join(",");
+      const retailerStyleRows = await db.query(
+        `
+        SELECT retailerOrderId AS orderId, barcode
+        FROM retailer_order_styles
+        WHERE retailerOrderId IN (${placeholders})
+        UNION ALL
+        SELECT retailerOrderId AS orderId, barcode
+        FROM stock_order_styles
+        WHERE retailerOrderId IN (${placeholders})
+        `,
+        [...retailerOrderIds, ...retailerOrderIds],
+      );
+
+      retailerStyleRows.forEach((row: any) => {
+        const orderId = Number(row.orderId);
+        const barcode = String(row.barcode || "");
+        if (!orderId || !barcode) return;
+
+        const existing = retailerBarcodesByOrderId.get(orderId) ?? [];
+        existing.push(barcode);
+        retailerBarcodesByOrderId.set(orderId, existing);
+      });
+
+      retailerProgressByBarcode = buildStageMap(
+        await getLatestProgressRows(
+          "styleProgress",
+          "stage",
+          retailerStyleRows.map((row: any) => String(row.barcode)).filter(Boolean),
+        ),
+        "stage",
+      );
+    }
+
     // Final formatting
     const formattedOrders = combinedOrders.map((baseOrder) => {
       let detailedOrder;
@@ -2068,6 +2165,16 @@ router.get(
               0,
             )
           : Number(detailedOrder?.quantity || 0) || 0;
+      const computedOrderStatus =
+        baseOrder.orderSource === "regular"
+          ? getComputedOrderStage(
+              (styles || []).map((style: any) => String(style.barcode)).filter(Boolean),
+              regularProgressByBarcode,
+            )
+          : getComputedOrderStage(
+              retailerBarcodesByOrderId.get(Number(baseOrder.id)) ?? [],
+              retailerProgressByBarcode,
+            );
 
       const recoveredStageDates =
         baseOrder.orderSource === "retailer"
@@ -2093,7 +2200,7 @@ router.get(
         orderReceivedDate: formatDateOnly(baseOrder.orderReceivedDate),
         orderCancellationDate: formatDateOnly(baseOrder.orderCancellationDate),
         address: resolvedAddress,
-        orderStatus: baseOrder.orderStatus,
+        orderStatus: computedOrderStatus,
         shippingStatus: baseOrder.shippingStatus,
         shippingDate: baseOrder.shippingDate,
         trackingNo: baseOrder.trackingNo,
@@ -2180,9 +2287,18 @@ router.get(
       return result;
     });
 
+    const stageFilteredOrders = stage
+      ? formattedOrders.filter((order) => order.orderStatus === stage)
+      : formattedOrders;
+    const paginatedOrders = stage
+      ? stageFilteredOrders.slice(skip, skip + pageSize)
+      : stageFilteredOrders;
+
     res.json({
-      orders: formattedOrders,
-      totalCount: parseInt(countResult?.count || "0"),
+      orders: paginatedOrders,
+      totalCount: stage
+        ? stageFilteredOrders.length
+        : parseInt(countResult?.count || "0"),
     });
   }),
 );

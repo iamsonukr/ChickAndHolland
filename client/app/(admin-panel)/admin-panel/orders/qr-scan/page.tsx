@@ -21,6 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import ScanSuccessOverlay from "@/components/ScanSuccessOverlay";
 import ScanFailOverlay from "@/components/ScanFailOverlay";
+import { DEFAULT_ORDER_STAGE } from "@/lib/stageFlow";
 
 type ScanOrderType = "RETAILER" | "STOCK" | "STORE";
 
@@ -465,7 +466,9 @@ export default function GlobalQrScanPage() {
                   <div className="grid gap-3 text-sm sm:grid-cols-2">
                     <div>
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">Previous Stage</div>
-                      <div className="font-medium">{result.currentStage || "-"}</div>
+                      <div className="font-medium">
+                        {result.currentStage || DEFAULT_ORDER_STAGE}
+                      </div>
                     </div>
                     <div>
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">Next Stage</div>

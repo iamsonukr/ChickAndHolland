@@ -14,7 +14,6 @@ import { useForm } from "react-hook-form";
 import {
   UpdateOrderStatusForm,
   updateOrderStatusFormSchema,
-  OrderStatus,
 } from "@/lib/formSchemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -38,6 +37,12 @@ import { useRouter } from "next/navigation";
 import { getOrderDates } from "@/lib/data";
 import dayjs from "dayjs";
 import { API_URL } from "@/lib/constants";
+import {
+  DEFAULT_ORDER_STAGE,
+  ORDER_STAGE_DATE_FIELD_MAP,
+  ORDER_STAGE_FLOW,
+  normalizeStage,
+} from "@/lib/stageFlow";
 
 interface StatusDateTypes {
   pattern: string | null;
@@ -53,15 +58,21 @@ interface StatusDateTypes {
 
 
 const statusFieldMap: Record<string, keyof StatusDateTypes | null> = {
-  "Pattern": "pattern",
-  "Khaka": "khaka",
-  "Issue Beading": "issue_beading",
-  "Beading": "beading",
-  "Zarkan": "zarkan",
-  "Stitching": "stitching",
-  "Balance Pending": "balance_pending", // 🔥 FIX
-  "Ready To Delivery": "ready_to_delivery",
-  "Shipped": "shipped",
+  Pattern: ORDER_STAGE_DATE_FIELD_MAP.Pattern as keyof StatusDateTypes,
+  Khaka: ORDER_STAGE_DATE_FIELD_MAP.Khaka as keyof StatusDateTypes,
+  "Issue Beading": ORDER_STAGE_DATE_FIELD_MAP[
+    "Issue Beading"
+  ] as keyof StatusDateTypes,
+  Beading: ORDER_STAGE_DATE_FIELD_MAP.Beading as keyof StatusDateTypes,
+  Zarkan: ORDER_STAGE_DATE_FIELD_MAP.Zarkan as keyof StatusDateTypes,
+  Stitching: ORDER_STAGE_DATE_FIELD_MAP.Stitching as keyof StatusDateTypes,
+  "Balance Pending": ORDER_STAGE_DATE_FIELD_MAP[
+    "Balance Pending"
+  ] as keyof StatusDateTypes,
+  "Ready To Delivery": ORDER_STAGE_DATE_FIELD_MAP[
+    "Ready To Delivery"
+  ] as keyof StatusDateTypes,
+  Shipped: ORDER_STAGE_DATE_FIELD_MAP.Shipped as keyof StatusDateTypes,
 };
 
 
@@ -85,7 +96,7 @@ const UpdateOrderStatus = ({ orderData }: { orderData: any }) => {
   const form = useForm<UpdateOrderStatusForm>({
     resolver: zodResolver(updateOrderStatusFormSchema),
     defaultValues: {
-      status: orderData.orderStatus,
+      status: normalizeStage(orderData.orderStatus),
     },
   });
 
@@ -149,7 +160,7 @@ const onOpenChange = (val: boolean) => {
       toast.error("Error updating status");
     }
   };
-const orderStatusArray = Object.values(OrderStatus).map((statusLabel) => {
+const orderStatusArray = ORDER_STAGE_FLOW.map((statusLabel) => {
   const dbField = statusFieldMap[statusLabel];
 
   const date =
@@ -170,7 +181,9 @@ const orderStatusArray = Object.values(OrderStatus).map((statusLabel) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <div className="cursor-pointer underline">{orderData.orderStatus}</div>
+        <div className="cursor-pointer underline">
+          {orderData.orderStatus || DEFAULT_ORDER_STAGE}
+        </div>
       </DialogTrigger>
 
       <DialogContent>

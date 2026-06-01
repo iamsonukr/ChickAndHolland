@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { API_URL } from "@/lib/constants";
+import { DEFAULT_ORDER_STAGE } from "@/lib/stageFlow";
 
 export default function WorkerScanPage() {
   const [barcode, setBarcode] = useState("");
@@ -52,7 +53,7 @@ const res = await fetch(`${API_URL}/order-status/scan-order/${barcode}`);
         <div style={{ marginTop: 20 }}>
           <h3>Order Found</h3>
           <p><b>Order ID:</b> {order.id}</p>
-          <p><b>Current Status:</b> {order.orderStatus}</p>
+          <p><b>Current Status:</b> {order.orderStatus || DEFAULT_ORDER_STAGE}</p>
 
           <button
             onClick={updateStatus}

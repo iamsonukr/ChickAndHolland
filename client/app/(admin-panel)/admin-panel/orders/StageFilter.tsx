@@ -9,18 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const stageOptions = [
-  "Pattern",
-  "Khaka",
-  "Issue Beading",
-  "Beading",
-  "Zarkan",
-  "Stitching",
-  "Balance Pending",
-  "Ready To Delivery",
-  "Shipped",
-];
+import { ORDER_STAGE_FLOW } from "@/lib/stageFlow";
 
 const buildSearch = ({
   query,
@@ -61,7 +50,8 @@ export default function StageFilter({
   const handleStageChange = (value: string) => {
     const nextStage = value === "__all__" ? "" : value;
     const search = buildSearch({ query, orderType, due, stage: nextStage });
-    router.push(search ? `${pathname}?${search}` : pathname);
+    const nextPath = pathname ?? "/admin-panel/orders";
+    router.push(search ? `${nextPath}?${search}` : nextPath);
   };
 
   return (
@@ -70,8 +60,8 @@ export default function StageFilter({
         <SelectValue placeholder="Filter by stage" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="__all__">All Stages</SelectItem>
-        {stageOptions.map((option) => (
+        <SelectItem value="__all__">All Status</SelectItem>
+        {ORDER_STAGE_FLOW.map((option) => (
           <SelectItem key={option} value={option}>
             {option}
           </SelectItem>

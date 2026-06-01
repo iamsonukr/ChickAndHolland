@@ -12,6 +12,13 @@ export const ORDER_STAGE_FLOW = [
 
 export const DEFAULT_ORDER_STAGE = ORDER_STAGE_FLOW[0];
 
+export const ORDER_STAGE_PRIORITY = ORDER_STAGE_FLOW.reduce<
+  Record<string, number>
+>((priority, stage, index) => {
+  priority[stage] = index + 1;
+  return priority;
+}, {});
+
 const SHIPPING_STAGE_KEYS = new Set(["shipping", "ship", "shipped"]);
 
 export const normalizeStageKey = (value?: string | null) => {
@@ -53,6 +60,32 @@ export const getCanonicalStage = (
 ) => {
   const index = getStageIndex(stage, flowStages);
   return index === -1 ? null : flowStages[index];
+};
+
+export const getStageOrDefault = (
+  stage?: string | null,
+  flowStages: string[] = ORDER_STAGE_FLOW,
+) => getCanonicalStage(stage, flowStages) ?? flowStages[0] ?? DEFAULT_ORDER_STAGE;
+
+export const getLowestStage = (
+  stages: Array<string | null | undefined>,
+  flowStages: string[] = ORDER_STAGE_FLOW,
+) => {
+  if (!stages.length) {
+    return flowStages[0] ?? DEFAULT_ORDER_STAGE;
+  }
+
+  return stages.reduce((lowestStage, stage) => {
+    const currentStage = getStageOrDefault(stage, flowStages);
+    const currentIndex = getStageIndex(currentStage, flowStages);
+    const lowestIndex = getStageIndex(lowestStage, flowStages);
+
+    if (lowestIndex === -1 || currentIndex < lowestIndex) {
+      return currentStage;
+    }
+
+    return lowestStage;
+  }, flowStages[flowStages.length - 1] ?? DEFAULT_ORDER_STAGE);
 };
 
 export const getStageDateField = (stage?: string | null) => {

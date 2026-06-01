@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { OrderStatus } from "@/lib/formSchemas";
 import useHttp from "@/lib/hooks/usePost";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -35,6 +34,12 @@ import * as z from "zod";
 import { getOrderStatusDatesDetails } from "@/lib/data";
 import { API_URL } from "@/lib/constants";
 import dayjs from "dayjs";
+import {
+  DEFAULT_ORDER_STAGE,
+  ORDER_STAGE_DATE_FIELD_MAP,
+  ORDER_STAGE_FLOW,
+  normalizeStage,
+} from "@/lib/stageFlow";
 
 /* ================= SCHEMA ================= */
 
@@ -65,15 +70,21 @@ interface ProgressLog {
 /* ================= STATUS → DB FIELD ================= */
 
 const statusToDateField: Record<string, keyof DateTypes | null> = {
-  Pattern: "pattern",
-  Khaka: "khaka",
-  "Issue Beading": "issue_beading",
-  Beading: "beading",
-  Zarkan: "zarkan",
-  Stitching: "stitching",
-  "Balance Pending": "balance_pending",
-  "Ready To Delivery": "ready_to_delivery",
-  Shipped: "shipped",
+  Pattern: ORDER_STAGE_DATE_FIELD_MAP.Pattern as keyof DateTypes,
+  Khaka: ORDER_STAGE_DATE_FIELD_MAP.Khaka as keyof DateTypes,
+  "Issue Beading": ORDER_STAGE_DATE_FIELD_MAP[
+    "Issue Beading"
+  ] as keyof DateTypes,
+  Beading: ORDER_STAGE_DATE_FIELD_MAP.Beading as keyof DateTypes,
+  Zarkan: ORDER_STAGE_DATE_FIELD_MAP.Zarkan as keyof DateTypes,
+  Stitching: ORDER_STAGE_DATE_FIELD_MAP.Stitching as keyof DateTypes,
+  "Balance Pending": ORDER_STAGE_DATE_FIELD_MAP[
+    "Balance Pending"
+  ] as keyof DateTypes,
+  "Ready To Delivery": ORDER_STAGE_DATE_FIELD_MAP[
+    "Ready To Delivery"
+  ] as keyof DateTypes,
+  Shipped: ORDER_STAGE_DATE_FIELD_MAP.Shipped as keyof DateTypes,
 };
 
 /* ================= COMPONENT ================= */
@@ -99,7 +110,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
   const form = useForm<z.infer<typeof updateFormSchema>>({
     resolver: zodResolver(updateFormSchema),
     defaultValues: {
-      status: orderData.orderStatus ?? "",
+      status: normalizeStage(orderData.orderStatus),
     },
   });
 
@@ -179,8 +190,8 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
 
   /* ================= FINAL STATUS ARRAY (🔥 MAIN LOGIC) ================= */
 
-  const orderStatusArray = Object.entries(OrderStatus)
-    .filter(([_, label]) => {
+  const orderStatusArray = ORDER_STAGE_FLOW
+    .filter((label) => {
       if (
         label.toLowerCase() === "ready to delivery" &&
         !canShowReadyToDelivery
@@ -190,7 +201,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
 
       return true;
     })
-    .map(([key, label]) => {
+    .map((label) => {
       const dbField = statusToDateField[label];
 
       const date =
@@ -216,7 +227,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <div className="flex w-full cursor-pointer justify-between">
-          {orderData.orderStatus}
+          {orderData.orderStatus || DEFAULT_ORDER_STAGE}
         </div>
       </DialogTrigger>
 

@@ -39,8 +39,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DEFAULT_ORDER_STAGE, ORDER_STAGE_FLOW } from "@/lib/stageFlow";
 
 const formatReportValue = (value: unknown) => String(value ?? "").trim() || "-";
+
+const getCurrentStageLabel = (progress: any[]) => {
+  const sorted = [...progress].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+  const currentStage = sorted[sorted.length - 1];
+
+  return String(
+    currentStage?.stage || currentStage?.status || DEFAULT_ORDER_STAGE,
+  );
+};
 
 const formatReportSize = (item: any) =>
   formatEuSizeText(item, { includeUnit: false });
@@ -332,10 +344,7 @@ function ItemCard({
   const LabelComponent = type === "STORE" ? StatusLabelBox1 : StatusLabelBox;
 
   const progress: any[] = raw.progress ?? [];
-  const sorted = [...progress].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-  );
-  const currentStage = sorted[sorted.length - 1];
+  const currentStageLabel = getCurrentStageLabel(progress);
 
   return (
     <>
@@ -409,12 +418,10 @@ function ItemCard({
           }`}
         >
           <span
-            className={`h-2 w-2 shrink-0 rounded-full ${currentStage ? TYPE_DOT[type] : "bg-gray-300"}`}
+            className={`h-2 w-2 shrink-0 rounded-full ${progress.length ? TYPE_DOT[type] : "bg-gray-300"}`}
           />
           <span className="flex-1 break-words text-[11px] font-medium text-gray-700">
-            {currentStage
-              ? currentStage.stage || currentStage.status
-              : "No stages"}
+            {currentStageLabel}
           </span>
           {progress.length > 1 && (
             <span className="shrink-0 text-[9px] text-gray-400">
@@ -556,11 +563,7 @@ export default function OrderStatusPage({
     const styleNo = String(raw.styleNo ?? "").toLowerCase();
     const size = formatReportSize(raw).toLowerCase();
     const progress: any[] = raw.progress ?? [];
-    const sorted = [...progress].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    );
-    const currentStage = sorted[sorted.length - 1];
-    const itemStatus = String(currentStage ? currentStage.stage || currentStage.status : "No stages").toLowerCase();
+    const itemStatus = getCurrentStageLabel(progress).toLowerCase();
     return styleNo.includes(q) || size.includes(q);
   });
 
@@ -570,11 +573,7 @@ export default function OrderStatusPage({
       ? filtered
       : filtered.filter(({ raw }) => {
           const progress: any[] = raw.progress ?? [];
-          const sorted = [...progress].sort(
-            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-          );
-          const currentStage = sorted[sorted.length - 1];
-          const itemStatus = String(currentStage ? currentStage.stage || currentStage.status : "No stages").toLowerCase();
+          const itemStatus = getCurrentStageLabel(progress).toLowerCase();
           return itemStatus === selectedStatus.toLowerCase();
         });
 
@@ -704,23 +703,10 @@ export default function OrderStatusPage({
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="hidden rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:block"
                 >
-                  <option value="ALL">All statuses</option>
-                  {Array.from(
-                    new Set(
-                      allItems.map(({ raw }) => {
-                        const progress: any[] = raw.progress ?? [];
-                        const sorted = [...progress].sort(
-                          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-                        );
-                        const currentStage = sorted[sorted.length - 1];
-                        return String(currentStage ? currentStage.stage || currentStage.status : "No stages");
-                      }),
-                    ),
-                  )
-                    .filter(Boolean)
-                    .map((s) => (
-                      <option key={s} value={s}>
-                        {s}
+                  <option value="ALL">All Status</option>
+                  {ORDER_STAGE_FLOW.map((stage) => (
+                      <option key={stage} value={stage}>
+                        {stage}
                       </option>
                     ))}
                 </select>
