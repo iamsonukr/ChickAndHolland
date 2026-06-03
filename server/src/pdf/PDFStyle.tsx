@@ -45,8 +45,9 @@ export const styles = StyleSheet.create({
   detailsSection: {
     width: "62%",
     flexDirection: "column",
+    position: "relative",
     paddingTop: 10,
-    paddingBottom: 10,
+    paddingBottom: 155,
     paddingRight: 8,
   },
   tableContainer: {
@@ -185,16 +186,21 @@ export const styles = StyleSheet.create({
     wordBreak: "normal",
   },
   extraImagesContainer: {
+    position: "absolute",
+    left: 0,
+    right: 8,
+    bottom: 0,
     flexDirection: "column",
-    marginTop: 10,
+    width: "100%",
   },
   extraImagesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
+    alignItems: "flex-end",
   },
   additionalImage: {
     width: "48%",
-    height: 120,
+    height: 145,
     objectFit: "contain",
     borderRadius: 4,
     border: "1px solid #ccc",
@@ -235,7 +241,7 @@ export const styles = StyleSheet.create({
     borderRadius: 4,
   },
   pageVariantOverlay: {
-    position: "absolute",
+    // position: "absolute",
     top: 50,
     right: 0,
     bottom: 0,
