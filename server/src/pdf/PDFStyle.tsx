@@ -184,23 +184,6 @@ export const styles = StyleSheet.create({
     hyphens: "none",
     wordBreak: "normal",
   },
-  commentsBulletRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 3,
-  },
-  commentsBullet: {
-    width: 10,
-    fontSize: 12,
-    lineHeight: 1.4,
-  },
-  commentsBulletText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 1.4,
-    hyphens: "none",
-    wordBreak: "normal",
-  },
   extraImagesContainer: {
     flexDirection: "column",
     marginTop: 10,

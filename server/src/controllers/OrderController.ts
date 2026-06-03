@@ -177,7 +177,6 @@ function mapOrderStyleCustomization(style: any) {
     beading_color: style.beading_color || "",
     lining: style.lining || "",
     lining_color: style.lining_color || "",
-    custom_lining_text: style.custom_lining_text || "",
     product_size: style.size || "",
     quantity: getStyleTotalQuantity(style),
     customization_price: 0,
@@ -392,7 +391,6 @@ const buildRegularOrderPdfDetails = (
       beadingColor:
         item.beading_color === "SAS" ? "SAS" : getColorName(item.beading_color),
       lining: item.lining,
-      customLiningText: item.custom_lining_text || "",
       liningColor:
         item.lining_color === "SAS" ? "SAS" : getColorName(item.lining_color),
       refImg: normalizeFieldArray(item.photoUrls),
@@ -1142,7 +1140,6 @@ router.post(
           newStyle.lining = s.lining;
           newStyle.lining_color =
             s.lining === "No Lining" ? null : s.liningColor;
-          newStyle.custom_lining_text = sanitizeText(s.customLiningText);
           newStyle.quantity = s.quantity ? Number(s.quantity) : 0;
           applyPricingToStyle(
             newStyle,
@@ -1503,7 +1500,6 @@ router.patch(
           styleEntity.lining = s.lining;
           styleEntity.lining_color =
             s.lining === "No Lining" ? null : s.liningColor;
-          styleEntity.custom_lining_text = sanitizeText(s.customLiningText);
           styleEntity.quantity = s.quantity ? Number(s.quantity) : 0;
 
           applyPricingToStyle(
@@ -2633,7 +2629,6 @@ router.post(
                 beadingColor: style.beading || "SAS",
                 liningColor: style.liningColor || "SAS",
                 lining: style.lining || "SAS",
-                customLiningText: sanitizeText(style.customLiningText),
               };
             }),
           ),
