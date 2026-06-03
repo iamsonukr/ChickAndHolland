@@ -30,7 +30,6 @@ const buildGroupKey = (item: any) =>
     item.beadingColor ?? "",
     item.lining ?? "",
     item.liningColor ?? "",
-    item.customLiningText ?? "",
     item.comments ?? "",
     item.image ?? "",
     PDF_DISPLAY_SIZE_UNIT,
@@ -262,16 +261,6 @@ const GroupedOrderPdf = ({
                               <Text style={styles.dataText}>{baseItem?.lining}</Text>
                             </View>
                           </View>
-                          {baseItem?.customLiningText ? (
-                            <View style={styles.stackedRowBottom}>
-                              <View style={styles.stackedHeaderCell}>
-                                <Text style={styles.headerText}>Lining Text</Text>
-                              </View>
-                              <View style={styles.stackedDataCell}>
-                                <Text style={styles.dataText}>{baseItem.customLiningText}</Text>
-                              </View>
-                            </View>
-                          ) : null}
                         </View>
                       </View>
                     </View>

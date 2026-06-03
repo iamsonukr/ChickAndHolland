@@ -242,10 +242,6 @@ function appendStyleFormData(
     sas(normalizedStyle.liningColor, productDetails?.lining_color),
   );
   fd.append(
-    `styles[${index}].customLiningText`,
-    normalizedStyle.customLiningText ?? "",
-  );
-  fd.append(
     `styles[${index}].customColor`,
     JSON.stringify(normalizedStyle.customColor?.map((c) => c.value) ?? []),
   );
@@ -424,7 +420,6 @@ export function buildPreviewData(
         currentItem.liningColor,
         currentItem.product?.lining_color,
       ),
-      customLiningText: currentItem.customLiningText ?? "",
       refImg: currentItem.photoUrls,
     };
   });
@@ -630,7 +625,6 @@ export function useCreateOrder({
     beading: "SAS",
     lining: "SAS",
     liningColor: "SAS",
-    customLiningText: "",
     mesh: "SAS",
     addLining: false,
   });
@@ -684,7 +678,6 @@ export function useCreateOrder({
       beading: style?.beading_color || "SAS",
       lining: style?.lining || "SAS",
       liningColor: style?.lining_color || "SAS",
-      customLiningText: style?.custom_lining_text || "",
       mesh: style?.mesh_color || "SAS",
       addLining:
         Boolean(style?.lining) &&
@@ -1314,7 +1307,6 @@ export function useCreateOrder({
       beading: "SAS",
       lining: "SAS",
       liningColor: "SAS",
-      customLiningText: "",
       mesh: "SAS",
       addLining: false,
     });
