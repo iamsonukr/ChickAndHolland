@@ -147,7 +147,7 @@ const OrdersPage = async (props: {
         .trim()
         .toLowerCase();
 
-      const allowed = ["balancepending", "admin", "ready-to-delivery"];
+      const allowed = ["balance-pending-master", "admin", "ready-to-delivery", "balancepending" , "shipping"];
 
       showContact = allowed.includes(man);
 
