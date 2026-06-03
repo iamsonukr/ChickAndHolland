@@ -50,7 +50,7 @@ export const styles = StyleSheet.create({
     paddingRight: 8,
   },
   tableContainer: {
-    border: "1px solid #000",
+    // border: "1px solid #000",
     borderRadius: 4,
     width: "100%",
     marginBottom: 15,
@@ -59,7 +59,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     backgroundColor: "#FFD1E6",
-    borderBottom: "1px solid #000",
+    // borderBottom: "1px solid #000",
     alignItems: "center",
   },
   tableTitle: {
@@ -78,11 +78,11 @@ export const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: "row",
-    borderBottom: "1px solid #ccc",
+    // borderBottom: "1px solid #ccc",
   },
   mergedContainer: {
     flexDirection: "row",
-    borderBottom: "1px solid #ccc",
+    // borderBottom: "1px solid #ccc",
   },
   leftMergedContainer: {
     width: "40%",
@@ -94,7 +94,7 @@ export const styles = StyleSheet.create({
   },
   stackedRowTop: {
     flexDirection: "row",
-    borderBottom: "1px solid #ccc",
+    // borderBottom: "1px solid #ccc",
   },
   stackedRowBottom: {
     flexDirection: "row",
@@ -112,42 +112,42 @@ export const styles = StyleSheet.create({
     padding: 4,
     backgroundColor: "#FF5698",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   tableDataCell: {
     width: "60%",
     padding: 4,
     backgroundColor: "#FFE6F2",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   sizeHeaderCell: {
     width: "40%",
     padding: 4,
     backgroundColor: "#FF5698",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   sizeDataCell: {
     width: "60%",
     padding: 4,
     backgroundColor: "#FFE6F2",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   stackedHeaderCell: {
     width: "40%",
     padding: 4,
     backgroundColor: "#FF5698",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   stackedDataCell: {
     width: "60%",
     padding: 4,
     backgroundColor: "#FFE6F2",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   headerText: {
     fontSize: 15,
@@ -172,7 +172,7 @@ export const styles = StyleSheet.create({
     color: "#FF5698",
   },
   commentsBox: {
-    border: "1px solid #ccc",
+    // border: "1px solid #ccc",
     borderRadius: 4,
     padding: 8,
     backgroundColor: "#f9f9f9",
@@ -185,8 +185,13 @@ export const styles = StyleSheet.create({
     wordBreak: "normal",
   },
   extraImagesContainer: {
+    position:"absolute",
+    top: 0,
+    right: 0,
     flexDirection: "column",
-    marginTop: 10,
+    marginTop: 1,
+    width: "100%",
+    height: "200%",
   },
   extraImagesGrid: {
     flexDirection: "row",
@@ -197,7 +202,7 @@ export const styles = StyleSheet.create({
     height: 120,
     objectFit: "contain", 
     borderRadius: 4,
-    border: "1px solid #ccc",
+    // border: "1px solid #ccc",
     marginBottom: 8,
     marginRight: "2%",
   },
@@ -211,7 +216,7 @@ export const styles = StyleSheet.create({
   mainImageFrame: {
     height: 360,
     minHeight: 360,
-    border: "1px solid #999",
+    // border: "1px solid #999",
     borderRadius: 4,
     padding: 6,
     justifyContent: "center",
@@ -248,7 +253,7 @@ export const styles = StyleSheet.create({
     paddingTop: 7,
     paddingBottom: 8,
     borderRadius: 4,
-    border: "1px solid #999",
+    // border: "1px solid #999",
   },
   variantOverlayTitle: {
     fontSize: 12,

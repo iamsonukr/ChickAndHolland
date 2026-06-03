@@ -701,7 +701,7 @@ export default function OrderStatusPage({
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="hidden rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:block"
+                  className="rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:block"
                 >
                   <option value="ALL">All Status</option>
                   {ORDER_STAGE_FLOW.map((stage) => (
