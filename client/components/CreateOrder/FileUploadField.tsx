@@ -18,9 +18,10 @@ interface FileUploadFieldProps {
   form: UseFormReturn<CreateOrderForm>;
   index: number;
   name: string;
+  label?: string;
 }
 
-const FileUploadField = ({ form, index, name }: FileUploadFieldProps) => {
+const FileUploadField = ({ form, index, name, label = "Custom Images" }: FileUploadFieldProps) => {
   const fieldPath = `styles[${index}].${name}` as any;
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -76,7 +77,7 @@ const FileUploadField = ({ form, index, name }: FileUploadFieldProps) => {
       name={fieldPath}
       render={() => (
         <FormItem className="col-span-full">
-          <FormLabel>Custom Images</FormLabel>
+          <FormLabel>{label}</FormLabel>
           <FormControl>
             <div className="space-y-4">
               <Input

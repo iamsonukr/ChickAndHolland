@@ -562,88 +562,107 @@ const StyleItem = ({
 
                   {/* Lining Color (only when lining is selected and not "No Lining") */}
                   {currentLining && currentLining !== "No Lining" && (
-                    <FormField
-                      control={form.control}
-                      name={`styles.${index}.liningColor`}
-                      render={({ field }) => {
-                        const knownColorValues = getKnownColorValues(
-                          sampleLiningColorValue,
-                        );
+                    <>
+                      <FormField
+                        control={form.control}
+                        name={`styles.${index}.liningColor`}
+                        render={({ field }) => {
+                          const knownColorValues = getKnownColorValues(
+                            sampleLiningColorValue,
+                          );
 
-                        return (
-                          <FormItem>
-                            <FormLabel>Lining Color</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              value={getColorSelectValue(
-                                field.value,
-                                knownColorValues,
-                              )}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select Lining Color" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value={sampleLiningColorValue}>
-                                  <div className="flex gap-1">
-                                    SAS (
-                                    <div className="flex items-center">
-                                      <p
-                                        className="mx-1 h-4 w-4 rounded-full"
-                                        style={{
-                                          backgroundColor:
-                                            stylesSelect?.liningColor,
-                                          border: "1px solid #000",
-                                        }}
-                                      />
-                                      {getColourBasedOnhex(
-                                        stylesSelect?.liningColor,
-                                      )}
-                                    </div>
-                                    )
-                                  </div>
-                                </SelectItem>
-                                {colors.map((colour: any) => (
-                                  <SelectItem
-                                    key={colour.id}
-                                    value={getColorOptionValue(colour)}
-                                  >
-                                    <div className="flex items-center">
-                                      <div
-                                        className="h-4 w-4 rounded-full"
-                                        style={{
-                                          backgroundColor: getColourBasedOnId(
-                                            colour.id,
-                                          ),
-                                          border: "1px solid #000",
-                                        }}
-                                      />
-                                      <span className="ml-2">
-                                        {colour.name}
-                                      </span>
+                          return (
+                            <FormItem>
+                              <FormLabel>Lining Color</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={getColorSelectValue(
+                                  field.value,
+                                  knownColorValues,
+                                )}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select Lining Color" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value={sampleLiningColorValue}>
+                                    <div className="flex gap-1">
+                                      SAS (
+                                      <div className="flex items-center">
+                                        <p
+                                          className="mx-1 h-4 w-4 rounded-full"
+                                          style={{
+                                            backgroundColor:
+                                              stylesSelect?.liningColor,
+                                            border: "1px solid #000",
+                                          }}
+                                        />
+                                        {getColourBasedOnhex(
+                                          stylesSelect?.liningColor,
+                                        )}
+                                      </div>
+                                      )
                                     </div>
                                   </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              className="mt-2"
-                              placeholder="Or type custom lining color text"
-                              value={getCustomColorText(
-                                field.value,
-                                knownColorValues,
-                              )}
-                              onChange={(event) =>
-                                field.onChange(event.target.value)
-                              }
-                            />
+                                  {colors.map((colour: any) => (
+                                    <SelectItem
+                                      key={colour.id}
+                                      value={getColorOptionValue(colour)}
+                                    >
+                                      <div className="flex items-center">
+                                        <div
+                                          className="h-4 w-4 rounded-full"
+                                          style={{
+                                            backgroundColor: getColourBasedOnId(
+                                              colour.id,
+                                            ),
+                                            border: "1px solid #000",
+                                          }}
+                                        />
+                                        <span className="ml-2">
+                                          {colour.name}
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                className="mt-2"
+                                placeholder="Or type custom lining color text"
+                                value={getCustomColorText(
+                                  field.value,
+                                  knownColorValues,
+                                )}
+                                onChange={(event) =>
+                                  field.onChange(event.target.value)
+                                }
+                              />
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`styles.${index}.customLiningText`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Custom Lining Text</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Enter custom lining text"
+                                {...field}
+                              />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
-                        );
-                      }}
-                    />
+                        )}
+                      />
+                    </>
                   )}
                 </>
               )}
@@ -869,6 +888,7 @@ const StyleItem = ({
             form={form}
             index={index}
             name="modifiedPhotoImage"
+            label="Custom / New Style Images"
           />
 
           {/* ── Comments ── */}

@@ -87,6 +87,9 @@ export default class Style extends BaseModel {
   @Column("varchar", { nullable: true, default: "SAS" })
   lining_color: string | null;
 
+  @Column("varchar", { nullable: true })
+  custom_lining_text: string | null;
+
   @Column("json")
   photoUrls: string;
 

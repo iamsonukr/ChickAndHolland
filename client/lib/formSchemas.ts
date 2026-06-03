@@ -588,6 +588,7 @@ export const createOrderFormSchema = z.object({
           }),
 
           liningColor: z.string().optional(),
+          customLiningText: z.string().optional(),
 
           addLining: z.boolean().optional(),
           quantity: positiveQuantityStringSchema,

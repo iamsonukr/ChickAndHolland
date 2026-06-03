@@ -31,6 +31,7 @@ const buildGroupKey = (item: any) =>
     item.beadingColor ?? "",
     item.lining ?? "",
     item.liningColor ?? "",
+    item.customLiningText ?? "",
     item.comments ?? "",
     item.image ?? "",
     PDF_DISPLAY_SIZE_UNIT,
@@ -71,16 +72,50 @@ const getVariantSizeText = (item: any) => formatEuSizeText(item);
 const getSizeSummary = (items: any[]) =>
   formatEuSizeSummary(items, { alwaysShowCount: true });
 
-const getCommentsSummary = (variants: any[], fallback?: string) => {
+const parseCommentItems = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.flatMap(parseCommentItems);
+  }
+
+  const text = String(value ?? "").trim();
+  if (!text) return [];
+
+  const items: string[] = [];
+  let current = "";
+
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] !== ",") {
+      current += text[index];
+      continue;
+    }
+
+    if (text[index + 1] === ",") {
+      current += ",";
+      index += 1;
+      continue;
+    }
+
+    const trimmed = current.trim();
+    if (trimmed) items.push(trimmed);
+    current = "";
+  }
+
+  const trimmed = current.trim();
+  if (trimmed) items.push(trimmed);
+
+  return items;
+};
+
+const getCommentItems = (variants: any[], fallback?: string) => {
   const uniqueComments = Array.from(
     new Set(
       variants
-        .map((item) => String(item.comments ?? "").trim())
+        .flatMap((item) => parseCommentItems(item.comments))
         .filter(Boolean),
     ),
   );
 
-  return uniqueComments.join("\n") || fallback || "-";
+  return uniqueComments.length ? uniqueComments : parseCommentItems(fallback);
 };
 
 const getDynamicFontSize = (text: string): number => {
@@ -226,6 +261,16 @@ const GroupedOrderPdf = ({
                               <Text style={styles.dataText}>{baseItem?.lining}</Text>
                             </View>
                           </View>
+                          {baseItem?.customLiningText ? (
+                            <View style={styles.stackedRowBottom}>
+                              <View style={styles.stackedHeaderCell}>
+                                <Text style={styles.headerText}>Lining Text</Text>
+                              </View>
+                              <View style={styles.stackedDataCell}>
+                                <Text style={styles.dataText}>{baseItem.customLiningText}</Text>
+                              </View>
+                            </View>
+                          ) : null}
                         </View>
                       </View>
                     </View>
@@ -233,9 +278,16 @@ const GroupedOrderPdf = ({
                     <View style={styles.customizationContainer}>
                       <Text style={styles.sectionTitle}>Customization Details</Text>
                       <View style={styles.commentsBox}>
-                        <Text style={styles.commentsText}>
-                          {getCommentsSummary(variants, baseItem?.comments)}
-                        </Text>
+                        {getCommentItems(variants, baseItem?.comments).length > 0 ? (
+                          getCommentItems(variants, baseItem?.comments).map((comment, commentIndex) => (
+                            <View key={`${comment}-${commentIndex}`} style={styles.commentsBulletRow}>
+                              <Text style={styles.commentsBullet}>•</Text>
+                              <Text style={styles.commentsBulletText}>{comment}</Text>
+                            </View>
+                          ))
+                        ) : (
+                          <Text style={styles.commentsText}>-</Text>
+                        )}
                       </View>
                     </View>
 
