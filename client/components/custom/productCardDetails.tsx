@@ -37,6 +37,15 @@ const ProductDetailsSheet: React.FC<{ data: any }> = ({ data }) => {
   const getColourBasedOnId = (hex: string) => {
     return colors.find((colour: any) => colour.hexcode === hex)?.name;
   };
+  const formatColourValue = (value: string | null | undefined) => {
+    const normalizedValue = String(value ?? "").trim();
+    if (!normalizedValue) return "—";
+    if (normalizedValue === "SAS" || normalizedValue === "No Color") {
+      return normalizedValue;
+    }
+
+    return getColourBasedOnId(normalizedValue) || normalizedValue;
+  };
   const referenceImages = data.reference_image
     ? JSON.parse(data.reference_image)
     : [];
@@ -75,9 +84,7 @@ const ProductDetailsSheet: React.FC<{ data: any }> = ({ data }) => {
                       Mesh Color
                     </TableCell>
                     <TableCell className="w-1/2">
-                      {data.mesh_color === "SAS"
-                        ? "SAS"
-                        : getColourBasedOnId(data.mesh_color) || "—"}
+                      {formatColourValue(data.mesh_color)}
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -85,9 +92,7 @@ const ProductDetailsSheet: React.FC<{ data: any }> = ({ data }) => {
                       Beading Color
                     </TableCell>
                     <TableCell className="w-1/2">
-                      {data.beading_color === "SAS"
-                        ? "SAS"
-                        : getColourBasedOnId(data.beading_color) || "—"}
+                      {formatColourValue(data.beading_color)}
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -95,9 +100,7 @@ const ProductDetailsSheet: React.FC<{ data: any }> = ({ data }) => {
                       Lining Color
                     </TableCell>
                     <TableCell className="w-1/2">
-                      {data.lining_color === "SAS"
-                        ? "SAS"
-                        : getColourBasedOnId(data.lining_color) || "—"}
+                      {formatColourValue(data.lining_color)}
                     </TableCell>
                   </TableRow>
                 </TableBody>

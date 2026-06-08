@@ -2694,6 +2694,12 @@ router.get(
 
 router.post(
   "/new",
+  productUpload.array(
+    "images",
+    typeof CONFIG.MAX_PRODUCT_IMAGE_LIMIT === "string"
+      ? parseInt(CONFIG.MAX_PRODUCT_IMAGE_LIMIT)
+      : CONFIG.MAX_PRODUCT_IMAGE_LIMIT
+  ),
   asyncHandler(async (req: Request, res: Response) => {
     const {
       productCode,
@@ -2705,8 +2711,13 @@ router.post(
       beading,
       lining,
       liningColor,
-      currencyBasedPricing = [], // Default to empty array if not provided
+      currencyBasedPricing: rawCurrencyBasedPricing = [], // Default to empty array if not provided
     } = req.body;
+    const images = (req.files ?? []) as Express.MulterS3.File[];
+    const currencyBasedPricing =
+      typeof rawCurrencyBasedPricing === "string"
+        ? JSON.parse(rawCurrencyBasedPricing || "[]")
+        : rawCurrencyBasedPricing;
 
     const existingProduct = await Product.findOne({
       where: {
@@ -2786,6 +2797,17 @@ router.post(
 
       // Save the product first
       const savedProduct = await queryRunner.manager.save(newProduct);
+      const productImages = images.map((image, index) => {
+        const productImage = new ProductImage();
+        productImage.product = savedProduct;
+        productImage.isMain = index === 0;
+        productImage.name = `https://${CONFIG.S3_BUCKET}.${CONFIG.S3_AWS_ENDPOINT}/${image.key}`;
+        return productImage;
+      });
+
+      if (productImages.length > 0) {
+        await queryRunner.manager.save(productImages);
+      }
 
       // Create currency-based pricing if provided
       if (currencyBasedPricing.length > 0) {
@@ -2821,6 +2843,7 @@ router.post(
         message: "Product created successfully",
         data: {
           productId: savedProduct.id,
+          imageCount: productImages.length,
           currencyPricingCount: currencyBasedPricing.length,
         },
       });

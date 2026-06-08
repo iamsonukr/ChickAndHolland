@@ -90,6 +90,7 @@ const AddProductForm = ({
       subCategoryId: undefined,
       productPrice: 0,
       description: "",
+      productImages: [],
       currencyBasedPricing: [],
     },
   });
@@ -103,19 +104,36 @@ const AddProductForm = ({
 
   const onSubmit = async (data: AddProductFormType) => {
     try {
-   
-
       if (data.lining == "No Lining") {
         data.liningColor = "No Color";
       }
 
-      const response = await executeAsync(data, {}, (err) => {
-  toast.error(err?.message || "Failed to add Product");
-});
+      const formData = new FormData();
+      formData.append("productCode", data.productCode);
+      formData.append("categoryId", data.categoryId);
+      formData.append("subCategoryId", data.subCategoryId);
+      formData.append("productPrice", String(data.productPrice));
+      formData.append("description", data.description ?? "");
+      formData.append("mesh", data.mesh);
+      formData.append("beading", data.beading);
+      formData.append("lining", data.lining);
+      formData.append("liningColor", data.liningColor ?? "");
+      formData.append(
+        "currencyBasedPricing",
+        JSON.stringify(data.currencyBasedPricing ?? []),
+      );
+      Array.from((data.productImages ?? []) as File[]).forEach((file) => {
+        formData.append("images", file);
+      });
+
+      const response = await executeAsync(formData, {}, (err) => {
+        toast.error(err?.message || "Failed to add Product");
+      });
 
       form.reset();
       form.setValue("categoryId", "");
       form.setValue("subCategoryId", "");
+      form.setValue("productImages", []);
       setOpen(false);
       toast.success(response.message ?? "Product added successfully");
       router.refresh();
@@ -660,6 +678,36 @@ const filteredCollections = selectedCategory
                 )}
               />
             )}
+
+            <FormField
+              control={form.control}
+              name="productImages"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Product Images</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(event) =>
+                        field.onChange(Array.from(event.target.files ?? []))
+                      }
+                    />
+                  </FormControl>
+                  {field.value?.length > 0 && (
+                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                      {field.value.map((file: File, index: number) => (
+                        <p key={`${file.name}-${file.lastModified}-${index}`}>
+                          {file.name}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

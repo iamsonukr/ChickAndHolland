@@ -927,6 +927,7 @@ export const addProductFormSchema = z
       .min(1, {
         message: "Price is Required",
       }),
+    productImages: z.any().optional(),
     currencyBasedPricing: z.array(
       z.object({
         currencyId: z.string().min(1, {
