@@ -600,7 +600,7 @@ const Preview = ({
                 extraActions={
                   <button
                     type="button"
-                    onClick={() => downloadOrderPPT(data)}
+                    onClick={() => downloadOrderPPT(data, { showShippingDate })}
                     className="inline-flex min-h-[38px] items-center rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700"
                   >
                     Download PPT
