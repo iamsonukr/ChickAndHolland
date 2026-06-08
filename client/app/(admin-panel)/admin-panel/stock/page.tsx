@@ -16,20 +16,37 @@ import {
 import TableActions from "./TableActions";
 import StyleNoImage from "@/app/(admin-panel)/admin-panel/stock/StyleNoImage";
 import ExpandStockDetails from "./ExpandStockDetails";
+import { redirect } from "next/navigation";
+
+const ITEMS_PER_PAGE = 100;
+
+const parsePageParam = (value?: string) => {
+  const parsedPage = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+};
 
 const Stock = async (props: {
   searchParams: Promise<Record<string, string>>;
 }) => {
   const searchParams = await props.searchParams;
-  const currentPage = searchParams["cPage"]
-    ? Number(searchParams["cPage"])
-    : 1;
+  const currentPage = parsePageParam(searchParams["cPage"]);
   const query = searchParams["q"] || "";
 
   const stock = await getStock({
     page: currentPage,
     query,
   });
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(Number(stock?.totalCount ?? 0) / ITEMS_PER_PAGE),
+  );
+
+  if (stock?.totalCount > 0 && currentPage > totalPages) {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.set("cPage", totalPages.toString());
+    redirect(`/admin-panel/stock?${nextSearchParams.toString()}`);
+  }
 
   const colours = await getProductColours({});
   const currencies = await getCurrencies();
@@ -184,7 +201,7 @@ const Stock = async (props: {
         <CustomPagination
           currentPage={currentPage}
           totalLength={stock?.totalCount}
-          itemsPerPage={100}
+          itemsPerPage={ITEMS_PER_PAGE}
         />
       </div>
     </ContentLayout>

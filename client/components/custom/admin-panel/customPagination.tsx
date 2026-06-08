@@ -23,22 +23,27 @@ const CustomPagination = ({
   resetOtherFields?: boolean;
 }) => {
   const searchParams = useSearchParams();
-  console.log("🚀 ~ file: customPagination.tsx:17 ~ CustomPagination ~ searchParams:", searchParams?.toString(), totalLength, currentPage);
 
   if (totalLength === undefined || totalLength <= 0) {
     return null;
   }
 
-  
-  const totalPages = Math.ceil(totalLength / itemsPerPage);
+  const safeItemsPerPage =
+    Number.isFinite(itemsPerPage) && itemsPerPage > 0 ? itemsPerPage : 50;
+  const normalizedCurrentPage = Number.isFinite(currentPage) ? currentPage : 1;
+  const totalPages = Math.max(1, Math.ceil(totalLength / safeItemsPerPage));
+  const safeCurrentPage = Math.min(
+    Math.max(1, normalizedCurrentPage),
+    totalPages,
+  );
 
   const generatePageNumbers = () => {
     const pagesToShow = 5;
     const pageNumbers: number[] = [];
 
     for (
-      let i = Math.max(1, currentPage - Math.floor(pagesToShow / 2));
-      i <= Math.min(totalPages, currentPage + Math.floor(pagesToShow / 2));
+      let i = Math.max(1, safeCurrentPage - Math.floor(pagesToShow / 2));
+      i <= Math.min(totalPages, safeCurrentPage + Math.floor(pagesToShow / 2));
       i++
     ) {
       pageNumbers.push(i);
@@ -59,58 +64,54 @@ const CustomPagination = ({
     <div className="w-full overflow-x-auto rounded-md border p-2">
       <Pagination className="justify-start sm:justify-center">
         <PaginationContent className="w-max flex-nowrap">
-        {/* Previous */}
-        <PaginationItem>
-          <PaginationPrevious
-            href={`?${generateQuery(currentPage - 1)}`}
-            disabled={currentPage === 1}
-          />
-        </PaginationItem>
-
-        {!pageNumbers.includes(1) && (
-          <>
-            <PaginationItem>
-              <PaginationLink href={`?${generateQuery(1)}`}>1</PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationEllipsis />
-            </PaginationItem>
-          </>
-        )}
-
-        {/* Page number window */}
-        {pageNumbers.map((pageNumber) => (
-          <PaginationItem key={pageNumber}>
-            <PaginationLink
-              href={`?${generateQuery(pageNumber)}`}
-              isActive={pageNumber === currentPage}
-            >
-              {pageNumber}
-            </PaginationLink>
+          <PaginationItem>
+            <PaginationPrevious
+              href={`?${generateQuery(safeCurrentPage - 1)}`}
+              disabled={safeCurrentPage === 1}
+            />
           </PaginationItem>
-        ))}
 
-        {/* Last page — only show if not already in the generated range */}
-        {!pageNumbers.includes(totalPages) && (
-          <>
-            <PaginationItem>
-              <PaginationEllipsis />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink href={`?${generateQuery(totalPages)}`}>
-                {totalPages}
+          {!pageNumbers.includes(1) && (
+            <>
+              <PaginationItem>
+                <PaginationLink href={`?${generateQuery(1)}`}>1</PaginationLink>
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationEllipsis />
+              </PaginationItem>
+            </>
+          )}
+
+          {pageNumbers.map((pageNumber) => (
+            <PaginationItem key={pageNumber}>
+              <PaginationLink
+                href={`?${generateQuery(pageNumber)}`}
+                isActive={pageNumber === safeCurrentPage}
+              >
+                {pageNumber}
               </PaginationLink>
             </PaginationItem>
-          </>
-        )}
+          ))}
 
-        {/* Next */}
-        <PaginationItem>
-          <PaginationNext
-            href={`?${generateQuery(currentPage + 1)}`}
-            disabled={currentPage === totalPages}
-          />
-        </PaginationItem>
+          {!pageNumbers.includes(totalPages) && (
+            <>
+              <PaginationItem>
+                <PaginationEllipsis />
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationLink href={`?${generateQuery(totalPages)}`}>
+                  {totalPages}
+                </PaginationLink>
+              </PaginationItem>
+            </>
+          )}
+
+          <PaginationItem>
+            <PaginationNext
+              href={`?${generateQuery(safeCurrentPage + 1)}`}
+              disabled={safeCurrentPage === totalPages}
+            />
+          </PaginationItem>
         </PaginationContent>
       </Pagination>
     </div>

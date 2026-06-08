@@ -304,7 +304,10 @@ export const getStock = async ({
   };
 
   const queryParams = new URLSearchParams();
-  if (page) queryParams.append("page", page.toString());
+  const pageNumber = Number(page);
+  if (Number.isFinite(pageNumber) && pageNumber > 0) {
+    queryParams.append("page", Math.trunc(pageNumber).toString());
+  }
   if (query) queryParams.append("query", query);
   if (currencyId) queryParams.append("currencyId", currencyId.toString());
 

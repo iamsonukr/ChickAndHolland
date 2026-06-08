@@ -255,7 +255,10 @@ router.get(
         totalCount,
       });
     } else {
-      const skip = (page ? Number(page) - 1 : 0) * 100;
+      const parsedPage = Number.parseInt(page, 10);
+      const pageNumber =
+        Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+      const skip = (pageNumber - 1) * 100;
 
       const likeQuery = `%${query?.toLowerCase()}%`;
 
