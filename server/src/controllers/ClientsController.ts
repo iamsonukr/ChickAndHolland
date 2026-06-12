@@ -9,11 +9,26 @@ import Customer from "../models/Customer";
 
 const Clientrouter = Router();
 
+const parseStoreLocatorVisibility = (
+  value: unknown,
+  fallback = true,
+) => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+
+  const normalizedValue = String(value).trim().toLowerCase();
+  if (["false", "0", "off", "no"].includes(normalizedValue)) return false;
+  if (["true", "1", "on", "yes"].includes(normalizedValue)) return true;
+
+  return fallback;
+};
+
 Clientrouter.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
     const clients = await Clients.find({
-      where: { isDeleted: false },
+      where: { isDeleted: false, showOnStoreLocator: true },
     });
     res.json(clients);
   })
@@ -52,6 +67,10 @@ Clientrouter.post(
       proximity,
       latitude,
       longitude,
+      showOnStoreLocator: parseStoreLocatorVisibility(
+        req.body.showOnStoreLocator,
+        true,
+      ),
     }).save();
     res.json({ msg: "created" });
   })
@@ -107,7 +126,7 @@ Clientrouter.get(
     } = req.query;
 
     const allClients = await Clients.find({
-      where: { isDeleted: false },
+      where: { isDeleted: false, showOnStoreLocator: true },
       relations: ["customer"],
     });
 
@@ -257,6 +276,10 @@ Clientrouter.post(
       proximity,
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
+      showOnStoreLocator: parseStoreLocatorVisibility(
+        req.body.showOnStoreLocator,
+        true,
+      ),
     }).save();
 
     res.json({ success: true, message: "Store location created successfully" });
@@ -296,10 +319,15 @@ Clientrouter.put(
     client.latitude = coordinates.latitude;
     client.longitude = coordinates.longitude;
     client.city_name = city_name;
+    client.showOnStoreLocator = parseStoreLocatorVisibility(
+      req.body.showOnStoreLocator,
+      client.showOnStoreLocator ?? true,
+    );
     await client.save();
 
     customer.storeName = name;
     customer.storeAddress = address;
+    customer.showOnStoreLocator = client.showOnStoreLocator;
 
     await customer?.save();
 

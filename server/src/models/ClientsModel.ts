@@ -23,6 +23,9 @@ export default class Clients extends BaseModel {
     @Column("varchar", { length: 250, nullable: true })
     city_name: string;
 
+    @Column("boolean", { default: true })
+    showOnStoreLocator: boolean;
+
     @Column("boolean", { default: false })
     isDeleted: boolean;
 

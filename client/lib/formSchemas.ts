@@ -178,6 +178,8 @@ export const addCustomerFormSchema = z.object({
     message: "Store Name is required",
   }),
 
+  showOnStoreLocator: z.boolean().default(true),
+
   website: z.string().optional(),
 
   phoneNumber: z.string().min(1, {

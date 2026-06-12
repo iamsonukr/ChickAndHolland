@@ -11,6 +11,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sheet,
   SheetContent,
@@ -56,6 +57,7 @@ const EditCustomerForm = ({
     defaultValues: {
       name: "",
       storeName: "",
+      showOnStoreLocator: true,
       proximity: "",
       address: "",
       postalCode: "",
@@ -85,6 +87,10 @@ const EditCustomerForm = ({
     form.reset({
       name: previousData.name,
       storeName: previousData.storeName,
+      showOnStoreLocator:
+        previousData.showOnStoreLocator ??
+        previousData.client?.showOnStoreLocator ??
+        true,
       proximity: previousData?.client?.proximity?.toString() || "",
       address: previousData?.client?.address || "",
       postalCode: previousData?.postalCode || "",
@@ -193,6 +199,30 @@ const EditCustomerForm = ({
                     <Input placeholder="Rainbow Store" {...field} />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="showOnStoreLocator"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start gap-3 rounded-md border p-3">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={(checked) =>
+                        field.onChange(checked === true)
+                      }
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Show on Store Locator</FormLabel>
+                    <FormDescription>
+                      Display this store on the website store locator map and search.
+                    </FormDescription>
+                    <FormMessage />
+                  </div>
                 </FormItem>
               )}
             />

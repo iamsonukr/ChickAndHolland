@@ -10,12 +10,30 @@ import Favourites from "../models/Favourites";
 
 const router = Router();
 
+const parseStoreLocatorVisibility = (
+  value: unknown,
+  fallback = true,
+) => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+
+  const normalizedValue = String(value).trim().toLowerCase();
+  if (["false", "0", "off", "no"].includes(normalizedValue)) return false;
+  if (["true", "1", "on", "yes"].includes(normalizedValue)) return true;
+
+  return fallback;
+};
+
 const withCustomerStoreName = (customer: Customer) => {
   const customerStoreName = customer.storeName || customer.name || "";
+  const showOnStoreLocator =
+    customer.showOnStoreLocator ?? customer.client?.showOnStoreLocator ?? true;
 
   return {
     ...customer,
     customerStoreName,
+    showOnStoreLocator,
   };
 };
 
@@ -33,7 +51,7 @@ router.get(
     if (!page) {
       const customers = await Customer.find({
         where: { isDeleted: false },
-        relations: ["retailer", "country", "currency"],
+        relations: ["retailer", "client", "country", "currency"],
       });
       const totalCount = await Customer.count({
         where: { isDeleted: false },
@@ -88,6 +106,10 @@ router.post(
     customer.name = req.body.name;
     customer.storeName = customerStoreName;
     customer.storeAddress = req.body.address;
+    customer.showOnStoreLocator = parseStoreLocatorVisibility(
+      req.body.showOnStoreLocator,
+      true,
+    );
     customer.postalCode = req.body.postalCode || null;
     customer.website = req.body.website;
     customer.phoneNumber = req.body.phoneNumber;
@@ -128,6 +150,7 @@ router.post(
       latitude: req.body.coordinates?.latitude || "0",
       longitude: req.body.coordinates?.longitude || "0",
       city_name: req.body.city_name || "",
+      showOnStoreLocator: customer.showOnStoreLocator,
     });
 
     customer.client = newClient;
@@ -150,6 +173,7 @@ router.get(
         id: Number(req.params.id),
         isDeleted: false,
       },
+      relations: ["client", "country", "currency"],
     });
 
     if (!customer) {
@@ -186,6 +210,10 @@ router.put(
     customer.name = req.body.name;
     customer.storeName = customerStoreName;
     customer.storeAddress = req.body.address;
+    customer.showOnStoreLocator = parseStoreLocatorVisibility(
+      req.body.showOnStoreLocator,
+      customer.showOnStoreLocator ?? customer.client?.showOnStoreLocator ?? true,
+    );
     customer.postalCode = req.body.postalCode || null;
     customer.website = req.body.website;
     customer.phoneNumber = req.body.phoneNumber;
@@ -262,6 +290,7 @@ router.put(
       client.longitude =
         req.body.coordinates?.longitude || client.longitude || "0";
       client.city_name = req.body.city_name || client.city_name || "";
+      client.showOnStoreLocator = customer.showOnStoreLocator;
 
       await client.save();
       customer.client = client;
