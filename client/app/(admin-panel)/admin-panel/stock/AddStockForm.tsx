@@ -98,6 +98,7 @@ const AddStockForm = ({ colours, currencies }: { colours: any[]; currencies: any
     resolver: zodResolver(addStockFormSchema),
     defaultValues: {
       styleNo: [],
+      sourceLocation: "",
       colorsQuantity: [
         {
           quantity: "",
@@ -384,6 +385,20 @@ const AddStockForm = ({ colours, currencies }: { colours: any[]; currencies: any
                     }}
                     maxSelected={1}
                   />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="sourceLocation"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Source Location</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter source location" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

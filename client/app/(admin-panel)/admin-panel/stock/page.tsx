@@ -146,6 +146,15 @@ const Stock = async (props: {
 
                         <TableRow>
                           <TableCell className="font-medium py-0 text-xs">
+                            Source
+                          </TableCell>
+                          <TableCell className="py-0 text-xs">
+                            {item.sourceLocation || "-"}
+                          </TableCell>
+                        </TableRow>
+
+                        <TableRow>
+                          <TableCell className="font-medium py-0 text-xs">
                             Mesh
                           </TableCell>
                           <TableCell className="py-1 text-xs">

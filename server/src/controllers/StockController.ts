@@ -339,9 +339,11 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const {
       styleNo,
+      sourceLocation,
       colorsQuantity,
     }: {
       styleNo: Array<{ value: string; label: string }>;
+      sourceLocation?: string;
       colors: string[];
       quantity: number;
       price: number;
@@ -367,6 +369,14 @@ router.post(
           | undefined;
       }>;
     } = req.body;
+    const normalizedSourceLocation = String(sourceLocation ?? "").trim();
+
+    if (!normalizedSourceLocation) {
+      return res.status(400).json({
+        success: false,
+        message: "Source Location is required",
+      });
+    }
 
     // check if Product exist with this style number
     const product = await Product.findOne({
@@ -390,6 +400,7 @@ router.post(
           100;
       const whereCondition: FindOptionsWhere<Stock> = {
         styleNo: styleNo[0].value,
+        sourceLocation: normalizedSourceLocation,
         size: Number(colorsQuantity[index].size),
         beading_color: colorsQuantity[index].beading,
         mesh_color: colorsQuantity[index].mesh,
@@ -454,6 +465,7 @@ router.post(
       } else {
         const stock = Stock.create({
           styleNo: styleNo[0].value,
+          sourceLocation: normalizedSourceLocation,
           quantity: Number(colorsQuantity[index].quantity),
           price: Number(colorsQuantity[index].price),
           discount: Number(colorsQuantity[index].discount),
@@ -851,6 +863,7 @@ router.put(
       lining,
       liningColor,
       mesh,
+      sourceLocation,
       currencyPricing,
     }: {
       quantity: number;
@@ -860,6 +873,7 @@ router.put(
       lining: string;
       liningColor: string;
       mesh: string;
+      sourceLocation?: string;
       currencyPricing?:
         | Array<{
             currencyId: number;
@@ -901,6 +915,9 @@ router.put(
     stock.beading_color = beading;
     stock.lining = lining;
     stock.lining_color = lining === "No Lining" ? null : liningColor;
+    if (typeof sourceLocation === "string") {
+      stock.sourceLocation = sourceLocation.trim() || null;
+    }
 
     await stock.save();
 

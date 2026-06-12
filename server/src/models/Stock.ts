@@ -9,6 +9,9 @@ export default class Stock extends BaseModel {
   @Column("varchar", { length: 50, nullable: false })
   styleNo: string;
 
+  @Column("varchar", { length: 255, nullable: true, default: null })
+  sourceLocation: string | null;
+
   @Column("text", { nullable: true, default: null })
   colors: string;
 

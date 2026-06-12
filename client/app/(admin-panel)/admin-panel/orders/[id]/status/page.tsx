@@ -578,7 +578,7 @@ export default function OrderStatusPage({
         });
 
   // ── Helpers ──
-  const filteredKeys = filtered.map(({ raw, type }, i) =>
+  const filteredKeys = statusFiltered.map(({ raw, type }, i) =>
     getItemKey(raw, type, i),
   );
   const allSelected =
@@ -595,7 +595,7 @@ export default function OrderStatusPage({
   const selectAll = () => setSelectedKeys(new Set(filteredKeys));
   const clearAll = () => setSelectedKeys(new Set());
 
-  const selectedItems = filtered.filter((_, i) =>
+  const selectedItems = statusFiltered.filter((_, i) =>
     selectedKeys.has(filteredKeys[i]),
   );
 

@@ -234,6 +234,9 @@ export const addStockFormSchema = z.object({
       }),
     )
     .min(1, "Product is required"),
+  sourceLocation: z.string().trim().min(1, {
+    message: "Source Location is required",
+  }),
   colorsQuantity: z.array(
     z
       .object({
@@ -318,6 +321,7 @@ export type AddStockForm = z.infer<typeof addStockFormSchema>;
 
 export const editStockFormSchema = z
   .object({
+    sourceLocation: z.string().trim().optional(),
     quantity: z
       .string()
       .min(1, {

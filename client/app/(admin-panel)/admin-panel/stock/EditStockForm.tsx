@@ -82,6 +82,7 @@ const EditStockForm = ({ previousData, colours, currencies }: any) => {
   const form = useForm<AddStockFormType>({
     resolver: zodResolver(editStockFormSchema),
     defaultValues: {
+      sourceLocation: "",
       price: "",
       discount: "0",
       quantity: "",
@@ -247,6 +248,7 @@ const getAvailableCurrencies = () => {
       liningColor: previousData.lining_color?.toString(),
       lining: previousData.lining.toString(),
       currencyBasedPricing: existingCurrencyPricing,
+      sourceLocation: previousData.sourceLocation ?? "",
     });
     setProductImages(
       normalizeImages(previousData.images ?? previousData.product?.images),
@@ -286,6 +288,20 @@ const getAvailableCurrencies = () => {
               removingImageId={removingImageId}
               disabled={loading || uploadingImages}
               label="Product Images"
+            />
+
+            <FormField
+              control={form.control}
+              name="sourceLocation"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Source Location</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter source location" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
 
             <FormField
