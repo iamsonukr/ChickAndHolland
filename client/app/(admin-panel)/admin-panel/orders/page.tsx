@@ -39,8 +39,8 @@ const statusToDbField: Record<string, string | null> = {
 const getRowClassName = (difference: number, orderStatus: string) => {
   if (orderStatus === "Shipped")
     return "bg-green-500 text-black hover:bg-green-600";
-  if (difference < 7) return "bg-red-600 text-white hover:bg-red-500";
-  if (difference >= 7 && difference < 14) {
+  if (difference < 14) return "bg-red-600 text-white hover:bg-red-500";
+  if (difference >= 14 && difference < 28) {
     return "bg-yellow-400 text-black hover:bg-yellow-500";
   }
   return "";
@@ -183,15 +183,15 @@ const OrdersPage = async (props: {
         : Infinity;
 
       if (dueFilter === "lt14") {
-        return order.orderStatus !== "Shipped" && hasDueDate && difference < 7;
+        return order.orderStatus !== "Shipped" && hasDueDate && difference < 14;
       }
 
       if (dueFilter === "lt28") {
         return (
           order.orderStatus !== "Shipped" &&
           hasDueDate &&
-          difference >= 7 &&
-          difference < 14
+          difference >= 14 &&
+          difference < 28
         );
       }
 
