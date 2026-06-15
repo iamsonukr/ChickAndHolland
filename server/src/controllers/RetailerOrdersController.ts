@@ -3479,8 +3479,7 @@ router.get(
         });
       }
 
-      // No retailerId provided -> admin panel use-case: return admin-created orders across all retailers
-      // We treat orders that belong to customers who have an associated retailer as "admin orders" for the admin panel.
+      // No retailerId provided -> admin panel use-case: return all admin-created regular orders.
       const GLOBAL_SQL = `
     SELECT 
       o.id,
@@ -3504,8 +3503,6 @@ router.get(
       COALESCE(total_pay.missing_total_values, 0) AS missing_total_values,
       COALESCE(total_pay.unresolved_total_values, 0) AS unresolved_total_values
     FROM orders o
-    JOIN customers c ON o.customerId = c.id
-    JOIN retailers r ON r.customerId = c.id
     ${REGULAR_ADMIN_ORDER_TOTALS_JOIN_SQL}
     LEFT JOIN (
       SELECT orderId, SUM(amount) AS paid_amount
