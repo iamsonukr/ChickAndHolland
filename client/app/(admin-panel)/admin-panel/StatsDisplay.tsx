@@ -8,7 +8,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MailWarning, Package, ShoppingCart, Users } from "lucide-react";
+import {
+  MailWarning,
+  Package,
+  ShoppingCart,
+  UserCheck,
+  Users,
+} from "lucide-react";
 import { useState } from "react";
 
 type SalesByCurrency = {
@@ -81,7 +87,12 @@ const formatCurrency = (
 
 export const StatsDisplay = ({ data = {} }: { data?: any }) => {
   const safeData = {
-    total: { orders: 0, total_quantity: 0, customers: 0 },
+    total: {
+      orders: 0,
+      total_quantity: 0,
+      customers: 0,
+      registered_customers: 0,
+    },
     salesByCurrency: [],
     productData: [],
     emailNotifications: { failedCount: 0, latest: [] },
@@ -97,7 +108,7 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {safeData.emailNotifications?.failedCount > 0 && (
           <Card className="border-red-200 bg-red-50 hover:shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -159,6 +170,21 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
               {safeData.total?.customers || 0}
             </div>
             <p className="mt-1 text-xs text-purple-600">Unique Buyers</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-cyan-50 to-white hover:shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-semibold text-cyan-700">
+              Registered Customers
+            </CardTitle>
+            <UserCheck className="h-5 w-5 text-cyan-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-extrabold text-cyan-900">
+              {safeData.total?.registered_customers || 0}
+            </div>
+            <p className="mt-1 text-xs text-cyan-600">Retailer Panel</p>
           </CardContent>
         </Card>
 

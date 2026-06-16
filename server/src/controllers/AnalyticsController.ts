@@ -390,6 +390,14 @@ router.get(
     ) AS customers,
 
     (
+        SELECT COUNT(r.id)
+        FROM retailers r
+        LEFT JOIN customers c ON c.id = r.customerId
+        WHERE COALESCE(r.isDeleted, 0) = 0
+          AND COALESCE(c.isDeleted, 0) = 0
+    ) AS registered_customers,
+
+    (
         (SELECT COALESCE(SUM(${retailerOrderQuantitySql("ro")}), 0) FROM retailer_orders AS ro
          WHERE ro.orderReceivedDate BETWEEN ? AND ? AND ro.status = 0)
         +
