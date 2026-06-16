@@ -1192,7 +1192,6 @@ const FreshOrdersAcceptedForm = ({
                                   <Input
                                     placeholder="PO#VICTORIA"
                                     {...field}
-                                    readOnly
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -1214,7 +1213,6 @@ const FreshOrdersAcceptedForm = ({
                                   <Input
                                     placeholder="PO#VICTORIA"
                                     {...field}
-                                    readOnly
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -1236,7 +1234,6 @@ const FreshOrdersAcceptedForm = ({
                                   <Input
                                     placeholder="PO#VICTORIA"
                                     {...field}
-                                    readOnly
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -1257,7 +1254,6 @@ const FreshOrdersAcceptedForm = ({
                                   <Input
                                     placeholder="PO#VICTORIA"
                                     {...field}
-                                    readOnly
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -1279,7 +1275,6 @@ const FreshOrdersAcceptedForm = ({
                                   <Input
                                     placeholder="PO#VICTORIA"
                                     {...field}
-                                    readOnly
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -1297,8 +1292,7 @@ const FreshOrdersAcceptedForm = ({
                                 <FormControl>
                                   <Input
                                     placeholder="Size"
-                                    readOnly
-                                    value={formatOriginalSizeDisplay(details[index])}
+                                    {...field}
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -1315,7 +1309,13 @@ const FreshOrdersAcceptedForm = ({
                                   <Input
                                     placeholder="100"
                                     {...field}
-                                    readOnly
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    onChange={(e: any) => {
+                                      field.onChange(e);
+                                      formChange();
+                                    }}
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -1376,7 +1376,6 @@ const FreshOrdersAcceptedForm = ({
                                 <FormLabel>Comments</FormLabel>
                                 <FormControl>
                                   <Textarea
-                                    readOnly
                                     placeholder="Amsterdam"
                                     {...field}
                                   />
