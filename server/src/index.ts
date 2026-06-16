@@ -87,6 +87,7 @@ import { ensureCustomerPostalCodeColumn } from "./utils/ensureCustomerPostalCode
 import { ensureOrderEmailStatusColumns } from "./utils/ensureOrderEmailStatusColumns";
 import { ensureStockSourceLocationColumn } from "./utils/ensureStockSourceLocationColumn";
 import { ensureStoreLocatorVisibilityColumns } from "./utils/ensureStoreLocatorVisibilityColumns";
+import { ensureFavouriteProductSizeTextColumn } from "./utils/ensureFavouriteProductSizeTextColumn";
 
 const router = Router();
 
@@ -165,6 +166,7 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
     await ensureOrderEmailStatusColumns();
     await ensureStockSourceLocationColumn();
     await ensureStoreLocatorVisibilityColumns();
+    await ensureFavouriteProductSizeTextColumn();
     await ensureProductQueriesTable();
     await ensureAdminSettingsTable();
     console.log("✅ Database connected");

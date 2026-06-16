@@ -8,7 +8,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { SizeCountry, sizes } from "@/lib/formSchemas";
+import { SizeCountry } from "@/lib/formSchemas";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
@@ -41,12 +41,11 @@ import { getProductColours } from "@/lib/data";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CustomizedImage } from "@/components/custom/CustomizedImage";
+import MultipleSelector from "@/components/custom/multi-selector";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const lining = [
@@ -103,6 +102,17 @@ const formSchema = z.object({
       size_country: z.string().min(1, {
         message: "Size Country is required",
       }),
+      customSize: z
+        .array(
+          z.union([
+            z.string(),
+            z.object({
+              value: z.string().optional(),
+              label: z.string().optional(),
+            }),
+          ]),
+        )
+        .optional(),
       customization: z.string().optional(),
       mesh: z.string().min(1, {
         message: "Mesh Color is required",
@@ -134,8 +144,38 @@ const formSchema = z.object({
         )
         .max(2, { message: "Max is 2 images" })
         .optional(),
+    }).superRefine((detail, ctx) => {
+      if (detail.size !== "Custom") return;
+
+      if (!detail.customSize?.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["customSize"],
+          message: "Add at least one custom size",
+        });
+      }
     }),
   ),
+});
+
+type ProductDetailForm = z.infer<typeof formSchema>["productDetails"][number];
+
+const buildDefaultProductDetail = (
+  productDetails: any,
+  sizeCountry: keyof typeof SizeCountry,
+): ProductDetailForm => ({
+  color: "",
+  Quantity: 1,
+  size: "",
+  size_country: sizeCountry,
+  customSize: [],
+  customization: "",
+  beading: productDetails.beading_color,
+  lining: productDetails.lining,
+  liningColor: productDetails.lining_color,
+  mesh: productDetails.mesh_color,
+  addLining: false,
+  files: [],
 });
 
 const ActionButtons = ({
@@ -165,19 +205,7 @@ const ActionButtons = ({
     resolver: zodResolver(formSchema),
     defaultValues: {
       productDetails: [
-        {
-          color: "",
-          Quantity: 1,
-          size: "",
-          size_country: sizeCountryArray[0].value,
-          customization: "",
-          beading: productDetails.beading_color,
-          lining: productDetails.lining,
-          liningColor: productDetails.lining_color,
-          mesh: productDetails.mesh_color,
-          addLining: false,
-          files: [],
-        },
+        buildDefaultProductDetail(productDetails, sizeCountryArray[0].value),
       ],
     },
   });
@@ -244,19 +272,7 @@ const ActionButtons = ({
 
 
   const addColorQuantity = () => {
-    append({
-      color: "",
-      Quantity: 1,
-      size: "",
-      size_country: sizeCountryArray[0].value,
-      beading: productDetails.beading_color,
-      lining: productDetails.lining,
-      liningColor: productDetails.lining_color,
-      mesh: productDetails.mesh_color,
-      customization: "",
-      addLining: false,
-      files: [],
-    });
+    append(buildDefaultProductDetail(productDetails, sizeCountryArray[0].value));
   };
 
   const setCustomLiningActive = (fieldId: string, isActive: boolean) => {
@@ -287,12 +303,33 @@ const ActionButtons = ({
       formData.append("retailerId", retailerId || "");
       formData.append("productId", productDetails.id);
 
-      const productDetailsWithoutFiles = data.productDetails.map(
+      const expandedProductDetails = data.productDetails.flatMap(
+        (detail: any, sourceIndex: number) => {
+          if (detail.size !== "Custom") {
+            return [{ ...detail, sourceIndex }];
+          }
+
+          return (detail.customSize ?? [])
+            .map((customSize: any) =>
+              String(customSize?.value ?? customSize?.label ?? customSize).trim(),
+            )
+            .filter(Boolean)
+            .map((customSize: string) => ({
+              ...detail,
+              sourceIndex,
+              size: customSize,
+              customSize: [],
+            }));
+        },
+      );
+
+      const productDetailsWithoutFiles = expandedProductDetails.map(
         (detail: any) => ({
           size: detail.size,
           color: detail.color,
           Quantity: detail.Quantity,
           size_country: detail.size_country,
+          customSize: detail.customSize ?? [],
           customization: detail.customization,
           mesh: String(detail.mesh ?? "").trim(),
           beading: String(detail.beading ?? "").trim(),
@@ -306,9 +343,10 @@ const ActionButtons = ({
       );
       formData.append("productDetails", JSON.stringify(productDetailsWithoutFiles));
 
-      data.productDetails.forEach((detail: any, index: number) => {
-        if (detail.files && detail.files.length > 0) {
-          detail.files.forEach((file: any) => {
+      expandedProductDetails.forEach((detail: any, index: number) => {
+        const sourceDetail = data.productDetails[detail.sourceIndex];
+        if (sourceDetail?.files && sourceDetail.files.length > 0) {
+          sourceDetail.files.forEach((file: any) => {
             formData.append(`files[${index}][]`, file);
           });
         }
@@ -494,6 +532,7 @@ const ActionButtons = ({
                             onValueChange={(val) => {
                               field.onChange(val);
                               form.setValue(`productDetails.${index}.size`, ""); // Reset size
+                              form.setValue(`productDetails.${index}.customSize`, []);
                             }}
                             defaultValue={field.value}
                           >
@@ -529,7 +568,14 @@ const ActionButtons = ({
                           <FormItem>
                             <FormLabel>Select Size</FormLabel>
                             <Select
-                              onValueChange={field.onChange}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+
+                                form.setValue(
+                                  `productDetails.${index}.customSize`,
+                                  [],
+                                );
+                              }}
                               value={field.value}
                             >
                               <FormControl>
@@ -543,6 +589,9 @@ const ActionButtons = ({
                                     {s}
                                   </SelectItem>
                                 ))}
+                                <SelectItem key="size-custom" value="Custom">
+                                  Custom
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -550,6 +599,40 @@ const ActionButtons = ({
                         );
                       }}
                     />
+
+                    {watch[index]?.size === "Custom" && (
+                      <FormField
+                        control={form.control}
+                        name={`productDetails.${index}.customSize`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Custom Sizes</FormLabel>
+                            <FormControl>
+                              <MultipleSelector
+                                value={(field.value ?? []).map((value: any) =>
+                                  typeof value === "string"
+                                    ? { value, label: value }
+                                    : value,
+                                )}
+                                onChange={(options) => {
+                                  field.onChange(
+                                    options.map((option) => option.value),
+                                  );
+                                }}
+                                creatable
+                                placeholder="Type a size and press Enter (e.g. Waist 23)"
+                                emptyIndicator={
+                                  <p className="text-muted-foreground">
+                                    Type any size and press Enter to add it
+                                  </p>
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
 
 
                     <FormField
@@ -999,8 +1082,11 @@ const ActionButtons = ({
                           <FormLabel>Quantity</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="shadcn"
+                              placeholder="1"
                               type="number"
+                              min={1}
+                              step={1}
+                              max={24}
                               {...field}
                             />
                           </FormControl>

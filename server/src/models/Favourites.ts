@@ -31,8 +31,8 @@ export default class Favourites extends BaseModel {
   @Column("varchar", { nullable: true, default: "SAS" })
   lining_color: string | null;
 
-  @Column("int", { nullable: false })
-  product_size: number;
+  @Column("varchar", { nullable: false })
+  product_size: string;
   
   @Column("varchar", { nullable: true })
   admin_us_size: string;
