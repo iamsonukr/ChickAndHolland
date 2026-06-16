@@ -46,6 +46,25 @@ export type UploadedFileType = "pdf" | "ppt" | null;
 const getCustomerStoreName = (customer: any) =>
   customer?.customerStoreName || customer?.storeName || customer?.name || "";
 
+const getCustomerSearchText = (customer: any) =>
+  [
+    customer?.customerStoreName,
+    customer?.storeName,
+    customer?.name,
+    customer?.email,
+    customer?.phoneNumber,
+    customer?.contactPerson,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+const toCustomerOption = (customer: any): Option => ({
+  value: String(customer.id),
+  label: getCustomerStoreName(customer),
+  searchText: getCustomerSearchText(customer),
+});
+
 const parseJsonArray = (value: any) => {
   if (Array.isArray(value)) return value;
   if (typeof value !== "string" || !value.trim()) return [];
@@ -606,10 +625,7 @@ export function useCreateOrder({
   );
 
   // ── Derived customer options ────────────────────────────────────────────────
-  const formattedCustomers: Option[] = customers.map((c) => ({
-    value: c.id.toString(),
-    label: getCustomerStoreName(c),
-  }));
+  const formattedCustomers: Option[] = customers.map(toCustomerOption);
 
   // ── Form ────────────────────────────────────────────────────────────────────
   const buildEmptyStyle = (): CreateOrderForm["styles"][number] => ({
@@ -690,12 +706,7 @@ export function useCreateOrder({
       const orderCustomer = editOrder?.customer;
       const customerOption =
         orderCustomer?.id != null
-          ? [
-              {
-                value: String(orderCustomer.id),
-                label: getCustomerStoreName(orderCustomer),
-              },
-            ]
+          ? [toCustomerOption(orderCustomer)]
           : [];
 
       return {

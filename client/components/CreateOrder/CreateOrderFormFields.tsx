@@ -180,9 +180,12 @@ export function CreateOrderFormFields({
                 defaultOptions={formattedCustomers}
                 placeholder="Select Customer"
                 onSearch={async (value) =>
-                  formattedCustomers.filter((c) =>
-                    c.label.toLowerCase().includes(value.toLowerCase()),
-                  )
+                  formattedCustomers.filter((c) => {
+                    const searchText = String(c.searchText ?? c.label);
+                    return searchText
+                      .toLowerCase()
+                      .includes(value.toLowerCase());
+                  })
                 }
                 loadingIndicator={
                   <p className="text-muted-foreground">Loading...</p>
