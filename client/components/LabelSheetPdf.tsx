@@ -12,7 +12,7 @@ import {
   PDF_DISPLAY_SIZE_UNIT,
 } from "@/lib/sizeConversion";
 
-const LABELS_PER_PAGE = 4;
+const LABELS_PER_PAGE = 1;
 
 const chunkItems = <T,>(items: T[], size: number) => {
   const chunks: T[][] = [];
@@ -95,7 +95,7 @@ export default function LabelSheetPdf({ items }: { items: any[] }) {
   return (
     <Document>
       {pages.map((pageItems, pageIndex) => (
-        <Page key={pageIndex} size={[250, 260]} style={styles.page}>
+        <Page key={pageIndex} size={[125, 130]} style={styles.page}>
           {pageItems.map((item, itemIndex) => (
             <LabelTile
               key={`${item.barcode ?? itemIndex}-${itemIndex}`}
@@ -111,8 +111,6 @@ export default function LabelSheetPdf({ items }: { items: any[] }) {
 const styles = StyleSheet.create({
   page: {
     backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    flexWrap: "wrap",
     padding: 0,
   },
   label: {

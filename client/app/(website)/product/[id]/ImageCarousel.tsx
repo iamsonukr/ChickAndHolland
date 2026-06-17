@@ -195,6 +195,8 @@ import InnerImageZoom from "react-inner-image-zoom";
 import "react-inner-image-zoom/lib/InnerImageZoom/styles.css";
 import { Button } from "@/components/ui/button";
 
+const FALLBACK_PRODUCT_IMAGE = "/sample.jpeg";
+
 const ImageCarousel = ({
   images,
 }: {
@@ -205,7 +207,18 @@ const ImageCarousel = ({
     isMain: boolean;
   }[];
 }) => {
-  const [biggerImage, setBiggerImage] = useState(images[0]);
+  const displayImages =
+    images?.length > 0
+      ? images
+      : [
+          {
+            id: 0,
+            createdAt: "",
+            name: FALLBACK_PRODUCT_IMAGE,
+            isMain: true,
+          },
+        ];
+  const [biggerImage, setBiggerImage] = useState(displayImages[0]);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [modalWidth, setModalWidth] = useState("");
 
@@ -227,22 +240,23 @@ const ImageCarousel = ({
 
   return (
     <div className="flex w-full flex-col md:w-[40%] md:gap-4">
-      
       {/* DESKTOP VIEW */}
       <div className="col-12 hidden justify-between md:flex">
-        
         {/* Left Thumbnails */}
         <div className="ms-3 w-2/12 p-2 3xl:w-3/12">
-          {images.map((image) => (
+          {displayImages.map((image) => (
             <div
               key={image.id}
-              className="my-2 cursor-pointer"
+              className="relative my-2 h-[150px] w-full cursor-pointer 3xl:h-[300px] 3xl:w-[70%]"
               onClick={() => setBiggerImage(image)}
             >
-              <img
+              <CustomizedImage
                 src={image.name}
-                alt={image.name}
-                className="h-[150px] w-full object-cover 3xl:h-[300px] 3xl:w-[70%]"
+                alt={image.name || "Product image"}
+                fill
+                sizes="120px"
+                unoptimized
+                className="object-cover"
               />
             </div>
           ))}
@@ -254,7 +268,7 @@ const ImageCarousel = ({
             <DialogTrigger asChild>
               <CustomizedImage
                 src={biggerImage?.name}
-                alt={biggerImage?.name}
+                alt={biggerImage?.name || "Product image"}
                 className="cursor-pointer"
                 unoptimized
               />
@@ -270,8 +284,8 @@ const ImageCarousel = ({
                 onMouseLeave={zoomOutFun}
               >
                 <InnerImageZoom
-                  src={biggerImage?.name}
-                  zoomSrc={biggerImage?.name}
+                  src={biggerImage?.name || FALLBACK_PRODUCT_IMAGE}
+                  zoomSrc={biggerImage?.name || FALLBACK_PRODUCT_IMAGE}
                   afterZoomIn={zoomInFun}
                   afterZoomOut={zoomOutFun}
                 />
@@ -283,31 +297,43 @@ const ImageCarousel = ({
 
       {/* MOBILE VIEW */}
       <div className="block md:hidden">
-        {images.map((image) => (
+        {displayImages.map((image) => (
           <div className="my-2" key={image.id}>
             <Dialog>
               <DialogTrigger asChild>
-                <CustomizedImage src={image.name} alt={image.name} unoptimized />
+                <CustomizedImage
+                  src={image.name}
+                  alt={image.name || "Product image"}
+                  unoptimized
+                />
               </DialogTrigger>
 
-             <DialogContent className="sm:max-w-md">
-  <DialogHeader>
-    <DialogTitle className="sr-only">Zoom Image</DialogTitle>
-  </DialogHeader>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="sr-only">Zoom Image</DialogTitle>
+                </DialogHeader>
 
-  <div className="flex justify-center">
-    <QuickPinchZoom onUpdate={onUpdate}>
-      <img ref={imgRef} src={image.name} className="h-auto w-full" />
-    </QuickPinchZoom>
-  </div>
+                <div className="flex justify-center">
+                  <QuickPinchZoom onUpdate={onUpdate}>
+                    <img
+                      ref={imgRef}
+                      src={image.name || FALLBACK_PRODUCT_IMAGE}
+                      className="h-auto w-full"
+                      onError={(event) => {
+                        event.currentTarget.src = FALLBACK_PRODUCT_IMAGE;
+                      }}
+                    />
+                  </QuickPinchZoom>
+                </div>
 
-  <DialogFooter className="sm:justify-start">
-    <DialogClose asChild>
-      <Button type="button" variant="secondary">Close</Button>
-    </DialogClose>
-  </DialogFooter>
-</DialogContent>
-
+                <DialogFooter className="sm:justify-start">
+                  <DialogClose asChild>
+                    <Button type="button" variant="secondary">
+                      Close
+                    </Button>
+                  </DialogClose>
+                </DialogFooter>
+              </DialogContent>
             </Dialog>
           </div>
         ))}

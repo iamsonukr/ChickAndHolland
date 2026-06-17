@@ -27,7 +27,7 @@ const CustomizedImage = forwardRef<HTMLImageElement, CustomizedImageProps>(({
   sizes,
   ...props
 }, ref) => {
-  const fallbackSrc = "/placeholder.png";
+  const fallbackSrc = "/sample.jpeg";
   const srcString = typeof props.src === "string" ? props.src.trim() : undefined;
   const resolvedSrc = useMemo(
     () => (srcString && srcString.length > 0 ? srcString : fallbackSrc),
