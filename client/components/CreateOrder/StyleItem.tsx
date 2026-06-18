@@ -760,14 +760,14 @@ const StyleItem = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem key="size-custom" value="Custom">
+                        Custom
+                      </SelectItem>
                       {options.map((size) => (
                         <SelectItem value={size.toString()} key={size}>
                           {size}
                         </SelectItem>
                       ))}
-                      <SelectItem key="size-custom" value="Custom">
-                        Custom
-                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -914,6 +914,7 @@ const StyleItem = ({
           categories={productCategories}
           subCategories={productSubCategories}
           currencies={currencies}
+          hideTrigger
         />
       )}
     </Collapsible>

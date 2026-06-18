@@ -390,11 +390,9 @@ router.get(
     ) AS customers,
 
     (
-        SELECT COUNT(r.id)
-        FROM retailers r
-        LEFT JOIN customers c ON c.id = r.customerId
-        WHERE COALESCE(r.isDeleted, 0) = 0
-          AND COALESCE(c.isDeleted, 0) = 0
+        SELECT COUNT(c.id)
+        FROM customers c
+        WHERE COALESCE(c.isDeleted, 0) = 0
     ) AS registered_customers,
 
     (

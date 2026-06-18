@@ -69,10 +69,12 @@ const AddProductForm = ({
   categories = [],
   subCategories = [],
   currencies = [],
+  hideTrigger = false,
 }: {
   categories: any[];
   subCategories: any[];
   currencies: any[];
+  hideTrigger?: boolean;
 }) => {
   const [open, setOpen] = useState(false);
   const [colors, setColors] = useState([]);
@@ -205,11 +207,13 @@ const filteredCollections = selectedCategory
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button>
-          Add New Product <Plus />
-        </Button>
-      </SheetTrigger>
+      {!hideTrigger && (
+        <SheetTrigger asChild>
+          <Button>
+            Add New Product <Plus />
+          </Button>
+        </SheetTrigger>
+      )}
       <SheetContent className="min-w-[100%] overflow-y-auto md:min-w-[70%] lg:min-w-[55%]">
         <SheetHeader>
           <SheetTitle>Add New Product</SheetTitle>
@@ -690,17 +694,42 @@ const filteredCollections = selectedCategory
                       type="file"
                       accept="image/*"
                       multiple
-                      onChange={(event) =>
-                        field.onChange(Array.from(event.target.files ?? []))
-                      }
+                      onChange={(event) => {
+                        const newFiles = Array.from(event.target.files ?? []);
+                        if (newFiles.length === 0) return;
+
+                        field.onChange([
+                          ...Array.from((field.value ?? []) as File[]),
+                          ...newFiles,
+                        ]);
+                        event.target.value = "";
+                      }}
                     />
                   </FormControl>
                   {field.value?.length > 0 && (
-                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    <div className="mt-2 space-y-2 text-sm text-muted-foreground">
                       {field.value.map((file: File, index: number) => (
-                        <p key={`${file.name}-${file.lastModified}-${index}`}>
-                          {file.name}
-                        </p>
+                        <div
+                          key={`${file.name}-${file.lastModified}-${index}`}
+                          className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
+                        >
+                          <span className="truncate">{file.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              field.onChange(
+                                (field.value as File[]).filter(
+                                  (_: File, fileIndex: number) =>
+                                    fileIndex !== index,
+                                ),
+                              )
+                            }
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
                       ))}
                     </div>
                   )}

@@ -584,14 +584,14 @@ const ActionButtons = ({
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
+                                <SelectItem key="size-custom" value="Custom">
+                                  Custom
+                                </SelectItem>
                                 {options.map((s) => (
                                   <SelectItem key={s} value={String(s)}>
                                     {s}
                                   </SelectItem>
                                 ))}
-                                <SelectItem key="size-custom" value="Custom">
-                                  Custom
-                                </SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
