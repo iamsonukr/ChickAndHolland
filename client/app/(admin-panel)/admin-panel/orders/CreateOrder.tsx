@@ -18,6 +18,7 @@ import RetailerPdf from "../request/RetailerPdf";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
 import PdfPreview from "@/components/pdf/PdfPreview";
 import PptPreview from "@/components/ppt/PptPreview";
+import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ const CreateOrder = ({
     open,
     setOpen,
     previewData,
+    savingDraftOnClose,
     colors,
     customOrderType,
     setCustomOrderType,
@@ -139,6 +141,16 @@ const CreateOrder = ({
       </SheetTrigger>
 
       <SheetContent className="min-w-[100%] overflow-y-auto">
+        {savingDraftOnClose && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/95 backdrop-blur-sm">
+            <AdminLoaderScreen
+              title="Saving order in draft"
+              description="Please wait. You will return to the orders page after the draft is saved."
+              className="min-h-screen bg-transparent"
+            />
+          </div>
+        )}
+
         <SheetHeader>
           <SheetTitle>{isEditMode ? "Edit Order" : "Add New Order"}</SheetTitle>
           <SheetDescription>

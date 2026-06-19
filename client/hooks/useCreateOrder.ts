@@ -552,6 +552,7 @@ export function useCreateOrder({
   const [eachStyleProductDetails, setEachStyleProductDetails] = useState(
     new Map<string, any>(),
   );
+  const [savingDraftOnClose, setSavingDraftOnClose] = useState(false);
   const previewRequestIdRef = useRef(0);
 
   // ── Uploaded file state ─────────────────────────────────────────────────────
@@ -1198,12 +1199,14 @@ export function useCreateOrder({
     }
 
     autoDraftOnCloseRef.current = true;
+    setSavingDraftOnClose(true);
     try {
       await submitOrder(form.getValues(), "draft");
     } catch (error) {
       console.error("[CreateOrderAutosave] Database draft save failed", error);
     } finally {
       autoDraftOnCloseRef.current = false;
+      setSavingDraftOnClose(false);
     }
   };
 
@@ -1289,6 +1292,7 @@ export function useCreateOrder({
     open,
     setOpen: handleOpenChange,
     previewData,
+    savingDraftOnClose,
     colors,
     customOrderType,
     setCustomOrderType,
