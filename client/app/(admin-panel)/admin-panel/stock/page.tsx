@@ -16,6 +16,7 @@ import {
 import TableActions from "./TableActions";
 import StyleNoImage from "@/app/(admin-panel)/admin-panel/stock/StyleNoImage";
 import ExpandStockDetails from "./ExpandStockDetails";
+import StockCatalogButtons from "./StockCatalogButtons";
 import { redirect } from "next/navigation";
 
 const ITEMS_PER_PAGE = 100;
@@ -64,7 +65,11 @@ const Stock = async (props: {
           <h1 className="text-xl md:text-2xl font-semibold">
             Stock data
           </h1>
-          <div className="w-full sm:w-auto sm:text-right">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+            <StockCatalogButtons
+              colours={colours.productColours}
+              query={query}
+            />
             <AddStockForm
               colours={colours.productColours}
               currencies={currencies?.currencies ?? currencies}

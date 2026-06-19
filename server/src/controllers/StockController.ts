@@ -239,30 +239,10 @@ router.get(
       currencyId?: string;
     } = req.query;
 
-    if (!page) {
-      const stock = await Stock.find({
-        where: { isDeleted: false },
-        relations: ["currencyPricing", "currencyPricing.currency"],
-      });
-      const totalCount = await Stock.count({
-        where: { isDeleted: false },
-      });
+    const likeQuery = `%${query?.toLowerCase()}%`;
 
-      const stockWithCurrency = getStockWithCurrencyPricing(stock, currencyId);
-
-      res.json({
-        stock: stockWithCurrency,
-        totalCount,
-      });
-    } else {
-      const parsedPage = Number.parseInt(page, 10);
-      const pageNumber =
-        Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-      const skip = (pageNumber - 1) * 100;
-
-      const likeQuery = `%${query?.toLowerCase()}%`;
-
-      const stockWithProducts = await stockRepository
+    const buildStockQuery = () =>
+      stockRepository
         .createQueryBuilder("stock")
         .leftJoinAndMapOne(
           "stock.product",
@@ -301,12 +281,10 @@ router.get(
         .andWhere("stock.isDeleted = false")
         .orderBy("stock.createdAt", "DESC")
         .addOrderBy("productImages.isMain", "DESC")
-        .addOrderBy("productImages.createdAt", "ASC")
-        .skip(skip)
-        .take(100)
-        .getMany();
+        .addOrderBy("productImages.createdAt", "ASC");
 
-      const totalCount = await stockRepository
+    const buildStockCountQuery = () =>
+      stockRepository
         .createQueryBuilder("stock")
         .leftJoin(Product, "products", "stock.styleNo = products.id")
         .where(
@@ -318,8 +296,33 @@ router.get(
             });
           })
         )
-        .andWhere("stock.isDeleted = false")
-        .getCount();
+        .andWhere("stock.isDeleted = false");
+
+    if (!page) {
+      const stockWithProducts = await buildStockQuery().getMany();
+      const totalCount = await buildStockCountQuery().getCount();
+
+      const stockWithCurrency = getStockWithCurrencyPricing(
+        stockWithProducts,
+        currencyId
+      );
+
+      res.json({
+        stock: stockWithCurrency,
+        totalCount,
+      });
+    } else {
+      const parsedPage = Number.parseInt(page, 10);
+      const pageNumber =
+        Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+      const skip = (pageNumber - 1) * 100;
+
+      const stockWithProducts = await buildStockQuery()
+        .skip(skip)
+        .take(100)
+        .getMany();
+
+      const totalCount = await buildStockCountQuery().getCount();
 
       const stockWithCurrency = getStockWithCurrencyPricing(
         stockWithProducts,
