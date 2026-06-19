@@ -627,6 +627,18 @@ export default function OrderStatusPage({
     const itemStatus = getCurrentStageLabel(progress).toLowerCase();
     return styleNo.includes(q) || size.includes(q);
   });
+  const stageCounts = ORDER_STAGE_FLOW.reduce<Record<string, number>>(
+    (counts, stage) => {
+      counts[stage] = 0;
+      return counts;
+    },
+    {},
+  );
+  filtered.forEach(({ raw }) => {
+    const progress: any[] = raw.progress ?? [];
+    const itemStatus = getCurrentStageLabel(progress);
+    stageCounts[itemStatus] = (stageCounts[itemStatus] ?? 0) + 1;
+  });
 
   // Apply status filter
   const statusFiltered =
@@ -764,10 +776,10 @@ export default function OrderStatusPage({
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:block"
                 >
-                  <option value="ALL">All Status</option>
+                  <option value="ALL">All Status ({filtered.length})</option>
                   {ORDER_STAGE_FLOW.map((stage) => (
                       <option key={stage} value={stage}>
-                        {stage}
+                        {stage} ({stageCounts[stage] ?? 0})
                       </option>
                     ))}
                 </select>

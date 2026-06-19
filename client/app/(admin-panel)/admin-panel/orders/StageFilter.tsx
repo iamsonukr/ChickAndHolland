@@ -38,14 +38,20 @@ export default function StageFilter({
   orderType,
   due,
   stage,
+  stageCounts,
 }: {
   query?: string;
   orderType?: string;
   due?: string;
   stage?: string;
+  stageCounts?: Record<string, number>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const totalStageCount = ORDER_STAGE_FLOW.reduce(
+    (total, option) => total + (stageCounts?.[option] ?? 0),
+    0,
+  );
 
   const handleStageChange = (value: string) => {
     const nextStage = value === "__all__" ? "" : value;
@@ -60,10 +66,10 @@ export default function StageFilter({
         <SelectValue placeholder="Filter by stage" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="__all__">All Status</SelectItem>
+        <SelectItem value="__all__">All Status ({totalStageCount})</SelectItem>
         {ORDER_STAGE_FLOW.map((option) => (
           <SelectItem key={option} value={option}>
-            {option}
+            {option} ({stageCounts?.[option] ?? 0})
           </SelectItem>
         ))}
       </SelectContent>

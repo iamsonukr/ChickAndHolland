@@ -235,6 +235,7 @@ const OrdersPage = async (props: {
                 orderType={orderType}
                 due={dueFilter}
                 stage={stage}
+                stageCounts={orders?.stageCounts}
               />
               <div className="flex flex-wrap items-center gap-2">
                 <a
