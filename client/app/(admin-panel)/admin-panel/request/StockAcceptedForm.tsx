@@ -90,6 +90,29 @@ const hasDirtyFields = (dirtyFields: any): boolean => {
   );
 };
 
+const DEFAULT_MANUFACTURING_EMAIL = "rubyinc@hotmail.com";
+const DEFAULT_REQUEST_COLOUR = "SAS";
+
+const normalizeRequestText = (value: unknown, fallback = DEFAULT_REQUEST_COLOUR) => {
+  const text = String(value ?? "").trim();
+  return text || fallback;
+};
+
+const normalizeStockRequestForm = (data: CreateStockOrderForm): CreateStockOrderForm => {
+  const lining = normalizeRequestText(data.lining);
+
+  return {
+    ...data,
+    meshColor: normalizeRequestText(data.meshColor),
+    beadingColor: normalizeRequestText(data.beadingColor),
+    lining,
+    liningColor: normalizeRequestText(
+      data.liningColor,
+      lining === "No Lining" ? "No Color" : DEFAULT_REQUEST_COLOUR,
+    ),
+  };
+};
+
 const getFirstFormErrorMessage = (errors: any): string | undefined => {
   if (!errors || typeof errors !== "object") return undefined;
   if (typeof errors.message === "string") return errors.message;
@@ -217,13 +240,15 @@ const StockAcceptedForm = ({
   const resolveColourName = (
     colourValue?: string | null,
     availableColours: any[] = colours,
+    fallback = DEFAULT_REQUEST_COLOUR,
   ) => {
-    if (!colourValue) return "";
-    if (colourValue === "SAS") return "SAS";
+    const colourText = String(colourValue ?? "").trim();
+    if (!colourText || colourText === DEFAULT_REQUEST_COLOUR) return fallback;
 
     return (
-      availableColours.find((colour: any) => colour.hexcode === colourValue)?.name ||
-      colourValue
+      availableColours.find((colour: any) => colour.hexcode === colourText)?.name ||
+      colourText ||
+      fallback
     );
   };
 
@@ -260,10 +285,10 @@ const StockAcceptedForm = ({
       quantity: "0",
       advance: "0",
       shipping: 0,
-      beadingColor: "",
-      lining: "",
-      liningColor: "",
-      meshColor: "",
+      beadingColor: DEFAULT_REQUEST_COLOUR,
+      lining: DEFAULT_REQUEST_COLOUR,
+      liningColor: DEFAULT_REQUEST_COLOUR,
+      meshColor: DEFAULT_REQUEST_COLOUR,
       total_amount: 0,
       product_amount: 0
     },
@@ -292,9 +317,11 @@ const StockAcceptedForm = ({
       orderId: id,
       purchaseOrderNo,
       manufacturingEmailAddress:
-        customerDetails?.manufacturingEmailAddress ||
-        editOrder?.manufacturingEmailAddress ||
-        "rubyinc@hotmail.com",
+        isEditMode
+          ? customerDetails?.manufacturingEmailAddress ||
+              editOrder?.manufacturingEmailAddress ||
+              DEFAULT_MANUFACTURING_EMAIL
+          : DEFAULT_MANUFACTURING_EMAIL,
       estimate: customerDetails?.estimateNo || editOrder?.estimateNo || estimate,
       invoice: customerDetails?.invoiceNo || editOrder?.invoiceNo || invoice,
       orderReceivedDate: (customerDetails?.orderReceivedDate || customerDetails?.received)
@@ -314,10 +341,13 @@ const StockAcceptedForm = ({
         customerDetails?.beading_color,
         availableColours,
       ),
-      lining: customerDetails?.lining || "",
+      lining: normalizeRequestText(customerDetails?.lining),
       liningColor: resolveColourName(
         customerDetails?.lining_color,
         availableColours,
+        normalizeRequestText(customerDetails?.lining) === "No Lining"
+          ? "No Color"
+          : DEFAULT_REQUEST_COLOUR,
       ),
       meshColor: resolveColourName(
         customerDetails?.mesh_color,
@@ -505,7 +535,8 @@ const StockAcceptedForm = ({
 
   const onSubmit = async (data: CreateStockOrderForm) => {
     try {
-      const preData = buildAcceptedOrderPayload(data);
+      const normalizedData = normalizeStockRequestForm(data);
+      const preData = buildAcceptedOrderPayload(normalizedData);
 
       if (isEditMode) {
         const dirtyFields = form.formState.dirtyFields;
@@ -549,7 +580,7 @@ const StockAcceptedForm = ({
           }
         }
 
-        form.reset(data);
+        form.reset(normalizedData);
         toast.success(response.message ?? "Order updated successfully");
         setOpen(false);
         onSuccess?.();
@@ -619,8 +650,8 @@ const StockAcceptedForm = ({
             ? [String(response.barcode)]
             : [];
       const preview = await buildStockPreviewData(
-        data,
-        response.purchaseOrderNo ?? data.purchaseOrderNo,
+        normalizedData,
+        response.purchaseOrderNo ?? normalizedData.purchaseOrderNo,
         createdBarcodes,
       );
 
@@ -752,8 +783,13 @@ const StockAcceptedForm = ({
   };
 
   const onPreviewSubmit = async (data: CreateStockOrderForm) => {
+    const normalizedData = normalizeStockRequestForm(data);
     setPreviewData(
-      await buildStockPreviewData(data, data.purchaseOrderNo, customers?.barcodes),
+      await buildStockPreviewData(
+        normalizedData,
+        normalizedData.purchaseOrderNo,
+        customers?.barcodes,
+      ),
     );
   };
 

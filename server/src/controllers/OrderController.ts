@@ -51,6 +51,7 @@ import { generateOrderPdf } from "../pdf/generateOrderPdf";
 import { formatDateOnly, parseDateOnly } from "../lib/dateOnly";
 import { assertDeliverableEmailAddress } from "../lib/emailValidation";
 import { getBarcodeComment } from "../services/barcodeComment.service";
+import { ensureBarcodeCommentsTable } from "../utils/ensureBarcodeCommentsTable";
 import {
   DEFAULT_ORDER_STAGE,
   ORDER_STAGE_FLOW,
@@ -116,13 +117,18 @@ async function getLatestProgressRows(
   );
 }
 
-function getComputedOrderStage(barcodes: string[], progressByBarcode: Map<string, string>) {
+function getComputedOrderStage(
+  barcodes: string[],
+  progressByBarcode: Map<string, string>,
+): string {
   if (!barcodes.length) {
-    return DEFAULT_ORDER_STAGE;
+    return DEFAULT_ORDER_STAGE ?? "Pattern";
   }
 
-  return getLowestStage(
+  return (
+    getLowestStage(
     barcodes.map((barcode) => progressByBarcode.get(barcode) ?? DEFAULT_ORDER_STAGE),
+    ) ?? DEFAULT_ORDER_STAGE ?? "Pattern"
   );
 }
 
@@ -198,6 +204,115 @@ async function getProductStageCounts(baseOrders: any[]) {
 
   return counts;
 }
+
+async function getProgressQuantityMap(
+  tableName: "store_style_progress" | "styleProgress",
+  barcodes: string[],
+) {
+  const map = new Map<string, number>();
+  if (!barcodes.length) return map;
+
+  const rows = await db.query(
+    `
+      SELECT barcode, SUM(qty) AS completedQty
+      FROM ${tableName}
+      WHERE barcode IN (?)
+      GROUP BY barcode
+    `,
+    [barcodes],
+  );
+
+  rows.forEach((row: any) => {
+    map.set(String(row.barcode), Number(row.completedQty || 0));
+  });
+
+  return map;
+}
+
+async function getBarcodeCommentMap(
+  barcodes: string[],
+  orderType: "STORE" | "RETAILER" | "STOCK",
+) {
+  const map = new Map<string, string>();
+  if (!barcodes.length) return map;
+
+  const rows = await db.query(
+    `
+      SELECT barcode, comment
+      FROM barcode_comments
+      WHERE barcode IN (?) AND orderType = ?
+    `,
+    [barcodes, orderType],
+  );
+
+  rows.forEach((row: any) => {
+    map.set(String(row.barcode), String(row.comment ?? ""));
+  });
+
+  return map;
+}
+
+const getOrderKey = (orderSource: string, orderId: unknown) =>
+  `${orderSource}:${Number(orderId)}`;
+
+const getDueDateDifference = (orderCancellationDate: unknown) => {
+  if (!orderCancellationDate) return Infinity;
+
+  const targetDate = new Date(String(formatDateOnly(orderCancellationDate)));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (Number.isNaN(targetDate.getTime())) return Infinity;
+  return Math.floor((targetDate.getTime() - today.getTime()) / 86_400_000);
+};
+
+const matchesDueFilter = (
+  dueFilter: string | undefined,
+  orderStatus: string,
+  orderCancellationDate: unknown,
+) => {
+  if (!dueFilter) return true;
+
+  const hasDueDate = !!orderCancellationDate;
+  const difference = getDueDateDifference(orderCancellationDate);
+
+  if (dueFilter === "lt14") {
+    return orderStatus !== "Shipped" && hasDueDate && difference < 14;
+  }
+
+  if (dueFilter === "lt28") {
+    return (
+      orderStatus !== "Shipped" &&
+      hasDueDate &&
+      difference >= 14 &&
+      difference < 28
+    );
+  }
+
+  if (dueFilter === "shipped") {
+    return orderStatus === "Shipped";
+  }
+
+  return true;
+};
+
+const formatQrBoxColor = (value: unknown) => {
+  const color = sanitizeText(value);
+  if (!color) {
+    return { display: "", prefix: "", name: "" };
+  }
+
+  const match = color.match(/^([A-Z0-9]+)\((.+)\)$/);
+  if (!match) {
+    return { display: color, prefix: "", name: color };
+  }
+
+  return {
+    display: color,
+    prefix: match[1],
+    name: match[2],
+  };
+};
 
 function sanitizeText(value: unknown) {
   if (typeof value !== "string") return "";
@@ -1899,6 +2014,361 @@ async function processOrders(orders: any[]) {
     throw error;
   }
 }
+
+router.get(
+  "/export-products",
+  asyncHandler(async (req: Request, res: Response) => {
+    const {
+      query,
+      orderType,
+      stage,
+      due,
+    }: {
+      query?: string;
+      orderType?: string;
+      stage?: string;
+      due?: string;
+    } = req.query;
+
+    const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
+
+    const regularWhere = [
+      "o.status = 0",
+      "COALESCE(o.publishStatus, 'published') = 'published'",
+    ];
+    const regularParams: any[] = [];
+    const retailerWhere = ["ro.status = 0"];
+    const retailerParams: any[] = [];
+
+    if (likeQuery) {
+      regularWhere.push(
+        "(LOWER(o.purchaeOrderNo) LIKE ? OR LOWER(c.storeName) LIKE ? OR LOWER(c.name) LIKE ?)",
+      );
+      regularParams.push(likeQuery, likeQuery, likeQuery);
+
+      retailerWhere.push(
+        "(LOWER(ro.purchaeOrderNo) LIKE ? OR LOWER(c.storeName) LIKE ? OR LOWER(c.name) LIKE ?)",
+      );
+      retailerParams.push(likeQuery, likeQuery, likeQuery);
+    }
+
+    const includeRegular =
+      !orderType || !["Fresh", "Stock"].includes(String(orderType));
+    const includeRetailer =
+      !orderType || ["Fresh", "Stock"].includes(String(orderType));
+
+    if (orderType && includeRegular) {
+      regularWhere.push("o.orderType = ?");
+      regularParams.push(orderType);
+    }
+
+    if (orderType === "Fresh") {
+      retailerWhere.push("ro.is_stock_order = 0");
+    } else if (orderType === "Stock") {
+      retailerWhere.push("ro.is_stock_order = 1");
+    }
+
+    const [regularRows, retailerRows, stockRows] = await Promise.all([
+      includeRegular
+        ? db.query(
+            `
+              SELECT
+                'regular' AS orderSource,
+                'STORE' AS qrType,
+                o.id AS orderId,
+                o.purchaeOrderNo AS purchaseOrderNo,
+                o.orderType AS orderType,
+                o.orderReceivedDate AS orderReceivedDate,
+                o.orderCancellationDate AS orderCancellationDate,
+                o.shippingStatus AS shippingStatus,
+                o.shippingDate AS shippingDate,
+                o.trackingNo AS trackingNo,
+                o.address AS orderAddress,
+                c.name AS customerName,
+                c.storeName AS customerStoreName,
+                c.phoneNumber AS customerPhone,
+                c.storeAddress AS customerAddress,
+                c.postalCode AS customerPostalCode,
+                country.name AS customerCountry,
+                s.id AS styleId,
+                s.styleNo AS styleNo,
+                s.barcode AS barcode,
+                s.size AS size,
+                s.sizeCountry AS size_country,
+                s.quantity AS quantity,
+                s.colorType AS colorType,
+                s.mesh_color AS meshColorRaw,
+                s.beading_color AS beadingColor,
+                s.lining AS lining,
+                s.lining_color AS liningColor,
+                s.comments AS styleComments,
+                CONCAT('SAS(', COALESCE(pc.name, s.mesh_color), ')') AS meshColor
+              FROM orderStyles s
+              INNER JOIN orders o ON o.id = s.orderId
+              LEFT JOIN customers c ON c.id = o.customerId
+              LEFT JOIN country country ON country.id = c.countryId
+              LEFT JOIN product_colours pc ON LOWER(pc.hexcode) = LOWER(s.mesh_color)
+              WHERE ${regularWhere.join(" AND ")}
+              ORDER BY o.createdAt DESC, s.id ASC
+            `,
+            regularParams,
+          )
+        : [],
+      includeRetailer && orderType !== "Stock"
+        ? db.query(
+            `
+              SELECT
+                'retailer' AS orderSource,
+                'RETAILER' AS qrType,
+                ro.id AS orderId,
+                ro.purchaeOrderNo AS purchaseOrderNo,
+                'Fresh' AS orderType,
+                ro.orderReceivedDate AS orderReceivedDate,
+                ro.orderCancellationDate AS orderCancellationDate,
+                ro.shippingStatus AS shippingStatus,
+                ro.shippingDate AS shippingDate,
+                ro.trackingNo AS trackingNo,
+                ro.address AS orderAddress,
+                c.name AS customerName,
+                c.storeName AS customerStoreName,
+                c.phoneNumber AS customerPhone,
+                c.storeAddress AS customerAddress,
+                c.postalCode AS customerPostalCode,
+                country.name AS customerCountry,
+                ros.id AS styleId,
+                ros.styleNo AS styleNo,
+                ros.barcode AS barcode,
+                ros.size AS size,
+                ros.size_country AS size_country,
+                ros.quantity AS quantity,
+                NULL AS colorType,
+                NULL AS meshColorRaw,
+                NULL AS beadingColor,
+                NULL AS lining,
+                NULL AS liningColor,
+                NULL AS styleComments,
+                CONCAT('SAS(', COALESCE(pc.name, matchedFavourite.mesh_color), ')') AS meshColor
+              FROM retailer_order_styles ros
+              INNER JOIN retailer_orders ro ON ro.id = ros.retailerOrderId
+              LEFT JOIN retailers r ON r.id = ro.retailerId
+              LEFT JOIN customers c ON c.id = r.customerId
+              LEFT JOIN country country ON country.id = c.countryId
+              LEFT JOIN retailer_favourites_orders rfo ON rfo.id = ro.favouriteOrderId
+              LEFT JOIN products p ON p.productCode = ros.styleNo
+              LEFT JOIN favourites matchedFavourite
+                ON FIND_IN_SET(matchedFavourite.id, rfo.favourite_ids) > 0
+               AND matchedFavourite.productId = p.id
+               AND (
+                    ros.size = CAST(matchedFavourite.admin_us_size AS CHAR)
+                 OR ros.size = CAST(matchedFavourite.product_size AS CHAR)
+                 OR ros.size = CONCAT(CAST(matchedFavourite.product_size AS CHAR), ' (', matchedFavourite.size_country, ')')
+               )
+               AND (
+                    ros.size_country = matchedFavourite.size_country
+                 OR ros.size_country IS NULL
+                 OR ros.size_country = ''
+               )
+              LEFT JOIN product_colours pc ON LOWER(pc.hexcode) = LOWER(matchedFavourite.mesh_color)
+              WHERE ${retailerWhere.join(" AND ")} AND ro.is_stock_order = 0
+              ORDER BY ro.createdAt DESC, ros.id ASC
+            `,
+            retailerParams,
+          )
+        : [],
+      includeRetailer && orderType !== "Fresh"
+        ? db.query(
+            `
+              SELECT
+                'retailer' AS orderSource,
+                'STOCK' AS qrType,
+                ro.id AS orderId,
+                ro.purchaeOrderNo AS purchaseOrderNo,
+                'Stock' AS orderType,
+                ro.orderReceivedDate AS orderReceivedDate,
+                ro.orderCancellationDate AS orderCancellationDate,
+                ro.shippingStatus AS shippingStatus,
+                ro.shippingDate AS shippingDate,
+                ro.trackingNo AS trackingNo,
+                ro.address AS orderAddress,
+                c.name AS customerName,
+                c.storeName AS customerStoreName,
+                c.phoneNumber AS customerPhone,
+                c.storeAddress AS customerAddress,
+                c.postalCode AS customerPostalCode,
+                country.name AS customerCountry,
+                sos.id AS styleId,
+                sos.styleNo AS styleNo,
+                sos.barcode AS barcode,
+                sos.size AS size,
+                sos.size_country AS size_country,
+                sos.quantity AS quantity,
+                NULL AS colorType,
+                s.mesh_color AS meshColorRaw,
+                NULL AS beadingColor,
+                NULL AS lining,
+                NULL AS liningColor,
+                NULL AS styleComments,
+                CONCAT('SAS(', COALESCE(pc.name, s.mesh_color), ')') AS meshColor
+              FROM stock_order_styles sos
+              INNER JOIN retailer_orders ro ON ro.id = sos.retailerOrderId
+              LEFT JOIN retailers r ON r.id = ro.retailerId
+              LEFT JOIN customers c ON c.id = r.customerId
+              LEFT JOIN country country ON country.id = c.countryId
+              LEFT JOIN retailer_stock_orders rso ON rso.id = ro.stockOrderId
+              LEFT JOIN stock s ON s.id = rso.stockId
+              LEFT JOIN product_colours pc ON LOWER(pc.hexcode) = LOWER(s.mesh_color)
+              WHERE ${retailerWhere.join(" AND ")} AND ro.is_stock_order = 1
+              ORDER BY ro.createdAt DESC, sos.id ASC
+            `,
+            retailerParams,
+          )
+        : [],
+    ]);
+
+    const productRows = [...regularRows, ...retailerRows, ...stockRows];
+    const regularBarcodes = productRows
+      .filter((row) => row.qrType === "STORE")
+      .map((row) => String(row.barcode || "").trim())
+      .filter(Boolean);
+    const retailerBarcodes = productRows
+      .filter((row) => row.qrType === "RETAILER")
+      .map((row) => String(row.barcode || "").trim())
+      .filter(Boolean);
+    const stockBarcodes = productRows
+      .filter((row) => row.qrType === "STOCK")
+      .map((row) => String(row.barcode || "").trim())
+      .filter(Boolean);
+    const sharedRetailerBarcodes = [...retailerBarcodes, ...stockBarcodes];
+
+    await ensureBarcodeCommentsTable();
+
+    const [
+      regularProgressByBarcode,
+      retailerProgressByBarcode,
+      regularCompletedByBarcode,
+      retailerCompletedByBarcode,
+      storeComments,
+      retailerComments,
+      stockComments,
+    ] = await Promise.all([
+      getLatestProgressRows("store_style_progress", "status", regularBarcodes)
+        .then((rows) => buildStageMap(rows, "status")),
+      getLatestProgressRows("styleProgress", "stage", sharedRetailerBarcodes)
+        .then((rows) => buildStageMap(rows, "stage")),
+      getProgressQuantityMap("store_style_progress", regularBarcodes),
+      getProgressQuantityMap("styleProgress", sharedRetailerBarcodes),
+      getBarcodeCommentMap(regularBarcodes, "STORE"),
+      getBarcodeCommentMap(retailerBarcodes, "RETAILER"),
+      getBarcodeCommentMap(stockBarcodes, "STOCK"),
+    ]);
+
+    const orderBarcodes = new Map<string, string[]>();
+    productRows.forEach((row) => {
+      const key = getOrderKey(row.orderSource, row.orderId);
+      const existing = orderBarcodes.get(key) ?? [];
+      existing.push(String(row.barcode || ""));
+      orderBarcodes.set(key, existing);
+    });
+
+    const orderStatusByKey = new Map<string, string>();
+    orderBarcodes.forEach((barcodes, key) => {
+      const isRegular = key.startsWith("regular:");
+      orderStatusByKey.set(
+        key,
+        getComputedOrderStage(
+          barcodes.filter((barcode): barcode is string => Boolean(barcode)),
+          isRegular ? regularProgressByBarcode : retailerProgressByBarcode,
+        ),
+      );
+    });
+
+    const data = productRows
+      .map((row) => {
+        const orderKey = getOrderKey(row.orderSource, row.orderId);
+        const orderStatus =
+          orderStatusByKey.get(orderKey) ?? DEFAULT_ORDER_STAGE;
+        const progressMap =
+          row.qrType === "STORE"
+            ? regularProgressByBarcode
+            : retailerProgressByBarcode;
+        const completedMap =
+          row.qrType === "STORE"
+            ? regularCompletedByBarcode
+            : retailerCompletedByBarcode;
+        const commentsMap =
+          row.qrType === "STORE"
+            ? storeComments
+            : row.qrType === "STOCK"
+              ? stockComments
+              : retailerComments;
+        const barcode = String(row.barcode || "");
+        const productStatus =
+          progressMap.get(barcode) ?? DEFAULT_ORDER_STAGE;
+        const quantity = Number(row.quantity ?? 1) || 1;
+        const completedQty = completedMap.get(barcode) ?? 0;
+        const qrBoxColor = formatQrBoxColor(row.meshColor ?? row.color);
+        const customer = {
+          storeAddress: row.customerAddress,
+          postalCode: row.customerPostalCode,
+          country: { name: row.customerCountry },
+        };
+
+        return {
+          orderKey,
+          orderStatus,
+          orderCancellationDate: row.orderCancellationDate,
+          row: {
+            "Style No": row.styleNo,
+            Barcode: barcode,
+            "QR Type": row.qrType,
+            "Product Status": productStatus,
+            Size: row.size ?? "",
+            "Size Country": row.size_country ?? "",
+            Quantity: quantity,
+            "Completed Qty": completedQty,
+            "Remaining Qty": quantity - completedQty,
+            "QR Box Color": qrBoxColor.display,
+            "Color Prefix": qrBoxColor.prefix,
+            "Color Name": qrBoxColor.name,
+            "Raw Mesh Color": row.meshColorRaw ?? "",
+            "Color Type": row.colorType ?? "",
+            "Beading Color": row.beadingColor ?? "",
+            Lining: row.lining ?? "",
+            "Lining Color": row.liningColor ?? "",
+            "Style Comments": commentsToArray(row.styleComments).join(", "),
+            "QR Comment": commentsMap.get(barcode) ?? "",
+            "Purchase Order No": row.purchaseOrderNo,
+            "Style ID": row.styleId,
+            "Order ID": row.orderId,
+            "Order Source": row.orderSource === "regular" ? "Store" : "Retailer",
+            "Order Type": row.orderType,
+            "Order Date": formatDateOnly(row.orderReceivedDate),
+            "Ship Date": formatDateOnly(row.orderCancellationDate),
+            "Order Status": orderStatus,
+            "Shipping Status": row.shippingStatus ?? "",
+            "Shipping Date": formatDateOnly(row.shippingDate),
+            "Tracking No": row.trackingNo ?? "",
+            "Customer / Store": getCustomerStoreName({
+              storeName: row.customerStoreName,
+              name: row.customerName,
+            }),
+            "Customer Phone": row.customerPhone ?? "",
+            Address: buildOrderAddress(row.orderAddress, customer),
+          },
+        };
+      })
+      .filter(({ orderStatus, orderCancellationDate }) => {
+        if (stage && orderStatus !== stage) return false;
+        return matchesDueFilter(due, orderStatus, orderCancellationDate);
+      })
+      .map(({ row }) => row);
+
+    return res.json({
+      success: true,
+      data,
+    });
+  }),
+);
 
 router.get(
   "/",

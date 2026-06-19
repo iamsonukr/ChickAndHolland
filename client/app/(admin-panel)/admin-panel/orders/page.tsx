@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import ResetScanButton from "./ResetScanButton";
 import EditOrderAction from "./EditOrderAction";
 import StageFilter from "./StageFilter";
+import ExportOrdersButton from "./ExportOrdersButton";
 import { ORDER_STAGE_DATE_FIELD_MAP } from "@/lib/stageFlow";
 
 const statusToDbField: Record<string, string | null> = {
@@ -215,6 +216,12 @@ const OrdersPage = async (props: {
               <Link href="/admin-panel/orders/qr-scan">
                 <Button variant="outline">Global QR Scan</Button>
               </Link>
+              <ExportOrdersButton
+                query={query}
+                orderType={orderType}
+                stage={stage}
+                due={dueFilter}
+              />
               <CreateOrder
                 customers={customers.customers}
                 ordersTotalCount={latestOrderPurchaseOrderNo}

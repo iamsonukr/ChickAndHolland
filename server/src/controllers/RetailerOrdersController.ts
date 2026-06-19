@@ -128,6 +128,18 @@ const sanitizeText = (value: unknown) => {
     : "";
 };
 
+const normalizeAcceptedColourValue = (value: unknown, fallback = "SAS") =>
+  sanitizeText(value) || fallback;
+
+const normalizeAcceptedLiningColourValue = (
+  lining: unknown,
+  value: unknown,
+) =>
+  normalizeAcceptedColourValue(
+    value,
+    normalizeAcceptedColourValue(lining) === "No Lining" ? "No Color" : "SAS",
+  );
+
 const getCustomerStoreName = (customer?: { storeName?: string | null; name?: string | null } | null) =>
   sanitizeText(customer?.storeName) || sanitizeText(customer?.name);
 
@@ -1176,7 +1188,7 @@ router.get(
         MIN(f.product_size) AS original_size,
         MIN(COALESCE(NULLIF(c.storeName, ''), c.name)) AS customerStoreName,
         MIN(COALESCE(NULLIF(c.storeName, ''), c.name)) AS customer_name,
-        MIN(COALESCE(ro.manufacturingEmailAddress, c.email)) AS manufacturingEmailAddress,
+        MIN(ro.manufacturingEmailAddress) AS manufacturingEmailAddress,
         MIN(c.phoneNumber) AS phoneNumber,
         MIN(p.productCode) AS styleNo,
         MIN(COALESCE(ro.orderReceivedDate, rf.createdAt)) AS orderReceivedDate,
@@ -1535,18 +1547,18 @@ router.post(
             typeof favItem.customColor === "string" && favItem.customColor.trim()
               ? favItem.customColor.trim()
               : fav.color;
-          fav.mesh_color =
-            typeof favItem.meshColor === "string" && favItem.meshColor.trim()
-              ? favItem.meshColor.trim()
-              : fav.mesh_color;
-          fav.beading_color =
-            typeof favItem.beadingColor === "string" && favItem.beadingColor.trim()
-              ? favItem.beadingColor.trim()
-              : fav.beading_color;
-          fav.lining =
-            typeof favItem.lining === "string" && favItem.lining.trim()
-              ? favItem.lining.trim()
-              : fav.lining;
+          fav.mesh_color = normalizeAcceptedColourValue(
+            favItem.meshColor,
+            normalizeAcceptedColourValue(fav.mesh_color),
+          );
+          fav.beading_color = normalizeAcceptedColourValue(
+            favItem.beadingColor,
+            normalizeAcceptedColourValue(fav.beading_color),
+          );
+          fav.lining = normalizeAcceptedColourValue(
+            favItem.lining,
+            normalizeAcceptedColourValue(fav.lining),
+          );
 
           if (favItem.normalizedSize) {
             fav.admin_us_size = favItem.normalizedSize;
@@ -1556,19 +1568,17 @@ router.post(
             fav.size_country = favItem.normalizedSizeCountry;
           }
 
-          if (
-            typeof favItem.lining === "string" &&
-            favItem.lining.trim().length > 0
-          ) {
-            fav.add_lining = favItem.lining === "No Lining" ? 0 : 1;
-            fav.lining_color =
-              favItem.lining === "No Lining"
-                ? "No Color"
-                : typeof favItem.liningColor === "string" &&
-                    favItem.liningColor.trim()
-                  ? favItem.liningColor.trim()
-                  : fav.lining_color;
-          }
+          fav.add_lining = fav.lining === "No Lining" ? 0 : 1;
+          fav.lining_color =
+            fav.lining === "No Lining"
+              ? "No Color"
+              : normalizeAcceptedColourValue(
+                  favItem.liningColor,
+                  normalizeAcceptedLiningColourValue(
+                    fav.lining,
+                    fav.lining_color,
+                  ),
+                );
 
           await fav.save();
         }
@@ -2682,13 +2692,28 @@ router.patch(
             if (styleDirty.quantity) fav.quantity = style.normalizedQuantity;
             if (styleDirty.comments) fav.customization = String(style.comments ?? "");
             if (styleDirty.customColor) fav.color = String(style.customColor ?? "");
-            if (styleDirty.meshColor) fav.mesh_color = String(style.meshColor ?? "");
-            if (styleDirty.beadingColor) fav.beading_color = String(style.beadingColor ?? "");
+            if (styleDirty.meshColor) {
+              fav.mesh_color = normalizeAcceptedColourValue(style.meshColor);
+            }
+            if (styleDirty.beadingColor) {
+              fav.beading_color = normalizeAcceptedColourValue(style.beadingColor);
+            }
             if (styleDirty.lining) {
-              fav.lining = String(style.lining ?? "");
+              fav.lining = normalizeAcceptedColourValue(style.lining);
               fav.add_lining = fav.lining === "No Lining" ? 0 : 1;
             }
-            if (styleDirty.liningColor) fav.lining_color = String(style.liningColor ?? "");
+            if (styleDirty.liningColor || styleDirty.lining) {
+              fav.lining_color =
+                fav.lining === "No Lining"
+                  ? "No Color"
+                  : normalizeAcceptedColourValue(
+                      style.liningColor,
+                      normalizeAcceptedLiningColourValue(
+                        fav.lining,
+                        fav.lining_color,
+                      ),
+                    );
+            }
             if (styleDirty.size) {
               fav.admin_us_size = style.normalizedSize.displaySize;
               fav.size_country = style.normalizedSize.sizeCountry;

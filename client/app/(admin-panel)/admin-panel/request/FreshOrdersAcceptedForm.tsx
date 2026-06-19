@@ -108,6 +108,49 @@ const hasDirtyFields = (dirtyFields: any): boolean => {
   );
 };
 
+const DEFAULT_MANUFACTURING_EMAIL = "rubyinc@hotmail.com";
+const DEFAULT_REQUEST_COLOUR = "SAS";
+
+const normalizeRequestText = (value: unknown, fallback = DEFAULT_REQUEST_COLOUR) => {
+  const text = String(value ?? "").trim();
+  return text || fallback;
+};
+
+const resolveRequestColourName = (
+  colourValue: unknown,
+  colours: any[] = [],
+  fallback = DEFAULT_REQUEST_COLOUR,
+) => {
+  const colourText = String(colourValue ?? "").trim();
+  if (!colourText || colourText === DEFAULT_REQUEST_COLOUR) return fallback;
+
+  return (
+    colours.find((colour: any) => colour.hexcode === colourText)?.name ||
+    colourText ||
+    fallback
+  );
+};
+
+const normalizeFreshRequestStyle = (style: any) => {
+  const lining = normalizeRequestText(style?.lining);
+
+  return {
+    ...style,
+    meshColor: normalizeRequestText(style?.meshColor),
+    beadingColor: normalizeRequestText(style?.beadingColor),
+    lining,
+    liningColor: normalizeRequestText(
+      style?.liningColor,
+      lining === "No Lining" ? "No Color" : DEFAULT_REQUEST_COLOUR,
+    ),
+  };
+};
+
+const normalizeFreshRequestForm = (data: CreateFreshOrderForm): CreateFreshOrderForm => ({
+  ...data,
+  styles: data.styles.map(normalizeFreshRequestStyle) as CreateFreshOrderForm["styles"],
+});
+
 const getFirstFormErrorMessage = (errors: any): string | undefined => {
   if (!errors || typeof errors !== "object") return undefined;
   if (typeof errors.message === "string") return errors.message;
@@ -238,10 +281,10 @@ const FreshOrdersAcceptedForm = ({
           quantity: "",
           comments: "",
           customization_p: 0,
-          meshColor: "",
-          beadingColor: "",
-          lining: "",
-          liningColor: "",
+          meshColor: DEFAULT_REQUEST_COLOUR,
+          beadingColor: DEFAULT_REQUEST_COLOUR,
+          lining: DEFAULT_REQUEST_COLOUR,
+          liningColor: DEFAULT_REQUEST_COLOUR,
         },
       ],
     },
@@ -305,9 +348,11 @@ const FreshOrdersAcceptedForm = ({
       form.setValue("customerId", customerStoreName);
       form.setValue(
         "manufacturingEmailAddress",
-        data[0].manufacturingEmailAddress ||
-          editOrder?.manufacturingEmailAddress ||
-          "rubyinc@hotmail.com",
+        isEditMode
+          ? data[0].manufacturingEmailAddress ||
+              editOrder?.manufacturingEmailAddress ||
+              DEFAULT_MANUFACTURING_EMAIL
+          : DEFAULT_MANUFACTURING_EMAIL,
       );
       const receivedDate = parseDateOnly(
         data[0].orderReceivedDate || editOrder?.orderReceivedDate,
@@ -336,23 +381,14 @@ const FreshOrdersAcceptedForm = ({
         fav_id: it.fav_id,
         customization_p: Number(it.customization_price || 0),
         barcodes: it.barcodes || (it.barcode ? [String(it.barcode)] : []),
-        meshColor:
-          it.mesh_color !== "SAS"
-            ? colors.find((colour: any) => colour.hexcode === it.mesh_color)
-              ?.name
-            : "SAS",
-        beadingColor:
-          it.beading_color !== "SAS"
-            ? colors.find(
-              (colour: any) => colour.hexcode === it.beading_color,
-            )?.name
-            : "SAS",
-        lining: it.lining,
-        liningColor:
-          it.lining_color !== "SAS"
-            ? colors.find((colour: any) => colour.hexcode === it.lining_color)
-              ?.name
-            : "SAS",
+        meshColor: resolveRequestColourName(it.mesh_color, colors),
+        beadingColor: resolveRequestColourName(it.beading_color, colors),
+        lining: normalizeRequestText(it.lining),
+        liningColor: resolveRequestColourName(
+          it.lining_color,
+          colors,
+          normalizeRequestText(it.lining) === "No Lining" ? "No Color" : DEFAULT_REQUEST_COLOUR,
+        ),
       }));
 
       form.setValue("styles", arrayData);
@@ -536,28 +572,29 @@ const FreshOrdersAcceptedForm = ({
   };
 
   const onSubmitFun = async (data: CreateFreshOrderForm) => {
+    const normalizedData = normalizeFreshRequestForm(data);
     const finalData = details[0] as any;
 
     const dataSend = {
       rfo_id: id,
       retailerId: finalData.retailerId,
-      address: data.address,
-      purchaseOrderNo: data.purchaseOrderNo,
-      hasId: data.styles.map((i: any) => i.colorType).join(","),
-      manufacturingEmailAddress: data.manufacturingEmailAddress,
-      orderCancellationDate: formatDateOnly(data.orderCancellationDate),
-      orderReceivedDate: formatDateOnly(data.orderReceivedDate),
-      Size: data.styles.map((i: any) => i.size).join(","),
+      address: normalizedData.address,
+      purchaseOrderNo: normalizedData.purchaseOrderNo,
+      hasId: normalizedData.styles.map((i: any) => i.colorType).join(","),
+      manufacturingEmailAddress: normalizedData.manufacturingEmailAddress,
+      orderCancellationDate: formatDateOnly(normalizedData.orderCancellationDate),
+      orderReceivedDate: formatDateOnly(normalizedData.orderReceivedDate),
+      Size: normalizedData.styles.map((i: any) => i.size).join(","),
       size_country: details.map((i) => i.size_country).join(","),
-      StyleNo: data.styles.map((i: any) => i.styleNo).join(","),
-      quantity: data.styles.map((i) => i.quantity).join(","),
+      StyleNo: normalizedData.styles.map((i: any) => i.styleNo).join(","),
+      quantity: normalizedData.styles.map((i) => i.quantity).join(","),
       total_amount: form.getValues("total_amount"),
-      advance: data.advance,
-      styles: data.styles,
-      shipping: data.shipping,
-      estimate: data.estimate,
-      invoice: data.invoice,
-      phoneNumber: data.phoneNumber,
+      advance: normalizedData.advance,
+      styles: normalizedData.styles,
+      shipping: normalizedData.shipping,
+      estimate: normalizedData.estimate,
+      invoice: normalizedData.invoice,
+      phoneNumber: normalizedData.phoneNumber,
     };
 
     if (isEditMode) {
@@ -603,7 +640,7 @@ const FreshOrdersAcceptedForm = ({
           }
         }
 
-        form.reset(data);
+        form.reset(normalizedData);
         setOpen(false);
         toast.success(response.message ?? "Order updated successfully");
         onSuccess?.();
@@ -683,16 +720,16 @@ const FreshOrdersAcceptedForm = ({
           Array.isArray(response.createdStyles) ? response.createdStyles : [],
         );
         const finalStyles = await buildFreshPreviewDetails(
-          data,
+          normalizedData,
           purchaseOrderNo,
           barcodeGroups,
         );
 
         const preData = {
-          customerId: data.customerId,
-          manufacturingEmailAddress: data.manufacturingEmailAddress,
-          orderCancellationDate: formatDateOnly(data.orderCancellationDate),
-          orderReceivedDate: formatDateOnly(data.orderReceivedDate),
+          customerId: normalizedData.customerId,
+          manufacturingEmailAddress: normalizedData.manufacturingEmailAddress,
+          orderCancellationDate: formatDateOnly(normalizedData.orderCancellationDate),
+          orderReceivedDate: formatDateOnly(normalizedData.orderReceivedDate),
           orderType: "Fresh",
           purchaseOrderNo,
           details: finalStyles,
@@ -728,26 +765,27 @@ const FreshOrdersAcceptedForm = ({
 
   const onPreviewSubmit = async (data: CreateFreshOrderForm) => {
     try {
+      const normalizedData = normalizeFreshRequestForm(data);
       const formBarcodeGroups = new Map<string, string[]>();
-      data.styles.forEach((style: any, index) => {
+      normalizedData.styles.forEach((style: any, index) => {
         const favouriteId = getFavouriteRowId(style, index);
         if (Array.isArray(style.barcodes) && style.barcodes.length) {
           formBarcodeGroups.set(favouriteId, style.barcodes);
         }
       });
       const finalStyles = await buildFreshPreviewDetails(
-        data,
-        data.purchaseOrderNo,
+        normalizedData,
+        normalizedData.purchaseOrderNo,
         formBarcodeGroups,
       );
 
       setPreviewData({
-        customerId: data.customerId,
-        manufacturingEmailAddress: data.manufacturingEmailAddress,
-        orderCancellationDate: formatDateOnly(data.orderCancellationDate),
-        orderReceivedDate: formatDateOnly(data.orderReceivedDate),
+        customerId: normalizedData.customerId,
+        manufacturingEmailAddress: normalizedData.manufacturingEmailAddress,
+        orderCancellationDate: formatDateOnly(normalizedData.orderCancellationDate),
+        orderReceivedDate: formatDateOnly(normalizedData.orderReceivedDate),
         orderType: "Fresh",
-        purchaseOrderNo: data.purchaseOrderNo,
+        purchaseOrderNo: normalizedData.purchaseOrderNo,
         details: finalStyles,
         total: total_state,
       });
