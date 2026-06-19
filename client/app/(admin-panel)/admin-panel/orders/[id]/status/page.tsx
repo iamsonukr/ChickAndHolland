@@ -30,6 +30,7 @@ import useHttp from "@/lib/hooks/usePost";
 import { Button } from "@/components/custom/button";
 import { PasswordInput } from "@/components/custom/password-input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogClose,
@@ -339,12 +340,46 @@ function ItemCard({
   onResetOne: () => void;
 }) {
   const [showProgress, setShowProgress] = useState(false);
+  const [comment, setComment] = useState(String(raw.comment ?? ""));
 
   const barcode = normalizeBarcodeValue(raw.barcode);
   const LabelComponent = type === "STORE" ? StatusLabelBox1 : StatusLabelBox;
+  const { executeAsync: saveQrComment, loading: savingComment } = useHttp(
+    "/admin-scan/barcodes/comment",
+    "POST",
+  );
 
   const progress: any[] = raw.progress ?? [];
   const currentStageLabel = getCurrentStageLabel(progress);
+
+  useEffect(() => {
+    setComment(String(raw.comment ?? ""));
+  }, [raw.comment, raw.barcode]);
+
+  const handleSaveComment = async () => {
+    if (!barcode) {
+      toast.error("This QR item does not have a valid barcode");
+      return;
+    }
+
+    try {
+      await saveQrComment(
+        {
+          barcode,
+          orderType: type,
+          comment,
+        },
+        {},
+        (error) => toast.error(error?.message ?? "Failed to save comment"),
+      );
+      toast.success("QR comment saved");
+      await onRefresh();
+    } catch (error: any) {
+      if (!error?.message) {
+        toast.error("Failed to save comment");
+      }
+    }
+  };
 
   return (
     <>
@@ -432,6 +467,32 @@ function ItemCard({
 
         {/* Actions */}
         <div className="mt-auto flex flex-col gap-1.5 border-t pt-2">
+          <div className="space-y-1.5">
+            <Label
+              htmlFor={`qr-comment-${type}-${raw.styleId ?? raw.id ?? barcode}`}
+              className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+            >
+              Comment
+            </Label>
+            <Textarea
+              id={`qr-comment-${type}-${raw.styleId ?? raw.id ?? barcode}`}
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              maxLength={1000}
+              rows={3}
+              placeholder="Add comment..."
+              className="min-h-[64px] resize-none text-xs"
+            />
+            <Button
+              type="button"
+              onClick={handleSaveComment}
+              loading={savingComment}
+              disabled={savingComment}
+              className="min-h-[32px] w-full rounded-md px-2 py-1.5 text-[11px]"
+            >
+              Save Comment
+            </Button>
+          </div>
           <div className="w-full">
             <StatusScannerButton
               barcode={barcode}

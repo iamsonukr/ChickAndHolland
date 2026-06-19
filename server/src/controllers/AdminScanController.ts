@@ -9,6 +9,11 @@ import StockOrderStyles from "../models/StockOrderStyles";
 import { AdminUserContext, requireAdminUser } from "../middleware/AdminAuth";
 import { ensureScanGuardTable } from "../lib/scanGuard";
 import { verifyResetPassword } from "../services/resetPassword.service";
+import {
+  BarcodeCommentOrderType,
+  saveBarcodeComment,
+} from "../services/barcodeComment.service";
+import { ensureBarcodeCommentsTable } from "../utils/ensureBarcodeCommentsTable";
 
 const router = Router();
 
@@ -491,6 +496,45 @@ router.post(
         ...resetResult,
         clearedStages: LATER_STAGE_DATE_FIELDS,
       },
+    });
+  }),
+);
+
+router.post(
+  "/barcodes/comment",
+  requireAdminUser(["/admin-panel/orders"]),
+  asyncHandler(async (req: Request, res: Response) => {
+    const barcode = String(req.body?.barcode || "").trim();
+    const orderType = String(req.body?.orderType || req.body?.type || "")
+      .trim()
+      .toUpperCase();
+    const comment = String(req.body?.comment ?? "").trim();
+
+    if (!barcode || !["STORE", "RETAILER", "STOCK"].includes(orderType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid barcode and order type are required.",
+      });
+    }
+
+    if (comment.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: "Comment must be 1000 characters or less.",
+      });
+    }
+
+    await ensureBarcodeCommentsTable();
+    await saveBarcodeComment({
+      barcode,
+      orderType: orderType as BarcodeCommentOrderType,
+      comment,
+    });
+
+    return res.json({
+      success: true,
+      message: "QR comment saved successfully.",
+      data: { barcode, orderType, comment },
     });
   }),
 );

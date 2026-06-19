@@ -493,18 +493,6 @@ const putDraftFiles = async (files: DraftFileRecord) => {
   db.close();
 };
 
-const getDraftFiles = async () => {
-  const db = await openDraftFileDb();
-  const files = await new Promise<DraftFileRecord | undefined>((resolve, reject) => {
-    const tx = db.transaction(CREATE_ORDER_DRAFT_STORE, "readonly");
-    const request = tx.objectStore(CREATE_ORDER_DRAFT_STORE).get(CREATE_ORDER_DRAFT_FILE_KEY);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  db.close();
-  return files;
-};
-
 const clearDraftFiles = async () => {
   const db = await openDraftFileDb();
   await new Promise<void>((resolve, reject) => {
@@ -750,7 +738,7 @@ export function useCreateOrder({
 
   const fullComponentWatch = form.watch("styles");
   const watchedForm = useWatch({ control: form.control });
-  const hasRestoredDraftRef = useRef(false);
+  const autoDraftOnCloseRef = useRef(false);
 
   const clearAutosavedDraft = useCallback(() => {
     if (typeof window === "undefined" || isEditMode) return;
@@ -770,24 +758,6 @@ export function useCreateOrder({
       return Number.isFinite(id) && id > 0 ? id : null;
     } catch {
       return null;
-    }
-  }, []);
-
-  const persistAutosavedDraftOrderId = useCallback((orderId?: unknown) => {
-    if (typeof window === "undefined") return;
-    const id = Number(orderId);
-    if (!Number.isFinite(id) || id <= 0) return;
-
-    try {
-      const draft = JSON.parse(
-        localStorage.getItem(CREATE_ORDER_DRAFT_KEY) ?? "{}",
-      );
-      localStorage.setItem(
-        CREATE_ORDER_DRAFT_KEY,
-        JSON.stringify({ ...draft, orderId: id }),
-      );
-    } catch (error) {
-      console.error("[CreateOrderAutosave] Failed to store draft order id", error);
     }
   }, []);
 
@@ -858,39 +828,14 @@ export function useCreateOrder({
   }, [isEditMode, open, editOrder?.id]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || isEditMode || !open) return;
-    if (hasRestoredDraftRef.current) return;
-    hasRestoredDraftRef.current = true;
+    if (isEditMode || !open) return;
 
-    const rawDraft = localStorage.getItem(CREATE_ORDER_DRAFT_KEY);
-    if (!rawDraft) return;
-
-    try {
-      const draft = JSON.parse(rawDraft);
-      if (!draft?.formData) return;
-
-      form.reset(draft.formData);
-      getDraftFiles()
-        .then((files) => {
-          if (files?.uploadedFile) {
-            setUploadedFile(files.uploadedFile);
-          }
-          Object.entries(files?.styleFiles ?? {}).forEach(([index, fileList]) => {
-            form.setValue(
-              `styles.${Number(index)}.modifiedPhotoImage` as any,
-              fileList,
-              { shouldDirty: true },
-            );
-          });
-        })
-        .catch((error) => {
-          console.error("[CreateOrderAutosave] Failed to restore draft files", error);
-        });
-      toast.info("Autosaved order draft restored");
-    } catch (error) {
-      console.error("[CreateOrderAutosave] Failed to restore draft", error);
-    }
-  }, [form, isEditMode, open, setUploadedFile]);
+    clearAutosavedDraft();
+    form.reset(buildDefaultValues());
+    setPreviewData(null);
+    clearUploadedFile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, open]);
 
   useEffect(() => {
     if (typeof window === "undefined" || isEditMode || !open) return;
@@ -1208,14 +1153,10 @@ export function useCreateOrder({
         toast.error("Failed to add order");
         return;
       }
-      if (publishStatus === "draft") {
-        persistAutosavedDraftOrderId(response.orderId ?? existingDraftOrderId);
-      }
-
       form.reset();
       setOpen(false);
       clearUploadedFile();
-      if (publishStatus !== "draft") clearAutosavedDraft();
+      clearAutosavedDraft();
       toast.success(
         response.message ??
           (publishStatus === "draft"
@@ -1234,22 +1175,37 @@ export function useCreateOrder({
   const onSaveDraft = async (data: CreateOrderForm) =>
     submitOrder(data, "draft");
 
-  const handleOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      if (!nextOpen) {
-        saveAutosavedDraft("sheet-close");
+  const handleOpenChange = async (nextOpen: boolean) => {
+    if (nextOpen) {
+      setOpen(true);
+      return;
+    }
 
-        if (!isEditMode && form.formState.isValid) {
-          submitOrder(form.getValues(), "draft").catch((error) => {
-            console.error("[CreateOrderAutosave] Database draft save failed", error);
-          });
-        }
-      }
+    saveAutosavedDraft("sheet-close");
 
-      setOpen(nextOpen);
-    },
-    [form, isEditMode, saveAutosavedDraft],
-  );
+    if (isEditMode) {
+      setOpen(false);
+      return;
+    }
+
+    if (autoDraftOnCloseRef.current) return;
+
+    const canSaveDraft = await form.trigger();
+
+    if (!canSaveDraft) {
+      setOpen(false);
+      return;
+    }
+
+    autoDraftOnCloseRef.current = true;
+    try {
+      await submitOrder(form.getValues(), "draft");
+    } catch (error) {
+      console.error("[CreateOrderAutosave] Database draft save failed", error);
+    } finally {
+      autoDraftOnCloseRef.current = false;
+    }
+  };
 
   // ── onPreviewSubmit ─────────────────────────────────────────────────────────
   const onPreviewSubmit = async (data: CreateOrderForm) => {

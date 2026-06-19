@@ -3,6 +3,7 @@ import { Router, Request, Response } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
 import StyleProgress from "../models/StyleProgress";
 import db from "../db";
+import { getBarcodeComment } from "../services/barcodeComment.service";
 
 const router = Router();
 
@@ -92,6 +93,7 @@ router.get(
         styleId: row.styleId,
         styleNo: row.styleNo,
         barcode: row.barcode,
+        comment: await getBarcodeComment(row.barcode, "RETAILER"),
 
         // ✅ LABEL DATA (RAW)
         size: row.size,
@@ -185,6 +187,7 @@ ORDER BY sos.id ASC;
         styleId: row.styleId,
         styleNo: row.styleNo,
         barcode: row.barcode,
+        comment: await getBarcodeComment(row.barcode, "STOCK"),
 
         // ✅ CORRECT FIX
         size: row.size,

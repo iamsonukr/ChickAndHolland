@@ -50,6 +50,7 @@ import { mail } from "../lib/Utils";
 import { generateOrderPdf } from "../pdf/generateOrderPdf";
 import { formatDateOnly, parseDateOnly } from "../lib/dateOnly";
 import { assertDeliverableEmailAddress } from "../lib/emailValidation";
+import { getBarcodeComment } from "../services/barcodeComment.service";
 import {
   DEFAULT_ORDER_STAGE,
   getCanonicalStage,
@@ -3202,6 +3203,7 @@ PublicStoreRoutes.get(
         styleId: row.styleId,
         styleNo: row.styleNo,
         barcode: row.barcode,
+        comment: await getBarcodeComment(row.barcode, "STORE"),
 
         // ✅ LABEL DATA
         size: row.size,
