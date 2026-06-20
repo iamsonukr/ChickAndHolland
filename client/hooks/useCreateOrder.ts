@@ -1191,9 +1191,15 @@ export function useCreateOrder({
 
     if (autoDraftOnCloseRef.current) return;
 
-    const canSaveDraft = await form.trigger();
+    const hasUploadedStyleImage = form
+      .getValues("styles")
+      .some((style) => style.modifiedPhotoImage?.length);
+    const hasDraftableChanges =
+      hasDirtyFields(form.formState.dirtyFields) ||
+      Boolean(uploadedFile) ||
+      hasUploadedStyleImage;
 
-    if (!canSaveDraft) {
+    if (!hasDraftableChanges) {
       setOpen(false);
       return;
     }

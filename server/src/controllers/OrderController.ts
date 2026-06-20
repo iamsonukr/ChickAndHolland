@@ -753,7 +753,9 @@ function buildOrderAddress(
   const postalCode = sanitizeText(customer?.postalCode);
   const countryName = sanitizeText(customer?.country?.name);
 
-  let baseAddress = explicitAddress || defaultAddress;
+  if (explicitAddress) return explicitAddress;
+
+  let baseAddress = defaultAddress;
 
   if (
     postalCode &&
@@ -784,7 +786,7 @@ function buildOrderAddress(
 
     const baseWithoutCountry = baseAddress
       .replace(trailingCountryPattern, "")
-      .replace(/[,\-]\s*$/, "")
+      .replace(/[,-]\s*$/, "")
       .trim();
 
     if (!baseWithoutCountry) return `(${countryName})`;
@@ -1011,6 +1013,24 @@ function getRegularOrderQuantityValidationError(styles: any[]) {
   return null;
 }
 
+function hasRegularOrderDraftStyleData(style: any) {
+  if (!style || typeof style !== "object") return false;
+
+  return Boolean(
+    sanitizeText(style.styleNo) ||
+      sanitizeText(style.size) ||
+      sanitizeText(style.quantity) ||
+      !["", "SAS"].includes(sanitizeText(style.mesh)) ||
+      !["", "SAS"].includes(sanitizeText(style.beading)) ||
+      !["", "SAS"].includes(sanitizeText(style.lining)) ||
+      !["", "SAS"].includes(sanitizeText(style.liningColor)) ||
+      commentsToArray(style.comments).length ||
+      normalizeFieldArray(style.customColor).length ||
+      normalizeFieldArray(style.customSize).length ||
+      normalizeFieldArray(style.customSizesQuantity).length,
+  );
+}
+
 function parsePublishStatus(value: unknown) {
   return value === OrderPublishStatus.Draft
     ? OrderPublishStatus.Draft
@@ -1204,8 +1224,9 @@ router.post(
         const address = fields["address"];
         const customerId = parsePositiveInteger(fields["customerId"]);
         const publishStatus = parsePublishStatus(fields["publishStatus"]);
+        const isDraft = publishStatus === OrderPublishStatus.Draft;
 
-        if (!orderReceivedDate || !orderCancellationDate) {
+        if (!isDraft && (!orderReceivedDate || !orderCancellationDate)) {
           return res.status(400).json({
             success: false,
             message: "Valid order received and shipping dates are required",
@@ -1228,31 +1249,36 @@ router.post(
           }
         }
 
-        if (!customerId) {
+        if (!isDraft && !customerId) {
           return res.status(400).json({
             success: false,
             message: "Customer is required",
           });
         }
 
-        const customer = await Customer.findOne({
-          where: { id: customerId },
-          relations: ["currency"],
-        });
-        if (!customer) {
+        const customer = customerId
+          ? await Customer.findOne({
+              where: { id: customerId },
+              relations: ["currency"],
+            })
+          : null;
+        if (!isDraft && !customer) {
           return res.status(404).json({
             success: false,
             message: "Customer not found",
           });
         }
         const pricingProductsMap = await fetchPricingProductsMap(styles);
-        const resolvedPurchaseOrderNo = await resolveRegularPurchaseOrderNo(
-          getCustomerStoreName(customer),
-          purchaseOrderNo,
-        );
+        const resolvedPurchaseOrderNo = customer
+          ? await resolveRegularPurchaseOrderNo(
+              getCustomerStoreName(customer),
+              purchaseOrderNo,
+            )
+          : sanitizeText(purchaseOrderNo) || `PO#DRAFT ${Date.now()}`;
 
-        const quantityValidationError =
-          getRegularOrderQuantityValidationError(styles);
+        const quantityValidationError = isDraft
+          ? null
+          : getRegularOrderQuantityValidationError(styles);
 
         if (quantityValidationError) {
           return res.status(400).json({
@@ -1264,13 +1290,14 @@ router.post(
         // CREATE ORDER
         const order = new Order();
         order.purchaeOrderNo = resolvedPurchaseOrderNo;
-        order.manufacturingEmailAddress = manufacturingEmailAddress;
-        order.orderType = orderType as OrderType;
-        order.orderReceivedDate = orderReceivedDate;
-        order.orderCancellationDate = orderCancellationDate;
+        order.manufacturingEmailAddress =
+          sanitizeText(manufacturingEmailAddress) || "rubyinc@hotmail.com";
+        order.orderType = (sanitizeText(orderType) || OrderType.Store) as OrderType;
+        order.orderReceivedDate = orderReceivedDate || new Date();
+        order.orderCancellationDate = (orderCancellationDate ?? null) as any;
         order.address = address;
         order.publishStatus = publishStatus;
-        order.customer = customer;
+        if (customer) order.customer = customer;
 
         await order.save(); // ⬅ MUST SAVE BEFORE STYLES
 
@@ -1303,13 +1330,20 @@ router.post(
         // ================================
         // PROCESS ALL STYLES (EACH GETS UNIQUE BARCODE)
         // ================================
-        const stylesForBarcodeRows = styles.flatMap(
-          (style: any, index: number) =>
-            buildRegularOrderStylePieces(style).map((piece) => ({
-              ...piece,
-              _sourceIndex: index,
-            })),
-        );
+        const stylesForBarcodeRows = isDraft
+          ? styles
+              .filter(hasRegularOrderDraftStyleData)
+              .map((style: any, index: number) => ({
+                ...style,
+                quantity: parsePositiveOrderQuantity(style?.quantity) ?? 0,
+                _sourceIndex: index,
+              }))
+          : styles.flatMap((style: any, index: number) =>
+              buildRegularOrderStylePieces(style).map((piece) => ({
+                ...piece,
+                _sourceIndex: index,
+              })),
+            );
         const uploadedStyleImageUrlsBySourceIndex = new Map<number, string[]>();
 
         for (let i = 0; i < stylesForBarcodeRows.length; i++) {
