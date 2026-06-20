@@ -5,7 +5,7 @@ import {
   parseRolePermissions,
 } from "./lib/adminPermissions";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const userType = request.cookies.get("userType")?.value;
   const pathname = request.nextUrl.pathname;

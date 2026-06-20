@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { memo, useEffect, useState } from "react";
 import {
   Sheet,
@@ -64,6 +65,66 @@ const lining = [
   "Bust To Hips Stitched Lining",
   "Bust To Hips Seperate Lining",
 ];
+
+const ProductImagePreviewGrid = ({
+  files,
+  onRemove,
+}: {
+  files: File[];
+  onRemove: (index: number) => void;
+}) => {
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+
+  useEffect(() => {
+    const urls = files.map((file) => URL.createObjectURL(file));
+    setPreviewUrls(urls);
+
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [files]);
+
+  if (files.length === 0) return null;
+
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      {files.map((file, index) => (
+        <div
+          key={`${file.name}-${file.lastModified}-${index}`}
+          className="group overflow-hidden rounded-md border bg-background"
+        >
+          <div className="relative aspect-square bg-muted/30">
+            {previewUrls[index] && (
+              <Image
+                src={previewUrls[index]}
+                alt={file.name}
+                fill
+                sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                className="object-contain"
+                unoptimized
+              />
+            )}
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              className="absolute right-2 top-2 h-7 w-7 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"
+              onClick={() => onRemove(index)}
+              aria-label={`Remove ${file.name}`}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="border-t px-2 py-1.5">
+            <p className="truncate text-xs text-muted-foreground">
+              {file.name}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const AddProductForm = ({
   categories = [],
@@ -706,33 +767,16 @@ const filteredCollections = selectedCategory
                       }}
                     />
                   </FormControl>
-                  {field.value?.length > 0 && (
-                    <div className="mt-2 space-y-2 text-sm text-muted-foreground">
-                      {field.value.map((file: File, index: number) => (
-                        <div
-                          key={`${file.name}-${file.lastModified}-${index}`}
-                          className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
-                        >
-                          <span className="truncate">{file.name}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              field.onChange(
-                                (field.value as File[]).filter(
-                                  (_: File, fileIndex: number) =>
-                                    fileIndex !== index,
-                                ),
-                              )
-                            }
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <ProductImagePreviewGrid
+                    files={Array.from((field.value ?? []) as File[])}
+                    onRemove={(index) =>
+                      field.onChange(
+                        (field.value as File[]).filter(
+                          (_: File, fileIndex: number) => fileIndex !== index,
+                        ),
+                      )
+                    }
+                  />
                   <FormMessage />
                 </FormItem>
               )}

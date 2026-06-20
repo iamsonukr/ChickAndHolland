@@ -2184,9 +2184,16 @@ router.get(
       LEFT JOIN currencies curr ON curr.id = c.currencyId
     `;
 
-    // Add isApproved condition
-    whereClauses.push("ro.status_id = ?");
-    params.push(isApproved);
+    // Treat the workflow's final stage as delivered even if older rows still
+    // have a stale status_id.
+    if (isApproved === 1) {
+      whereClauses.push("(ro.status_id = ? OR ro.orderStatus = ?)");
+      params.push(isApproved, OrderStatus.Shipped);
+    } else {
+      whereClauses.push("ro.status_id = ?");
+      whereClauses.push("ro.orderStatus <> ?");
+      params.push(isApproved, OrderStatus.Shipped);
+    }
 
     // Handle search query
     if (query) {
