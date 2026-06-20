@@ -43,6 +43,11 @@ import {
   buildRegularOrderStyleTotalSql,
 } from "../lib/orderTotals";
 import { parseDateOnly } from "../lib/dateOnly";
+import {
+  DEFAULT_ORDER_STAGE,
+  ORDER_STAGE_FLOW,
+  getCanonicalStage,
+} from "../lib/stageFlow";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
@@ -59,6 +64,68 @@ const retailerOrderQuantitySql = (alias = "ro") => `
     ELSE 1
   END
 `;
+const emptyStageCounts = () =>
+  ORDER_STAGE_FLOW.reduce<Record<string, number>>((counts, stage) => {
+    counts[stage] = 0;
+    return counts;
+  }, {});
+
+const getRetailerOrderProductStageCounts = async (orderIds: number[]) => {
+  const counts = emptyStageCounts();
+  const validOrderIds = orderIds.map(Number).filter(Boolean);
+
+  if (!validOrderIds.length) return counts;
+
+  const placeholders = validOrderIds.map(() => "?").join(",");
+  const styleRows = await db.query(
+    `
+      SELECT barcode
+      FROM retailer_order_styles
+      WHERE retailerOrderId IN (${placeholders})
+      UNION ALL
+      SELECT barcode
+      FROM stock_order_styles
+      WHERE retailerOrderId IN (${placeholders})
+    `,
+    [...validOrderIds, ...validOrderIds],
+  );
+  const barcodes = styleRows
+    .map((row: any) => String(row.barcode || "").trim())
+    .filter(Boolean);
+
+  if (!barcodes.length) return counts;
+
+  const barcodePlaceholders = barcodes.map(() => "?").join(",");
+  const latestProgressRows = await db.query(
+    `
+      SELECT sp.barcode, sp.stage
+      FROM styleProgress sp
+      INNER JOIN (
+        SELECT barcode, MAX(id) AS latestId
+        FROM styleProgress
+        WHERE barcode IN (${barcodePlaceholders})
+        GROUP BY barcode
+      ) latest
+        ON latest.latestId = sp.id
+    `,
+    barcodes,
+  );
+  const latestStageByBarcode = new Map<string, string>();
+
+  latestProgressRows.forEach((row: any) => {
+    latestStageByBarcode.set(
+      String(row.barcode),
+      getCanonicalStage(row.stage) ?? DEFAULT_ORDER_STAGE,
+    );
+  });
+
+  barcodes.forEach((barcode: string) => {
+    const stage = latestStageByBarcode.get(barcode) ?? DEFAULT_ORDER_STAGE;
+    counts[stage] = (counts[stage] ?? 0) + 1;
+  });
+
+  return counts;
+};
 const REGULAR_ADMIN_ORDER_TOTALS_JOIN_SQL = `
     LEFT JOIN (
       SELECT
@@ -2237,17 +2304,32 @@ router.get(
         : " WHERE ro.status = 0 "
       }
     `;
+    const stageCountSourceSql = `
+      SELECT ro.id
+      FROM retailer_orders AS ro
+      left join retailers r on r.id = ro.retailerId
+      LEFT JOIN customers c ON c.id = r.customerId
+      ${whereClauses.length > 0
+        ? "WHERE " + "ro.status = 0 AND" + " " + whereClauses.join(" AND ")
+        : " WHERE ro.status = 0 "
+      }
+    `;
 
     // Execute queries
-    const [retailerOrders, totalResult] = await Promise.all([
+    const [retailerOrders, totalResult, stageCountSourceOrders] = await Promise.all([
       db.query(dataSql, params),
       db.query(countSql, params.slice(0, -2)), // Correct parameter slicing
+      db.query(stageCountSourceSql, params.slice(0, -2)),
     ]);
+    const stageCounts = await getRetailerOrderProductStageCounts(
+      stageCountSourceOrders.map((order: any) => Number(order.id)),
+    );
 
     return res.json({
       success: true,
       retailerOrders,
       totalCount: totalResult?.[0]?.total || 0,
+      stageCounts,
     });
   })
 );

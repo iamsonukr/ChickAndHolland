@@ -14,6 +14,12 @@ type StockCatalogPdfProps = {
   showPrice: boolean;
 };
 
+const PAGE_WIDTH = 595;
+const PAGE_HEIGHT_WITH_PRICE = 520;
+const PAGE_HEIGHT_WITHOUT_PRICE = 430;
+const IMAGE_HEIGHT_WITH_PRICE = 396;
+const IMAGE_HEIGHT_WITHOUT_PRICE = 306;
+
 const normalizeImages = (images: unknown) => {
   if (Array.isArray(images)) return images.filter(Boolean);
   return images ? [images] : [];
@@ -116,7 +122,15 @@ const StockCatalogPdf = ({
           originalPrice > 0 && discountedPrice > 0 && discountedPrice < originalPrice;
 
         return (
-          <Page key={item?.id ?? index} size="A4" style={styles.page} wrap={false}>
+          <Page
+            key={item?.id ?? index}
+            size={[
+              PAGE_WIDTH,
+              showPrice ? PAGE_HEIGHT_WITH_PRICE : PAGE_HEIGHT_WITHOUT_PRICE,
+            ]}
+            style={styles.page}
+            wrap={false}
+          >
             <View style={styles.header}>
               <View>
                 <Text style={styles.kicker}>Stock Catalog</Text>
@@ -128,7 +142,16 @@ const StockCatalogPdf = ({
             </View>
 
             <View style={styles.body}>
-              <View style={styles.imagePanel}>
+              <View
+                style={[
+                  styles.imagePanel,
+                  {
+                    height: showPrice
+                      ? IMAGE_HEIGHT_WITH_PRICE
+                      : IMAGE_HEIGHT_WITHOUT_PRICE,
+                  },
+                ]}
+              >
                 {image ? (
                   <Image alt={productCode} src={image} style={styles.image} />
                 ) : (
@@ -216,7 +239,7 @@ export default StockCatalogPdf;
 
 const styles = StyleSheet.create({
   page: {
-    padding: 28,
+    padding: 22,
     backgroundColor: "#FFFFFF",
     color: "#111827",
     fontFamily: "Helvetica",
@@ -227,8 +250,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
-    paddingBottom: 14,
-    marginBottom: 18,
+    paddingBottom: 10,
+    marginBottom: 12,
   },
   kicker: {
     fontSize: 9,
@@ -237,7 +260,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
   },
   pageCount: {
@@ -246,12 +269,10 @@ const styles = StyleSheet.create({
   },
   body: {
     flexDirection: "row",
-    gap: 18,
-    height: "100%",
+    gap: 14,
   },
   imagePanel: {
     width: "54%",
-    height: 720,
     borderWidth: 1,
     borderColor: "#E5E7EB",
     borderRadius: 6,

@@ -2240,26 +2240,14 @@ router.get(
       .filter(Boolean);
     const sharedRetailerBarcodes = [...retailerBarcodes, ...stockBarcodes];
 
-    await ensureBarcodeCommentsTable();
-
     const [
       regularProgressByBarcode,
       retailerProgressByBarcode,
-      regularCompletedByBarcode,
-      retailerCompletedByBarcode,
-      storeComments,
-      retailerComments,
-      stockComments,
     ] = await Promise.all([
       getLatestProgressRows("store_style_progress", "status", regularBarcodes)
         .then((rows) => buildStageMap(rows, "status")),
       getLatestProgressRows("styleProgress", "stage", sharedRetailerBarcodes)
         .then((rows) => buildStageMap(rows, "stage")),
-      getProgressQuantityMap("store_style_progress", regularBarcodes),
-      getProgressQuantityMap("styleProgress", sharedRetailerBarcodes),
-      getBarcodeCommentMap(regularBarcodes, "STORE"),
-      getBarcodeCommentMap(retailerBarcodes, "RETAILER"),
-      getBarcodeCommentMap(stockBarcodes, "STOCK"),
     ]);
 
     const orderBarcodes = new Map<string, string[]>();
@@ -2291,69 +2279,22 @@ router.get(
           row.qrType === "STORE"
             ? regularProgressByBarcode
             : retailerProgressByBarcode;
-        const completedMap =
-          row.qrType === "STORE"
-            ? regularCompletedByBarcode
-            : retailerCompletedByBarcode;
-        const commentsMap =
-          row.qrType === "STORE"
-            ? storeComments
-            : row.qrType === "STOCK"
-              ? stockComments
-              : retailerComments;
         const barcode = String(row.barcode || "");
         const productStatus =
           progressMap.get(barcode) ?? DEFAULT_ORDER_STAGE;
         const quantity = Number(row.quantity ?? 1) || 1;
-        const completedQty = completedMap.get(barcode) ?? 0;
         const qrBoxColor = formatQrBoxColor(row.meshColor ?? row.color);
-        const customer = {
-          storeAddress: row.customerAddress,
-          postalCode: row.customerPostalCode,
-          country: { name: row.customerCountry },
-        };
 
         return {
           orderKey,
           orderStatus,
           orderCancellationDate: row.orderCancellationDate,
           row: {
-            "Style No": row.styleNo,
-            Barcode: barcode,
-            "QR Type": row.qrType,
+            "Style no": row.styleNo,
             "Product Status": productStatus,
-            Size: row.size ?? "",
-            "Size Country": row.size_country ?? "",
+            "PO Number": row.purchaseOrderNo,
+            Color: qrBoxColor.display,
             Quantity: quantity,
-            "Completed Qty": completedQty,
-            "Remaining Qty": quantity - completedQty,
-            "QR Box Color": qrBoxColor.display,
-            "Color Prefix": qrBoxColor.prefix,
-            "Color Name": qrBoxColor.name,
-            "Raw Mesh Color": row.meshColorRaw ?? "",
-            "Color Type": row.colorType ?? "",
-            "Beading Color": row.beadingColor ?? "",
-            Lining: row.lining ?? "",
-            "Lining Color": row.liningColor ?? "",
-            "Style Comments": commentsToArray(row.styleComments).join(", "),
-            "QR Comment": commentsMap.get(barcode) ?? "",
-            "Purchase Order No": row.purchaseOrderNo,
-            "Style ID": row.styleId,
-            "Order ID": row.orderId,
-            "Order Source": row.orderSource === "regular" ? "Store" : "Retailer",
-            "Order Type": row.orderType,
-            "Order Date": formatDateOnly(row.orderReceivedDate),
-            "Ship Date": formatDateOnly(row.orderCancellationDate),
-            "Order Status": orderStatus,
-            "Shipping Status": row.shippingStatus ?? "",
-            "Shipping Date": formatDateOnly(row.shippingDate),
-            "Tracking No": row.trackingNo ?? "",
-            "Customer / Store": getCustomerStoreName({
-              storeName: row.customerStoreName,
-              name: row.customerName,
-            }),
-            "Customer Phone": row.customerPhone ?? "",
-            Address: buildOrderAddress(row.orderAddress, customer),
           },
         };
       })

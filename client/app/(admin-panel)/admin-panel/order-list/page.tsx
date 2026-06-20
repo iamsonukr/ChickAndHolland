@@ -80,7 +80,11 @@ const page = async (props: {
       <div className="mb-2">
         <CustomSearchBar query={query} />
         <div className="mt-2">
-          <StageFilter query={query} stage={stage} />
+          <StageFilter
+            query={query}
+            stage={stage}
+            stageCounts={acceptedOrders?.stageCounts}
+          />
         </div>
       </div>
       {/* <div className="flex justify-end">
