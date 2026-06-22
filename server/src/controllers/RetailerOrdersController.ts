@@ -325,6 +325,27 @@ async function upsertRetailerOrderAdvance(
   await payment.save();
 }
 
+async function getRetailerPaymentSummary(order: RetailerOrder) {
+  const payments = await RetailerOrdersPayment.find({
+    where: { order: { id: order.id } },
+  });
+  const paidAmount = payments.reduce(
+    (sum, payment) => sum + Number(payment.amount || 0),
+    0,
+  );
+  const purchaseAmount = Number(order.purchaseAmount || 0);
+  const balance = Math.max(purchaseAmount - paidAmount, 0);
+
+  order.payment_status = balance <= 0 ? "Paid" : "Pending";
+  await order.save();
+
+  return {
+    purchaseAmount,
+    paidAmount,
+    balance,
+  };
+}
+
 async function syncFreshOrderStyleRows(order: RetailerOrder, style: any) {
   const normalizedSize = normalizeAcceptedStyleSize(style?.size, style?.size_country);
   const desiredQuantity = parsePositiveOrderQuantity(style?.quantity);
@@ -1883,6 +1904,7 @@ router.get(
         ro.stockOrderId,
         IFNULL(payments.paid_amount, 0) AS paid_amount,
         (ro.purchaseAmount - IFNULL(payments.paid_amount, 0)) AS balance,
+        (ro.purchaseAmount - IFNULL(payments.paid_amount, 0)) AS balance_amount,
         COALESCE(stockCurr.symbol, favCurr.symbol, curr.symbol) as currencySymbol,
         COALESCE(stockCurr.name, favCurr.name, curr.name) as currencyName
       FROM retailer_orders AS ro
@@ -2235,6 +2257,7 @@ router.get(
         DATE_FORMAT(ro.orderCancellationDate,'%Y-%m-%d') AS shipping_date,
         IFNULL(payments.paid_amount, 0) AS paid_amount,
         (ro.purchaseAmount - IFNULL(payments.paid_amount, 0)) AS balance,
+        (ro.purchaseAmount - IFNULL(payments.paid_amount, 0)) AS balance_amount,
         COALESCE(NULLIF(c.storeName, ''), c.name) as customerStoreName,
         COALESCE(NULLIF(c.storeName, ''), c.name) as retailer_name,  
         c.email as retailer_email,
@@ -2341,6 +2364,24 @@ router.post(
     const { id } = req.params;
 
     const { amount, payment_type } = req.body;
+    const paymentAmount = Number(amount);
+    const paymentMethod = String(payment_type || "").trim();
+
+    if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid payment amount",
+        msg: "Please enter a valid payment amount",
+      });
+    }
+
+    if (!paymentMethod || paymentMethod === "select") {
+      return res.status(400).json({
+        success: false,
+        message: "Please select a payment method",
+        msg: "Please select a payment method",
+      });
+    }
 
     const order = await RetailerOrder.findOne({
       where: {
@@ -2351,6 +2392,7 @@ router.post(
     if (!order) {
       return res.json({
         success: false,
+        message: "Order not found",
         msg: "Error",
       });
     }
@@ -2363,30 +2405,42 @@ router.post(
       },
     });
 
-    const totalAmount =
-      paymentHis.reduce((sum, payment) => sum + (payment.amount || 0), 0) +
-      amount;
+    const paidAmount = paymentHis.reduce(
+      (sum, payment) => sum + Number(payment.amount || 0),
+      0,
+    );
+    const purchaseAmount = Number(order.purchaseAmount || 0);
+    const balanceBeforePayment = Math.max(purchaseAmount - paidAmount, 0);
 
-    if (totalAmount > order.purchaseAmount) {
-      return res.json({
+    if (paymentAmount > balanceBeforePayment) {
+      const message = `Payment amount cannot exceed pending balance (${balanceBeforePayment})`;
+      return res.status(400).json({
         success: false,
-        msg: "Payment is Fully Paid",
+        message,
+        msg: message,
+        data: {
+          paidAmount,
+          balance: balanceBeforePayment,
+          purchaseAmount,
+        },
       });
     }
 
     const payment = new RetailerOrdersPayment();
 
-    payment.amount = amount;
-    payment.paymentMethod = payment_type;
+    payment.amount = paymentAmount;
+    payment.paymentMethod = paymentMethod;
 
     if (order) {
       payment.order = order;
       await payment.save();
     }
+    const summary = await getRetailerPaymentSummary(order);
 
     res.json({
       success: true,
       msg: "Payment Updated",
+      data: summary,
     });
   })
 );
@@ -2852,24 +2906,59 @@ router.patch(
   "/admin/editPayment/:id/:amount",
   asyncHandler(async (req: Request, res: Response) => {
     const { id, amount } = req.params;
+    const paymentAmount = Number(amount);
+
+    if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid payment amount",
+        msg: "Please enter a valid payment amount",
+      });
+    }
 
     const payment = await RetailerOrdersPayment.findOne({
       where: {
         id: Number(id),
       },
+      relations: ["order"],
     });
 
-    if (!payment) {
+    if (!payment || !payment.order) {
       return res.json({
         success: false,
+        message: "Payment not found",
+        msg: "Payment not found",
       });
     }
 
-    payment.amount = Number(amount);
+    const paymentHis = await RetailerOrdersPayment.find({
+      where: { order: { id: payment.order.id } },
+    });
+    const paidWithoutCurrent = paymentHis.reduce(
+      (sum, item) =>
+        item.id === payment.id ? sum : sum + Number(item.amount || 0),
+      0,
+    );
+    const purchaseAmount = Number(payment.order.purchaseAmount || 0);
+    const maxAllowed = Math.max(purchaseAmount - paidWithoutCurrent, 0);
+
+    if (paymentAmount > maxAllowed) {
+      const message = `Payment amount cannot exceed pending balance (${maxAllowed})`;
+      return res.status(400).json({
+        success: false,
+        message,
+        msg: message,
+      });
+    }
+
+    payment.amount = paymentAmount;
 
     await payment.save();
+    const summary = await getRetailerPaymentSummary(payment.order);
+
     return res.json({
       success: true,
+      data: summary,
     });
   })
 );
@@ -2883,19 +2972,25 @@ router.delete(
       where: {
         id: Number(id),
       },
+      relations: ["order"],
     });
 
-    if (!payment) {
+    if (!payment || !payment.order) {
       return res.json({
         success: false,
+        message: "Payment not found",
+        msg: "Payment not found",
       });
     }
 
-    payment.remove();
+    const order = payment.order;
 
-    await payment.save();
+    await payment.remove();
+    const summary = await getRetailerPaymentSummary(order);
+
     return res.json({
       success: true,
+      data: summary,
     });
   })
 );

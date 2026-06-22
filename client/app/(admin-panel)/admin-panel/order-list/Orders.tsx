@@ -217,8 +217,9 @@ const Orders = ({ data }: { data: any[] }) => {
               item.paid_amount || 0,
             ).toFixed(0)}`;
             const balanceAmount = `${currencySymbol} ${parseFloat(
-              item.balance_amount || 0,
+              item.balance ?? item.balance_amount ?? 0,
             ).toFixed(0)}`;
+            const orderDetailId = item.stockOrderId || item.favouriteOrderId || item.id;
 
             return (
               <TableRow
@@ -291,7 +292,14 @@ const Orders = ({ data }: { data: any[] }) => {
                 </TruncatedTableCell>
 
                 <TableCell>
-                  <Details order={item} type={item.type} orderId={item.id} />
+                  <Details
+                    id={orderDetailId}
+                    retailerId={item.retailer_id}
+                    type={item.type}
+                    paymentId={item.id}
+                    orderId={item.id}
+                    order={item}
+                  />
                 </TableCell>
 
                 <TableCell>

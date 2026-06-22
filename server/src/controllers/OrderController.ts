@@ -46,6 +46,7 @@ import {
   resolveProductCurrencyPrice,
 } from "../lib/orderPricing";
 import ProductColour from "../models/ProductColours";
+import OrderPayments from "../models/OrderPayments";
 import { mail } from "../lib/Utils";
 import { generateOrderPdf } from "../pdf/generateOrderPdf";
 import { formatDateOnly, parseDateOnly } from "../lib/dateOnly";
@@ -58,6 +59,7 @@ import {
   getCanonicalStage,
   getLowestStage,
 } from "../lib/stageFlow";
+import { buildRegularOrderStyleTotalSql } from "../lib/orderTotals";
 
 import StoreStyleProgress from "../models/StoreStyleProgress"; // ⬅ top me import add karna
 // import { updateOrderAndStyleStatus } from "../services/orderStatus.service";
@@ -77,6 +79,38 @@ function safeArray(value: any) {
     }
   }
   return [];
+}
+
+async function getRegularOrderPaymentSummary(order: Order) {
+  const [totalRow] = await db.query(
+    `
+      SELECT COALESCE(SUM(${buildRegularOrderStyleTotalSql()}), 0) AS purchaseAmount
+      FROM orderStyles os
+      LEFT JOIN orders style_order ON style_order.id = os.orderId
+      LEFT JOIN customers c ON c.id = style_order.customerId
+      LEFT JOIN products p ON p.productCode = os.styleNo
+      LEFT JOIN product_currency_pricing pcp
+        ON pcp.productId = p.id
+       AND pcp.currencyId = COALESCE(os.currencyId, c.currencyId)
+      WHERE os.orderId = ?
+    `,
+    [order.id],
+  );
+  const payments = await OrderPayments.find({
+    where: { order: { id: order.id } },
+  });
+  const paidAmount = payments.reduce(
+    (sum, payment) => sum + Number(payment.amount || 0),
+    0,
+  );
+  const purchaseAmount = Number(totalRow?.purchaseAmount || 0);
+  const balance = Math.max(purchaseAmount - paidAmount, 0);
+
+  return {
+    purchaseAmount,
+    paidAmount,
+    balance,
+  };
 }
 
 function buildStageMap(rows: any[], field: "status" | "stage") {
@@ -2880,6 +2914,70 @@ router.patch(
       success: true,
       message: "Customization Edited successfully",
       data: (order.styles || []).map(mapOrderStyleCustomization),
+    });
+  }),
+);
+
+router.post(
+  "/admin/payment-update/:id",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { amount, payment_type } = req.body;
+    const paymentAmount = Number(amount);
+    const paymentMethod = String(payment_type || "").trim();
+
+    if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid payment amount",
+        msg: "Please enter a valid payment amount",
+      });
+    }
+
+    if (!paymentMethod || paymentMethod === "select") {
+      return res.status(400).json({
+        success: false,
+        message: "Please select a payment method",
+        msg: "Please select a payment method",
+      });
+    }
+
+    const order = await Order.findOne({
+      where: { id: Number(id), status: 0 },
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+        msg: "Order not found",
+      });
+    }
+
+    const summaryBeforePayment = await getRegularOrderPaymentSummary(order);
+
+    if (paymentAmount > summaryBeforePayment.balance) {
+      const message = `Payment amount cannot exceed pending balance (${summaryBeforePayment.balance})`;
+      return res.status(400).json({
+        success: false,
+        message,
+        msg: message,
+        data: summaryBeforePayment,
+      });
+    }
+
+    const payment = new OrderPayments();
+    payment.order = order;
+    payment.amount = paymentAmount;
+    payment.paymentMethod = paymentMethod;
+    await payment.save();
+
+    const summary = await getRegularOrderPaymentSummary(order);
+
+    return res.json({
+      success: true,
+      msg: "Payment Updated",
+      data: summary,
     });
   }),
 );

@@ -200,10 +200,10 @@ const Details = ({
     "PATCH",
   );
 
-  const { executeAsync: addPayment } = useHttp(
-    `/retailer-orders/admin/payment-update/${orderId}`,
-    "POST",
-  );
+  const paymentUpdateUrl = isRegularAdminOrder
+    ? `/orders/admin/payment-update/${id}`
+    : `/retailer-orders/admin/payment-update/${orderId}`;
+  const { executeAsync: addPayment } = useHttp(paymentUpdateUrl, "POST");
 
   const { executeAsync: statusChange } = useHttp(
     `/retailer-orders/admin/status-update/${orderId}`,
@@ -313,7 +313,12 @@ const Details = ({
       calculatedProductAmount,
     );
     const productAmount = calculatedProductAmount || total;
-    const paid = Number(order?.paid_amount ?? adminOrder.paidAmount ?? 0);
+    const orderPayments = adminOrder.orderPayments || [];
+    const paidFromPayments = orderPayments.reduce(
+      (sum: number, payment: any) => sum + Number(payment?.amount || 0),
+      0,
+    );
+    const paid = paidFromPayments || Number(order?.paid_amount ?? adminOrder.paidAmount ?? 0);
     const firstStyle = styles[0];
 
     if (calculatedProductAmount <= 0 && total > 0) {
@@ -325,7 +330,7 @@ const Details = ({
     }
 
     setData(styles);
-    setPayment(adminOrder.orderPayments || []);
+    setPayment(orderPayments);
     setRetailerDetails(adminOrder);
     setCurrencyInfo({
       symbol: firstStyle?.currencySymbol || "$",
@@ -335,7 +340,7 @@ const Details = ({
       total,
       product_amount: productAmount,
       paid,
-      balance: Number(order?.balance ?? total - paid),
+      balance: Math.max(total - paid, 0),
       ship: Number(adminOrder.shippingAmount || order?.shippingAmount || 0),
       customization: 0,
     });
@@ -458,10 +463,9 @@ const Details = ({
         type: "select",
       });
       
-      fetchData(statusToPreserve);
-      router.refresh();
-    } catch (error) {
-      toast.error("Error Updating Payment");
+      await fetchData(statusToPreserve);
+    } catch (error: any) {
+      toast.error(error?.message || "Error Updating Payment");
     }
   };
 
@@ -717,7 +721,7 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
   useEffect(() => {
     form.reset();
     updateForm.reset();
-  }, [open]);
+  }, [form, open, updateForm]);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -868,7 +872,6 @@ if (data.status === "Shipped" && billAmount.balance !== 0) {
               </AccordionTrigger>
               <AccordionContent>
                 {pathname?.includes("/admin-panel/order-list") &&
-                  !isRegularAdminOrder &&
                   billAmount.balance > 0 && (
                     <div>
                       <Form {...form}>

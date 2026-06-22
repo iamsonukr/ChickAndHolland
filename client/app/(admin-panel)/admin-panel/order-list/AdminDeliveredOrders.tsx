@@ -182,7 +182,7 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
                       }
                       retailerId={item.retailer_id}
                       type={item.type}
-                      paymentId={item.payment_id}
+                      paymentId={item.id}
                       orderId={item.id}
                     />
                   </TableCell>
