@@ -28,6 +28,7 @@ router.get(
         ros.size_country  AS size_country,
         ros.quantity      AS quantity,
         ro.purchaeOrderNo AS purchaseOrderNo,
+        matchedFavourite.mesh_color AS meshColorRaw,
         CONCAT(
           'SAS(',
           COALESCE(pc.name, matchedFavourite.mesh_color),
@@ -102,6 +103,7 @@ router.get(
         color: row.color,
         purchaseOrderNo: row.purchaseOrderNo,
         meshColor: row.meshColor,   // ✅ ADD THIS
+        meshColorRaw: row.meshColorRaw,
 
         completed,
         remaining: (row.quantity ?? 1) - completed,
@@ -136,6 +138,7 @@ router.get(
 
   s.size_country AS size_country,
   ro.purchaeOrderNo AS purchaseOrderNo,
+  s.mesh_color AS meshColorRaw,
 
   -- ✅ SAME COLOR FIX AS RETAILER
   CONCAT(
@@ -197,6 +200,7 @@ ORDER BY sos.id ASC;
         color: row.color,
         purchaseOrderNo: row.purchaseOrderNo,
         meshColor: row.meshColor, // ✅ USE THIS ONLY
+        meshColorRaw: row.meshColorRaw,
 
 
         completedQty,

@@ -15,6 +15,7 @@ import { API_URL } from "@/lib/constants";
 import StatusLabelBox from "@/components/StatusLabelBox";
 import StatusLabelBox1 from "@/components/StoreLable";
 import StatusScannerButton from "./StatusScannerButton";
+import ExportOrdersButton from "../../ExportOrdersButton";
 
 import LabelPdf from "@/components/LabelPdf";
 import LabelSheetPdf from "@/components/LabelSheetPdf";
@@ -57,6 +58,16 @@ const getCurrentStageLabel = (progress: any[]) => {
 
 const formatReportSize = (item: any) =>
   formatEuSizeText(item, { includeUnit: false });
+
+const getReportQrBoxColor = (item: any) =>
+  String(
+    item?.meshColor ||
+      item?.meshColorRaw ||
+      item?.qrBoxColor ||
+      item?.color ||
+      item?.mesh_color ||
+      "",
+  );
 
 type ReportType = "RETAILER" | "STORE" | "STOCK";
 
@@ -671,6 +682,18 @@ export default function OrderStatusPage({
   const selectedItems = statusFiltered.filter((_, i) =>
     selectedKeys.has(filteredKeys[i]),
   );
+  const statusExportRows = statusFiltered.map(({ raw }) => {
+    const progress: any[] = raw.progress ?? [];
+
+    return {
+      "Style No": raw.styleNo ?? "",
+      Size: formatReportSize(raw),
+      Quantity: raw.quantity ?? raw.totalQty ?? 1,
+      Color: getReportQrBoxColor(raw),
+      "PO Number": raw.purchaseOrderNo ?? raw.purchaeOrderNo ?? "",
+      "Product Status": getCurrentStageLabel(progress),
+    };
+  });
 
   const handleBulkDownload = async () => {
     if (!selectedItems.length) return;
@@ -783,6 +806,14 @@ export default function OrderStatusPage({
                       </option>
                     ))}
                 </select>
+                <ExportOrdersButton
+                  rows={statusExportRows}
+                  fileName={`order-${id}-status-products-${new Date()
+                    .toISOString()
+                    .slice(0, 10)}.xlsx`}
+                  emptyMessage="No products found for the current status filters"
+                  successMessage="Status products exported successfully"
+                />
               </div>
           </div>
         </div>

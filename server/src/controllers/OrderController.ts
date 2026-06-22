@@ -252,9 +252,6 @@ async function getBarcodeCommentMap(
   return map;
 }
 
-const getOrderKey = (orderSource: string, orderId: unknown) =>
-  `${orderSource}:${Number(orderId)}`;
-
 const getDueDateDifference = (orderCancellationDate: unknown) => {
   if (!orderCancellationDate) return Infinity;
 
@@ -313,6 +310,15 @@ const formatQrBoxColor = (value: unknown) => {
     name: match[2],
   };
 };
+
+const getQrBoxColorDisplay = (row: any) =>
+  formatQrBoxColor(
+    row.meshColor ||
+      row.meshColorRaw ||
+      row.qrBoxColor ||
+      row.color ||
+      row.colorType,
+  ).display;
 
 function sanitizeText(value: unknown) {
   if (typeof value !== "string") return "";
@@ -2176,7 +2182,7 @@ router.get(
                 ros.size_country AS size_country,
                 ros.quantity AS quantity,
                 NULL AS colorType,
-                NULL AS meshColorRaw,
+                matchedFavourite.mesh_color AS meshColorRaw,
                 NULL AS beadingColor,
                 NULL AS lining,
                 NULL AS liningColor,
@@ -2284,31 +2290,8 @@ router.get(
         .then((rows) => buildStageMap(rows, "stage")),
     ]);
 
-    const orderBarcodes = new Map<string, string[]>();
-    productRows.forEach((row) => {
-      const key = getOrderKey(row.orderSource, row.orderId);
-      const existing = orderBarcodes.get(key) ?? [];
-      existing.push(String(row.barcode || ""));
-      orderBarcodes.set(key, existing);
-    });
-
-    const orderStatusByKey = new Map<string, string>();
-    orderBarcodes.forEach((barcodes, key) => {
-      const isRegular = key.startsWith("regular:");
-      orderStatusByKey.set(
-        key,
-        getComputedOrderStage(
-          barcodes.filter((barcode): barcode is string => Boolean(barcode)),
-          isRegular ? regularProgressByBarcode : retailerProgressByBarcode,
-        ),
-      );
-    });
-
     const data = productRows
       .map((row) => {
-        const orderKey = getOrderKey(row.orderSource, row.orderId);
-        const orderStatus =
-          orderStatusByKey.get(orderKey) ?? DEFAULT_ORDER_STAGE;
         const progressMap =
           row.qrType === "STORE"
             ? regularProgressByBarcode
@@ -2317,24 +2300,24 @@ router.get(
         const productStatus =
           progressMap.get(barcode) ?? DEFAULT_ORDER_STAGE;
         const quantity = Number(row.quantity ?? 1) || 1;
-        const qrBoxColor = formatQrBoxColor(row.meshColor ?? row.color);
+        const qrBoxColor = getQrBoxColorDisplay(row);
 
         return {
-          orderKey,
-          orderStatus,
+          productStatus,
           orderCancellationDate: row.orderCancellationDate,
           row: {
-            "Style no": row.styleNo,
-            "Product Status": productStatus,
-            "PO Number": row.purchaseOrderNo,
-            Color: qrBoxColor.display,
+            "Style No": row.styleNo,
+            Size: row.size ?? "",
             Quantity: quantity,
+            Color: qrBoxColor,
+            "PO Number": row.purchaseOrderNo,
+            "Product Status": productStatus,
           },
         };
       })
-      .filter(({ orderStatus, orderCancellationDate }) => {
-        if (stage && orderStatus !== stage) return false;
-        return matchesDueFilter(due, orderStatus, orderCancellationDate);
+      .filter(({ productStatus, orderCancellationDate }) => {
+        if (stage && productStatus !== stage) return false;
+        return matchesDueFilter(due, productStatus, orderCancellationDate);
       })
       .map(({ row }) => row);
 
@@ -3699,7 +3682,8 @@ PublicStoreRoutes.get(
           'SAS(',
           COALESCE(pc.name, s.mesh_color),
           ')'
-        ) AS meshColor
+        ) AS meshColor,
+        s.mesh_color AS meshColorRaw
 
       FROM orderStyles s
       INNER JOIN orders o
@@ -3736,6 +3720,7 @@ PublicStoreRoutes.get(
         size_country: row.size_country,
         quantity: row.quantity,
         meshColor: row.meshColor,
+        meshColorRaw: row.meshColorRaw,
         purchaseOrderNo: row.purchaeOrderNo,
 
         totalQty: row.quantity,
