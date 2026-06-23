@@ -2,13 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import StageCountDropdown from "@/components/custom/admin-panel/StageCountDropdown";
 import { ORDER_STAGE_FLOW } from "@/lib/stageFlow";
 
 const buildSearch = ({
@@ -52,6 +46,19 @@ export default function StageFilter({
     (total, option) => total + (stageCounts?.[option] ?? 0),
     0,
   );
+  const selectedStage = stage || "__all__";
+  const stageOptions = [
+    {
+      value: "__all__",
+      label: "All Status",
+      count: totalStageCount,
+    },
+    ...ORDER_STAGE_FLOW.map((option) => ({
+      value: option,
+      label: option,
+      count: stageCounts?.[option] ?? 0,
+    })),
+  ];
 
   const handleStageChange = (value: string) => {
     const nextStage = value === "__all__" ? "" : value;
@@ -61,18 +68,10 @@ export default function StageFilter({
   };
 
   return (
-    <Select value={stage || "__all__"} onValueChange={handleStageChange}>
-      <SelectTrigger className="w-full min-w-[180px] xl:w-[220px]">
-        <SelectValue placeholder="Filter by stage" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__all__">All Status ({totalStageCount})</SelectItem>
-        {ORDER_STAGE_FLOW.map((option) => (
-          <SelectItem key={option} value={option}>
-            {option} ({stageCounts?.[option] ?? 0})
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <StageCountDropdown
+      options={stageOptions}
+      value={selectedStage}
+      onChange={handleStageChange}
+    />
   );
 }

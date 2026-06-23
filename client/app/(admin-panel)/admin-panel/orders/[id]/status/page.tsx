@@ -21,6 +21,7 @@ import LabelPdf from "@/components/LabelPdf";
 import LabelSheetPdf from "@/components/LabelSheetPdf";
 import LabelPdf1 from "@/components/LabelBox";
 import AdminLoaderScreen from "@/components/custom/admin-panel/AdminLoaderScreen";
+import StageCountDropdown from "@/components/custom/admin-panel/StageCountDropdown";
 import { normalizeBarcodeValue } from "@/lib/barcodes";
 import GoBackButton from "@/components/GoBackButton";
 import { formatEuSizeText } from "@/lib/sizeConversion";
@@ -634,8 +635,6 @@ export default function OrderStatusPage({
   const filtered = allItems.filter(({ raw }) => {
     const styleNo = String(raw.styleNo ?? "").toLowerCase();
     const size = formatReportSize(raw).toLowerCase();
-    const progress: any[] = raw.progress ?? [];
-    const itemStatus = getCurrentStageLabel(progress).toLowerCase();
     return styleNo.includes(q) || size.includes(q);
   });
   const stageCounts = ORDER_STAGE_FLOW.reduce<Record<string, number>>(
@@ -650,6 +649,18 @@ export default function OrderStatusPage({
     const itemStatus = getCurrentStageLabel(progress);
     stageCounts[itemStatus] = (stageCounts[itemStatus] ?? 0) + 1;
   });
+  const statusOptions = [
+    {
+      value: "ALL",
+      label: "All Status",
+      count: filtered.length,
+    },
+    ...ORDER_STAGE_FLOW.map((stage) => ({
+      value: stage,
+      label: stage,
+      count: stageCounts[stage] ?? 0,
+    })),
+  ];
 
   // Apply status filter
   const statusFiltered =
@@ -785,7 +796,7 @@ export default function OrderStatusPage({
                 Total items: {filtered.length}
               </p>
             </div>
-              <div className="w-full sm:w-auto flex items-center gap-2">
+              <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:items-center">
                 <input
                   type="text"
                   placeholder="Search by style no or size..."
@@ -794,18 +805,11 @@ export default function OrderStatusPage({
                   className="w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:w-72 md:w-80"
                 />
 
-                <select
+                <StageCountDropdown
+                  options={statusOptions}
                   value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:block"
-                >
-                  <option value="ALL">All Status ({filtered.length})</option>
-                  {ORDER_STAGE_FLOW.map((stage) => (
-                      <option key={stage} value={stage}>
-                        {stage} ({stageCounts[stage] ?? 0})
-                      </option>
-                    ))}
-                </select>
+                  onChange={setSelectedStatus}
+                />
                 <ExportOrdersButton
                   rows={statusExportRows}
                   fileName={`order-${id}-status-products-${new Date()

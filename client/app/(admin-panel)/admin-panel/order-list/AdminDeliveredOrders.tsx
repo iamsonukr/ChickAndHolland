@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -25,7 +24,6 @@ import Details from "../../retailer-panel/my-orders/Details";
 import { fresh } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
-import { OrderType } from "@/lib/formSchemas";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
   const [selectedOrders, setSelectedOrders] = useState<
@@ -40,14 +38,15 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
     "PATCH",
   );
 
+  const selectableOrders = data.filter((order: any) => order.orderSource !== "regular");
   const isAllSelected =
-    data.length > 0 && selectedOrders.length === data.length;
+    selectableOrders.length > 0 && selectedOrders.length === selectableOrders.length;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedOrders([]);
     } else {
-      const all = data.map((order: any) => ({
+      const all = selectableOrders.map((order: any) => ({
         id: order.id,
         orderType: order.type,
       }));
@@ -135,32 +134,50 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
         <TableBody>
           {data &&
             data.map((item: any) => {
+              const isRegularAdminOrder = item.orderSource === "regular";
               const isSelected = selectedOrders.some((o) => o.id === item.id);
+              const orderTypeValue = item.type ?? item.orderType;
+              const formattedDate =
+                formatDateOnlyDisplay(
+                  item.formatted_date ?? item.createdAt,
+                  "DD-MM-YYYY",
+                ) || "-";
+              const receivedDate =
+                formatDateOnlyDisplay(
+                  item.received_date ?? item.orderReceivedDate ?? item.createdAt,
+                  "DD-MM-YYYY",
+                ) || "-";
+              const orderDetailId = isRegularAdminOrder
+                ? item.id
+                : item.stockOrderId || item.favouriteOrderId;
+
               return (
                 <TableRow
-                  key={item.id}
+                  key={`${item.orderSource || "retailer"}-${item.id}`}
                   className="text-sm sm:text-base"
                 >
                   <TableCell>
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() =>
-                        toggleSelectOne(item.id, item.type)
-                      }
-                    />
+                    {!isRegularAdminOrder && (
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() =>
+                          toggleSelectOne(item.id, orderTypeValue)
+                        }
+                      />
+                    )}
                   </TableCell>
                   <TableCell className="font-medium">
-                    {formatDateOnlyDisplay(item.formatted_date, "DD-MM-YYYY")}
+                    {formattedDate}
                   </TableCell>
                   <TableCell>{item.customerStoreName || item.retailer_name}</TableCell>
 
                   <TableCell>{item.order_id}</TableCell>
                   <TableCell>
-                    {item.type == "Fresh" ? fresh : item.type}
+                    {orderTypeValue == "Fresh" ? fresh : orderTypeValue}
                   </TableCell>
                   <TableCell>{item.orderStatus}</TableCell>
                   <TableCell>
-                    {formatDateOnlyDisplay(item.received_date, "DD-MM-YYYY")}
+                    {receivedDate}
                   </TableCell>
                   <TableCell>
                     {item.currencySymbol
@@ -175,15 +192,13 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
 
                   <TableCell>
                     <Details
-                      id={
-                        item.stockOrderId
-                          ? item.stockOrderId
-                          : item.favouriteOrderId
-                      }
-                      retailerId={item.retailer_id}
-                      type={item.type}
-                      paymentId={item.id}
+                      id={orderDetailId}
+                      retailerId={item.retailer_id ?? 0}
+                      type={orderTypeValue}
+                      paymentId={isRegularAdminOrder ? 0 : item.id}
                       orderId={item.id}
+                      orderSource={isRegularAdminOrder ? "regular" : "retailer"}
+                      order={item}
                     />
                   </TableCell>
                 </TableRow>

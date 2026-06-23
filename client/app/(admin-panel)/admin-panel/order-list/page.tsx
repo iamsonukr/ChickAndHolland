@@ -53,27 +53,37 @@ const page = async (props: {
   const query = searchParams["q"] ? searchParams["q"] : "";
   const stage = searchParams["stage"] ?? "";
   
-  const acceptedOrders = await getRetailerAcceptedAdminFreshOrderDetails({
-    page: currentPage,
-    query,
-    stage,
-    id: 0,
-  });
-
-  const myOrders = await getRetailersOrders({
-    page: currentPage,
-    isApproved: 3,
-    query,
-  });
-
-  const deliveredOrder = await getRetailerAcceptedAdminFreshOrderDetails({
-    page: currentPage,
-    query,
-    stage,
-    id: 1,
-  });
-
-  const adminOrders = await getAdminOrders(0, stage);
+  const [
+    acceptedOrders,
+    myOrders,
+    deliveredOrder,
+    adminOrders,
+    deliveredAdminOrders,
+  ] = await Promise.all([
+    getRetailerAcceptedAdminFreshOrderDetails({
+      page: currentPage,
+      query,
+      stage,
+      id: 0,
+    }),
+    getRetailersOrders({
+      page: currentPage,
+      isApproved: 3,
+      query,
+    }),
+    getRetailerAcceptedAdminFreshOrderDetails({
+      page: currentPage,
+      query,
+      stage,
+      id: 1,
+    }),
+    getAdminOrders(0, stage, "active"),
+    getAdminOrders(0, stage, "delivered"),
+  ]);
+  const deliveredRows = [
+    ...(deliveredOrder?.retailerOrders ?? []),
+    ...(deliveredAdminOrders?.orders ?? []),
+  ];
 
   return (
     <ContentLayout title="Order List">
@@ -107,10 +117,13 @@ const page = async (props: {
           />
         </TabsContent>
         <TabsContent value="delivered">
-          <AdminDeliveredOrders data={deliveredOrder.retailerOrders} />
+          <AdminDeliveredOrders data={deliveredRows} />
           <CustomPagination
             currentPage={currentPage}
-            totalLength={deliveredOrder?.totalCount}
+            totalLength={
+              Number(deliveredOrder?.totalCount || 0) +
+              Number(deliveredAdminOrders?.orders?.length || 0)
+            }
           />
         </TabsContent>
         <TabsContent value="rejected">

@@ -1079,13 +1079,18 @@ export const getQuickbookAccessToken = async ({
   return response.json();
 };
 
-export const getAdminOrders = async (retailerId: number, stage?: string) => {
+export const getAdminOrders = async (
+  retailerId: number,
+  stage?: string,
+  bucket?: "active" | "delivered",
+) => {
   const token = (await cookies()).get("token")?.value;
 
   console.log("🟦 FETCHING ADMIN ORDERS FOR:", retailerId);
 
   const params = new URLSearchParams({ retailerId: String(retailerId) });
   if (stage) params.set("stage", stage);
+  if (bucket) params.set("bucket", bucket);
   const url = `${API_URL}/retailer-orders/retailer/admin-orders?${params.toString()}`;
   console.log("🟦 REQUEST URL:", url);
 

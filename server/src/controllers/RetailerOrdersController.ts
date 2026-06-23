@@ -2231,6 +2231,24 @@ router.get(
     const take = 100;
     const params: any[] = [];
     const whereClauses: string[] = [];
+    const stageCountParams: Array<string | number> = [];
+    const stageCountWhereClauses: string[] = [];
+    const addScopedWhereClause = (
+      clause: string,
+      values: Array<string | number> = [],
+    ) => {
+      whereClauses.push(clause);
+      stageCountWhereClauses.push(clause);
+      params.push(...values);
+      stageCountParams.push(...values);
+    };
+    const addRowOnlyWhereClause = (
+      clause: string,
+      values: Array<string | number> = [],
+    ) => {
+      whereClauses.push(clause);
+      params.push(...values);
+    };
 
     // Main query with LEFT JOIN optimization
     let dataSql = `
@@ -2277,32 +2295,32 @@ router.get(
     // Treat the workflow's final stage as delivered even if older rows still
     // have a stale status_id.
     if (isApproved === 1) {
-      whereClauses.push("(ro.status_id = ? OR ro.orderStatus = ?)");
-      params.push(isApproved, OrderStatus.Shipped);
+      addScopedWhereClause("(ro.status_id = ? OR ro.orderStatus = ?)", [
+        isApproved,
+        OrderStatus.Shipped,
+      ]);
     } else {
-      whereClauses.push("ro.status_id = ?");
-      whereClauses.push("ro.orderStatus <> ?");
-      params.push(isApproved, OrderStatus.Shipped);
+      addScopedWhereClause("ro.status_id = ?", [isApproved]);
+      addScopedWhereClause("ro.orderStatus <> ?", [OrderStatus.Shipped]);
     }
 
     // Handle search query
     if (query) {
       const likeQuery = `%${query.toLowerCase()}%`;
-      whereClauses.push(
-        "(LOWER(ro.purchaeOrderNo) LIKE ? OR LOWER(c.storeName) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(ro.orderStatus) LIKE ?)"
+      addScopedWhereClause(
+        "(LOWER(ro.purchaeOrderNo) LIKE ? OR LOWER(c.storeName) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(ro.orderStatus) LIKE ?)",
+        [likeQuery, likeQuery, likeQuery, likeQuery],
       );
-      params.push(likeQuery, likeQuery, likeQuery, likeQuery);
 
       if (query.toLowerCase() === "stock") {
-        whereClauses.push("ro.is_stock_order = 1");
+        addScopedWhereClause("ro.is_stock_order = 1");
       } else if (query.toLowerCase() === "fresh") {
-        whereClauses.push("ro.is_stock_order = 0");
+        addScopedWhereClause("ro.is_stock_order = 0");
       }
     }
 
     if (stage) {
-      whereClauses.push("ro.orderStatus = ?");
-      params.push(stage);
+      addRowOnlyWhereClause("ro.orderStatus = ?", [stage]);
     }
 
     // Add WHERE conditions if any
@@ -2332,8 +2350,8 @@ router.get(
       FROM retailer_orders AS ro
       left join retailers r on r.id = ro.retailerId
       LEFT JOIN customers c ON c.id = r.customerId
-      ${whereClauses.length > 0
-        ? "WHERE " + "ro.status = 0 AND" + " " + whereClauses.join(" AND ")
+      ${stageCountWhereClauses.length > 0
+        ? "WHERE " + "ro.status = 0 AND" + " " + stageCountWhereClauses.join(" AND ")
         : " WHERE ro.status = 0 "
       }
     `;
@@ -2342,7 +2360,7 @@ router.get(
     const [retailerOrders, totalResult, stageCountSourceOrders] = await Promise.all([
       db.query(dataSql, params),
       db.query(countSql, params.slice(0, -2)), // Correct parameter slicing
-      db.query(stageCountSourceSql, params.slice(0, -2)),
+      db.query(stageCountSourceSql, stageCountParams),
     ]);
     const stageCounts = await getRetailerOrderProductStageCounts(
       stageCountSourceOrders.map((order: any) => Number(order.id)),
@@ -3627,7 +3645,18 @@ router.get(
       const retailerIdRaw = req.query.retailerId;
       const retailerId = retailerIdRaw ? Number(retailerIdRaw) : null;
       const stage = typeof req.query.stage === "string" ? req.query.stage : "";
+      const bucket = typeof req.query.bucket === "string" ? req.query.bucket : "";
       const stageSql = stage ? " AND o.orderStatus = ?" : "";
+      const bucketSql =
+        bucket === "delivered"
+          ? " AND o.orderStatus = ?"
+          : bucket === "active"
+            ? " AND o.orderStatus <> ?"
+            : "";
+      const bucketParams =
+        bucket === "delivered" || bucket === "active"
+          ? [OrderStatus.Shipped]
+          : [];
 
       // If a specific retailerId is provided, return orders for that retailer's customer
       if (retailerId) {
@@ -3651,6 +3680,8 @@ router.get(
       o.ppt_path,
       o.createdAt,
       DATE_FORMAT(o.orderReceivedDate, '%Y-%m-%d') AS orderReceivedDate,
+      COALESCE(NULLIF(customer.storeName, ''), customer.name) AS customerStoreName,
+      COALESCE(NULLIF(customer.storeName, ''), customer.name) AS retailer_name,
       COALESCE(total_pay.total_amount, 0) AS total,
       COALESCE(total_pay.total_amount, 0) AS grandTotal,
       COALESCE(total_pay.total_quantity, 0) AS totalQuantity,
@@ -3664,6 +3695,7 @@ router.get(
       COALESCE(total_pay.unresolved_total_values, 0) AS unresolved_total_values
     FROM orders o
     ${REGULAR_ADMIN_ORDER_TOTALS_JOIN_SQL}
+    LEFT JOIN customers customer ON customer.id = o.customerId
     LEFT JOIN (
       SELECT orderId, SUM(amount) AS paid_amount
       FROM orderpayments
@@ -3673,12 +3705,17 @@ router.get(
       AND o.status = 0
       AND COALESCE(o.publishStatus, 'published') = 'published'
       ${stageSql}
+      ${bucketSql}
     ORDER BY o.id DESC;
   `;
 
         const rows = await db.query(
           SQL,
-          stage ? [retailer.customer.id, stage] : [retailer.customer.id],
+          [
+            retailer.customer.id,
+            ...(stage ? [stage] : []),
+            ...bucketParams,
+          ],
         );
         logAdminOrderTotalDiagnostics(rows, `retailer:${retailerId}`);
 
@@ -3700,6 +3737,8 @@ router.get(
       o.ppt_path,
       o.createdAt,
       DATE_FORMAT(o.orderReceivedDate, '%Y-%m-%d') AS orderReceivedDate,
+      COALESCE(NULLIF(customer.storeName, ''), customer.name) AS customerStoreName,
+      COALESCE(NULLIF(customer.storeName, ''), customer.name) AS retailer_name,
       COALESCE(total_pay.total_amount, 0) AS total,
       COALESCE(total_pay.total_amount, 0) AS grandTotal,
       COALESCE(total_pay.total_quantity, 0) AS totalQuantity,
@@ -3713,6 +3752,7 @@ router.get(
       COALESCE(total_pay.unresolved_total_values, 0) AS unresolved_total_values
     FROM orders o
     ${REGULAR_ADMIN_ORDER_TOTALS_JOIN_SQL}
+    LEFT JOIN customers customer ON customer.id = o.customerId
     LEFT JOIN (
       SELECT orderId, SUM(amount) AS paid_amount
       FROM orderpayments
@@ -3721,10 +3761,14 @@ router.get(
     WHERE o.status = 0
       AND COALESCE(o.publishStatus, 'published') = 'published'
       ${stageSql}
+      ${bucketSql}
     ORDER BY o.id DESC;
   `;
 
-      const rows = await db.query(GLOBAL_SQL, stage ? [stage] : []);
+      const rows = await db.query(GLOBAL_SQL, [
+        ...(stage ? [stage] : []),
+        ...bucketParams,
+      ]);
       logAdminOrderTotalDiagnostics(rows, "admin-panel");
 
       return res.json({ success: true, orders: rows });
