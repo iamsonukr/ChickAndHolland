@@ -111,24 +111,24 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
         </div>
       )}
 
-      <Table className="table-fixed w-full min-w-[1040px]">
+      <Table className="w-max min-w-full table-auto lg:w-full lg:min-w-[1040px] lg:table-fixed">
         <TableHeader>
-          <TableRow className="text-center text-sm sm:text-base">
-            <TableHead>
+          <TableRow className="whitespace-nowrap text-center text-sm sm:text-base lg:whitespace-normal">
+            <TableHead className="w-[48px] min-w-[48px]">
               <Checkbox
                 checked={isAllSelected}
                 onCheckedChange={toggleSelectAll}
               />
             </TableHead>
-            <TableHead className="">Date</TableHead>
-            <TableHead className="whitespace-nowrap">Name</TableHead>
-            <TableHead className="whitespace-nowrap">Order Id</TableHead>
-            <TableHead className="whitespace-nowrap">Order Type</TableHead>
-            <TableHead className="whitespace-nowrap">Status</TableHead>
-            <TableHead className="whitespace-nowrap">Order Date</TableHead>
-            <TableHead className="whitespace-nowrap">Paid</TableHead>
-            <TableHead className="whitespace-nowrap">Balance</TableHead>
-            <TableHead>Details</TableHead>
+            <TableHead className="min-w-[110px]">Date</TableHead>
+            <TableHead className="min-w-[180px] whitespace-nowrap">Name</TableHead>
+            <TableHead className="min-w-[140px] whitespace-nowrap">Order Id</TableHead>
+            <TableHead className="min-w-[130px] whitespace-nowrap">Order Type</TableHead>
+            <TableHead className="min-w-[130px] whitespace-nowrap">Status</TableHead>
+            <TableHead className="min-w-[130px] whitespace-nowrap">Order Date</TableHead>
+            <TableHead className="min-w-[110px] whitespace-nowrap">Paid</TableHead>
+            <TableHead className="min-w-[110px] whitespace-nowrap">Balance</TableHead>
+            <TableHead className="min-w-[100px]">Details</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -154,9 +154,9 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
               return (
                 <TableRow
                   key={`${item.orderSource || "retailer"}-${item.id}`}
-                  className="text-sm sm:text-base"
+                  className="whitespace-nowrap text-sm sm:text-base lg:whitespace-normal"
                 >
-                  <TableCell>
+                  <TableCell className="w-[48px] min-w-[48px]">
                     {!isRegularAdminOrder && (
                       <Checkbox
                         checked={isSelected}
@@ -166,31 +166,31 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
                       />
                     )}
                   </TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className="min-w-[110px] font-medium">
                     {formattedDate}
                   </TableCell>
-                  <TableCell>{item.customerStoreName || item.retailer_name}</TableCell>
+                  <TableCell className="min-w-[180px]">{item.customerStoreName || item.retailer_name}</TableCell>
 
-                  <TableCell>{item.order_id}</TableCell>
-                  <TableCell>
+                  <TableCell className="min-w-[140px]">{item.order_id}</TableCell>
+                  <TableCell className="min-w-[130px]">
                     {orderTypeValue == "Fresh" ? fresh : orderTypeValue}
                   </TableCell>
-                  <TableCell>{item.orderStatus}</TableCell>
-                  <TableCell>
+                  <TableCell className="min-w-[130px]">{item.orderStatus}</TableCell>
+                  <TableCell className="min-w-[130px]">
                     {receivedDate}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="min-w-[110px]">
                     {item.currencySymbol
                       ? `${item.currencySymbol} ${parseFloat(item.paid_amount).toFixed(0)}`
                       : `€ ${parseFloat(item.paid_amount).toFixed(0)}`}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="min-w-[110px]">
                     {item.currencySymbol
                       ? `${item.currencySymbol} ${parseFloat(item.balance).toFixed(0)}`
                       : `€ ${parseFloat(item.balance).toFixed(0)}`}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="min-w-[100px]">
                     <Details
                       id={orderDetailId}
                       retailerId={item.retailer_id ?? 0}

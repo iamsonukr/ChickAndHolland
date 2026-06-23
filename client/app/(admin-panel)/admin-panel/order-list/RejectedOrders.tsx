@@ -29,6 +29,7 @@ import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import { fresh } from "@/lib/utils";
 import { useState } from "react";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
+import TableScrollWrapper from "@/components/TableScrollWrapper";
 
 const RejectedOrders = ({
   searchParams,
@@ -127,9 +128,10 @@ const RejectedOrders = ({
         </div>
       )}
 
-      <Table className="table-fixed w-full min-w-[1040px]">
+      <TableScrollWrapper>
+      <Table className="w-full min-w-[1040px] table-auto md:table-fixed">
         <TableHeader>
-          <TableRow className="text-sm sm:text-base">
+          <TableRow className="whitespace-nowrap text-sm sm:text-base md:whitespace-normal">
             <TableHead>
               <Checkbox
                 checked={isAllSelected}
@@ -149,7 +151,10 @@ const RejectedOrders = ({
             const isSelected = selectedOrders.some((o) => o.id === item.id);
 
             return (
-              <TableRow key={item.id} className="text-sm sm:text-base">
+              <TableRow
+                key={item.id}
+                className="whitespace-nowrap text-sm sm:text-base md:whitespace-normal"
+              >
                 <TableCell>
                   <Checkbox
                     checked={isSelected}
@@ -186,6 +191,7 @@ const RejectedOrders = ({
           })}
         </TableBody>
       </Table>
+      </TableScrollWrapper>
       <CustomPagination
         currentPage={currentPage}
         totalLength={myOrders?.totalCount}

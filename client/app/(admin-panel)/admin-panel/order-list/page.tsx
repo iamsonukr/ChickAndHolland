@@ -106,23 +106,36 @@ const page = async (props: {
         <DeleteButton />
         hh
       </div> */}
-      <TableScrollWrapper>
       <Tabs defaultValue="accepted" className="w-full">
-        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-4">
-          <TabsTrigger value="accepted">Accepted</TabsTrigger>
-          <TabsTrigger value="delivered">Delivered</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-          <TabsTrigger value="adminOrders">Admin Orders</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto pb-1">
+          <TabsList className="flex h-auto w-max min-w-max flex-nowrap gap-1 sm:grid sm:w-full sm:min-w-0 sm:grid-cols-4">
+            <TabsTrigger className="flex-none px-4 sm:flex-1" value="accepted">
+              Accepted
+            </TabsTrigger>
+            <TabsTrigger className="flex-none px-4 sm:flex-1" value="delivered">
+              Delivered
+            </TabsTrigger>
+            <TabsTrigger className="flex-none px-4 sm:flex-1" value="rejected">
+              Rejected
+            </TabsTrigger>
+            <TabsTrigger className="flex-none px-4 sm:flex-1" value="adminOrders">
+              Admin Orders
+            </TabsTrigger>
+          </TabsList>
+        </div>
         <TabsContent value="accepted">
-          <Orders data={acceptedOrders.retailerOrders} />
+          <TableScrollWrapper>
+            <Orders data={acceptedOrders.retailerOrders} />
+          </TableScrollWrapper>
           <CustomPagination
             currentPage={currentPage}
             totalLength={acceptedOrders?.totalCount}
           />
         </TabsContent>
         <TabsContent value="delivered">
-          <AdminDeliveredOrders data={deliveredRows} />
+          <TableScrollWrapper>
+            <AdminDeliveredOrders data={deliveredRows} />
+          </TableScrollWrapper>
           <CustomPagination
             currentPage={currentPage}
             totalLength={
@@ -136,62 +149,66 @@ const page = async (props: {
         </TabsContent>
         <TabsContent value="adminOrders">
           <div className="mt-0">
-            <Table className="table-fixed w-full min-w-[1040px] border">
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="text-center">Date</TableHead>
-                  <TableHead className="text-center">Order Id</TableHead>
-                  <TableHead className="text-center">Order Type</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-center">Total Quantity</TableHead>
-                  <TableHead className="text-center">Tracking ID</TableHead>
-                  <TableHead className="text-center">Order Date</TableHead>
-                  <TableHead className="text-center">Paid</TableHead>
-                  <TableHead className="text-center">Balance</TableHead>
-                  <TableHead className="text-center">Preview</TableHead>
-                  <TableHead className="text-center">Details</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {adminOrders?.orders?.map((item: any) => (
-                  <TableRow key={item.id} className="text-center hover:bg-muted/20">
-                    <TableCell>{formatDateTime(new Date(item.createdAt))}</TableCell>
-                    <TableCell className="font-medium">{item.order_id}</TableCell>
-                    <TableCell>{item.orderType === "Store" ? "Store Web Order" : item.orderType}</TableCell>
-                    <TableCell>{item.orderStatus}</TableCell>
-                    <TableCell>{item.totalQuantity ?? item.total_quantity ?? 0}</TableCell>
-                    <TableCell>{item.trackingNo || "-"}</TableCell>
-                    <TableCell>
-                      {formatDateOnlyDisplay(
-                        item.orderReceivedDate || item.createdAt,
-                        "YYYY-MM-DD",
-                      )}
-                    </TableCell>
-                    <TableCell>{formatMoney(item, item.paid_amount)}</TableCell>
-                    <TableCell>{formatMoney(item, item.balance)}</TableCell>
-                    <TableCell>
-                      {/* Preview component available in this folder */}
-                      <Preview id={item.id} type={item.orderType} order={item} orderSource="regular" />
-                    </TableCell>
-                    <TableCell>
-                      <Details
-                        id={item.id}
-                        retailerId={item.retailer_id ?? 0}
-                        type={item.orderType}
-                        paymentId={item.payment_id ?? 0}
-                        orderId={item.id}
-                        orderSource="regular"
-                        order={item}
-                      />
-                    </TableCell>
+            <TableScrollWrapper>
+              <Table className="w-full min-w-[1040px] table-auto border md:table-fixed">
+                <TableHeader className="bg-muted/50">
+                  <TableRow className="whitespace-nowrap md:whitespace-normal">
+                    <TableHead className="text-center">Date</TableHead>
+                    <TableHead className="text-center">Order Id</TableHead>
+                    <TableHead className="text-center">Order Type</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-center">Total Quantity</TableHead>
+                    <TableHead className="text-center">Tracking ID</TableHead>
+                    <TableHead className="text-center">Order Date</TableHead>
+                    <TableHead className="text-center">Paid</TableHead>
+                    <TableHead className="text-center">Balance</TableHead>
+                    <TableHead className="text-center">Preview</TableHead>
+                    <TableHead className="text-center">Details</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {adminOrders?.orders?.map((item: any) => (
+                    <TableRow
+                      key={item.id}
+                      className="whitespace-nowrap text-center hover:bg-muted/20 md:whitespace-normal"
+                    >
+                      <TableCell>{formatDateTime(new Date(item.createdAt))}</TableCell>
+                      <TableCell className="font-medium">{item.order_id}</TableCell>
+                      <TableCell>{item.orderType === "Store" ? "Store Web Order" : item.orderType}</TableCell>
+                      <TableCell>{item.orderStatus}</TableCell>
+                      <TableCell>{item.totalQuantity ?? item.total_quantity ?? 0}</TableCell>
+                      <TableCell>{item.trackingNo || "-"}</TableCell>
+                      <TableCell>
+                        {formatDateOnlyDisplay(
+                          item.orderReceivedDate || item.createdAt,
+                          "YYYY-MM-DD",
+                        )}
+                      </TableCell>
+                      <TableCell>{formatMoney(item, item.paid_amount)}</TableCell>
+                      <TableCell>{formatMoney(item, item.balance)}</TableCell>
+                      <TableCell>
+                        {/* Preview component available in this folder */}
+                        <Preview id={item.id} type={item.orderType} order={item} orderSource="regular" />
+                      </TableCell>
+                      <TableCell>
+                        <Details
+                          id={item.id}
+                          retailerId={item.retailer_id ?? 0}
+                          type={item.orderType}
+                          paymentId={item.payment_id ?? 0}
+                          orderId={item.id}
+                          orderSource="regular"
+                          order={item}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableScrollWrapper>
           </div>
         </TabsContent>
       </Tabs>
-      </TableScrollWrapper>
     </ContentLayout>
   );
 };
