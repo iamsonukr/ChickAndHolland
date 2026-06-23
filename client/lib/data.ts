@@ -395,6 +395,43 @@ export const getOrders = async ({
   return response.json();
 };
 
+export const getOrderStageCounts = async ({
+  query,
+  orderType,
+  publishStatus,
+}: {
+  query?: string;
+  orderType?: string;
+  publishStatus?: "published" | "draft";
+}) => {
+  const headers = {
+    Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
+  };
+  const params = new URLSearchParams();
+  if (query) params.set("query", query);
+  if (orderType) params.set("orderType", orderType);
+  if (publishStatus) params.set("publishStatus", publishStatus);
+
+  try {
+    const response = await fetch(
+      `${API_URL}/orders/stage-counts?${params.toString()}`,
+      {
+        headers,
+        cache: "no-store",
+      },
+    );
+
+    if (!response.ok) {
+      return { success: false, stageCounts: null };
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("[getOrderStageCounts] Failed to fetch stage counts", error);
+    return { success: false, stageCounts: null };
+  }
+};
+
 export const getRetailerStoreOrders = async ({
   retailerId,
   page,

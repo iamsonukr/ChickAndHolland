@@ -356,6 +356,104 @@ async function getProductStageCounts(baseOrders: any[]) {
   return counts;
 }
 
+async function getOrderStageCountSourceOrders({
+  query,
+  orderType,
+  publishStatus,
+}: {
+  query?: string;
+  orderType?: string;
+  publishStatus?: string;
+}) {
+  const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
+  const requestedPublishStatus =
+    publishStatus === OrderPublishStatus.Draft
+      ? OrderPublishStatus.Draft
+      : OrderPublishStatus.Published;
+  const includeRetailerOrders =
+    requestedPublishStatus === OrderPublishStatus.Published;
+
+  const regularOrdersQuery = db
+    .createQueryBuilder()
+    .select([
+      "o.id as id",
+      "o.orderStatus as orderStatus",
+      "'regular' as orderSource",
+      "o.createdAt as createdAt",
+    ])
+    .from(Order, "o")
+    .leftJoin("o.customer", "customer")
+    .where("o.status = 0")
+    .andWhere(
+      "COALESCE(o.publishStatus, :publishedStatus) = :publishStatus",
+      {
+        publishedStatus: OrderPublishStatus.Published,
+        publishStatus: requestedPublishStatus,
+      },
+    );
+
+  if (likeQuery) {
+    regularOrdersQuery.andWhere(
+      "(LOWER(o.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
+      { likeQuery },
+    );
+  }
+
+  const retailerOrdersQuery = db
+    .createQueryBuilder()
+    .select([
+      "ro.id as id",
+      "ro.orderStatus as orderStatus",
+      "'retailer' as orderSource",
+      "ro.createdAt as createdAt",
+    ])
+    .from(RetailerOrder, "ro")
+    .leftJoin("ro.retailer", "retailer")
+    .leftJoin("retailer.customer", "customer")
+    .where("ro.status = 0");
+
+  if (likeQuery) {
+    retailerOrdersQuery.andWhere(
+      "(LOWER(ro.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
+      { likeQuery },
+    );
+  }
+
+  let unionQuery: string;
+
+  if (orderType) {
+    if (!includeRetailerOrders) {
+      regularOrdersQuery.andWhere("o.orderType = :orderType", { orderType });
+      unionQuery = regularOrdersQuery.getQuery();
+    } else if (orderType === "Stock") {
+      retailerOrdersQuery.andWhere("ro.is_stock_order = 1");
+      unionQuery = retailerOrdersQuery.getQuery();
+    } else if (orderType === "Fresh") {
+      retailerOrdersQuery.andWhere("ro.is_stock_order = 0");
+      unionQuery = retailerOrdersQuery.getQuery();
+    } else {
+      regularOrdersQuery.andWhere("o.orderType = :orderType", { orderType });
+      unionQuery = regularOrdersQuery.getQuery();
+    }
+  } else {
+    unionQuery = includeRetailerOrders
+      ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})`
+      : regularOrdersQuery.getQuery();
+  }
+
+  const mergedParams = {
+    ...regularOrdersQuery.getParameters(),
+    ...retailerOrdersQuery.getParameters(),
+  };
+
+  return db
+    .createQueryBuilder()
+    .select("*")
+    .from(`(${unionQuery})`, "combined_orders")
+    .setParameters(mergedParams)
+    .getRawMany();
+}
+
 async function getProgressQuantityMap(
   tableName: "store_style_progress" | "styleProgress",
   barcodes: string[],
@@ -2475,6 +2573,29 @@ router.get(
     return res.json({
       success: true,
       data,
+    });
+  }),
+);
+
+router.get(
+  "/stage-counts",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { query, orderType, publishStatus } = req.query as {
+      query?: string;
+      orderType?: string;
+      publishStatus?: string;
+    };
+
+    const sourceOrders = await getOrderStageCountSourceOrders({
+      query,
+      orderType,
+      publishStatus,
+    });
+    const stageCounts = await getProductStageCounts(sourceOrders);
+
+    return res.json({
+      success: true,
+      stageCounts,
     });
   }),
 );

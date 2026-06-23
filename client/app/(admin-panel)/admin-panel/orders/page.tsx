@@ -4,6 +4,7 @@ import CreateOrder from "./CreateOrder";
 import {
   getCustomers,
   getCurrencies,
+  getOrderStageCounts,
   getOrders,
   getProductCategories,
   getProductCollection,
@@ -94,6 +95,7 @@ const OrdersPage = async (props: {
     productCategories,
     productCollection,
     currenciesResponse,
+    orderStageCounts,
   ] = await Promise.all([
     getOrders({
       page: currentPage,
@@ -105,6 +107,10 @@ const OrdersPage = async (props: {
     getProductCategories({}),
     getProductCollection({}),
     getCurrencies(),
+    getOrderStageCounts({
+      query,
+      orderType: orderType === "All" ? "" : orderType,
+    }),
   ]);
 
   const getStatusDate = (status: string, order: any) => {
@@ -242,7 +248,7 @@ const OrdersPage = async (props: {
                 orderType={orderType}
                 due={dueFilter}
                 stage={stage}
-                stageCounts={orders?.stageCounts}
+                stageCounts={orderStageCounts?.stageCounts ?? orders?.stageCounts}
               />
               <div className="flex flex-wrap items-center gap-2">
                 <a
