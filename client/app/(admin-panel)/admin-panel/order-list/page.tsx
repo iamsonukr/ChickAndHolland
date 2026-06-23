@@ -13,6 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   getAcceptedRetailersOrders,
+  getOrderStageCounts,
   getRetailerAcceptedAdminFreshOrderDetails,
   getRetailersOrders,
   getAdminOrders,
@@ -59,6 +60,7 @@ const page = async (props: {
     deliveredOrder,
     adminOrders,
     deliveredAdminOrders,
+    orderStageCounts,
   ] = await Promise.all([
     getRetailerAcceptedAdminFreshOrderDetails({
       page: currentPage,
@@ -79,6 +81,9 @@ const page = async (props: {
     }),
     getAdminOrders(0, stage, "active"),
     getAdminOrders(0, stage, "delivered"),
+    getOrderStageCounts({
+      query,
+    }),
   ]);
   const deliveredRows = [
     ...(deliveredOrder?.retailerOrders ?? []),
@@ -93,7 +98,7 @@ const page = async (props: {
           <StageFilter
             query={query}
             stage={stage}
-            stageCounts={acceptedOrders?.stageCounts}
+            stageCounts={orderStageCounts?.stageCounts ?? acceptedOrders?.stageCounts}
           />
         </div>
       </div>
