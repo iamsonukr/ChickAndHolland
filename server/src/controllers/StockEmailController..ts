@@ -25,6 +25,98 @@ const getAttachmentFilename = (fileUrl: string, fallbackBaseName: string) => {
   return `${fallbackBaseName}${ext}`;
 };
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizeEmailList = (value: unknown) => {
+  const rawEmails = Array.isArray(value) ? value : [value];
+
+  return Array.from(
+    new Set(
+      rawEmails
+        .map((email) => String(email || "").trim().toLowerCase())
+        .filter((email) => emailPattern.test(email)),
+    ),
+  );
+};
+
+export const sendStockExportEmail = async (req: Request, res: Response) => {
+  try {
+    const {
+      attachmentBase64,
+      fileName,
+      recipients,
+      showPrice,
+      to,
+    } = req.body;
+    const recipientEmails = normalizeEmailList(recipients || to);
+
+    if (!recipientEmails.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide at least one valid email address",
+      });
+    }
+
+    if (!attachmentBase64) {
+      return res.status(400).json({
+        success: false,
+        message: "Export attachment is required",
+      });
+    }
+
+    const safeFileName = String(
+      fileName ||
+        (showPrice
+          ? "stock-data-with-price.xlsx"
+          : "stock-data-without-price.xlsx"),
+    ).replace(/[\\/:*?"<>|]/g, "-");
+    const cleanBase64 = String(attachmentBase64).replace(
+      /^data:.*;base64,/,
+      "",
+    );
+    const attachmentBuffer = Buffer.from(cleanBase64, "base64");
+
+    if (!attachmentBuffer.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Export attachment is empty",
+      });
+    }
+
+    await mail({
+      to: recipientEmails,
+      subject: showPrice
+        ? "Chic & Holland stock data with price"
+        : "Chic & Holland stock data without price",
+      html: `
+        <div style="font-family: Arial, sans-serif; font-size:14px; color:#000;">
+          <p>Hello,</p>
+          <p>Please find the stock export attached with this email.</p>
+          <br/>
+          <p>Best Regards,<br/>Chic & Holland Team</p>
+        </div>
+      `,
+      attachments: [
+        {
+          filename: safeFileName,
+          content: attachmentBuffer,
+        },
+      ],
+    });
+
+    return res.json({
+      success: true,
+      message: "Stock export email sent successfully",
+    });
+  } catch (error: any) {
+    console.error("Stock export email failed:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to send stock export email",
+    });
+  }
+};
+
 export const sendStockEmail = async (req: Request, res: Response) => {
   try {
     const { orderData } = req.body;

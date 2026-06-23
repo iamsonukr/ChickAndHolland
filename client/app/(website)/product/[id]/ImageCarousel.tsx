@@ -220,7 +220,6 @@ const ImageCarousel = ({
         ];
   const [biggerImage, setBiggerImage] = useState(displayImages[0]);
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const [modalWidth, setModalWidth] = useState("");
 
   const onUpdate = useCallback(({ x, y, scale }: any) => {
     const { current: img }: any = imgRef;
@@ -229,14 +228,6 @@ const ImageCarousel = ({
       img.style.setProperty("transform", value);
     }
   }, []);
-
-  const zoomInFun = () => {
-    setModalWidth("!max-w-[80vw] h-screen");
-  };
-
-  const zoomOutFun = () => {
-    setModalWidth("");
-  };
 
   return (
     <div className="flex w-full flex-col md:w-[40%] md:gap-4">
@@ -263,35 +254,19 @@ const ImageCarousel = ({
         </div>
 
         {/* Main Image */}
-        <div className="w-8/12">
-          <Dialog>
-            <DialogTrigger asChild>
-              <CustomizedImage
-                src={biggerImage?.name}
-                alt={biggerImage?.name || "Product image"}
-                className="cursor-pointer"
-                unoptimized
-              />
-            </DialogTrigger>
-
-            <DialogContent className={`${modalWidth}`}>
-              <DialogHeader>
-                <DialogTitle className="sr-only">Image Preview</DialogTitle>
-              </DialogHeader>
-
-              <div
-                className="flex w-full justify-center"
-                onMouseLeave={zoomOutFun}
-              >
-                <InnerImageZoom
-                  src={biggerImage?.name || FALLBACK_PRODUCT_IMAGE}
-                  zoomSrc={biggerImage?.name || FALLBACK_PRODUCT_IMAGE}
-                  afterZoomIn={zoomInFun}
-                  afterZoomOut={zoomOutFun}
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
+        <div className="w-8/12 overflow-hidden">
+          <InnerImageZoom
+            src={biggerImage?.name || FALLBACK_PRODUCT_IMAGE}
+            zoomSrc={biggerImage?.name || FALLBACK_PRODUCT_IMAGE}
+            zoomType="hover"
+            zoomPreload
+            zoomScale={1.6}
+            className="w-full cursor-zoom-in"
+            imgAttributes={{
+              alt: biggerImage?.name || "Product image",
+              className: "w-full object-cover",
+            }}
+          />
         </div>
       </div>
 

@@ -335,6 +335,13 @@ export function getMenuList(pathname: string, userType: any): Group[] {
             submenus: [],
           },
           {
+            href: "/retailer-panel/rejected-orders",
+            label: "Rejected Orders",
+            active: pathname.includes("/rejected-orders"),
+            icon: Package,
+            submenus: [],
+          },
+          {
             href: "/retailer-panel/my-orders",
             label: "My Orders",
             active: pathname.includes("/my-orders"),

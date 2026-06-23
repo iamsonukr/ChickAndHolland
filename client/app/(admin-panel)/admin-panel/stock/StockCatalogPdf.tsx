@@ -15,6 +15,7 @@ type StockCatalogPdfProps = {
 };
 
 const PAGE_WIDTH = 595;
+const TITLE_PAGE_HEIGHT = 842;
 const PAGE_HEIGHT_WITH_PRICE = 520;
 const PAGE_HEIGHT_WITHOUT_PRICE = 430;
 const IMAGE_HEIGHT_WITH_PRICE = 396;
@@ -109,9 +110,25 @@ const StockCatalogPdf = ({
   const printableStock = Array.isArray(stock)
     ? stock.filter((item) => item?.product)
     : [];
+  const downloadYear = new Date().getFullYear();
+  const pageHeight = showPrice
+    ? PAGE_HEIGHT_WITH_PRICE
+    : PAGE_HEIGHT_WITHOUT_PRICE;
 
   return (
     <Document>
+      <Page
+        size={[PAGE_WIDTH, TITLE_PAGE_HEIGHT]}
+        style={styles.titlePage}
+        wrap={false}
+      >
+        <View style={styles.titlePageContent}>
+          <Text style={styles.brandTitle}>CHIC & HOLLAND</Text>
+          <Text style={styles.stocklistTitle}>STOCKLIST</Text>
+          <Text style={styles.yearTitle}>{downloadYear}</Text>
+        </View>
+      </Page>
+
       {printableStock.map((item, index) => {
         const productCode =
           item?.product?.productCode || item?.productCode || item?.styleNo || "-";
@@ -124,10 +141,7 @@ const StockCatalogPdf = ({
         return (
           <Page
             key={item?.id ?? index}
-            size={[
-              PAGE_WIDTH,
-              showPrice ? PAGE_HEIGHT_WITH_PRICE : PAGE_HEIGHT_WITHOUT_PRICE,
-            ]}
+            size={[PAGE_WIDTH, pageHeight]}
             style={styles.page}
             wrap={false}
           >
@@ -137,7 +151,7 @@ const StockCatalogPdf = ({
                 <Text style={styles.title}>{productCode}</Text>
               </View>
               <Text style={styles.pageCount}>
-                {index + 1} / {printableStock.length}
+                {index + 2} / {printableStock.length + 1}
               </Text>
             </View>
 
@@ -238,6 +252,39 @@ const StockCatalogPdf = ({
 export default StockCatalogPdf;
 
 const styles = StyleSheet.create({
+  titlePage: {
+    backgroundColor: "#FFFFFF",
+    color: "#111827",
+    fontFamily: "Helvetica",
+    padding: 36,
+  },
+  titlePageContent: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    padding: 28,
+  },
+  brandTitle: {
+    fontSize: 44,
+    fontWeight: "bold",
+    letterSpacing: 2,
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  stocklistTitle: {
+    fontSize: 38,
+    fontWeight: "bold",
+    letterSpacing: 4,
+    marginBottom: 36,
+    textAlign: "center",
+  },
+  yearTitle: {
+    fontSize: 28,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
   page: {
     padding: 22,
     backgroundColor: "#FFFFFF",
