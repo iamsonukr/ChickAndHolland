@@ -125,29 +125,49 @@ function buildStageMap(rows: any[], field: "status" | "stage") {
   return map;
 }
 
+const isMissingTableError = (error: any) =>
+  error?.code === "ER_NO_SUCH_TABLE" ||
+  error?.errno === 1146 ||
+  /table .* doesn't exist/i.test(String(error?.message ?? ""));
+
+async function queryOptionalRows<T = any>(sql: string, params: any[] = []) {
+  try {
+    return (await db.query(sql, params)) as T[];
+  } catch (error) {
+    if (isMissingTableError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
 async function getLatestProgressRows(
   tableName: "store_style_progress" | "styleProgress",
   stageColumn: "status" | "stage",
   barcodes: string[],
 ) {
-  if (!barcodes.length) return [];
+  const uniqueBarcodes = Array.from(
+    new Set(barcodes.map((barcode) => String(barcode || "").trim()).filter(Boolean)),
+  );
 
-  const placeholders = barcodes.map(() => "?").join(",");
+  if (!uniqueBarcodes.length) return [];
 
-  return db.query(
+  const placeholders = uniqueBarcodes.map(() => "?").join(",");
+
+  return queryOptionalRows(
     `
     SELECT progress.barcode, progress.${stageColumn}
     FROM ${tableName} progress
     INNER JOIN (
-      SELECT barcode, MAX(createdAt) AS latestCreatedAt
+      SELECT barcode, MAX(id) AS latestId
       FROM ${tableName}
       WHERE barcode IN (${placeholders})
       GROUP BY barcode
     ) latest
-      ON latest.barcode = progress.barcode
-     AND latest.latestCreatedAt = progress.createdAt
+      ON latest.latestId = progress.id
     `,
-    barcodes,
+    uniqueBarcodes,
   );
 }
 
@@ -166,11 +186,117 @@ function getComputedOrderStage(
   );
 }
 
-async function getProductStageCounts(baseOrders: any[]) {
-  const counts = ORDER_STAGE_FLOW.reduce<Record<string, number>>((acc, stage) => {
+const emptyStageCounts = () =>
+  ORDER_STAGE_FLOW.reduce<Record<string, number>>((acc, stage) => {
     acc[stage] = 0;
     return acc;
   }, {});
+
+const addStageCount = (counts: Record<string, number>, stage?: string | null) => {
+  const canonicalStage = getCanonicalStage(stage) ?? DEFAULT_ORDER_STAGE;
+  counts[canonicalStage] = (counts[canonicalStage] ?? 0) + 1;
+};
+
+const buildOrderStatusById = (orders: any[], orderSource: "regular" | "retailer") => {
+  const statusById = new Map<number, string>();
+
+  orders
+    .filter((order) => order.orderSource === orderSource)
+    .forEach((order) => {
+      const id = Number(order.id);
+      if (!id) return;
+      statusById.set(
+        id,
+        getCanonicalStage(order.orderStatus) ?? DEFAULT_ORDER_STAGE,
+      );
+    });
+
+  return statusById;
+};
+
+const dedupeProductRowsByBarcode = (
+  rows: Array<{ orderId: number; barcode: string }>,
+) => {
+  const productRowsByBarcode = new Map<string, { orderId: number; barcode: string }>();
+
+  rows.forEach((row) => {
+    const orderId = Number(row.orderId);
+    const barcode = String(row.barcode || "").trim();
+
+    if (!orderId || !barcode || productRowsByBarcode.has(barcode)) return;
+    productRowsByBarcode.set(barcode, { orderId, barcode });
+  });
+
+  return Array.from(productRowsByBarcode.values());
+};
+
+const getRegularProductRows = async (orderIds: number[]) => {
+  if (!orderIds.length) return [];
+
+  const placeholders = orderIds.map(() => "?").join(",");
+  const [orderStyleRows, legacyOrderStyleRows, storeOrderStyleRows] =
+    await Promise.all([
+      queryOptionalRows(
+        `
+        SELECT orderId, barcode
+        FROM orderStyles
+        WHERE orderId IN (${placeholders})
+        `,
+        orderIds,
+      ),
+      queryOptionalRows(
+        `
+        SELECT orderId, barcode
+        FROM orderstyles
+        WHERE orderId IN (${placeholders})
+        `,
+        orderIds,
+      ),
+      queryOptionalRows(
+        `
+        SELECT orderId, barcode
+        FROM store_order_styles
+        WHERE orderId IN (${placeholders})
+        `,
+        orderIds,
+      ),
+    ]);
+
+  return dedupeProductRowsByBarcode([
+    ...orderStyleRows,
+    ...legacyOrderStyleRows,
+    ...storeOrderStyleRows,
+  ]);
+};
+
+const getRetailerProductRows = async (orderIds: number[]) => {
+  if (!orderIds.length) return [];
+
+  const placeholders = orderIds.map(() => "?").join(",");
+  const [freshStyleRows, stockStyleRows] = await Promise.all([
+    queryOptionalRows(
+      `
+      SELECT retailerOrderId AS orderId, barcode
+      FROM retailer_order_styles
+      WHERE retailerOrderId IN (${placeholders})
+      `,
+      orderIds,
+    ),
+    queryOptionalRows(
+      `
+      SELECT retailerOrderId AS orderId, barcode
+      FROM stock_order_styles
+      WHERE retailerOrderId IN (${placeholders})
+      `,
+      orderIds,
+    ),
+  ]);
+
+  return dedupeProductRowsByBarcode([...freshStyleRows, ...stockStyleRows]);
+};
+
+async function getProductStageCounts(baseOrders: any[]) {
+  const counts = emptyStageCounts();
 
   const regularOrderIds = baseOrders
     .filter((order) => order.orderSource === "regular")
@@ -180,15 +306,12 @@ async function getProductStageCounts(baseOrders: any[]) {
     .filter((order) => order.orderSource === "retailer")
     .map((order) => Number(order.id))
     .filter(Boolean);
+  const regularOrderStatusById = buildOrderStatusById(baseOrders, "regular");
+  const retailerOrderStatusById = buildOrderStatusById(baseOrders, "retailer");
 
   if (regularOrderIds.length) {
-    const regularRows = await db.query(
-      "SELECT `barcode` FROM `orderStyles` WHERE `orderId` IN (?)",
-      [regularOrderIds],
-    );
-    const regularBarcodes: string[] = regularRows
-      .map((row: any) => String(row.barcode || "").trim())
-      .filter(Boolean);
+    const regularRows = await getRegularProductRows(regularOrderIds);
+    const regularBarcodes = regularRows.map((row) => row.barcode);
     const regularProgressByBarcode = buildStageMap(
       await getLatestProgressRows(
         "store_style_progress",
@@ -198,29 +321,19 @@ async function getProductStageCounts(baseOrders: any[]) {
       "status",
     );
 
-    regularBarcodes.forEach((barcode) => {
-      const stage = regularProgressByBarcode.get(barcode) ?? DEFAULT_ORDER_STAGE;
-      counts[stage] = (counts[stage] ?? 0) + 1;
+    regularRows.forEach((row) => {
+      addStageCount(
+        counts,
+        regularProgressByBarcode.get(row.barcode) ??
+          regularOrderStatusById.get(row.orderId) ??
+          DEFAULT_ORDER_STAGE,
+      );
     });
   }
 
   if (retailerOrderIds.length) {
-    const placeholders = retailerOrderIds.map(() => "?").join(",");
-    const retailerRows = await db.query(
-      `
-        SELECT barcode
-        FROM retailer_order_styles
-        WHERE retailerOrderId IN (${placeholders})
-        UNION ALL
-        SELECT barcode
-        FROM stock_order_styles
-        WHERE retailerOrderId IN (${placeholders})
-      `,
-      [...retailerOrderIds, ...retailerOrderIds],
-    );
-    const retailerBarcodes: string[] = retailerRows
-      .map((row: any) => String(row.barcode || "").trim())
-      .filter(Boolean);
+    const retailerRows = await getRetailerProductRows(retailerOrderIds);
+    const retailerBarcodes = retailerRows.map((row) => row.barcode);
     const retailerProgressByBarcode = buildStageMap(
       await getLatestProgressRows(
         "styleProgress",
@@ -230,9 +343,13 @@ async function getProductStageCounts(baseOrders: any[]) {
       "stage",
     );
 
-    retailerBarcodes.forEach((barcode) => {
-      const stage = retailerProgressByBarcode.get(barcode) ?? DEFAULT_ORDER_STAGE;
-      counts[stage] = (counts[stage] ?? 0) + 1;
+    retailerRows.forEach((row) => {
+      addStageCount(
+        counts,
+        retailerProgressByBarcode.get(row.barcode) ??
+          retailerOrderStatusById.get(row.orderId) ??
+          DEFAULT_ORDER_STAGE,
+      );
     });
   }
 
@@ -2618,9 +2735,18 @@ router.get(
       });
     }
 
-    const regularOrderBarcodes = regularOrdersWithRelations.flatMap((order: any) =>
-      (order.styles || []).map((style: any) => String(style.barcode)).filter(Boolean),
+    const regularProductRows = await getRegularProductRows(
+      regularOrderIds.map(Number).filter(Boolean),
     );
+    const regularBarcodesByOrderId = new Map<number, string[]>();
+
+    regularProductRows.forEach((row) => {
+      const existing = regularBarcodesByOrderId.get(row.orderId) ?? [];
+      existing.push(row.barcode);
+      regularBarcodesByOrderId.set(row.orderId, existing);
+    });
+
+    const regularOrderBarcodes = regularProductRows.map((row) => row.barcode);
     const regularProgressByBarcode = buildStageMap(
       await getLatestProgressRows(
         "store_style_progress",
@@ -2711,7 +2837,10 @@ router.get(
       const computedOrderStatus =
         baseOrder.orderSource === "regular"
           ? getComputedOrderStage(
-              (styles || []).map((style: any) => String(style.barcode)).filter(Boolean),
+              regularBarcodesByOrderId.get(Number(baseOrder.id)) ??
+                (styles || [])
+                  .map((style: any) => String(style.barcode))
+                  .filter(Boolean),
               regularProgressByBarcode,
             )
           : getComputedOrderStage(
