@@ -14,12 +14,9 @@ type StockCatalogPdfProps = {
   showPrice: boolean;
 };
 
-const PAGE_WIDTH = 595;
-const TITLE_PAGE_HEIGHT = 842;
-const PAGE_HEIGHT_WITH_PRICE = 520;
-const PAGE_HEIGHT_WITHOUT_PRICE = 430;
-const IMAGE_HEIGHT_WITH_PRICE = 396;
-const IMAGE_HEIGHT_WITHOUT_PRICE = 306;
+const A4_PAGE_SIZE: [number, number] = [595.28, 841.89];
+const COVER_LOGO_SRC = "/logo-1.png";
+const COVER_WORDMARK_SRC = "/brand-logo.png";
 
 const normalizeImages = (images: unknown) => {
   if (Array.isArray(images)) return images.filter(Boolean);
@@ -111,19 +108,23 @@ const StockCatalogPdf = ({
     ? stock.filter((item) => item?.product)
     : [];
   const downloadYear = new Date().getFullYear();
-  const pageHeight = showPrice
-    ? PAGE_HEIGHT_WITH_PRICE
-    : PAGE_HEIGHT_WITHOUT_PRICE;
 
   return (
     <Document>
       <Page
-        size={[PAGE_WIDTH, TITLE_PAGE_HEIGHT]}
+        size={A4_PAGE_SIZE}
         style={styles.titlePage}
         wrap={false}
       >
+        <View style={styles.coverTopBand} />
+        <View style={styles.coverBottomBand} />
+        <View style={styles.coverAccentRule} />
+
         <View style={styles.titlePageContent}>
-          <Text style={styles.brandTitle}>CHIC & HOLLAND</Text>
+          <View style={styles.logoFrame}>
+            <Image src={COVER_LOGO_SRC} style={styles.coverLogo} />
+          </View>
+          <Image src={COVER_WORDMARK_SRC} style={styles.coverWordmark} />
           <Text style={styles.stocklistTitle}>STOCKLIST</Text>
           <Text style={styles.yearTitle}>{downloadYear}</Text>
         </View>
@@ -141,7 +142,7 @@ const StockCatalogPdf = ({
         return (
           <Page
             key={item?.id ?? index}
-            size={[PAGE_WIDTH, pageHeight]}
+            size={A4_PAGE_SIZE}
             style={styles.page}
             wrap={false}
           >
@@ -156,25 +157,6 @@ const StockCatalogPdf = ({
             </View>
 
             <View style={styles.body}>
-              <View
-                style={[
-                  styles.imagePanel,
-                  {
-                    height: showPrice
-                      ? IMAGE_HEIGHT_WITH_PRICE
-                      : IMAGE_HEIGHT_WITHOUT_PRICE,
-                  },
-                ]}
-              >
-                {image ? (
-                  <Image alt={productCode} src={image} style={styles.image} />
-                ) : (
-                  <View style={styles.emptyImage}>
-                    <Text style={styles.emptyImageText}>No image available</Text>
-                  </View>
-                )}
-              </View>
-
               <View style={styles.detailsPanel}>
                 <Text style={styles.sectionTitle}>Product Details</Text>
 
@@ -241,6 +223,16 @@ const StockCatalogPdf = ({
                   )}
                 </View>
               </View>
+
+              <View style={styles.imagePanel}>
+                {image ? (
+                  <Image alt={productCode} src={image} style={styles.image} />
+                ) : (
+                  <View style={styles.emptyImage}>
+                    <Text style={styles.emptyImageText}>No image available</Text>
+                  </View>
+                )}
+              </View>
             </View>
           </Page>
         );
@@ -253,25 +245,64 @@ export default StockCatalogPdf;
 
 const styles = StyleSheet.create({
   titlePage: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F8F5F2",
     color: "#111827",
     fontFamily: "Helvetica",
     padding: 36,
+    position: "relative",
+  },
+  coverTopBand: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 220,
+    backgroundColor: "#EFE4DE",
+  },
+  coverBottomBand: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 170,
+    backgroundColor: "#F2ECE8",
+  },
+  coverAccentRule: {
+    position: "absolute",
+    left: 54,
+    right: 54,
+    top: 248,
+    height: 1,
+    backgroundColor: "#B58A78",
   },
   titlePageContent: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    padding: 28,
+    borderColor: "#CBAA9B",
+    padding: 34,
   },
-  brandTitle: {
-    fontSize: 44,
-    fontWeight: "bold",
-    letterSpacing: 2,
-    marginBottom: 24,
-    textAlign: "center",
+  logoFrame: {
+    width: 170,
+    height: 170,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E6D8D0",
+    marginBottom: 26,
+  },
+  coverLogo: {
+    width: 136,
+    height: 136,
+    objectFit: "contain",
+  },
+  coverWordmark: {
+    width: 345,
+    height: 45,
+    objectFit: "contain",
+    marginBottom: 30,
   },
   stocklistTitle: {
     fontSize: 38,
@@ -315,11 +346,13 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
   body: {
-    flexDirection: "row",
-    gap: 14,
+    flex: 1,
+    flexDirection: "column",
+    gap: 12,
   },
   imagePanel: {
-    width: "54%",
+    flex: 1,
+    width: "100%",
     borderWidth: 1,
     borderColor: "#E5E7EB",
     borderRadius: 6,
@@ -341,39 +374,43 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
   detailsPanel: {
-    flex: 1,
+    width: "100%",
   },
   sectionTitle: {
     fontSize: 13,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   detailsTable: {
-    borderWidth: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    borderLeftWidth: 1,
+    borderTopWidth: 1,
     borderColor: "#E5E7EB",
-    borderRadius: 6,
-    overflow: "hidden",
   },
   detailRow: {
+    width: "50%",
     flexDirection: "row",
     borderBottomWidth: 1,
+    borderRightWidth: 1,
     borderBottomColor: "#E5E7EB",
-    minHeight: 30,
+    borderRightColor: "#E5E7EB",
+    minHeight: 24,
   },
   detailLabel: {
-    width: "42%",
+    width: "44%",
     backgroundColor: "#F3F4F6",
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    fontSize: 9,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    fontSize: 8,
     color: "#374151",
     fontWeight: "bold",
   },
   detailValue: {
     flex: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    fontSize: 9,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    fontSize: 8,
     color: "#111827",
   },
 });
