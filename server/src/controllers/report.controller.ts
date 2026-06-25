@@ -28,6 +28,7 @@ router.get(
         ros.size_country  AS size_country,
         ros.quantity      AS quantity,
         ro.purchaeOrderNo AS purchaseOrderNo,
+        p.beader          AS beader,
         matchedFavourite.mesh_color AS meshColorRaw,
         CONCAT(
           'SAS(',
@@ -102,6 +103,7 @@ router.get(
         quantity: row.quantity ?? 1,
         color: row.color,
         purchaseOrderNo: row.purchaseOrderNo,
+        beader: row.beader ?? "",
         meshColor: row.meshColor,   // ✅ ADD THIS
         meshColorRaw: row.meshColorRaw,
 
@@ -138,6 +140,7 @@ router.get(
 
   s.size_country AS size_country,
   ro.purchaeOrderNo AS purchaseOrderNo,
+  NULL AS beader,
   s.mesh_color AS meshColorRaw,
 
   -- ✅ SAME COLOR FIX AS RETAILER
@@ -199,6 +202,7 @@ ORDER BY sos.id ASC;
         quantity: row.quantity ?? 1,
         color: row.color,
         purchaseOrderNo: row.purchaseOrderNo,
+        beader: row.beader ?? "",
         meshColor: row.meshColor, // ✅ USE THIS ONLY
         meshColorRaw: row.meshColorRaw,
 

@@ -702,6 +702,7 @@ export default function OrderStatusPage({
       Quantity: raw.quantity ?? raw.totalQty ?? 1,
       Color: getReportQrBoxColor(raw),
       "PO Number": raw.purchaseOrderNo ?? raw.purchaeOrderNo ?? "",
+      Beader: raw.beader ?? "",
       "Product Status": getCurrentStageLabel(progress),
     };
   });

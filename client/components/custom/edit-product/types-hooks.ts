@@ -54,6 +54,7 @@ export interface ProductData {
   lining?: string;
   mesh_color?: string;
   beading_color?: string;
+  beader?: string | null;
   lining_color?: string;
   category?: { id: number };
   subCategory?: { id: number };
@@ -126,6 +127,7 @@ export function useEditProductSheet(data: ProductData, currencies: Currency[]) {
       lining: undefined,
       mesh: undefined,
       beading: undefined,
+      beader: "",
       liningColor: undefined,
     },
   });
@@ -153,6 +155,7 @@ const resetToDefault = useCallback(() => {
     description: data.description ?? "",
     mesh: data.mesh_color || "SAS",
     beading: data.beading_color || "SAS",
+    beader: data.beader || "",
     liningColor: data.lining_color || "No Color",
     currencyBasedPricing: data.currencyPricing?.map((p) => ({
       currencyId: p.currency?.id?.toString() ?? "",
@@ -204,6 +207,7 @@ const initializeForm = useCallback(
         description: data.description ?? "",
         mesh: data.mesh_color || "SAS",
         beading: data.beading_color || "SAS",
+        beader: data.beader || "",
         liningColor: data.lining_color || "No Color",
         currencyBasedPricing:
           data.currencyPricing?.map((p) => ({

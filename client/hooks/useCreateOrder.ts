@@ -249,6 +249,13 @@ function appendStyleFormData(
     sas(normalizedStyle.beading, productDetails?.beading_color),
   );
   fd.append(
+    `styles[${index}].beader`,
+    productDetails?.beader ??
+      (normalizedStyle.styleNo?.[0] as any)?.beader ??
+      (normalizedStyle as any).beader ??
+      "",
+  );
+  fd.append(
     `styles[${index}].mesh`,
     sas(normalizedStyle.mesh, productDetails?.mesh_color),
   );
@@ -434,6 +441,7 @@ export function buildPreviewData(
         currentItem.beadingColor ?? currentItem.beading,
         currentItem.product?.beading_color,
       ),
+      beader: currentItem.beader ?? currentItem.product?.beader ?? "",
       lining: currentItem.lining,
       liningColor: resolvePreviewColour(
         currentItem.liningColor,
@@ -628,6 +636,7 @@ export function useCreateOrder({
     customSizesQuantity: [],
     comments: [],
     beading: "SAS",
+    beader: "",
     lining: "SAS",
     liningColor: "SAS",
     mesh: "SAS",
@@ -653,6 +662,7 @@ export function useCreateOrder({
               label: styleNo,
               mesh: style?.mesh_color,
               beading: style?.beading_color,
+              beader: style?.beader,
               lining: style?.lining,
               liningColor: style?.lining_color,
             },
@@ -681,6 +691,7 @@ export function useCreateOrder({
       })),
       comments: comments.map((comment: any) => String(comment)),
       beading: style?.beading_color || "SAS",
+      beader: style?.beader || "",
       lining: style?.lining || "SAS",
       liningColor: style?.lining_color || "SAS",
       mesh: style?.mesh_color || "SAS",
@@ -974,6 +985,7 @@ export function useCreateOrder({
               productCode: styleSelect.value,
               mesh_color: details.mesh_color,
               beading_color: details.beading_color,
+              beader: details.beader,
               lining: details.lining,
               lining_color: details.lining_color,
             });
@@ -1281,6 +1293,7 @@ export function useCreateOrder({
       styleNo: [],
       comments: [],
       beading: "SAS",
+      beader: "",
       lining: "SAS",
       liningColor: "SAS",
       mesh: "SAS",

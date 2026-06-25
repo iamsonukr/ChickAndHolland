@@ -37,6 +37,7 @@ const ORDER_EXPORT_COLUMNS = [
   "Quantity",
   "Color",
   "PO Number",
+  "Beader",
   "Product Status",
 ];
 

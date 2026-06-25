@@ -91,6 +91,7 @@ const { name: colorName, hex: colorHex } = resolveColor(
   item.meshColor || item.color
 );
 const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
+const beader = String(item.beader ?? "").trim();
 
   return (
     <div className="w-[210px] border-2 border-gray-800 bg-gradient-to-b from-white to-gray-50 rounded-lg shadow-lg overflow-hidden">
@@ -155,12 +156,26 @@ const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alway
 
         {/* PURCHASE ORDER */}
         <div className="mb-4">
-          <div className="text-xs font-semibold text-gray-500 mb-2 text-center">
-            PURCHASE ORDER
-          </div>
-          <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg py-2 px-3 text-center">
-            <div className="text-sm font-bold text-gray-900 break-all">
-              {item.purchaseOrderNo}
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <div>
+              <div className="text-xs font-semibold text-gray-500 mb-2 text-center">
+                PURCHASE ORDER
+              </div>
+              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg py-2 px-3 text-center">
+                <div className="text-sm font-bold text-gray-900 break-all">
+                  {item.purchaseOrderNo}
+                </div>
+              </div>
+            </div>
+            <div className="min-w-[74px]">
+              <div className="text-xs font-semibold text-gray-500 mb-2 text-center">
+                BEADER
+              </div>
+              <div className="bg-gray-100 border border-gray-300 rounded-lg py-2 px-2 text-center">
+                <div className="text-xs font-bold text-gray-900 break-all">
+                  {beader || "-"}
+                </div>
+              </div>
             </div>
           </div>
         </div>

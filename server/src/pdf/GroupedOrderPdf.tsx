@@ -29,6 +29,7 @@ const buildGroupKey = (item: any) =>
     item.color ?? "",
     item.meshColor ?? "",
     item.beadingColor ?? "",
+    item.beader ?? "",
     item.lining ?? "",
     item.liningColor ?? "",
     item.comments ?? "",
@@ -297,6 +298,10 @@ const GroupedOrderPdf = ({
                               <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
                                 <Text style={styles.variantInfoLabel}>QTY:</Text>
                                 <Text style={styles.variantInfoValue}>{variant.quantity ?? "-"}</Text>
+                              </View>
+                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
+                                <Text style={styles.variantInfoLabel}>Beader:</Text>
+                                <Text style={styles.variantInfoValue}>{variant.beader || "-"}</Text>
                               </View>
                               <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
                                 <Text style={styles.variantInfoLabel}>Color:</Text>

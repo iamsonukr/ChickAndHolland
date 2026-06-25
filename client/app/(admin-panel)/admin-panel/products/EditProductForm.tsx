@@ -299,6 +299,24 @@ const EditProductForm = ({
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="beader"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Beader</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter beader name"
+                      {...field}
+                      disabled={showLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* Lining */}
             <FormField
               control={form.control}

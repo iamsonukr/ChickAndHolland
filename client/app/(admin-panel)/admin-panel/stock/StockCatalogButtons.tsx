@@ -46,12 +46,12 @@ const stockExportOptions: {
   {
     value: "catalog-with-price",
     label: "Print Catalog with price",
-    description: "Download the stock catalog PDF with prices.",
+    description: "Download or email the stock catalog PDF with prices.",
   },
   {
     value: "catalog-without-price",
     label: "Print catalog without price",
-    description: "Download the stock catalog PDF without prices.",
+    description: "Download or email the stock catalog PDF without prices.",
   },
   {
     value: "excel-with-price",
@@ -126,6 +126,11 @@ const buildExcelFileName = (showPrice: boolean) => {
     ? `stock-data-with-price-${date}.xlsx`
     : `stock-data-without-price-${date}.xlsx`;
 };
+
+const buildCatalogFileName = (showPrice: boolean) =>
+  showPrice
+    ? "stock-catalog-with-price.pdf"
+    : "stock-catalog-without-price.pdf";
 
 const getColourName = (colours: any[] = [], colourValue?: string | null) => {
   if (!colourValue) return "-";
@@ -355,7 +360,6 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
   useEffect(() => {
     if (
       !exportDialogOpen ||
-      !selectedExportIsExcel ||
       customers.length ||
       customersLoading
     ) {
@@ -402,7 +406,6 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
     customers.length,
     customersLoading,
     exportDialogOpen,
-    selectedExportIsExcel,
   ]);
 
   const filteredCustomers = useMemo(() => {
@@ -470,18 +473,21 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
     );
   };
 
-  const handleDownload = async (mode: CatalogMode) => {
+  const getEmailRecipientsForSend = () => {
+    const pendingEmail = normalizeEmail(customerSearch);
+    const recipients = [...selectedEmails];
+
+    if (emailPattern.test(pendingEmail) && !recipients.includes(pendingEmail)) {
+      recipients.push(pendingEmail);
+    }
+
+    return recipients;
+  };
+
+  const buildCatalogPdfBlob = async (stock: any[], showPrice: boolean) => {
     const objectUrls: string[] = [];
-    setLoadingMode(mode);
 
     try {
-      const stock = await fetchStockCatalog();
-
-      if (!stock.length) {
-        toast.error("No stock products found");
-        return;
-      }
-
       const preparedStock = await Promise.all(
         stock.map(async (item: any) => ({
           ...item,
@@ -492,21 +498,33 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
         })),
       );
 
-      const showPrice = mode === "with-price";
-      const blob = await pdf(
+      return await pdf(
         <StockCatalogPdf
           stock={preparedStock}
           colours={colours}
           showPrice={showPrice}
         /> as any,
       ).toBlob();
+    } finally {
+      objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+    }
+  };
 
-      downloadBlob(
-        blob,
-        showPrice
-          ? "stock-catalog-with-price.pdf"
-          : "stock-catalog-without-price.pdf",
-      );
+  const handleDownload = async (mode: CatalogMode) => {
+    setLoadingMode(mode);
+
+    try {
+      const stock = await fetchStockCatalog();
+
+      if (!stock.length) {
+        toast.error("No stock products found");
+        return;
+      }
+
+      const showPrice = mode === "with-price";
+      const blob = await buildCatalogPdfBlob(stock, showPrice);
+
+      downloadBlob(blob, buildCatalogFileName(showPrice));
 
       toast.success("Stock catalog downloaded");
     } catch (error: any) {
@@ -514,7 +532,6 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
         description: error?.message || "Please try again",
       });
     } finally {
-      objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
       setLoadingMode(null);
     }
   };
@@ -542,17 +559,21 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
     }
   };
 
-  const handleSendExcelEmail = async () => {
-    if (!selectedExportIsExcel) return;
+  const handleSendExportEmail = async () => {
+    const recipientEmails = getEmailRecipientsForSend();
 
-    if (!selectedEmails.length) {
+    if (!recipientEmails.length) {
       toast.error("Please select or enter at least one email");
       return;
     }
 
     setSendingEmail(true);
     setLoadingMode(
-      selectedExportShowPrice ? "excel-with-price" : "excel-without-price",
+      selectedExportIsExcel
+        ? selectedExportShowPrice
+          ? "excel-with-price"
+          : "excel-without-price"
+        : selectedCatalogMode,
     );
 
     try {
@@ -564,16 +585,29 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
         return;
       }
 
-      const workbook = buildExcelWorkbook(
-        stock,
-        colours,
-        selectedExportShowPrice,
-      );
-      const fileName = buildExcelFileName(selectedExportShowPrice);
-      const workbookData = XLSX.write(workbook, {
-        bookType: "xlsx",
-        type: "array",
-      }) as ArrayBuffer | Uint8Array;
+      const fileName = selectedExportIsExcel
+        ? buildExcelFileName(selectedExportShowPrice)
+        : buildCatalogFileName(selectedExportShowPrice);
+      let attachmentData: ArrayBuffer | Uint8Array;
+
+      if (selectedExportIsExcel) {
+        const workbook = buildExcelWorkbook(
+          stock,
+          colours,
+          selectedExportShowPrice,
+        );
+        attachmentData = XLSX.write(workbook, {
+          bookType: "xlsx",
+          type: "array",
+        }) as ArrayBuffer | Uint8Array;
+      } else {
+        const catalogBlob = await buildCatalogPdfBlob(
+          stock,
+          selectedExportShowPrice,
+        );
+        attachmentData = await catalogBlob.arrayBuffer();
+      }
+
       const response = await fetch(getApiUrl("stock-export-email"), {
         method: "POST",
         headers: {
@@ -581,10 +615,11 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          recipients: selectedEmails,
+          recipients: recipientEmails,
           fileName,
+          exportKind: selectedExportIsExcel ? "excel" : "catalog",
           showPrice: selectedExportShowPrice,
-          attachmentBase64: toBase64(workbookData),
+          attachmentBase64: toBase64(attachmentData),
         }),
       });
       const data = await response.json();
@@ -613,6 +648,12 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
   const currentExcelMode = selectedExportShowPrice
     ? "excel-with-price"
     : "excel-without-price";
+  const currentExportMode = selectedExportIsExcel
+    ? currentExcelMode
+    : selectedCatalogMode;
+  const canSendEmail =
+    selectedEmails.length > 0 ||
+    emailPattern.test(normalizeEmail(customerSearch));
 
   return (
     <>
@@ -637,9 +678,8 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
           <DialogHeader>
             <DialogTitle>Export Stock</DialogTitle>
             <DialogDescription>
-              {selectedExportIsExcel
-                ? "Choose export type, then search customer email or enter a manual email address."
-                : "Choose export type to download the stock catalog."}
+              Choose export type, then search customer email or enter a custom
+              email address.
             </DialogDescription>
           </DialogHeader>
 
@@ -687,69 +727,67 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
               </div>
             </div>
 
-            {selectedExportIsExcel && (
-              <div className="space-y-2">
-                <label
-                  className="text-sm font-medium"
-                  htmlFor="stock-export-email"
+            <div className="space-y-2">
+              <label
+                className="text-sm font-medium"
+                htmlFor="stock-export-email"
+              >
+                Email recipients
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  id="stock-export-email"
+                  value={customerSearch}
+                  onChange={(event) => setCustomerSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addEmail(customerSearch);
+                    }
+                  }}
+                  placeholder="Search customer or type email"
+                  type="text"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => addEmail(customerSearch)}
+                  disabled={!customerSearch.trim()}
                 >
-                  Email recipients
-                </label>
-                <div className="flex gap-2">
-                  <Input
-                    id="stock-export-email"
-                    value={customerSearch}
-                    onChange={(event) => setCustomerSearch(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        addEmail(customerSearch);
-                      }
-                    }}
-                    placeholder="Search customer or type email"
-                    type="email"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => addEmail(customerSearch)}
-                    disabled={!customerSearch.trim()}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add
-                  </Button>
-                </div>
-
-                <div className="max-h-52 overflow-y-auto rounded-md border">
-                  {customersLoading ? (
-                    <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading customers
-                    </div>
-                  ) : filteredCustomers.length ? (
-                    filteredCustomers.map((customer) => (
-                      <button
-                        key={`${customer.id}-${customer.email}`}
-                        type="button"
-                        className="flex w-full flex-col gap-1 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted"
-                        onClick={() => addEmail(customer.email)}
-                      >
-                        <span className="font-medium">{customer.name}</span>
-                        <span className="text-muted-foreground">
-                          {customer.email}
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-3 py-4 text-sm text-muted-foreground">
-                      No customer emails found
-                    </div>
-                  )}
-                </div>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add
+                </Button>
               </div>
-            )}
 
-            {selectedExportIsExcel && selectedEmails.length > 0 && (
+              <div className="max-h-52 overflow-y-auto rounded-md border">
+                {customersLoading ? (
+                  <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading customers
+                  </div>
+                ) : filteredCustomers.length ? (
+                  filteredCustomers.map((customer) => (
+                    <button
+                      key={`${customer.id}-${customer.email}`}
+                      type="button"
+                      className="flex w-full flex-col gap-1 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted"
+                      onClick={() => addEmail(customer.email)}
+                    >
+                      <span className="font-medium">{customer.name}</span>
+                      <span className="text-muted-foreground">
+                        {customer.email}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-4 text-sm text-muted-foreground">
+                    No customer emails found
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {selectedEmails.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {selectedEmails.map((email) => (
                   <span
@@ -773,36 +811,23 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
 
           <DialogFooter className="gap-2 sm:space-x-0">
             {selectedExportIsExcel ? (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleExcelExport(selectedExportShowPrice)}
-                  disabled={isLoading || sendingEmail}
-                >
-                  {loadingMode === currentExcelMode && !sendingEmail ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="mr-2 h-4 w-4" />
-                  )}
-                  Download Excel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleSendExcelEmail}
-                  disabled={isLoading || sendingEmail || !selectedEmails.length}
-                >
-                  {sendingEmail ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Mail className="mr-2 h-4 w-4" />
-                  )}
-                  Send Email
-                </Button>
-              </>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleExcelExport(selectedExportShowPrice)}
+                disabled={isLoading || sendingEmail}
+              >
+                {loadingMode === currentExcelMode && !sendingEmail ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                Download Excel
+              </Button>
             ) : (
               <Button
                 type="button"
+                variant="outline"
                 onClick={() => handleDownload(selectedCatalogMode)}
                 disabled={isLoading || sendingEmail}
               >
@@ -814,6 +839,18 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
                 Download Catalog
               </Button>
             )}
+            <Button
+              type="button"
+              onClick={handleSendExportEmail}
+              disabled={isLoading || sendingEmail || !canSendEmail}
+            >
+              {sendingEmail && loadingMode === currentExportMode ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="mr-2 h-4 w-4" />
+              )}
+              Send Email
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

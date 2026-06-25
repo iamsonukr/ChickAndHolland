@@ -43,6 +43,7 @@ export const sendStockExportEmail = async (req: Request, res: Response) => {
   try {
     const {
       attachmentBase64,
+      exportKind,
       fileName,
       recipients,
       showPrice,
@@ -64,12 +65,23 @@ export const sendStockExportEmail = async (req: Request, res: Response) => {
       });
     }
 
+    const requestedKind = String(exportKind || "").toLowerCase();
+    const includePrice =
+      showPrice === true || String(showPrice).toLowerCase() === "true";
     const safeFileName = String(
       fileName ||
-        (showPrice
-          ? "stock-data-with-price.xlsx"
-          : "stock-data-without-price.xlsx"),
+        (requestedKind === "catalog"
+          ? includePrice
+            ? "stock-catalog-with-price.pdf"
+            : "stock-catalog-without-price.pdf"
+          : includePrice
+            ? "stock-data-with-price.xlsx"
+            : "stock-data-without-price.xlsx"),
     ).replace(/[\\/:*?"<>|]/g, "-");
+    const isCatalog =
+      requestedKind === "catalog" || safeFileName.toLowerCase().endsWith(".pdf");
+    const exportLabel = isCatalog ? "stock catalog" : "stock data";
+    const priceLabel = includePrice ? "with price" : "without price";
     const cleanBase64 = String(attachmentBase64).replace(
       /^data:.*;base64,/,
       "",
@@ -85,13 +97,11 @@ export const sendStockExportEmail = async (req: Request, res: Response) => {
 
     await mail({
       to: recipientEmails,
-      subject: showPrice
-        ? "Chic & Holland stock data with price"
-        : "Chic & Holland stock data without price",
+      subject: `Chic & Holland ${exportLabel} ${priceLabel}`,
       html: `
         <div style="font-family: Arial, sans-serif; font-size:14px; color:#000;">
           <p>Hello,</p>
-          <p>Please find the stock export attached with this email.</p>
+          <p>Please find the ${exportLabel} attached with this email.</p>
           <br/>
           <p>Best Regards,<br/>Chic & Holland Team</p>
         </div>

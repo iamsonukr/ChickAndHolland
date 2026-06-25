@@ -38,6 +38,7 @@ const formatMeshColor = (meshColor?: string): string[] => {
 export default function LabelPdf({ item }: { item: any }) {
   const colorLines = formatMeshColor(item.meshColor || item.color);
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
+  const beader = String(item.beader ?? "").trim();
 
   return (
     <Document>
@@ -72,9 +73,13 @@ export default function LabelPdf({ item }: { item: any }) {
 
           {/* ================= PURCHASE ORDER ================= */}
           <View style={styles.poBlock}>
-            <Text style={styles.poText}>
-              {item.purchaseOrderNo}
-            </Text>
+            <View style={styles.poValueBox}>
+              <Text style={styles.poText}>{item.purchaseOrderNo}</Text>
+            </View>
+            <View style={styles.beaderBox}>
+              <Text style={styles.beaderLabel}>BEADER</Text>
+              <Text style={styles.beaderText}>{beader || "-"}</Text>
+            </View>
           </View>
 
           {/* ================= BARCODE ================= */}
@@ -169,15 +174,37 @@ const styles = StyleSheet.create({
 
   /* PO */
   poBlock: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginHorizontal: 6,
-    marginBottom: 6,
+    marginBottom: 5,
     border: "1px solid #000000",
-    paddingVertical: 4,
+    paddingVertical: 2,
     paddingHorizontal: 2,
+    alignItems: "stretch",
+  },
+  poValueBox: {
+    width: "62%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  beaderBox: {
+    width: "34%",
+    justifyContent: "center",
     alignItems: "center",
   },
   poText: {
-    fontSize: 8,
+    fontSize: 7,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  beaderLabel: {
+    fontSize: 4.8,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  beaderText: {
+    fontSize: 5.8,
     fontWeight: "bold",
     textAlign: "center",
   },

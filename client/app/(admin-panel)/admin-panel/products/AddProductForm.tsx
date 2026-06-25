@@ -153,6 +153,7 @@ const AddProductForm = ({
       subCategoryId: undefined,
       productPrice: 0,
       description: "",
+      beader: "",
       productImages: [],
       currencyBasedPricing: [],
     },
@@ -179,6 +180,7 @@ const AddProductForm = ({
       formData.append("description", data.description ?? "");
       formData.append("mesh", data.mesh);
       formData.append("beading", data.beading);
+      formData.append("beader", data.beader);
       formData.append("lining", data.lining);
       formData.append("liningColor", data.liningColor ?? "");
       formData.append(
@@ -664,6 +666,20 @@ const filteredCollections = selectedCategory
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="beader"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Beader</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter beader name" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

@@ -156,6 +156,7 @@ router.get(
         "price",
         "mesh_color",
         "beading_color",
+        "beader",
         "lining",
         "lining_color",
       ],
@@ -198,7 +199,7 @@ router.get(
 
     // If not in cache, perform the database query
     const data = await Product.query(
-      `SELECT productCode, id , mesh_color  ,lining , lining_color ,  beading_color FROM ${TABLE_NAMES.PRODUCTS} WHERE productCode LIKE '%${query}%' AND deletedAt IS NULL`
+      `SELECT productCode, id, mesh_color, lining, lining_color, beading_color, beader FROM ${TABLE_NAMES.PRODUCTS} WHERE productCode LIKE '%${query}%' AND deletedAt IS NULL`
     );
 
     const formattedData = data.map((d: Product) => ({
@@ -209,6 +210,7 @@ router.get(
       lining: d.lining,
       liningColor: d.lining_color,
       beading: d.beading_color,
+      beader: d.beader,
     }));
 
     searchCache.set(cacheKey, formattedData);
@@ -1990,6 +1992,7 @@ router.get(
       "product.description",
       "product.mesh_color",
       "product.beading_color",
+      "product.beader",
       "product.lining",
       "product.lining_color",
       "category.name",
@@ -2549,6 +2552,7 @@ router.get(
           p.productCode,
           p.mesh_color,
           p.beading_color,
+          p.beader,
           p.lining,
           p.lining_color,
           p.price,
@@ -2614,6 +2618,7 @@ router.get(
           // "unitSale",
           "mesh_color",
           "beading_color",
+          "beader",
           "lining",
           "lining_color",
           "price",
@@ -2709,6 +2714,7 @@ router.post(
       description,
       mesh,
       beading,
+      beader,
       lining,
       liningColor,
       currencyBasedPricing: rawCurrencyBasedPricing = [], // Default to empty array if not provided
@@ -2792,6 +2798,7 @@ router.post(
       newProduct.description = description;
       newProduct.mesh_color = mesh;
       newProduct.beading_color = beading;
+      newProduct.beader = beader || null;
       newProduct.lining = lining;
       newProduct.lining_color = lining === "No Lining" ? "No Color" : liningColor;
 
@@ -2875,6 +2882,7 @@ router.patch(
       description,
       mesh,
       beading,
+      beader,
       lining,
       liningColor,
       currencyBasedPricing = [], // Default to empty array if not provided
@@ -2975,6 +2983,7 @@ router.patch(
       patchProduct.description = description;
       patchProduct.mesh_color = mesh;
       patchProduct.beading_color = beading;
+      patchProduct.beader = beader || null;
       patchProduct.lining = lining;
       patchProduct.lining_color = lining === "No Lining" ? null : liningColor;
 
@@ -3053,7 +3062,7 @@ router.get(
       where: {
         id: Number(id),
       },
-      select: ["beading_color", "mesh_color", "lining", "lining_color"],
+      select: ["beading_color", "beader", "mesh_color", "lining", "lining_color"],
     });
 
     res.json({

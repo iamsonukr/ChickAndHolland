@@ -620,6 +620,7 @@ function mapOrderStyleCustomization(style: any) {
     color: style.colorType || "",
     mesh_color: style.mesh_color || "",
     beading_color: style.beading_color || "",
+    beader: style.beader || "",
     lining: style.lining || "",
     lining_color: style.lining_color || "",
     product_size: style.size || "",
@@ -835,6 +836,7 @@ const buildRegularOrderPdfDetails = (
         item.mesh_color === "SAS" ? "SAS" : getColorName(item.mesh_color),
       beadingColor:
         item.beading_color === "SAS" ? "SAS" : getColorName(item.beading_color),
+      beader: item.beader || "",
       lining: item.lining,
       liningColor:
         item.lining_color === "SAS" ? "SAS" : getColorName(item.lining_color),
@@ -1616,6 +1618,7 @@ router.post(
           newStyle.size = s.size;
           newStyle.mesh_color = s.mesh;
           newStyle.beading_color = s.beading;
+          newStyle.beader = s.beader || null;
           newStyle.lining = s.lining;
           newStyle.lining_color =
             s.lining === "No Lining" ? null : s.liningColor;
@@ -1976,6 +1979,7 @@ router.patch(
           styleEntity.size = s.size;
           styleEntity.mesh_color = s.mesh;
           styleEntity.beading_color = s.beading;
+          styleEntity.beader = s.beader || null;
           styleEntity.lining = s.lining;
           styleEntity.lining_color =
             s.lining === "No Lining" ? null : s.liningColor;
@@ -2388,6 +2392,7 @@ router.get(
                 s.colorType AS colorType,
                 s.mesh_color AS meshColorRaw,
                 s.beading_color AS beadingColor,
+                s.beader AS beader,
                 s.lining AS lining,
                 s.lining_color AS liningColor,
                 s.comments AS styleComments,
@@ -2433,6 +2438,7 @@ router.get(
                 NULL AS colorType,
                 matchedFavourite.mesh_color AS meshColorRaw,
                 NULL AS beadingColor,
+                NULL AS beader,
                 NULL AS lining,
                 NULL AS liningColor,
                 NULL AS styleComments,
@@ -2494,6 +2500,7 @@ router.get(
                 NULL AS colorType,
                 s.mesh_color AS meshColorRaw,
                 NULL AS beadingColor,
+                NULL AS beader,
                 NULL AS lining,
                 NULL AS liningColor,
                 NULL AS styleComments,
@@ -2559,6 +2566,7 @@ router.get(
             Size: row.size ?? "",
             Quantity: quantity,
             Color: qrBoxColor,
+            Beader: row.beader ?? "",
             "PO Number": row.purchaseOrderNo,
             "Product Status": productStatus,
           },
@@ -3485,6 +3493,7 @@ router.post(
                 color: style.colorType || "",
                 meshColor: style.mesh || "SAS",
                 beadingColor: style.beading || "SAS",
+                beader: style.beader || "",
                 liningColor: style.liningColor || "SAS",
                 lining: style.lining || "SAS",
               };
@@ -3855,6 +3864,7 @@ PublicStoreRoutes.get(
 
         mesh_color: style.mesh_color || "SAS",
         beading_color: style.beading_color || "SAS",
+        beader: style.beader || "",
         lining: style.lining || "SAS",
         lining_color: style.lining_color || "SAS",
 
@@ -4022,6 +4032,7 @@ PublicStoreRoutes.get(
         s.size,
         s.sizeCountry AS size_country,
         s.quantity,
+        s.beader,
 
         o.purchaeOrderNo,
 
@@ -4069,6 +4080,7 @@ PublicStoreRoutes.get(
         quantity: row.quantity,
         meshColor: row.meshColor,
         meshColorRaw: row.meshColorRaw,
+        beader: row.beader ?? "",
         purchaseOrderNo: row.purchaeOrderNo,
 
         totalQty: row.quantity,

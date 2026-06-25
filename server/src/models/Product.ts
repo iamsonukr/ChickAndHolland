@@ -50,6 +50,9 @@ export default class Product extends BaseModel {
   @Column("varchar", { nullable: false, default: "SAS" })
   beading_color: string;
 
+  @Column("varchar", { length: 255, nullable: true, select: false })
+  beader: string | null;
+
   @Column("varchar", { nullable: false, default: "SAS" })
   lining: string;
 
