@@ -55,6 +55,7 @@ const ENQUIRY_RATE_LIMITS = {
 } as const;
 const PRODUCT_QUERY_ADMIN_EMAIL =
   process.env.PRODUCT_QUERY_ADMIN_EMAIL || "info@chicandholland.com";
+let productsBeaderColumnAvailable: boolean | null = null;
 
 /**
  * There will be a chain of validators for every post or patch requests
@@ -64,6 +65,29 @@ const PRODUCT_QUERY_ADMIN_EMAIL =
 const RES_NAME = "Product";
 const PRODUCT_IMAGES = "Product Images";
 const PRODUCT_CODE_MAX_LENGTH = 30;
+
+async function hasProductsBeaderColumn() {
+  if (productsBeaderColumnAvailable !== null) {
+    return productsBeaderColumnAvailable;
+  }
+
+  const columns = await db.query(
+    `SHOW COLUMNS FROM \`${TABLE_NAMES.PRODUCTS}\` LIKE ?`,
+    ["beader"]
+  );
+  productsBeaderColumnAvailable =
+    Array.isArray(columns) && columns.length > 0;
+
+  return productsBeaderColumnAvailable;
+}
+
+async function buildProductsBeaderSelect(alias?: string) {
+  const prefix = alias ? `${alias}.` : "";
+
+  return (await hasProductsBeaderColumn())
+    ? `${prefix}beader AS beader`
+    : "NULL AS beader";
+}
 
 const clearProductCaches = (action: string) => {
   try {
@@ -150,16 +174,20 @@ router.get(
   "/price/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
+    const productSelectFields: (keyof Product)[] = [
+      "price",
+      "mesh_color",
+      "beading_color",
+      "lining",
+      "lining_color",
+    ];
+
+    if (await hasProductsBeaderColumn()) {
+      productSelectFields.splice(3, 0, "beader");
+    }
 
     const [price] = await Product.find({
-      select: [
-        "price",
-        "mesh_color",
-        "beading_color",
-        "beader",
-        "lining",
-        "lining_color",
-      ],
+      select: productSelectFields,
       where: {
         id: Number(id),
       },
@@ -167,7 +195,7 @@ router.get(
 
     res.json({
       success: true,
-      price: price,
+      price: price ? { ...price, beader: price.beader ?? "" } : price,
     });
   })
 );
@@ -198,8 +226,10 @@ router.get(
     }
 
     // If not in cache, perform the database query
+    const productsBeaderSelect = await buildProductsBeaderSelect();
     const data = await Product.query(
-      `SELECT productCode, id, mesh_color, lining, lining_color, beading_color, beader FROM ${TABLE_NAMES.PRODUCTS} WHERE productCode LIKE '%${query}%' AND deletedAt IS NULL`
+      `SELECT productCode, id, mesh_color, lining, lining_color, beading_color, ${productsBeaderSelect} FROM ${TABLE_NAMES.PRODUCTS} WHERE productCode LIKE ? AND deletedAt IS NULL`,
+      [`%${query}%`]
     );
 
     const formattedData = data.map((d: Product) => ({
@@ -1986,13 +2016,14 @@ router.get(
     const skip = (pageNumber - 1) * PAGE_SIZE;
 
     const searchTokens = normalizeProductSearchTokens(query);
+    const includeProductsBeader = await hasProductsBeaderColumn();
 
     const searchableFields = [
       "product.productCode",
       "product.description",
       "product.mesh_color",
       "product.beading_color",
-      "product.beader",
+      ...(includeProductsBeader ? ["product.beader"] : []),
       "product.lining",
       "product.lining_color",
       "category.name",
@@ -2544,6 +2575,7 @@ router.get(
 
     if (currencyId) {
       // Use raw query to get product with currency pricing
+      const productsBeaderSelect = await buildProductsBeaderSelect("p");
       const productWithCurrency = await Product.query(
         `
         SELECT 
@@ -2552,7 +2584,7 @@ router.get(
           p.productCode,
           p.mesh_color,
           p.beading_color,
-          p.beader,
+          ${productsBeaderSelect},
           p.lining,
           p.lining_color,
           p.price,
@@ -3057,17 +3089,27 @@ router.get(
   validate(idValidater),
   asyncHandler(async (req: Request<{ id: number }>, res: Response) => {
     const { id } = req.params;
+    const productSelectFields: (keyof Product)[] = [
+      "beading_color",
+      "mesh_color",
+      "lining",
+      "lining_color",
+    ];
+
+    if (await hasProductsBeaderColumn()) {
+      productSelectFields.splice(1, 0, "beader");
+    }
 
     const [product]: any = await Product.find({
       where: {
         id: Number(id),
       },
-      select: ["beading_color", "beader", "mesh_color", "lining", "lining_color"],
+      select: productSelectFields,
     });
 
     res.json({
       status: true,
-      data: product,
+      data: product ? { ...product, beader: product.beader ?? "" } : product,
     });
   })
 );

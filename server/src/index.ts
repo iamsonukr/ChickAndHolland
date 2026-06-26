@@ -89,6 +89,7 @@ import { ensureStockSourceLocationColumn } from "./utils/ensureStockSourceLocati
 import { ensureStoreLocatorVisibilityColumns } from "./utils/ensureStoreLocatorVisibilityColumns";
 import { ensureFavouriteProductSizeTextColumn } from "./utils/ensureFavouriteProductSizeTextColumn";
 import { ensureBarcodeCommentsTable } from "./utils/ensureBarcodeCommentsTable";
+import { ensureBeaderColumns } from "./utils/ensureBeaderColumns";
 
 const router = Router();
 
@@ -161,6 +162,7 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
     await db.initialize();
     BaseEntity.useDataSource(db);
     await ensurePurchaseOrderNoIsNotUnique();
+    await ensureBeaderColumns();
     await ensureOrderPublishStatusColumn();
     await ensureOrderStylePricingColumns();
     await ensureCustomerPostalCodeColumn();

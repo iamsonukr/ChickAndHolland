@@ -6,6 +6,29 @@ import db from "../db";
 import { getBarcodeComment } from "../services/barcodeComment.service";
 
 const router = Router();
+let productsBeaderColumnAvailable: boolean | null = null;
+
+async function hasProductsBeaderColumn() {
+  if (productsBeaderColumnAvailable !== null) {
+    return productsBeaderColumnAvailable;
+  }
+
+  const columns = await db.query("SHOW COLUMNS FROM `products` LIKE ?", [
+    "beader",
+  ]);
+  productsBeaderColumnAvailable =
+    Array.isArray(columns) && columns.length > 0;
+
+  return productsBeaderColumnAvailable;
+}
+
+async function buildProductsBeaderSelect(alias?: string) {
+  const prefix = alias ? `${alias}.` : "";
+
+  return (await hasProductsBeaderColumn())
+    ? `${prefix}beader AS beader`
+    : "NULL AS beader";
+}
 
 /**
  * ======================================================
@@ -17,6 +40,7 @@ router.get(
   "/status/report/:orderId",
   asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = req.params;
+    const productsBeaderSelect = await buildProductsBeaderSelect("p");
 
     const rows = await db.query(
       `
@@ -28,7 +52,7 @@ router.get(
         ros.size_country  AS size_country,
         ros.quantity      AS quantity,
         ro.purchaeOrderNo AS purchaseOrderNo,
-        p.beader          AS beader,
+        ${productsBeaderSelect},
         matchedFavourite.mesh_color AS meshColorRaw,
         CONCAT(
           'SAS(',

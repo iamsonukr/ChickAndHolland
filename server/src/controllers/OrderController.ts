@@ -81,6 +81,28 @@ function safeArray(value: any) {
   return [];
 }
 
+let orderStylesBeaderColumnAvailable: boolean | null = null;
+
+async function hasOrderStylesBeaderColumn() {
+  if (orderStylesBeaderColumnAvailable !== null) {
+    return orderStylesBeaderColumnAvailable;
+  }
+
+  const columns = await db.query("SHOW COLUMNS FROM `orderStyles` LIKE ?", [
+    "beader",
+  ]);
+  orderStylesBeaderColumnAvailable =
+    Array.isArray(columns) && columns.length > 0;
+
+  return orderStylesBeaderColumnAvailable;
+}
+
+async function buildOrderStylesBeaderSelect(alias = "s") {
+  return (await hasOrderStylesBeaderColumn())
+    ? `${alias}.beader AS beader`
+    : "NULL AS beader";
+}
+
 async function getRegularOrderPaymentSummary(order: Order) {
   const [totalRow] = await db.query(
     `
@@ -868,6 +890,8 @@ const buildRegularOrderPdfDetails = (
   }, []);
 
 async function sendCreatedOrderPdfEmail(orderId: number) {
+  console.log(`${ORDER_PDF_EMAIL_LOG_PREFIX} Preparing email`, { orderId });
+
   const order = await Order.findOne({
     where: { id: orderId, status: 0 },
     relations: ["customer", "styles"],
@@ -879,9 +903,10 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
   }
 
   if (order.publishStatus === OrderPublishStatus.Draft) {
-    console.info(`${ORDER_PDF_EMAIL_LOG_PREFIX} Skipped draft order`, {
+    console.log(`${ORDER_PDF_EMAIL_LOG_PREFIX} Email not sent: order is draft`, {
       orderId,
       purchaseOrderNo: order.purchaeOrderNo,
+      recipient: order.manufacturingEmailAddress,
     });
     return;
   }
@@ -962,14 +987,37 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
   await recordOrderEmailStatus(order.id, OrderEmailStatus.Pending);
 
   try {
-    await mail({
+    console.log(`${ORDER_PDF_EMAIL_LOG_PREFIX} Sending email`, {
+      orderId,
+      purchaseOrderNo: order.purchaeOrderNo,
+      recipient,
+      subject: emailSubject,
+      attachment: attachment.filename,
+    });
+
+    const emailResult = await mail({
       to: recipient,
       subject: emailSubject,
       html: buildCreatedOrderEmailHtml(order.purchaeOrderNo),
       attachments: [attachment],
     });
     await recordOrderEmailStatus(order.id, OrderEmailStatus.Sent);
+    console.log(`${ORDER_PDF_EMAIL_LOG_PREFIX} Email sent successfully`, {
+      orderId,
+      purchaseOrderNo: order.purchaeOrderNo,
+      recipient,
+      subject: emailSubject,
+      resendId: emailResult?.id,
+    });
   } catch (error: any) {
+    console.error(`${ORDER_PDF_EMAIL_LOG_PREFIX} Email send error`, {
+      orderId,
+      purchaseOrderNo: order.purchaeOrderNo,
+      recipient,
+      subject: emailSubject,
+      message: error?.message ?? String(error),
+      stack: error?.stack,
+    });
     await recordOrderEmailStatus(
       order.id,
       OrderEmailStatus.Failed,
@@ -1680,8 +1728,21 @@ router.post(
           await newStyle.save();
         }
 
+        console.log("Order create: email decision", {
+          orderId: order.id,
+          purchaseOrderNo: order.purchaeOrderNo,
+          publishStatus: order.publishStatus,
+          manufacturingEmailAddress: order.manufacturingEmailAddress,
+        });
+
         // If this is a draft, respond immediately.
         if (order.publishStatus === OrderPublishStatus.Draft) {
+          console.log("Order create: email not sent because order is draft", {
+            orderId: order.id,
+            purchaseOrderNo: order.purchaeOrderNo,
+            manufacturingEmailAddress: order.manufacturingEmailAddress,
+          });
+
           return res.json({
             success: true,
             message: "Draft saved successfully",
@@ -1692,6 +1753,11 @@ router.post(
 
         // For published orders, attempt to send the email synchronously.
         try {
+          console.log("Order create: sending order email now", {
+            orderId: order.id,
+            purchaseOrderNo: order.purchaeOrderNo,
+            manufacturingEmailAddress: order.manufacturingEmailAddress,
+          });
           await sendCreatedOrderPdfEmail(order.id);
         } catch (emailError: any) {
           console.error("Order create: email send failed, reverting to draft", {
@@ -2085,6 +2151,12 @@ router.patch(
     order.publishStatus = OrderPublishStatus.Published;
     await order.save();
 
+    console.log("Order publish: sending order email now", {
+      orderId: order.id,
+      purchaseOrderNo: order.purchaeOrderNo,
+      manufacturingEmailAddress: order.manufacturingEmailAddress,
+    });
+
     // Try to send the order PDF email immediately. If sending fails,
     // revert the order back to Draft so the admin can retry and inform
     // the client about the failure.
@@ -2361,6 +2433,8 @@ router.get(
       retailerWhere.push("ro.is_stock_order = 1");
     }
 
+    const orderStylesBeaderSelect = await buildOrderStylesBeaderSelect("s");
+
     const [regularRows, retailerRows, stockRows] = await Promise.all([
       includeRegular
         ? db.query(
@@ -2392,7 +2466,7 @@ router.get(
                 s.colorType AS colorType,
                 s.mesh_color AS meshColorRaw,
                 s.beading_color AS beadingColor,
-                s.beader AS beader,
+                ${orderStylesBeaderSelect},
                 s.lining AS lining,
                 s.lining_color AS liningColor,
                 s.comments AS styleComments,
@@ -4021,6 +4095,7 @@ PublicStoreRoutes.get(
   "/store-status/report/:orderId",
   asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = req.params;
+    const orderStylesBeaderSelect = await buildOrderStylesBeaderSelect("s");
 
     const rows = await db.query(
       `
@@ -4032,7 +4107,7 @@ PublicStoreRoutes.get(
         s.size,
         s.sizeCountry AS size_country,
         s.quantity,
-        s.beader,
+        ${orderStylesBeaderSelect},
 
         o.purchaeOrderNo,
 

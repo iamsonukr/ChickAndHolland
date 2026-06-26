@@ -17,7 +17,7 @@ export const generatePassword = async (length: number = 8): Promise<string> => {
  * Generate random invoice number
  */
 export const generateInvoiceNumber = async (
-  length: number = 8
+  length: number = 8,
 ): Promise<string> => {
   return Math.random().toString(36).substring(2, 2 + length).toUpperCase();
 };
@@ -50,8 +50,12 @@ export const mail = async (config: MailOptions): Promise<any> => {
       subject: config.subject,
       ...(config.html && { html: config.html }),
       ...(config.text && { text: config.text }),
-      ...(config.cc && { cc: Array.isArray(config.cc) ? config.cc : [config.cc] }),
-      ...(config.bcc && { bcc: Array.isArray(config.bcc) ? config.bcc : [config.bcc] }),
+      ...(config.cc && {
+        cc: Array.isArray(config.cc) ? config.cc : [config.cc],
+      }),
+      ...(config.bcc && {
+        bcc: Array.isArray(config.bcc) ? config.bcc : [config.bcc],
+      }),
       ...(config.replyTo && { replyTo: config.replyTo }),
       ...(config.attachments && {
         attachments: config.attachments.map((a) => ({
@@ -67,10 +71,21 @@ export const mail = async (config: MailOptions): Promise<any> => {
       throw Object.assign(new Error(error.message), { resendError: error });
     }
 
-    console.log("✅ Email sent:", data?.id);
+    console.log("[Mail] Email sent", {
+      id: data?.id,
+      to: emailPayload.to,
+      subject: emailPayload.subject,
+    });
+
     return data;
   } catch (error: any) {
-    console.error("❌ Failed to send email:", error.message);
+    console.error("[Mail] Failed to send email", {
+      message: error?.message ?? String(error),
+      to: Array.isArray(config.to) ? config.to : [config.to],
+      subject: config.subject,
+      resendError: error?.resendError,
+      stack: error?.stack,
+    });
 
     if (error.resendError) {
       const { name } = error.resendError;

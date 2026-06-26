@@ -30,6 +30,10 @@ const ORDER_EXPORT_DEFAULT_TITLE = "Pattern Status";
 const ORDER_EXPORT_TITLE_FILL = "F4CCCC";
 const ORDER_EXPORT_TITLE_FONT = "990000";
 const ORDER_EXPORT_HEADER_FILL = "1F4E78";
+const ORDER_EXPORT_FONT_SIZE = 14;
+const ORDER_EXPORT_TITLE_ROW = 0;
+const ORDER_EXPORT_HEADER_ROW = 1;
+const ORDER_EXPORT_DATA_START_ROW = 2;
 
 const ORDER_EXPORT_COLUMNS = [
   "Style No",
@@ -41,12 +45,48 @@ const ORDER_EXPORT_COLUMNS = [
   "Product Status",
 ];
 
+const ORDER_EXPORT_COLUMN_LAYOUT: Record<
+  string,
+  { min: number; max: number; align: "left" | "center" }
+> = {
+  "Style No": { min: 11, max: 14, align: "left" },
+  Size: { min: 5, max: 10, align: "center" },
+  Quantity: { min: 5, max: 10, align: "center" },
+  Color: { min: 11, max: 26, align: "left" },
+  "PO Number": { min: 18, max: 30, align: "left" },
+  Beader: { min: 12, max: 17, align: "left" },
+  "Product Status": { min: 14, max: 20, align: "left" },
+};
+
+const ORDER_EXPORT_PRINT_MARGINS = {
+  left: 0.25,
+  right: 0.25,
+  top: 0.35,
+  bottom: 0.35,
+  header: 0.15,
+  footer: 0.15,
+};
+
+const getExportCellValue = (row: any, column: string) => {
+  const value = row?.[column];
+
+  if (column === "Beader") {
+    const beader = String(value ?? "").trim();
+    return beader && beader.toLowerCase() !== "unknown" ? beader : "NA";
+  }
+
+  return value ?? "";
+};
+
 const normalizeExportRows = (rows: any[]) =>
   rows.map((row) =>
-    ORDER_EXPORT_COLUMNS.reduce<Record<string, unknown>>((exportRow, column) => {
-      exportRow[column] = row?.[column] ?? "";
-      return exportRow;
-    }, {}),
+    ORDER_EXPORT_COLUMNS.reduce<Record<string, unknown>>(
+      (exportRow, column) => {
+        exportRow[column] = getExportCellValue(row, column);
+        return exportRow;
+      },
+      {},
+    ),
   );
 
 const formatExportDate = () => {
@@ -125,8 +165,9 @@ const buildExportFileName = (filters: {
 
 const buildWorksheet = (rows: any[], title: string) => {
   const normalizedRows = normalizeExportRows(rows);
-  const blankRow = Array.from({ length: ORDER_EXPORT_COLUMNS.length }, () => "");
-  const titleRow = [title, ...blankRow.slice(1)];
+  const titleRow = ORDER_EXPORT_COLUMNS.map((_, index) =>
+    index === 0 ? title : "",
+  );
   const totalQuantity = normalizedRows.reduce((total, row) => {
     const quantity = Number(row.Quantity);
     return total + (Number.isFinite(quantity) ? quantity : 0);
@@ -136,26 +177,47 @@ const buildWorksheet = (rows: any[], title: string) => {
     if (column === "Quantity") return totalQuantity;
     return "";
   });
-  const worksheet = XLSX.utils.aoa_to_sheet([
-    blankRow,
-    titleRow,
-    blankRow,
-    ORDER_EXPORT_COLUMNS,
-    ...normalizedRows.map((row) =>
-      ORDER_EXPORT_COLUMNS.map((column) => row[column] ?? ""),
-    ),
-    totalRow,
-  ], { sheetStubs: true });
+  const worksheet = XLSX.utils.aoa_to_sheet(
+    [
+      titleRow,
+      ORDER_EXPORT_COLUMNS,
+      ...normalizedRows.map((row) =>
+        ORDER_EXPORT_COLUMNS.map((column) => row[column] ?? ""),
+      ),
+      totalRow,
+    ],
+    { sheetStubs: true },
+  );
 
   worksheet["!merges"] = [
     {
-      s: { r: 1, c: 0 },
-      e: { r: 1, c: ORDER_EXPORT_COLUMNS.length - 1 },
+      s: { r: ORDER_EXPORT_TITLE_ROW, c: 0 },
+      e: { r: ORDER_EXPORT_TITLE_ROW, c: ORDER_EXPORT_COLUMNS.length - 1 },
     },
   ];
 
   return worksheet;
 };
+
+const getCellDisplayLength = (value: unknown) =>
+  String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim().length;
+
+const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range) =>
+  ORDER_EXPORT_COLUMNS.map((columnName, column) => {
+    const layout = ORDER_EXPORT_COLUMN_LAYOUT[columnName];
+    let longestValue = columnName.length;
+
+    for (let row = ORDER_EXPORT_DATA_START_ROW; row <= range.e.r; row += 1) {
+      const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
+      longestValue = Math.max(longestValue, getCellDisplayLength(cell?.v));
+    }
+
+    return {
+      wch: Math.min(Math.max(longestValue + 1, layout.min), layout.max),
+    };
+  });
 
 const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
   const ref = worksheet["!ref"];
@@ -164,7 +226,11 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
   const range = XLSX.utils.decode_range(ref);
 
   const titleStyle = {
-    font: { bold: true, color: { rgb: ORDER_EXPORT_TITLE_FONT }, sz: 14 },
+    font: {
+      bold: true,
+      color: { rgb: ORDER_EXPORT_TITLE_FONT },
+      sz: ORDER_EXPORT_FONT_SIZE,
+    },
     fill: { patternType: "solid", fgColor: { rgb: ORDER_EXPORT_TITLE_FILL } },
     alignment: { horizontal: "center", vertical: "center" },
     border: {
@@ -176,12 +242,16 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
   };
 
   for (let column = range.s.c; column <= range.e.c; column += 1) {
-    const titleCell = worksheet[XLSX.utils.encode_cell({ r: 1, c: column })];
+    const titleCell =
+      worksheet[
+        XLSX.utils.encode_cell({ r: ORDER_EXPORT_TITLE_ROW, c: column })
+      ];
     if (!titleCell) continue;
     titleCell.s = titleStyle;
   }
 
-  const titleCell = worksheet[XLSX.utils.encode_cell({ r: 1, c: 0 })];
+  const titleCell =
+    worksheet[XLSX.utils.encode_cell({ r: ORDER_EXPORT_TITLE_ROW, c: 0 })];
   if (titleCell) {
     titleCell.s = {
       ...titleStyle,
@@ -190,12 +260,22 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
   }
 
   for (let column = range.s.c; column <= range.e.c; column += 1) {
-    const cell = worksheet[XLSX.utils.encode_cell({ r: 3, c: column })];
+    const cell =
+      worksheet[
+        XLSX.utils.encode_cell({ r: ORDER_EXPORT_HEADER_ROW, c: column })
+      ];
     if (!cell) continue;
 
     cell.s = {
-      font: { bold: true, color: { rgb: "FFFFFF" }, sz: 14 },
-      fill: { patternType: "solid", fgColor: { rgb: ORDER_EXPORT_HEADER_FILL } },
+      font: {
+        bold: true,
+        color: { rgb: "FFFFFF" },
+        sz: ORDER_EXPORT_FONT_SIZE,
+      },
+      fill: {
+        patternType: "solid",
+        fgColor: { rgb: ORDER_EXPORT_HEADER_FILL },
+      },
       alignment: { horizontal: "center", vertical: "center" },
       border: {
         top: { style: "thin" },
@@ -210,15 +290,24 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
     for (let column = range.s.c; column <= range.e.c; column += 1) {
       const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
       if (!cell) continue;
-      if (row === 0 || row === 1 || row === 2 || row === 3) continue;
+      if (row === ORDER_EXPORT_TITLE_ROW || row === ORDER_EXPORT_HEADER_ROW) {
+        continue;
+      }
+
+      const columnName = ORDER_EXPORT_COLUMNS[column];
+      const isTotalRow = row === range.e.r;
+      const horizontal =
+        isTotalRow && columnName !== "Style No"
+          ? "center"
+          : (ORDER_EXPORT_COLUMN_LAYOUT[columnName]?.align ?? "left");
 
       cell.s = {
-        font: { sz: 14, bold: row === range.e.r },
+        font: { sz: ORDER_EXPORT_FONT_SIZE, bold: isTotalRow },
         fill: {
           patternType: "solid",
           fgColor: { rgb: row % 2 === 0 ? "FFFFFF" : "F9FAFB" },
         },
-        alignment: { vertical: "center", horizontal: row === range.e.r ? "center" : "left" },
+        alignment: { vertical: "center", horizontal },
         border: {
           top: { style: "thin" },
           bottom: { style: "thin" },
@@ -229,13 +318,23 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
     }
   }
 
-  worksheet["!cols"] = Array.from({ length: range.e.c + 1 }, (_, column) => ({
-    wch: column < 8 ? 18 : 22,
-  }));
+  worksheet["!cols"] = getColumnWidths(worksheet, range);
   worksheet["!rows"] = Array.from({ length: range.e.r + 1 }, (_, row) => ({
-    hpt: row === 1 ? 24 : 21,
+    hpt:
+      row === ORDER_EXPORT_TITLE_ROW
+        ? 24
+        : row === ORDER_EXPORT_HEADER_ROW
+          ? 21
+          : 21,
   }));
-  worksheet["!freeze"] = { xSplit: 0, ySplit: 4 };
+  worksheet["!freeze"] = { xSplit: 0, ySplit: ORDER_EXPORT_DATA_START_ROW };
+  worksheet["!margins"] = ORDER_EXPORT_PRINT_MARGINS;
+  worksheet["!pageSetup"] = {
+    orientation: "landscape",
+    paperSize: 9,
+    fitToWidth: 1,
+    fitToHeight: 0,
+  };
 };
 
 export default function ExportOrdersButton({
@@ -277,13 +376,17 @@ export default function ExportOrdersButton({
         const json = await response.json();
 
         if (!response.ok || !json.success) {
-          throw new Error(json.message || json.msg || "Failed to export orders");
+          throw new Error(
+            json.message || json.msg || "Failed to export orders",
+          );
         }
 
         rows = Array.isArray(json.data) ? json.data : [];
       }
 
-      if (!rows.length) {
+      const exportRows = Array.isArray(rows) ? rows : [];
+
+      if (!exportRows.length) {
         toast.error(emptyMessage);
         return;
       }
@@ -294,15 +397,15 @@ export default function ExportOrdersButton({
         stage,
         due,
       };
-      const worksheet = buildWorksheet(rows, buildExportTitle(exportFilters));
+      const worksheet = buildWorksheet(
+        exportRows,
+        buildExportTitle(exportFilters),
+      );
       styleWorksheet(worksheet);
 
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Order Products");
-      XLSX.writeFile(
-        workbook,
-        fileName ?? buildExportFileName(exportFilters),
-      );
+      XLSX.writeFile(workbook, fileName ?? buildExportFileName(exportFilters));
       toast.success(successMessage);
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to export orders");
