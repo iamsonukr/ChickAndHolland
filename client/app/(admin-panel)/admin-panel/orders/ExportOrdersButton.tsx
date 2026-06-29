@@ -31,9 +31,10 @@ const ORDER_EXPORT_TITLE_FILL = "F4CCCC";
 const ORDER_EXPORT_TITLE_FONT = "990000";
 const ORDER_EXPORT_HEADER_FILL = "1F4E78";
 const ORDER_EXPORT_FONT_SIZE = 14;
-const ORDER_EXPORT_TITLE_ROW = 0;
-const ORDER_EXPORT_HEADER_ROW = 1;
-const ORDER_EXPORT_DATA_START_ROW = 2;
+const ORDER_EXPORT_BLANK_ROWS = new Set([0, 2]);
+const ORDER_EXPORT_TITLE_ROW = 1;
+const ORDER_EXPORT_HEADER_ROW = 3;
+const ORDER_EXPORT_DATA_START_ROW = 4;
 
 const ORDER_EXPORT_COLUMNS = [
   "Style No",
@@ -47,13 +48,13 @@ const ORDER_EXPORT_COLUMNS = [
 
 const ORDER_EXPORT_COLUMN_LAYOUT: Record<
   string,
-  { min: number; max: number; align: "left" | "center" }
+  { min: number; max?: number; align: "left" | "center" }
 > = {
-  "Style No": { min: 11, max: 14, align: "left" },
+  "Style No": { min: 14, max: 16, align: "left" },
   Size: { min: 5, max: 10, align: "center" },
-  Quantity: { min: 5, max: 10, align: "center" },
-  Color: { min: 11, max: 26, align: "left" },
-  "PO Number": { min: 18, max: 30, align: "left" },
+  Quantity: { min: 10, max: 15, align: "center" },
+  Color: { min: 15, max: 38, align: "left" },
+  "PO Number": { min: 22, max: 35, align: "left" },
   Beader: { min: 12, max: 17, align: "left" },
   "Product Status": { min: 14, max: 20, align: "left" },
 };
@@ -179,7 +180,9 @@ const buildWorksheet = (rows: any[], title: string) => {
   });
   const worksheet = XLSX.utils.aoa_to_sheet(
     [
+      [],
       titleRow,
+      [],
       ORDER_EXPORT_COLUMNS,
       ...normalizedRows.map((row) =>
         ORDER_EXPORT_COLUMNS.map((column) => row[column] ?? ""),
@@ -214,8 +217,10 @@ const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range) =>
       longestValue = Math.max(longestValue, getCellDisplayLength(cell?.v));
     }
 
+    const width = Math.max(longestValue + 1, layout.min);
+
     return {
-      wch: Math.min(Math.max(longestValue + 1, layout.min), layout.max),
+      wch: layout.max ? Math.min(width, layout.max) : width,
     };
   });
 
@@ -290,7 +295,11 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
     for (let column = range.s.c; column <= range.e.c; column += 1) {
       const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
       if (!cell) continue;
-      if (row === ORDER_EXPORT_TITLE_ROW || row === ORDER_EXPORT_HEADER_ROW) {
+      if (
+        ORDER_EXPORT_BLANK_ROWS.has(row) ||
+        row === ORDER_EXPORT_TITLE_ROW ||
+        row === ORDER_EXPORT_HEADER_ROW
+      ) {
         continue;
       }
 
@@ -323,6 +332,8 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
     hpt:
       row === ORDER_EXPORT_TITLE_ROW
         ? 24
+        : ORDER_EXPORT_BLANK_ROWS.has(row)
+          ? 12
         : row === ORDER_EXPORT_HEADER_ROW
           ? 21
           : 21,

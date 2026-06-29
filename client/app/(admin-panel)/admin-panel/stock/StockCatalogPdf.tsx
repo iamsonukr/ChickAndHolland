@@ -14,8 +14,7 @@ type StockCatalogPdfProps = {
   showPrice: boolean;
 };
 
-const A4_PAGE_SIZE: [number, number] = [595.28, 841.89];
-const COVER_LOGO_SRC = "/logo-1.png";
+const COVER_LOGO_SRC = "/logo-1-transparent.png";
 const COVER_WORDMARK_SRC = "/brand-logo.png";
 
 const normalizeImages = (images: unknown) => {
@@ -112,20 +111,14 @@ const StockCatalogPdf = ({
   return (
     <Document>
       <Page
-        size={A4_PAGE_SIZE}
+        size="A4"
         style={styles.titlePage}
         wrap={false}
       >
-        <View style={styles.coverTopBand} />
-        <View style={styles.coverBottomBand} />
-        <View style={styles.coverAccentRule} />
-
         <View style={styles.titlePageContent}>
-          <View style={styles.logoFrame}>
-            <Image src={COVER_LOGO_SRC} style={styles.coverLogo} />
-          </View>
+          <Image src={COVER_LOGO_SRC} style={styles.coverLogo} />
           <Image src={COVER_WORDMARK_SRC} style={styles.coverWordmark} />
-          <Text style={styles.stocklistTitle}>STOCKLIST</Text>
+          <Text style={styles.stocklistTitle}>STOCK LIST</Text>
           <Text style={styles.yearTitle}>{downloadYear}</Text>
         </View>
       </Page>
@@ -142,7 +135,7 @@ const StockCatalogPdf = ({
         return (
           <Page
             key={item?.id ?? index}
-            size={A4_PAGE_SIZE}
+            size="A4"
             style={styles.page}
             wrap={false}
           >
@@ -245,58 +238,25 @@ export default StockCatalogPdf;
 
 const styles = StyleSheet.create({
   titlePage: {
-    backgroundColor: "#F8F5F2",
-    color: "#111827",
-    fontFamily: "Helvetica",
+    backgroundColor: "#F1E6DF",
+    color: "#8A5C4A",
+    fontFamily: "Times-Roman",
     padding: 36,
     position: "relative",
-  },
-  coverTopBand: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 220,
-    backgroundColor: "#EFE4DE",
-  },
-  coverBottomBand: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 170,
-    backgroundColor: "#F2ECE8",
-  },
-  coverAccentRule: {
-    position: "absolute",
-    left: 54,
-    right: 54,
-    top: 248,
-    height: 1,
-    backgroundColor: "#B58A78",
   },
   titlePageContent: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#CBAA9B",
+    borderColor: "#B98C79",
     padding: 34,
   },
-  logoFrame: {
+  coverLogo: {
     width: 170,
     height: 170,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E6D8D0",
-    marginBottom: 26,
-  },
-  coverLogo: {
-    width: 136,
-    height: 136,
     objectFit: "contain",
+    marginBottom: 24,
   },
   coverWordmark: {
     width: 345,
@@ -305,16 +265,18 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   stocklistTitle: {
-    fontSize: 38,
-    fontWeight: "bold",
-    letterSpacing: 4,
-    marginBottom: 36,
+    fontSize: 40,
+    fontWeight: "normal",
+    letterSpacing: 3,
+    marginBottom: 30,
     textAlign: "center",
+    color: "#8A5C4A",
   },
   yearTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
+    fontSize: 30,
+    fontWeight: "normal",
     textAlign: "center",
+    color: "#8A5C4A",
   },
   page: {
     padding: 22,

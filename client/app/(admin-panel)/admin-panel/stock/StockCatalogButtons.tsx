@@ -184,6 +184,28 @@ const formatPrice = (value: unknown, item: any) => {
   return `${currency} ${price.toFixed(2)}`;
 };
 
+const getCellDisplayLength = (value: unknown) =>
+  String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim().length;
+
+const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range) => {
+  const widths = [];
+
+  for (let column = range.s.c; column <= range.e.c; column += 1) {
+    let longestValue = 0;
+
+    for (let row = range.s.r; row <= range.e.r; row += 1) {
+      const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
+      longestValue = Math.max(longestValue, getCellDisplayLength(cell?.v));
+    }
+
+    widths.push({ wch: Math.max(longestValue + 2, 10) });
+  }
+
+  return widths;
+};
+
 const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
   const ref = worksheet["!ref"];
   if (!ref) return;
@@ -225,20 +247,7 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
     }
   }
 
-  worksheet["!cols"] = [
-    { wch: 18 },
-    { wch: 12 },
-    { wch: 16 },
-    { wch: 18 },
-    { wch: 24 },
-    { wch: 24 },
-    { wch: 18 },
-    { wch: 24 },
-    { wch: 18 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 14 },
-  ];
+  worksheet["!cols"] = getColumnWidths(worksheet, range);
   worksheet["!freeze"] = { xSplit: 0, ySplit: 1 };
 };
 
