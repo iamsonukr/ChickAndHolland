@@ -457,7 +457,14 @@ export function PersonalDetailsForm({
       if (data.country_id) payload.country_id = data.country_id;
       if (data.city_name) payload.city_name = data.city_name;
 
-      await executeAsync(payload);
+      const response = await executeAsync(payload);
+      const updatedRetailer = (response as any)?.retailer;
+      if (updatedRetailer?.countryId != null) {
+        document.cookie = `countryId=${updatedRetailer.countryId}; path=/`;
+      }
+      if (updatedRetailer?.currencyId != null) {
+        document.cookie = `currencyId=${updatedRetailer.currencyId}; path=/`;
+      }
       router.refresh();
       toast.success("Details Updated");
       setOpen(false);

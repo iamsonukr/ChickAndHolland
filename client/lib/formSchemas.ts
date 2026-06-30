@@ -345,9 +345,6 @@ export const editStockFormSchema = z
     beading: z.string().min(1, {
       message: "Beading Color is required",
     }),
-    beader: z.string().min(1, {
-      message: "Beader is required",
-    }),
     lining: z.string().min(1, {
       message: "Lining is required",
     }),

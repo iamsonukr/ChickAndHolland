@@ -15,6 +15,8 @@ import { log } from "console";
 import Customer from "../models/Customer";
 import Clients from "../models/ClientsModel";
 import AdminBank from "../models/AdminBank";
+import Country from "../models/Country";
+import Currency from "../models/Currency";
 
 const router = Router();
 
@@ -688,12 +690,28 @@ router.patch(
       await client.save();
       customer.client = client;
 
+      let resolvedCurrencyId: string | null | undefined;
+
       // Optionally update customer's country/currency if provided
       if (typeof country_id !== "undefined") {
         customer.countryId = country_id || null;
+
+        if (country_id && typeof currency_id === "undefined") {
+          const country = await Country.findOne({ where: { id: Number(country_id) } });
+          const currencyCode = country?.currency_short_name?.trim().toUpperCase();
+
+          if (currencyCode) {
+            const currency = await Currency.findOne({ where: { code: currencyCode } });
+            if (currency) {
+              resolvedCurrencyId = String(currency.id);
+            }
+          }
+        }
       }
       if (typeof currency_id !== "undefined") {
         customer.currencyId = currency_id || null;
+      } else if (typeof resolvedCurrencyId !== "undefined") {
+        customer.currencyId = resolvedCurrencyId;
       }
     } catch (err) {
       console.error("Failed to sync client for retailer personal update:", err);
@@ -709,6 +727,8 @@ router.patch(
         storeName: customer.storeName,
         storeAddress: customer.storeAddress,
         postalCode: customer.postalCode,
+        countryId: customer.countryId,
+        currencyId: customer.currencyId,
         email: customer.email,
         phoneNumber: customer.phoneNumber,
         client: customer.client,

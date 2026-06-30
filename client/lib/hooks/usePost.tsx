@@ -15,6 +15,28 @@ interface UseHttpResult<T> {
   error: Error | null;
 }
 
+const isLikelyJwt = (token?: string | null) => {
+  const value = String(token ?? "").trim();
+
+  return (
+    Boolean(value) &&
+    value !== "undefined" &&
+    value !== "null" &&
+    value.split(".").length === 3
+  );
+};
+
+const getAuthToken = () => {
+  const cookieToken = getCookie("token");
+  const localStorageToken =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+  if (isLikelyJwt(cookieToken)) return String(cookieToken).trim();
+  if (isLikelyJwt(localStorageToken)) return String(localStorageToken).trim();
+
+  return "";
+};
+
 function useHttp<T = any>(
   defaultUrl: string,
   method: HttpMethod = "POST",
@@ -33,9 +55,10 @@ function useHttp<T = any>(
       setLoading(true);
       setError(null);
 
+      const token = authorization ? getAuthToken() : "";
       const headers: HeadersInit = {
-        ...(authorization && {
-          Authorization: `Bearer ${getCookie("token") || localStorage.getItem("token")}`,
+        ...(token && {
+          Authorization: `Bearer ${token}`,
         }),
       };
 
@@ -80,6 +103,7 @@ function useHttp<T = any>(
           if (!obj) return null;
           if (typeof obj === "string") return obj;
           if (obj.message && typeof obj.message === "string") return obj.message;
+          if (obj.msg && typeof obj.msg === "string") return obj.msg;
           if (obj.error && typeof obj.error === "string") return obj.error;
           // Rails/Express validation style: { errors: { field: ['msg'] } } or { errors: ['msg'] }
           if (obj.errors) {

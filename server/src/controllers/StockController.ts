@@ -99,10 +99,12 @@ const getStockWithCurrencyPricing = (stock: any[], currencyId?: string) => {
     return stock; // Return original stock with EUR pricing
   }
 
+  const requestedCurrencyId = String(currencyId);
+
   return stock.map((stockItem: any) => {
     // Find pricing for the requested currency
     const currencyPricing = stockItem.currencyPricing?.find(
-      (cp: any) => cp.currency.id.toString() === currencyId
+      (cp: any) => cp.currency && String(cp.currency.id) === requestedCurrencyId
     );
 
     if (currencyPricing) {
@@ -111,14 +113,14 @@ const getStockWithCurrencyPricing = (stock: any[], currencyId?: string) => {
         ...stockItem,
         price: currencyPricing.price,
         discountedPrice: currencyPricing.discountedPrice,
-        currencySymbol: currencyPricing.currency.symbol,
-        currencyCode: currencyPricing.currency.code,
+        currencySymbol: currencyPricing.currency?.symbol || "\u20AC",
+        currencyCode: currencyPricing.currency?.code || "EUR",
       };
     } else {
       // Fallback to EUR (default pricing)
       return {
         ...stockItem,
-        currencySymbol: "€",
+        currencySymbol: "\u20AC",
         currencyCode: "EUR",
       };
     }
@@ -258,13 +260,13 @@ router.get(
         )
         .leftJoinAndMapMany(
           "stock.currencyPricing",
-          "StockCurrencyPricing",
+          StockCurrencyPricing,
           "currencyPricing",
           "currencyPricing.stockId = stock.id"
         )
         .leftJoinAndMapOne(
           "currencyPricing.currency",
-          "Currency",
+          Currency,
           "currency",
           "currency.id = currencyPricing.currencyId"
         )

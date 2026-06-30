@@ -220,11 +220,20 @@ const getAvailableCurrencies = () => {
       setOpen(false);
       toast.success(response.message ?? "Stock edited successfully");
       router.refresh();
-    } catch (err) {
+    } catch (err: any) {
       toast.error("Failed to edit stock", {
-        description: error?.message,
+        description: err?.message ?? error?.message,
       });
     }
+  };
+
+  const onInvalid = (errors: any) => {
+    const firstError = Object.values(errors)?.[0] as any;
+    toast.error("Failed to edit stock", {
+      description:
+        firstError?.message ||
+        "Please check the highlighted fields and try again",
+    });
   };
 
   const getColourBasedOnId = (id: number) => {
@@ -278,7 +287,7 @@ const getAvailableCurrencies = () => {
         <Form {...form}>
           <form
             className="mt-8 space-y-2"
-            onSubmit={form.handleSubmit(onSubmit)}
+            onSubmit={form.handleSubmit(onSubmit, onInvalid)}
           >
             <StockImageManager
               images={productImages}
