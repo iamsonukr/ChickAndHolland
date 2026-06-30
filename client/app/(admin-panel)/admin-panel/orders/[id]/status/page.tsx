@@ -401,7 +401,6 @@ function ItemCard({
           onClose={() => setShowProgress(false)}
         />
       )}
-
       <div
         className={`relative flex w-[240px] flex-shrink-0 flex-col gap-2.5 rounded-lg border bg-white p-2.5 shadow-sm ring-1 transition-all sm:p-3 ${isSelected ? `${TYPE_RING[type]} ring-2` : "ring-gray-200"}`}
       >
@@ -467,7 +466,6 @@ function ItemCard({
           </p>
         </div>
         </div>
-
         {/* Stage button */}
         <button
           onClick={() => progress.length > 0 && setShowProgress(true)}

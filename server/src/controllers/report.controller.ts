@@ -151,6 +151,7 @@ router.get(
   "/stock-status/report/:orderId",
   asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = req.params;
+    const productsBeaderSelect = await buildProductsBeaderSelect("p");
 
     const rows = await db.query(
       `
@@ -164,7 +165,7 @@ router.get(
 
   s.size_country AS size_country,
   ro.purchaeOrderNo AS purchaseOrderNo,
-  NULL AS beader,
+  ${productsBeaderSelect},
   s.mesh_color AS meshColorRaw,
 
   -- ✅ SAME COLOR FIX AS RETAILER
@@ -183,6 +184,9 @@ INNER JOIN retailer_stock_orders rso
 
 INNER JOIN stock s
   ON s.id = rso.stockId
+
+LEFT JOIN products p
+  ON p.productCode = sos.styleNo
 
 -- 🔥 JOIN COLOR MASTER
 LEFT JOIN product_colours pc

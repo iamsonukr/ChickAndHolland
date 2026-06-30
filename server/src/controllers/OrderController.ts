@@ -4107,6 +4107,19 @@ PublicStoreRoutes.get(
     const completedQty = progress.reduce((sum, p) => sum + p.qty, 0);
 
     const remainingQty = style.quantity - completedQty;
+    const beaderRows = await db.query(
+      `
+      SELECT
+        TRIM(COALESCE(NULLIF(TRIM(s.beader), ''), ob.beader, p.beader)) AS beader
+      FROM orderStyles s
+      LEFT JOIN \`${ORDER_BEADERS_TABLE}\` ob ON ob.styleId = s.id
+      LEFT JOIN products p ON p.productCode = s.styleNo
+      WHERE s.id = ?
+      LIMIT 1
+      `,
+      [style.id],
+    );
+    const resolvedBeader = sanitizeText(beaderRows?.[0]?.beader);
 
     // 🔥 Safe parsing JSON fields
     const photoUrls = Array.isArray(style.photoUrls)
@@ -4160,7 +4173,7 @@ PublicStoreRoutes.get(
 
         mesh_color: style.mesh_color || "SAS",
         beading_color: style.beading_color || "SAS",
-        beader: style.beader || "",
+        beader: resolvedBeader,
         lining: style.lining || "SAS",
         lining_color: style.lining_color || "SAS",
 
@@ -4317,7 +4330,6 @@ PublicStoreRoutes.get(
   "/store-status/report/:orderId",
   asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = req.params;
-    const orderStylesBeaderSelect = await buildOrderStylesBeaderSelect("s");
 
     const rows = await db.query(
       `
@@ -4329,7 +4341,7 @@ PublicStoreRoutes.get(
         s.size,
         s.sizeCountry AS size_country,
         s.quantity,
-        ${orderStylesBeaderSelect},
+        TRIM(COALESCE(NULLIF(TRIM(s.beader), ''), ob.beader, p.beader)) AS beader,
 
         o.purchaeOrderNo,
 
@@ -4347,6 +4359,10 @@ PublicStoreRoutes.get(
 
       LEFT JOIN product_colours pc
         ON LOWER(pc.hexcode) = LOWER(s.mesh_color)
+      LEFT JOIN \`${ORDER_BEADERS_TABLE}\` ob
+        ON ob.styleId = s.id
+      LEFT JOIN products p
+        ON p.productCode = s.styleNo
 
       WHERE o.id = ?
         AND COALESCE(o.publishStatus, 'published') = 'published'
