@@ -97,6 +97,9 @@ export default class Order extends BaseModel {
   @Column("text", { nullable: true })
   address: string;
 
+  @Column("varchar", { length: 225, nullable: true })
+  phoneNumber: string | null;
+
   @Column("enum", { enum: OrderStatus, default: OrderStatus.Pattern })
   orderStatus: OrderStatus;
 

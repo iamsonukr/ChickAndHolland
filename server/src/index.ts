@@ -91,6 +91,7 @@ import { ensureFavouriteProductSizeTextColumn } from "./utils/ensureFavouritePro
 import { ensureBarcodeCommentsTable } from "./utils/ensureBarcodeCommentsTable";
 import { ensureBeaderColumns } from "./utils/ensureBeaderColumns";
 import { ensureOrderBeadersTable } from "./utils/ensureOrderBeadersTable";
+import { ensureOrderPhoneNumberColumn } from "./utils/ensureOrderPhoneNumberColumn";
 
 const router = Router();
 
@@ -165,6 +166,7 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
     await ensurePurchaseOrderNoIsNotUnique();
     await ensureBeaderColumns();
     await ensureOrderBeadersTable();
+    await ensureOrderPhoneNumberColumn();
     await ensureOrderPublishStatusColumn();
     await ensureOrderStylePricingColumns();
     await ensureCustomerPostalCodeColumn();

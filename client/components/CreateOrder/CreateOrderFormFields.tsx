@@ -203,6 +203,25 @@ export function CreateOrderFormFields({
         {/* ── Purchase Order No ── */}
         <FormField
           control={form.control}
+          name="phoneNumber"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Phone Number</FormLabel>
+              <FormControl>
+                <Input
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="Customer phone number"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="purchaseOrderNo"
           render={({ field }) => (
             <FormItem>

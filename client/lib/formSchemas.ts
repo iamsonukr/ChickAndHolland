@@ -531,6 +531,7 @@ export const createOrderFormSchema = z.object({
   }),
 
   address: z.string().optional(),
+  phoneNumber: z.string().optional(),
 
   customerId: z
     .object({

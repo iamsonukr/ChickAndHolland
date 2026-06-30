@@ -368,6 +368,7 @@ export const getOrders = async ({
   stage,
   publishStatus,
   beader,
+  deletedOnly,
 }: {
   page?: number;
   query?: string;
@@ -375,6 +376,7 @@ export const getOrders = async ({
   stage?: string;
   publishStatus?: "published" | "draft";
   beader?: string;
+  deletedOnly?: boolean;
 }) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
@@ -386,6 +388,7 @@ export const getOrders = async ({
   if (stage) params.set("stage", stage);
   if (publishStatus) params.set("publishStatus", publishStatus);
   if (beader) params.set("beader", beader);
+  if (deletedOnly) params.set("deletedOnly", "true");
 
   const response = await fetch(
     `${API_URL}/orders?${params.toString()}`,

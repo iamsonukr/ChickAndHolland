@@ -13,6 +13,7 @@ import {
   PartyPopper,
   ShoppingCart,
   ShoppingCartIcon,
+  Trash2,
   User,
   UserIcon,
   Users,
@@ -122,6 +123,13 @@ export function getMenuList(pathname: string, userType: any): Group[] {
             label: "Draft Orders",
             active: pathname.includes("/draft-orders"),
             icon: List,
+            submenus: [],
+          },
+          {
+            href: "/admin-panel/deleted-orders",
+            label: "Deleted Orders",
+            active: pathname.includes("/deleted-orders"),
+            icon: Trash2,
             submenus: [],
           },
           {

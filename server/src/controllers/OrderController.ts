@@ -1655,6 +1655,7 @@ router.post(
           fields["orderCancellationDate"],
         );
         const address = fields["address"];
+        const phoneNumber = fields["phoneNumber"];
         const customerId = parsePositiveInteger(fields["customerId"]);
         const publishStatus = parsePublishStatus(fields["publishStatus"]);
         const isDraft = publishStatus === OrderPublishStatus.Draft;
@@ -1729,6 +1730,7 @@ router.post(
         order.orderReceivedDate = orderReceivedDate || new Date();
         order.orderCancellationDate = (orderCancellationDate ?? null) as any;
         order.address = address;
+        order.phoneNumber = sanitizeText(phoneNumber) || null;
         order.publishStatus = publishStatus;
         if (customer) order.customer = customer;
 
@@ -2105,6 +2107,9 @@ router.patch(
         }
         if (fields["address"]) {
           order.address = fields["address"];
+        }
+        if (hasField("phoneNumber")) {
+          order.phoneNumber = sanitizeText(fields["phoneNumber"]) || null;
         }
         if (fields["publishStatus"]) {
           order.publishStatus = parsePublishStatus(fields["publishStatus"]);
@@ -2878,6 +2883,7 @@ router.get(
         stage,
         publishStatus,
         beader,
+        deletedOnly,
       }: {
         page?: string;
         query?: string;
@@ -2885,11 +2891,15 @@ router.get(
         stage?: string;
         publishStatus?: string;
         beader?: string;
+        deletedOnly?: string;
       } = req.query;
 
     const skip = (page ? Number(page) - 1 : 0) * 100;
     const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
     const pageSize = 100;
+    const isDeletedOnly = deletedOnly === "true";
+    const deletedStatus = isDeletedOnly ? 1 : 0;
+    const hasPublishStatusFilter = Boolean(publishStatus);
     const requestedPublishStatus =
       publishStatus === OrderPublishStatus.Draft
         ? OrderPublishStatus.Draft
@@ -2910,6 +2920,7 @@ router.get(
         "o.orderReceivedDate as orderReceivedDate",
         "o.orderCancellationDate as orderCancellationDate",
         "o.address as address",
+        "o.phoneNumber as phoneNumber",
         "o.orderStatus as orderStatus",
         "o.shippingStatus as shippingStatus",
         "o.shippingDate as shippingDate",
@@ -2923,14 +2934,17 @@ router.get(
       ])
       .from(Order, "o")
       .leftJoin("o.customer", "customer") // Join the Customer table to filter by name
-      .where("o.status = 0")
-      .andWhere(
-        "COALESCE(o.publishStatus, :publishedStatus) = :publishStatus",
-        {
-          publishedStatus: OrderPublishStatus.Published,
-          publishStatus: requestedPublishStatus,
-        },
-      );
+      .where("o.status = :deletedStatus", { deletedStatus });
+
+    if (!isDeletedOnly || hasPublishStatusFilter) {
+      regularOrdersQuery.andWhere(
+          "COALESCE(o.publishStatus, :publishedStatus) = :publishStatus",
+          {
+            publishedStatus: OrderPublishStatus.Published,
+            publishStatus: requestedPublishStatus,
+          },
+        );
+    }
 
     if (likeQuery) {
       regularOrdersQuery.andWhere(
@@ -2956,6 +2970,7 @@ router.get(
         "ro.orderReceivedDate as orderReceivedDate",
         "ro.orderCancellationDate as orderCancellationDate",
         "ro.address as address",
+        "NULL as phoneNumber",
         "ro.orderStatus as orderStatus",
         "ro.shippingStatus as shippingStatus",
         "ro.shippingDate as shippingDate",
@@ -2970,7 +2985,7 @@ router.get(
       .from(RetailerOrder, "ro")
       .leftJoin("ro.retailer", "retailer") // Join the Retailer table
       .leftJoin("retailer.customer", "customer") // Join the Customer table to filter by name
-      .where("ro.status = 0");
+      .where("ro.status = :deletedStatus", { deletedStatus });
 
     if (likeQuery) {
       retailerOrdersQuery.andWhere(
@@ -3263,6 +3278,7 @@ router.get(
         baseOrder.address,
         resolvedCustomer,
       );
+      const resolvedPhoneNumber = sanitizeText(baseOrder.phoneNumber) || null;
 
       const result: any = {
         id: baseOrder.id,
@@ -3273,6 +3289,7 @@ router.get(
         orderReceivedDate: formatDateOnly(baseOrder.orderReceivedDate),
         orderCancellationDate: formatDateOnly(baseOrder.orderCancellationDate),
         address: resolvedAddress,
+        phoneNumber: resolvedPhoneNumber,
         orderStatus: computedOrderStatus,
         shippingStatus: baseOrder.shippingStatus,
         shippingDate: baseOrder.shippingDate,
@@ -3310,7 +3327,8 @@ router.get(
                   customerStoreName: getCustomerStoreName(
                     detailedOrder.customer,
                   ),
-                  phoneNumber: detailedOrder.customer.phoneNumber, // <-- ADD THIS
+                  phoneNumber:
+                    resolvedPhoneNumber ?? detailedOrder.customer.phoneNumber,
                   storeAddress: detailedOrder.customer.storeAddress,
                   postalCode: detailedOrder.customer.postalCode,
                   country: detailedOrder.customer.country?.name ?? null,
@@ -3323,7 +3341,9 @@ router.get(
                   customerStoreName: getCustomerStoreName(
                     detailedOrder.retailer.customer,
                   ),
-                  phoneNumber: detailedOrder.retailer.customer.phoneNumber, // <-- ADD THIS
+                  phoneNumber:
+                    resolvedPhoneNumber ??
+                    detailedOrder.retailer.customer.phoneNumber,
                   storeAddress: detailedOrder.retailer.customer.storeAddress,
                   postalCode: detailedOrder.retailer.customer.postalCode,
                   country:

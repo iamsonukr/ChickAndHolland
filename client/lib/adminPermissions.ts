@@ -7,6 +7,7 @@ const ADMIN_PERMISSION_ROUTES = [
   "/admin-panel/contactus",
   "/admin-panel/orders",
   "/admin-panel/draft-orders",
+  "/admin-panel/deleted-orders",
   "/admin-panel/orders/qr-scan",
   "/admin-panel/order-list",
   "/admin-panel/request",
@@ -26,6 +27,7 @@ const ADMIN_PERMISSION_ROUTES = [
 
 const ADMIN_PERMISSION_INHERITANCE: Record<string, readonly string[]> = {
   "/admin-panel/draft-orders": ["/admin-panel/orders"],
+  "/admin-panel/deleted-orders": ["/admin-panel/orders"],
   "/admin-panel/orders/qr-scan": ["/admin-panel/orders"],
   "/admin-panel/settings": ["/admin-panel/users", "/admin-panel/user-roles"],
 };

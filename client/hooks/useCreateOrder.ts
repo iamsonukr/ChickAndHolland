@@ -169,6 +169,7 @@ export function buildSharedFormData(data: CreateOrderForm): FormData {
   fd.append("manufacturingEmailAddress", data.manufacturingEmailAddress);
   fd.append("orderType", data.orderType);
   fd.append("address", data.address ?? "");
+  fd.append("phoneNumber", data.phoneNumber ?? "");
   fd.append("customerId", data.customerId?.[0]?.value ?? "");
   return fd;
 }
@@ -458,6 +459,7 @@ export function buildPreviewData(
     orderReceivedDate: data.orderReceivedDate ?? new Date(),
     orderType: data.orderType,
     purchaseOrderNo: data.purchaseOrderNo,
+    phoneNumber: data.phoneNumber ?? "",
     details: loop,
   };
 }
@@ -718,6 +720,7 @@ export function useCreateOrder({
           toDateValue(editOrder?.orderReceivedDate) ?? new Date(),
         orderCancellationDate: toDateValue(editOrder?.orderCancellationDate),
         address: editOrder?.address ?? "",
+        phoneNumber: editOrder?.phoneNumber ?? orderCustomer?.phoneNumber ?? "",
         customerId: customerOption,
         styles: editOrder?.styles?.length
           ? editOrder.styles.map(mapStyleToFormValue)
@@ -732,6 +735,7 @@ export function useCreateOrder({
       orderReceivedDate: new Date(),
       orderCancellationDate: undefined,
       address: "",
+      phoneNumber: "",
       customerId: [],
       styles: [buildEmptyStyle()],
     };
@@ -944,6 +948,16 @@ export function useCreateOrder({
     generatePO();
   }, [watchCustomerName, generatePO]);
 
+  useEffect(() => {
+    if (isEditMode) return;
+    if (form.getFieldState("phoneNumber").isDirty) return;
+
+    form.setValue("phoneNumber", selectedCustomer?.phoneNumber ?? "", {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
+  }, [form, isEditMode, selectedCustomer]);
+
   // ── Load product colours on mount ───────────────────────────────────────────
   useEffect(() => {
     getProductColours({}).then((res) => setColors(res.productColours ?? []));
@@ -1058,6 +1072,7 @@ export function useCreateOrder({
       }
       if (dirtyFields.orderType) fd.append("orderType", data.orderType);
       if (dirtyFields.address) fd.append("address", data.address ?? "");
+      if (dirtyFields.phoneNumber) fd.append("phoneNumber", data.phoneNumber ?? "");
       if (dirtyFields.customerId) {
         fd.append("customerId", data.customerId?.[0]?.value ?? "");
       }

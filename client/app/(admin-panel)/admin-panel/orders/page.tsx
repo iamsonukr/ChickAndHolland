@@ -517,7 +517,9 @@ const OrdersPage = async (props: {
                             {/* Phone */}
                             {showContact && (
                               <td className={tableCellClassName}>
-                                {order.customer?.phoneNumber || "N/A"}
+                                {order.phoneNumber ||
+                                  order.customer?.phoneNumber ||
+                                  "N/A"}
                               </td>
                             )}
 
