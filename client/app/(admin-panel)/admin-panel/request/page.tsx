@@ -47,8 +47,22 @@ const page = async (props: {
       <CustomSearchBar query={query} />
       <Tabs defaultValue="fresh" className="mt-3 w-full">
         <TabsList className="grid h-auto w-full grid-cols-1 text-base sm:grid-cols-2 sm:text-lg">
-          <TabsTrigger value="fresh">{fresh}</TabsTrigger>
-          <TabsTrigger value="stock">Stock</TabsTrigger>
+          <TabsTrigger value="fresh" className="relative">
+            {fresh}
+            {myFreshOrders?.totalCount > 0 && (
+              <span className="absolute -right-2 -top-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white">
+                {myFreshOrders.totalCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="stock" className="relative">
+            Stock
+            {myStockOrders?.totalCount > 0 && (
+              <span className="absolute -right-2 -top-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white">
+                {myStockOrders.totalCount}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="fresh">
           {myFreshOrders && (
