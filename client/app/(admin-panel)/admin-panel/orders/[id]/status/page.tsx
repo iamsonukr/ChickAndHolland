@@ -813,9 +813,9 @@ export default function OrderStatusPage({
                 />
                 <ExportOrdersButton
                   rows={statusExportRows}
-                  fileName={`order-${id}-status-products-${new Date()
-                    .toISOString()
-                    .slice(0, 10)}.xlsx`}
+                  currentStatus={
+                    selectedStatus === "ALL" ? "All Status" : selectedStatus
+                  }
                   emptyMessage="No products found for the current status filters"
                   successMessage="Status products exported successfully"
                 />

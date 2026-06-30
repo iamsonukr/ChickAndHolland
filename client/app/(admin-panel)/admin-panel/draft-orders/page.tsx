@@ -15,6 +15,12 @@ import CreateOrder from "../orders/CreateOrder";
 import OrderDetailsSheet from "../orders/OrderDetails";
 import DraftOrderActions from "./DraftOrderActions";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
+import {
+  DraftDeleteSelectedButton,
+  DraftOrderRowCheckbox,
+  DraftOrderSelectAll,
+  DraftOrderSelectionProvider,
+} from "./DraftOrderSelection";
 
 const tableHeadClassName =
   "border border-border px-2 py-1.5 text-center text-[15px] font-semibold text-foreground align-middle";
@@ -51,19 +57,29 @@ const DraftOrdersPage = async (props: {
   const categories = productCategories?.categories ?? [];
   const subCategories = productCollection?.subCategories ?? [];
   const currencies = currenciesResponse?.currencies ?? currenciesResponse ?? [];
+  const selectableDraftOrders = draftOrders.map((order: any) => ({
+    id: Number(order.id),
+    orderType: String(order.orderType ?? ""),
+  }));
+
   return (
     <ContentLayout title="Draft Orders">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <h1 className="text-lg font-semibold md:text-xl">Draft Orders</h1>
-        </div>
+      <DraftOrderSelectionProvider>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <h1 className="text-lg font-semibold md:text-xl">Draft Orders</h1>
+            <DraftDeleteSelectedButton />
+          </div>
 
-        <CustomSearchBar query={query} />
+          <CustomSearchBar query={query} />
 
-        <TableScrollWrapper>
-          <table className="w-full min-w-[1040px] border-collapse text-sm">
+          <TableScrollWrapper>
+            <table className="w-full min-w-[1080px] border-collapse text-sm">
             <thead className="bg-muted/50">
               <tr className="whitespace-nowrap [&>th]:align-middle">
+                <th className={cn(tableHeadClassName, "w-12")}>
+                  <DraftOrderSelectAll items={selectableDraftOrders} />
+                </th>
                 <th className={tableHeadClassName}>Customer</th>
                 <th className={cn(tableHeadClassName, "w-[150px]")}>PO#</th>
                 <th className={cn(tableHeadClassName, "w-[140px]")}>
@@ -88,6 +104,14 @@ const DraftOrdersPage = async (props: {
                     key={`${order.id}-${order.purchaeOrderNo}`}
                     className="whitespace-nowrap align-middle [&>td]:align-middle"
                   >
+                    <td className={cn(tableCellClassName, "text-center")}>
+                      <DraftOrderRowCheckbox
+                        item={{
+                          id: Number(order.id),
+                          orderType: String(order.orderType ?? ""),
+                        }}
+                      />
+                    </td>
                     <td className={tableCellClassName}>
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold">
@@ -150,7 +174,7 @@ const DraftOrdersPage = async (props: {
               ) : (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="border border-border py-10 text-center text-base text-muted-foreground"
                   >
                     <div className="flex flex-col items-center gap-1">
@@ -162,18 +186,19 @@ const DraftOrdersPage = async (props: {
               )}
             </tbody>
           </table>
-        </TableScrollWrapper>
+          </TableScrollWrapper>
 
-        {orders?.totalCount > 0 && (
-          <div className="flex justify-end">
-            <CustomPagination
-              currentPage={currentPage}
-              totalLength={orders.totalCount}
-              itemsPerPage={50}
-            />
-          </div>
-        )}
-      </div>
+          {orders?.totalCount > 0 && (
+            <div className="flex justify-end">
+              <CustomPagination
+                currentPage={currentPage}
+                totalLength={orders.totalCount}
+                itemsPerPage={50}
+              />
+            </div>
+          )}
+        </div>
+      </DraftOrderSelectionProvider>
     </ContentLayout>
   );
 };

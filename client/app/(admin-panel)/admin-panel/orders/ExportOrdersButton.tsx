@@ -25,6 +25,7 @@ type ExportOrdersButtonProps = {
   buttonLabel?: string;
   emptyMessage?: string;
   successMessage?: string;
+  currentStatus?: string;
 };
 
 const ORDER_EXPORT_DEFAULT_TITLE = "Pattern Status";
@@ -106,6 +107,15 @@ const sanitizeDisplayFilePart = (value: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const sanitizeWorksheetName = (value: string) => {
+  const sheetName = sanitizeDisplayFilePart(value)
+    .replace(/[\[\]]/g, "-")
+    .slice(0, 31)
+    .trim();
+
+  return sheetName || "Export";
+};
+
 const getDueDisplayLabel = (due?: string) => {
   if (due === "lt14") return "Due Within 14 Days";
   if (due === "lt28") return "Due Within 28 Days";
@@ -145,16 +155,32 @@ const buildExportFilterDisplayName = ({
   return filterParts.join(" ").trim().toUpperCase();
 };
 
+const buildExportStatusName = (
+  filters: {
+    query?: string;
+    orderType?: string;
+    stage?: string;
+    due?: string;
+    beader?: string;
+  },
+  currentStatus?: string,
+) => {
+  const explicitStatus = String(currentStatus || "").trim();
+  if (explicitStatus) return explicitStatus.toUpperCase();
+
+  return (
+    buildExportFilterDisplayName(filters) || ORDER_EXPORT_DEFAULT_TITLE
+  ).toUpperCase();
+};
+
 const buildExportTitle = (filters: {
   query?: string;
   orderType?: string;
   stage?: string;
   due?: string;
   beader?: string;
-}) => {
-  const filterName = buildExportFilterDisplayName(filters);
-  return filterName ? `${filterName} - Status` : ORDER_EXPORT_DEFAULT_TITLE;
-};
+}, currentStatus?: string) =>
+  `${buildExportStatusName(filters, currentStatus)}-${formatExportDate()}`;
 
 const buildExportFileName = (filters: {
   query?: string;
@@ -162,13 +188,10 @@ const buildExportFileName = (filters: {
   stage?: string;
   due?: string;
   beader?: string;
-}) => {
-  const filterName =
-    sanitizeDisplayFilePart(buildExportFilterDisplayName(filters)) ||
-    "all-orders";
-
-  return `${filterName}-${formatExportDate()}.xlsx`;
-};
+}, currentStatus?: string) =>
+  `${sanitizeDisplayFilePart(
+    buildExportTitle(filters, currentStatus),
+  )}.xlsx`;
 
 const buildWorksheet = (rows: any[], title: string) => {
   const normalizedRows = normalizeExportRows(rows);
@@ -358,6 +381,7 @@ export default function ExportOrdersButton({
   buttonLabel = "Export Orders",
   emptyMessage = "No products found for the current filters",
   successMessage = "Orders exported successfully",
+  currentStatus,
 }: ExportOrdersButtonProps) {
   const [exporting, setExporting] = useState(false);
 
@@ -412,13 +436,21 @@ export default function ExportOrdersButton({
       };
       const worksheet = buildWorksheet(
         exportRows,
-        buildExportTitle(exportFilters),
+        buildExportTitle(exportFilters, currentStatus),
       );
       styleWorksheet(worksheet);
 
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Order Products");
-      XLSX.writeFile(workbook, fileName ?? buildExportFileName(exportFilters));
+      const exportTitle = buildExportTitle(exportFilters, currentStatus);
+      XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        sanitizeWorksheetName(exportTitle),
+      );
+      XLSX.writeFile(
+        workbook,
+        fileName ?? buildExportFileName(exportFilters, currentStatus),
+      );
       toast.success(successMessage);
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to export orders");

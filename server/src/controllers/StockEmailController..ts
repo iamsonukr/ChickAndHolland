@@ -80,8 +80,14 @@ export const sendStockExportEmail = async (req: Request, res: Response) => {
     ).replace(/[\\/:*?"<>|]/g, "-");
     const isCatalog =
       requestedKind === "catalog" || safeFileName.toLowerCase().endsWith(".pdf");
-    const exportLabel = isCatalog ? "stock catalog" : "stock data";
+    const exportLabel = isCatalog ? "stock list" : "stock data";
     const priceLabel = includePrice ? "with price" : "without price";
+    const emailSubject = isCatalog
+      ? "Requested stock list attached"
+      : "Requested stock data attached";
+    const attachmentFileName = isCatalog
+      ? `Requested Stock List${includePrice ? "" : " - No Price"}.pdf`
+      : `Requested Stock Data${includePrice ? "" : " - No Price"}.xlsx`;
     const cleanBase64 = String(attachmentBase64).replace(
       /^data:.*;base64,/,
       "",
@@ -95,24 +101,36 @@ export const sendStockExportEmail = async (req: Request, res: Response) => {
       });
     }
 
-    await mail({
-      to: recipientEmails,
-      subject: `Chic & Holland ${exportLabel} ${priceLabel}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; font-size:14px; color:#000;">
-          <p>Hello,</p>
-          <p>Please find the ${exportLabel} attached with this email.</p>
-          <br/>
-          <p>Best Regards,<br/>Chic & Holland Team</p>
-        </div>
-      `,
-      attachments: [
-        {
-          filename: safeFileName,
-          content: attachmentBuffer,
-        },
-      ],
-    });
+    const text = `Hello,
+
+Please find the requested ${exportLabel} ${priceLabel} attached.
+
+Best regards,
+Chic & Holland`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; font-size:14px; color:#111; line-height:1.5;">
+        <p>Hello,</p>
+        <p>Please find the requested ${exportLabel} ${priceLabel} attached.</p>
+        <p>Best regards,<br/>Chic &amp; Holland</p>
+      </div>
+    `;
+
+    for (const recipientEmail of recipientEmails) {
+      await mail({
+        to: recipientEmail,
+        subject: emailSubject,
+        text,
+        html,
+        replyTo: process.env.RESEND_FROM_EMAIL,
+        attachments: [
+          {
+            filename: attachmentFileName || safeFileName,
+            content: attachmentBuffer,
+          },
+        ],
+      });
+    }
 
     return res.json({
       success: true,
