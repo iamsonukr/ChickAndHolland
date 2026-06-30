@@ -445,6 +445,8 @@ function ItemCard({
           </div>
         </div>
 
+        <div style={{ minHeight: "1px" }} className="flex flex-row justify-between ">
+          
         {/* Style No */}
         <div className="min-w-0">
           <p className="mb-0.5 text-[9px] uppercase leading-none tracking-wide text-muted-foreground">
@@ -453,6 +455,17 @@ function ItemCard({
           <p className="break-words text-xs font-bold leading-tight text-foreground sm:text-sm">
             {formatReportValue(raw.styleNo)}
           </p>
+        </div>
+
+        {/* Style No */}
+        <div className="min-w-0">
+          <p className="mb-0.5 text-[9px] uppercase leading-none tracking-wide text-muted-foreground">
+            Beader
+          </p>
+          <p className="break-words text-xs font-bold leading-tight text-foreground sm:text-sm">
+            {formatReportValue(raw.beader)}
+          </p>
+        </div>
         </div>
 
         {/* Stage button */}

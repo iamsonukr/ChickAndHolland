@@ -70,7 +70,7 @@ export default function StatusLabelBox({ item, orderType }: { item: any; orderTy
                 </div>
               </div>
             </div>
-            <div className="min-w-[74px]">
+            {/* <div className="min-w-[74px]">
               <div className="text-xs font-semibold text-gray-500 mb-2 text-center">
                 BEADER
               </div>
@@ -79,7 +79,7 @@ export default function StatusLabelBox({ item, orderType }: { item: any; orderTy
                   {beader || "-"}
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
 

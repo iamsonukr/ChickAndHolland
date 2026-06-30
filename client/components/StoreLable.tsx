@@ -167,7 +167,7 @@ const beader = String(item.beader ?? "").trim();
                 </div>
               </div>
             </div>
-            <div className="min-w-[74px]">
+            {/* <div className="min-w-[74px]">
               <div className="text-xs font-semibold text-gray-500 mb-2 text-center">
                 BEADER
               </div>
@@ -176,7 +176,7 @@ const beader = String(item.beader ?? "").trim();
                   {beader || "-"}
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
 
