@@ -53,6 +53,7 @@ import { formatDateOnly, parseDateOnly } from "../lib/dateOnly";
 import { assertDeliverableEmailAddress } from "../lib/emailValidation";
 import { getBarcodeComment } from "../services/barcodeComment.service";
 import { ensureBarcodeCommentsTable } from "../utils/ensureBarcodeCommentsTable";
+import { ORDER_BEADERS_TABLE } from "../utils/ensureOrderBeadersTable";
 import {
   DEFAULT_ORDER_STAGE,
   ORDER_STAGE_FLOW,
@@ -82,6 +83,7 @@ function safeArray(value: any) {
 }
 
 let orderStylesBeaderColumnAvailable: boolean | null = null;
+let productsBeaderColumnAvailable: boolean | null = null;
 
 async function hasOrderStylesBeaderColumn() {
   if (orderStylesBeaderColumnAvailable !== null) {
@@ -97,10 +99,125 @@ async function hasOrderStylesBeaderColumn() {
   return orderStylesBeaderColumnAvailable;
 }
 
+async function hasProductsBeaderColumn() {
+  if (productsBeaderColumnAvailable !== null) {
+    return productsBeaderColumnAvailable;
+  }
+
+  const columns = await db.query("SHOW COLUMNS FROM `products` LIKE ?", [
+    "beader",
+  ]);
+  productsBeaderColumnAvailable =
+    Array.isArray(columns) && columns.length > 0;
+
+  return productsBeaderColumnAvailable;
+}
+
 async function buildOrderStylesBeaderSelect(alias = "s") {
   return (await hasOrderStylesBeaderColumn())
     ? `${alias}.beader AS beader`
     : "NULL AS beader";
+}
+
+async function addOrderStylesBeaderFilter(
+  queryBuilder: any,
+  orderAlias: string,
+  beader?: string,
+) {
+  const beaderValue = String(beader || "").trim();
+
+  if (!beaderValue) {
+    return false;
+  }
+
+  queryBuilder.andWhere(
+    `EXISTS (
+      SELECT 1
+      FROM \`${ORDER_BEADERS_TABLE}\` orderBeaderFilter
+      WHERE orderBeaderFilter.orderId = ${orderAlias}.id
+        AND LOWER(orderBeaderFilter.beader) = LOWER(:beaderFilter)
+    )`,
+    {
+      beaderFilter: beaderValue,
+    },
+  );
+
+  return true;
+}
+
+async function getProductBeaderByCode(productCode?: string | null) {
+  const code = sanitizeText(productCode);
+  if (!code || !(await hasProductsBeaderColumn())) return "";
+
+  const product = await Product.findOne({
+    where: { productCode: code },
+    select: ["id", "productCode", "beader"],
+  });
+
+  return sanitizeText(product?.beader);
+}
+
+async function resolveOrderStyleBeader(
+  styleNo?: string | null,
+  styleBeader?: string | null,
+  productsMap?: Map<string, Product>,
+) {
+  const explicitBeader = sanitizeText(styleBeader);
+  if (explicitBeader) return explicitBeader;
+
+  const productBeader = sanitizeText(
+    productsMap?.get(sanitizeText(styleNo).toLowerCase())?.beader,
+  );
+  if (productBeader) return productBeader;
+
+  return getProductBeaderByCode(styleNo);
+}
+
+async function upsertOrderBeader({
+  orderId,
+  styleId,
+  productCode,
+  beader,
+}: {
+  orderId: number;
+  styleId: number;
+  productCode?: string | null;
+  beader?: string | null;
+}) {
+  const beaderValue = sanitizeText(beader);
+
+  if (!beaderValue) {
+    await db.query(`DELETE FROM \`${ORDER_BEADERS_TABLE}\` WHERE styleId = ?`, [
+      styleId,
+    ]);
+    return;
+  }
+
+  await db.query(
+    `
+    INSERT INTO \`${ORDER_BEADERS_TABLE}\` (
+      orderId,
+      styleId,
+      productCode,
+      beader
+    )
+    VALUES (?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      orderId = VALUES(orderId),
+      productCode = VALUES(productCode),
+      beader = VALUES(beader),
+      updatedAt = CURRENT_TIMESTAMP
+    `,
+    [orderId, styleId, sanitizeText(productCode) || null, beaderValue],
+  );
+}
+
+async function deleteOrderBeadersByStyleIds(styleIds: number[]) {
+  if (!styleIds.length) return;
+
+  await db.query(`DELETE FROM \`${ORDER_BEADERS_TABLE}\` WHERE styleId IN (?)`, [
+    styleIds,
+  ]);
 }
 
 async function getRegularOrderPaymentSummary(order: Order) {
@@ -382,10 +499,12 @@ async function getOrderStageCountSourceOrders({
   query,
   orderType,
   publishStatus,
+  beader,
 }: {
   query?: string;
   orderType?: string;
   publishStatus?: string;
+  beader?: string;
 }) {
   const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
   const requestedPublishStatus =
@@ -421,6 +540,12 @@ async function getOrderStageCountSourceOrders({
     );
   }
 
+  const hasBeaderFilter = await addOrderStylesBeaderFilter(
+    regularOrdersQuery,
+    "o",
+    beader,
+  );
+
   const retailerOrdersQuery = db
     .createQueryBuilder()
     .select([
@@ -447,6 +572,9 @@ async function getOrderStageCountSourceOrders({
     if (!includeRetailerOrders) {
       regularOrdersQuery.andWhere("o.orderType = :orderType", { orderType });
       unionQuery = regularOrdersQuery.getQuery();
+    } else if (hasBeaderFilter && ["Fresh", "Stock"].includes(orderType)) {
+      regularOrdersQuery.andWhere("1 = 0");
+      unionQuery = regularOrdersQuery.getQuery();
     } else if (orderType === "Stock") {
       retailerOrdersQuery.andWhere("ro.is_stock_order = 1");
       unionQuery = retailerOrdersQuery.getQuery();
@@ -458,7 +586,7 @@ async function getOrderStageCountSourceOrders({
       unionQuery = regularOrdersQuery.getQuery();
     }
   } else {
-    unionQuery = includeRetailerOrders
+    unionQuery = includeRetailerOrders && !hasBeaderFilter
       ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})`
       : regularOrdersQuery.getQuery();
   }
@@ -1684,6 +1812,16 @@ router.post(
           // STEP 2 — CREATE UNIQUE BARCODE FOR EACH STYLE
           newStyle.barcode = `${order.purchaeOrderNo}-${newStyle.styleNo}-${newStyle.id}`;
           await newStyle.save();
+          await upsertOrderBeader({
+            orderId: order.id,
+            styleId: newStyle.id,
+            productCode: newStyle.styleNo,
+            beader: await resolveOrderStyleBeader(
+              newStyle.styleNo,
+              newStyle.beader,
+              pricingProductsMap,
+            ),
+          });
 
           // STEP 3 — UPLOAD IMAGES
           const sourceIndex = Number(s._sourceIndex ?? i);
@@ -2010,6 +2148,7 @@ router.patch(
         for (const styleId of deleteStyleIds) {
           const style = order.styles?.find((item) => item.id === styleId);
           if (style) {
+            await deleteOrderBeadersByStyleIds([style.id]);
             await style.remove();
           }
         }
@@ -2066,6 +2205,16 @@ router.patch(
             styleEntity.barcode = `${order.purchaeOrderNo}-${styleEntity.styleNo}-${styleEntity.id}`;
             await styleEntity.save();
           }
+          await upsertOrderBeader({
+            orderId: order.id,
+            styleId: styleEntity.id,
+            productCode: styleEntity.styleNo,
+            beader: await resolveOrderStyleBeader(
+              styleEntity.styleNo,
+              styleEntity.beader,
+              pricingProductsMap,
+            ),
+          });
 
           // STEP 3 — HANDLE IMAGES
           const styleImages = files.filter(
@@ -2383,19 +2532,23 @@ async function processOrders(orders: any[]) {
 router.get(
   "/export-products",
   asyncHandler(async (req: Request, res: Response) => {
-    const {
-      query,
-      orderType,
-      stage,
-      due,
-    }: {
-      query?: string;
-      orderType?: string;
-      stage?: string;
-      due?: string;
-    } = req.query;
-
-    const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
+      const {
+        query,
+        orderType,
+        stage,
+        due,
+        beader,
+      }: {
+        query?: string;
+        orderType?: string;
+        stage?: string;
+        due?: string;
+        beader?: string;
+      } = req.query;
+  
+      const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
+      const beaderFilter = String(beader || "").trim();
+      const hasBeaderFilter = Boolean(beaderFilter);
 
     const regularWhere = [
       "o.status = 0",
@@ -2417,15 +2570,21 @@ router.get(
       retailerParams.push(likeQuery, likeQuery, likeQuery);
     }
 
-    const includeRegular =
-      !orderType || !["Fresh", "Stock"].includes(String(orderType));
-    const includeRetailer =
-      !orderType || ["Fresh", "Stock"].includes(String(orderType));
+      const includeRegular =
+        !orderType || !["Fresh", "Stock"].includes(String(orderType));
+      const includeRetailer =
+        !hasBeaderFilter &&
+        (!orderType || ["Fresh", "Stock"].includes(String(orderType)));
 
-    if (orderType && includeRegular) {
-      regularWhere.push("o.orderType = ?");
-      regularParams.push(orderType);
-    }
+      if (orderType && includeRegular) {
+        regularWhere.push("o.orderType = ?");
+        regularParams.push(orderType);
+      }
+
+      if (hasBeaderFilter) {
+        regularWhere.push("LOWER(ob.beader) = LOWER(?)");
+        regularParams.push(beaderFilter);
+      }
 
     if (orderType === "Fresh") {
       retailerWhere.push("ro.is_stock_order = 0");
@@ -2433,7 +2592,7 @@ router.get(
       retailerWhere.push("ro.is_stock_order = 1");
     }
 
-    const orderStylesBeaderSelect = await buildOrderStylesBeaderSelect("s");
+    const orderStylesBeaderSelect = "ob.beader AS beader";
 
     const [regularRows, retailerRows, stockRows] = await Promise.all([
       includeRegular
@@ -2473,6 +2632,7 @@ router.get(
                 CONCAT('SAS(', COALESCE(pc.name, s.mesh_color), ')') AS meshColor
               FROM orderStyles s
               INNER JOIN orders o ON o.id = s.orderId
+              LEFT JOIN \`${ORDER_BEADERS_TABLE}\` ob ON ob.styleId = s.id
               LEFT JOIN customers c ON c.id = o.customerId
               LEFT JOIN country country ON country.id = c.countryId
               LEFT JOIN product_colours pc ON LOWER(pc.hexcode) = LOWER(s.mesh_color)
@@ -2659,45 +2819,73 @@ router.get(
   }),
 );
 
-router.get(
-  "/stage-counts",
-  asyncHandler(async (req: Request, res: Response) => {
-    const { query, orderType, publishStatus } = req.query as {
-      query?: string;
-      orderType?: string;
-      publishStatus?: string;
-    };
+  router.get(
+    "/stage-counts",
+    asyncHandler(async (req: Request, res: Response) => {
+      const { query, orderType, publishStatus, beader } = req.query as {
+        query?: string;
+        orderType?: string;
+        publishStatus?: string;
+        beader?: string;
+      };
 
     const sourceOrders = await getOrderStageCountSourceOrders({
-      query,
-      orderType,
-      publishStatus,
-    });
+        query,
+        orderType,
+        publishStatus,
+        beader,
+      });
     const stageCounts = await getProductStageCounts(sourceOrders);
 
     return res.json({
       success: true,
       stageCounts,
     });
-  }),
-);
+    }),
+  );
 
-router.get(
-  "/",
+  router.get(
+    "/beaders",
+    asyncHandler(async (_req: Request, res: Response) => {
+      const rows = await db.query(
+        `
+        SELECT MIN(TRIM(ob.beader)) AS beader
+        FROM \`${ORDER_BEADERS_TABLE}\` ob
+        INNER JOIN orders o ON o.id = ob.orderId
+        WHERE o.status = 0
+          AND COALESCE(o.publishStatus, 'published') = 'published'
+          AND ob.beader IS NOT NULL
+          AND TRIM(ob.beader) <> ''
+        GROUP BY LOWER(TRIM(ob.beader))
+        ORDER BY LOWER(beader) ASC
+        `,
+      );
+
+      return res.json({
+        success: true,
+        beaders: rows.map((row: any) => row.beader).filter(Boolean),
+      });
+    }),
+  );
+  
+  router.get(
+    "/",
   asyncHandler(async (req: Request, res: Response) => {
     const {
       page,
       query,
-      orderType,
-      stage,
-      publishStatus,
-    }: {
-      page?: string;
-      query?: string;
-      orderType?: string;
-      stage?: string;
-      publishStatus?: string;
-    } = req.query;
+        orderType,
+        stage,
+        publishStatus,
+        beader,
+      }: {
+        page?: string;
+        query?: string;
+        orderType?: string;
+        stage?: string;
+        publishStatus?: string;
+        beader?: string;
+      } = req.query;
 
     const skip = (page ? Number(page) - 1 : 0) * 100;
     const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
@@ -2751,6 +2939,12 @@ router.get(
       );
     }
 
+    const hasBeaderFilter = await addOrderStylesBeaderFilter(
+      regularOrdersQuery,
+      "o",
+      beader,
+    );
+
     // Second query for retailer orders
     const retailerOrdersQuery = db
       .createQueryBuilder()
@@ -2789,6 +2983,9 @@ router.get(
       if (!includeRetailerOrders) {
         regularOrdersQuery.andWhere("o.orderType = :orderType", { orderType });
         unionQuery = regularOrdersQuery.getQuery();
+      } else if (hasBeaderFilter && ["Fresh", "Stock"].includes(orderType)) {
+        regularOrdersQuery.andWhere("1 = 0");
+        unionQuery = regularOrdersQuery.getQuery();
       } else if (orderType === "Stock") {
         retailerOrdersQuery.andWhere("ro.is_stock_order = 1");
         unionQuery = retailerOrdersQuery.getQuery();
@@ -2800,7 +2997,7 @@ router.get(
         unionQuery = regularOrdersQuery.getQuery();
       }
     } else {
-      unionQuery = includeRetailerOrders
+      unionQuery = includeRetailerOrders && !hasBeaderFilter
         ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})`
         : regularOrdersQuery.getQuery();
     }
@@ -2855,6 +3052,7 @@ router.get(
         .leftJoinAndSelect("order.customer", "customer")
         .leftJoinAndSelect("customer.country", "customerCountry")
         .leftJoinAndSelect("order.styles", "styles")
+        .addSelect("styles.beader")
         .where("order.id IN (:...ids)", { ids: regularOrderIds })
         .getMany();
     }
@@ -3629,10 +3827,12 @@ router.put(
 
       styles = order.styles ?? [];
     } else {
-      const style = await Style.findOne({
-        where: { barcode },
-        relations: ["order"],
-      });
+      const style = await db
+        .createQueryBuilder(Style, "style")
+        .addSelect("style.beader")
+        .leftJoinAndSelect("style.order", "order")
+        .where("style.barcode = :barcode", { barcode })
+        .getOne();
 
       if (!style) {
         return res.status(404).json({
@@ -3856,10 +4056,12 @@ PublicStoreRoutes.get(
   asyncHandler(async (req: Request, res: Response) => {
     const { barcode } = req.params;
 
-    const style = await Style.findOne({
-      where: { barcode },
-      relations: ["order"],
-    });
+    const style = await db
+      .createQueryBuilder(Style, "style")
+      .addSelect("style.beader")
+      .leftJoinAndSelect("style.order", "order")
+      .where("style.barcode = :barcode", { barcode })
+      .getOne();
 
     if (!style) {
       return res.status(404).json({

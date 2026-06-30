@@ -22,6 +22,7 @@ import StockCatalogPdf from "./StockCatalogPdf";
 type StockCatalogButtonsProps = {
   colours: any[];
   query?: string;
+  currencyId?: number;
 };
 
 type CatalogMode = "with-price" | "without-price";
@@ -121,16 +122,15 @@ const downloadBlob = (blob: Blob, fileName: string) => {
 };
 
 const buildExcelFileName = (showPrice: boolean) => {
-  const date = new Date().toISOString().slice(0, 10);
   return showPrice
-    ? `stock-data-with-price-${date}.xlsx`
-    : `stock-data-without-price-${date}.xlsx`;
+    ? "Excel Stocklist - With Price.xlsx"
+    : "Excel Stocklist - Without Price.xlsx";
 };
 
 const buildCatalogFileName = (showPrice: boolean) =>
   showPrice
-    ? "stock-catalog-with-price.pdf"
-    : "stock-catalog-without-price.pdf";
+    ? "Stocklist Catalogue - With Price.pdf"
+    : "Stocklist Catalogue - Without Price.pdf";
 
 const getColourName = (colours: any[] = [], colourValue?: string | null) => {
   if (!colourValue) return "-";
@@ -236,7 +236,7 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
 
       cell.s = {
         fill: { fgColor: { rgb: row % 2 === 0 ? "F9FAFB" : "FFFFFF" } },
-        alignment: { vertical: "center" },
+        alignment: { horizontal: "center", vertical: "center" },
         border: {
           top: { style: "thin" },
           bottom: { style: "thin" },
@@ -346,7 +346,11 @@ const getCustomerName = (customer: any) =>
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
-const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) => {
+const StockCatalogButtons = ({
+  colours,
+  query = "",
+  currencyId,
+}: StockCatalogButtonsProps) => {
   const [loadingMode, setLoadingMode] = useState<ExportMode | null>(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [selectedExportChoice, setSelectedExportChoice] =
@@ -437,6 +441,7 @@ const StockCatalogButtons = ({ colours, query = "" }: StockCatalogButtonsProps) 
     const token = getCookie("token") || localStorage.getItem("token");
     const params = new URLSearchParams();
     if (query) params.set("query", query);
+    if (currencyId) params.set("currencyId", String(currencyId));
 
     const response = await fetch(
       `${getApiUrl("stock")}${params.toString() ? `?${params.toString()}` : ""}`,

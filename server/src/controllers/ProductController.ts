@@ -2108,18 +2108,24 @@ router.get(
     const ids = paginatedIds.map((p) => p.id);
 
     // Step 3: fetch full product data only for the paginated IDs
-    const products =
-      ids.length > 0
-        ? await Product.createQueryBuilder("product")
-            .leftJoinAndSelect("product.images", "images")
-            .leftJoinAndSelect("product.category", "category")
-            .leftJoinAndSelect("product.subCategory", "subCategory")
-            .leftJoinAndSelect("product.currencyPricing", "currencyPricing")
-            .leftJoinAndSelect("currencyPricing.currency", "currency")
-            .where("product.id IN (:...ids)", { ids })
-            .orderBy("product.id", "DESC")
-            .getMany()
-        : [];
+    let products = [] as Product[];
+
+    if (ids.length > 0) {
+      const productsQueryBuilder = Product.createQueryBuilder("product")
+        .leftJoinAndSelect("product.images", "images")
+        .leftJoinAndSelect("product.category", "category")
+        .leftJoinAndSelect("product.subCategory", "subCategory")
+        .leftJoinAndSelect("product.currencyPricing", "currencyPricing")
+        .leftJoinAndSelect("currencyPricing.currency", "currency")
+        .where("product.id IN (:...ids)", { ids })
+        .orderBy("product.id", "DESC");
+
+      if (includeProductsBeader) {
+        productsQueryBuilder.addSelect("product.beader");
+      }
+
+      products = await productsQueryBuilder.getMany();
+    }
 
     return res.json({
       success: true,
@@ -2637,6 +2643,11 @@ router.get(
           currencySymbol: productData.currencySymbol,
         };
       }
+
+      product = {
+        ...product,
+        beader: productData.beader ?? "",
+      };
     } else {
       // Original query without currency support
       product = await Product.findOne({

@@ -4,6 +4,7 @@ import {
   getProductColours,
   getStock,
   getCurrencies,
+  getRetailerDetails,
 } from "@/lib/data";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
@@ -18,6 +19,7 @@ import StyleNoImage from "@/app/(admin-panel)/admin-panel/stock/StyleNoImage";
 import ExpandStockDetails from "./ExpandStockDetails";
 import StockCatalogButtons from "./StockCatalogButtons";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 const ITEMS_PER_PAGE = 100;
 
@@ -32,10 +34,26 @@ const Stock = async (props: {
   const searchParams = await props.searchParams;
   const currentPage = parsePageParam(searchParams["cPage"]);
   const query = searchParams["q"] || "";
+  const cookieStore = await cookies();
+  let currencyId = cookieStore.get("currencyId")?.value;
+  const retailerId = cookieStore.get("retailerId")?.value;
+
+  if (retailerId) {
+    const latestRetailer = await getRetailerDetails(Number(retailerId));
+    const latestCurrencyId =
+      latestRetailer?.currencyId ||
+      latestRetailer?.retailer?.currencyId ||
+      latestRetailer?.retailer?.customer?.currencyId;
+
+    if (latestCurrencyId) {
+      currencyId = String(latestCurrencyId);
+    }
+  }
 
   const stock = await getStock({
     page: currentPage,
     query,
+    currencyId: currencyId ? Number(currencyId) : undefined,
   });
 
   const totalPages = Math.max(
@@ -69,6 +87,7 @@ const Stock = async (props: {
             <StockCatalogButtons
               colours={colours.productColours}
               query={query}
+              currencyId={currencyId ? Number(currencyId) : undefined}
             />
             <AddStockForm
               colours={colours.productColours}
@@ -87,6 +106,7 @@ const Stock = async (props: {
 
             const price = Number(item.price ?? 0);
             const discountedPrice = Number(item.discountedPrice ?? price);
+            const currencySymbol = item.currencySymbol || "€";
             const discountPct =
               price > 0 && discountedPrice < price
                 ? Math.round(((price - discountedPrice) / price) * 100)
@@ -118,13 +138,13 @@ const Stock = async (props: {
                             : ""
                         }
                       >
-                        €{item.price}
+                        {currencySymbol}{item.price}
                       </span>
 
                       {item.price !== item.discountedPrice && (
                         <div className="flex items-baseline gap-2">
                           <span className="font-semibold text-green-600">
-                            €{item.discountedPrice}
+                            {currencySymbol}{item.discountedPrice}
                           </span>
                           {discountPct > 0 && (
                             <span className="text-xs text-red-600 font-medium">

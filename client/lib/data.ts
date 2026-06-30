@@ -367,12 +367,14 @@ export const getOrders = async ({
   orderType,
   stage,
   publishStatus,
+  beader,
 }: {
   page?: number;
   query?: string;
   orderType?: string;
   stage?: string;
   publishStatus?: "published" | "draft";
+  beader?: string;
 }) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
@@ -383,6 +385,7 @@ export const getOrders = async ({
   if (orderType) params.set("orderType", orderType);
   if (stage) params.set("stage", stage);
   if (publishStatus) params.set("publishStatus", publishStatus);
+  if (beader) params.set("beader", beader);
 
   const response = await fetch(
     `${API_URL}/orders?${params.toString()}`,
@@ -399,10 +402,12 @@ export const getOrderStageCounts = async ({
   query,
   orderType,
   publishStatus,
+  beader,
 }: {
   query?: string;
   orderType?: string;
   publishStatus?: "published" | "draft";
+  beader?: string;
 }) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
@@ -411,6 +416,7 @@ export const getOrderStageCounts = async ({
   if (query) params.set("query", query);
   if (orderType) params.set("orderType", orderType);
   if (publishStatus) params.set("publishStatus", publishStatus);
+  if (beader) params.set("beader", beader);
 
   try {
     const response = await fetch(
@@ -429,6 +435,29 @@ export const getOrderStageCounts = async ({
   } catch (error) {
     console.error("[getOrderStageCounts] Failed to fetch stage counts", error);
     return { success: false, stageCounts: null };
+  }
+};
+
+export const getOrderBeaders = async () => {
+  const headers = {
+    Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
+  };
+
+  try {
+    const response = await fetch(`${API_URL}/orders/beaders`, {
+      headers,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const json = await response.json();
+    return Array.isArray(json?.beaders) ? json.beaders : [];
+  } catch (error) {
+    console.error("[getOrderBeaders] Failed to fetch beaders", error);
+    return [];
   }
 };
 

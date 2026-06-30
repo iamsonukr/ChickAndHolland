@@ -10,11 +10,13 @@ const buildSearch = ({
   orderType,
   due,
   stage,
+  beader,
 }: {
   query?: string;
   orderType?: string;
   due?: string;
   stage?: string;
+  beader?: string;
 }) => {
   const params = new URLSearchParams();
 
@@ -22,6 +24,7 @@ const buildSearch = ({
   if (orderType) params.set("orderType", orderType);
   if (due) params.set("due", due);
   if (stage) params.set("stage", stage);
+  if (beader) params.set("beader", beader);
 
   params.delete("cPage");
   return params.toString();
@@ -32,12 +35,14 @@ export default function StageFilter({
   orderType,
   due,
   stage,
+  beader,
   stageCounts,
 }: {
   query?: string;
   orderType?: string;
   due?: string;
   stage?: string;
+  beader?: string;
   stageCounts?: Record<string, number>;
 }) {
   const router = useRouter();
@@ -62,7 +67,7 @@ export default function StageFilter({
 
   const handleStageChange = (value: string) => {
     const nextStage = value === "__all__" ? "" : value;
-    const search = buildSearch({ query, orderType, due, stage: nextStage });
+    const search = buildSearch({ query, orderType, due, stage: nextStage, beader });
     const nextPath = pathname ?? "/admin-panel/orders";
     router.push(search ? `${nextPath}?${search}` : nextPath);
   };

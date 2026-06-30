@@ -13,13 +13,24 @@ import {
 
 const OrderTypeFilter = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   return (
     <>
       <Select
-        defaultValue="All"
+        defaultValue={searchParams.get("orderType") || "All"}
         onValueChange={(value) => {
-          router.push(`?orderType=${value}`, { scroll: false });
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("cPage");
+
+          if (value === "All") {
+            params.delete("orderType");
+          } else {
+            params.set("orderType", value);
+          }
+
+          const search = params.toString();
+          router.push(search ? `?${search}` : "?", { scroll: false });
         }}
       >
         <SelectTrigger className="w-[150px]">

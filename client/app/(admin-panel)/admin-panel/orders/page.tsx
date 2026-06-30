@@ -4,6 +4,7 @@ import CreateOrder from "./CreateOrder";
 import {
   getCustomers,
   getCurrencies,
+  getOrderBeaders,
   getOrderStageCounts,
   getOrders,
   getProductCategories,
@@ -33,6 +34,7 @@ import EditOrderAction from "./EditOrderAction";
 import StageFilter from "./StageFilter";
 import ExportOrdersButton from "./ExportOrdersButton";
 import { ORDER_STAGE_DATE_FIELD_MAP } from "@/lib/stageFlow";
+import BeaderFilter from "./BeaderFilter";
 
 const statusToDbField: Record<string, string | null> = {
   ...ORDER_STAGE_DATE_FIELD_MAP,
@@ -62,11 +64,13 @@ const buildOrdersFilterHref = ({
   orderType,
   stage,
   due,
+  beader,
 }: {
   query: string;
   orderType: string;
   stage?: string;
   due?: string;
+  beader?: string;
 }) => {
   const params = new URLSearchParams();
 
@@ -74,6 +78,7 @@ const buildOrdersFilterHref = ({
   if (orderType) params.set("orderType", orderType);
   if (stage) params.set("stage", stage);
   if (due) params.set("due", due);
+  if (beader) params.set("beader", beader);
 
   const search = params.toString();
   return search ? `?${search}` : "?";
@@ -88,6 +93,7 @@ const OrdersPage = async (props: {
   const orderType = searchParams["orderType"] ?? "";
   const dueFilter = searchParams["due"] ?? "";
   const stage = searchParams["stage"] ?? "";
+  const beader = searchParams["beader"] ?? "";
 
   const [
     orders,
@@ -96,12 +102,14 @@ const OrdersPage = async (props: {
     productCollection,
     currenciesResponse,
     orderStageCounts,
+    beaders,
   ] = await Promise.all([
     getOrders({
       page: currentPage,
       query,
       orderType: orderType === "All" ? "" : orderType,
       stage,
+      beader,
     }),
     getCustomers({}),
     getProductCategories({}),
@@ -110,7 +118,9 @@ const OrdersPage = async (props: {
     getOrderStageCounts({
       query,
       orderType: orderType === "All" ? "" : orderType,
+      beader,
     }),
+    getOrderBeaders(),
   ]);
 
   const getStatusDate = (status: string, order: any) => {
@@ -227,6 +237,7 @@ const OrdersPage = async (props: {
                 orderType={orderType}
                 stage={stage}
                 due={dueFilter}
+                beader={beader}
               />
               <CreateOrder
                 customers={customers.customers}
@@ -248,7 +259,16 @@ const OrdersPage = async (props: {
                 orderType={orderType}
                 due={dueFilter}
                 stage={stage}
+                beader={beader}
                 stageCounts={orderStageCounts?.stageCounts ?? orders?.stageCounts}
+              />
+              <BeaderFilter
+                beaders={beaders}
+                query={query}
+                orderType={orderType}
+                due={dueFilter}
+                stage={stage}
+                beader={beader}
               />
               <div className="flex flex-wrap items-center gap-2">
                 <a
@@ -257,6 +277,7 @@ const OrdersPage = async (props: {
                     orderType,
                     stage,
                     due: "lt14",
+                    beader,
                   })}
                   className={cn(
                     filterButtonClassName,
@@ -277,6 +298,7 @@ const OrdersPage = async (props: {
                     orderType,
                     stage,
                     due: "lt28",
+                    beader,
                   })}
                   className={cn(
                     filterButtonClassName,
@@ -299,6 +321,7 @@ const OrdersPage = async (props: {
                     orderType,
                     stage,
                     due: "shipped",
+                    beader,
                   })}
                   className={cn(
                     filterButtonClassName,
@@ -320,6 +343,7 @@ const OrdersPage = async (props: {
                     query,
                     orderType,
                     stage,
+                    beader,
                   })}
                   className={cn(
                     filterButtonClassName,

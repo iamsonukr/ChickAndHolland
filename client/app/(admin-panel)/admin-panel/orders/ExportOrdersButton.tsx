@@ -19,6 +19,7 @@ type ExportOrdersButtonProps = {
   orderType?: string;
   stage?: string;
   due?: string;
+  beader?: string;
   rows?: Record<string, unknown>[];
   fileName?: string;
   buttonLabel?: string;
@@ -48,15 +49,15 @@ const ORDER_EXPORT_COLUMNS = [
 
 const ORDER_EXPORT_COLUMN_LAYOUT: Record<
   string,
-  { min: number; max?: number; align: "left" | "center" }
+  { min: number }
 > = {
-  "Style No": { min: 14, max: 16, align: "left" },
-  Size: { min: 5, max: 10, align: "center" },
-  Quantity: { min: 10, max: 15, align: "center" },
-  Color: { min: 15, max: 38, align: "left" },
-  "PO Number": { min: 22, max: 35, align: "left" },
-  Beader: { min: 12, max: 17, align: "left" },
-  "Product Status": { min: 14, max: 20, align: "left" },
+  "Style No": { min: 14 },
+  Size: { min: 5 },
+  Quantity: { min: 10 },
+  Color: { min: 15 },
+  "PO Number": { min: 22 },
+  Beader: { min: 12 },
+  "Product Status": { min: 14 },
 };
 
 const ORDER_EXPORT_PRINT_MARGINS = {
@@ -124,17 +125,20 @@ const buildExportFilterDisplayName = ({
   orderType,
   stage,
   due,
+  beader,
 }: {
   query?: string;
   orderType?: string;
   stage?: string;
   due?: string;
+  beader?: string;
 }) => {
   if (stage) return withPendingLabel(stage).toUpperCase();
 
   const filterParts = [
     orderType && orderType !== "All" ? orderType : "",
     getDueDisplayLabel(due),
+    beader,
     query,
   ].filter(Boolean);
 
@@ -146,6 +150,7 @@ const buildExportTitle = (filters: {
   orderType?: string;
   stage?: string;
   due?: string;
+  beader?: string;
 }) => {
   const filterName = buildExportFilterDisplayName(filters);
   return filterName ? `${filterName} - Status` : ORDER_EXPORT_DEFAULT_TITLE;
@@ -156,6 +161,7 @@ const buildExportFileName = (filters: {
   orderType?: string;
   stage?: string;
   due?: string;
+  beader?: string;
 }) => {
   const filterName =
     sanitizeDisplayFilePart(buildExportFilterDisplayName(filters)) ||
@@ -217,10 +223,8 @@ const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range) =>
       longestValue = Math.max(longestValue, getCellDisplayLength(cell?.v));
     }
 
-    const width = Math.max(longestValue + 1, layout.min);
-
     return {
-      wch: layout.max ? Math.min(width, layout.max) : width,
+      wch: Math.max(longestValue + 2, layout.min),
     };
   });
 
@@ -303,12 +307,7 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
         continue;
       }
 
-      const columnName = ORDER_EXPORT_COLUMNS[column];
       const isTotalRow = row === range.e.r;
-      const horizontal =
-        isTotalRow && columnName !== "Style No"
-          ? "center"
-          : (ORDER_EXPORT_COLUMN_LAYOUT[columnName]?.align ?? "left");
 
       cell.s = {
         font: { sz: ORDER_EXPORT_FONT_SIZE, bold: isTotalRow },
@@ -316,7 +315,7 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
           patternType: "solid",
           fgColor: { rgb: row % 2 === 0 ? "FFFFFF" : "F9FAFB" },
         },
-        alignment: { vertical: "center", horizontal },
+        alignment: { vertical: "center", horizontal: "center" },
         border: {
           top: { style: "thin" },
           bottom: { style: "thin" },
@@ -353,6 +352,7 @@ export default function ExportOrdersButton({
   orderType,
   stage,
   due,
+  beader,
   rows: providedRows,
   fileName,
   buttonLabel = "Export Orders",
@@ -370,6 +370,7 @@ export default function ExportOrdersButton({
       if (orderType && orderType !== "All") params.set("orderType", orderType);
       if (stage) params.set("stage", stage);
       if (due) params.set("due", due);
+      if (beader) params.set("beader", beader);
 
       let rows = providedRows;
 
@@ -407,6 +408,7 @@ export default function ExportOrdersButton({
         orderType,
         stage,
         due,
+        beader,
       };
       const worksheet = buildWorksheet(
         exportRows,

@@ -41,6 +41,7 @@ type ScanOutcome = {
     purchaseOrderNo?: string;
     size?: string;
     color?: string;
+    beader?: string;
     quantity?: number;
     completedQty?: number;
     remainingQty?: number;
@@ -130,6 +131,7 @@ export default function GlobalQrScanPage() {
       purchaseOrderNo: data.purchaeOrderNo,
       size: data.size,
       color: data.meshColor || data.mesh_color || data.color || "-",
+      beader: data.beader || "-",
       quantity: data.quantity,
       completedQty: data.completedQty,
       remainingQty: data.remainingQty,
@@ -483,6 +485,7 @@ export default function GlobalQrScanPage() {
                         ["Purchase Order", result.details.purchaseOrderNo],
                         ["Size", result.details.size],
                         ["Mesh Color", result.details.color],
+                        ["Beader", result.details.beader],
                         ["Qty", result.details.quantity],
                         ["Remaining", result.details.remainingQty],
                       ].map(([label, value]) => (

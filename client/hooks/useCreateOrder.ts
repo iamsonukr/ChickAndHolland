@@ -250,9 +250,9 @@ function appendStyleFormData(
   );
   fd.append(
     `styles[${index}].beader`,
-    productDetails?.beader ??
+    (normalizedStyle as any).beader ??
       (normalizedStyle.styleNo?.[0] as any)?.beader ??
-      (normalizedStyle as any).beader ??
+      productDetails?.beader ??
       "",
   );
   fd.append(
