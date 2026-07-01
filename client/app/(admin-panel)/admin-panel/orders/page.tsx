@@ -77,6 +77,36 @@ const getCustomerPersonName = (order: any) =>
       "",
   ).trim() || "N/A";
 
+const getOrderMobileNumber = (order: any) =>
+  String(
+    order?.phoneNumber ||
+      order?.customer?.shippingPhoneNumber ||
+      order?.customer?.phoneNumber ||
+      order?.retailer?.customer?.shippingPhoneNumber ||
+      order?.retailer?.customer?.phoneNumber ||
+      "",
+  ).trim() || "N/A";
+
+const getOrderShippingAddress = (order: any) =>
+  String(
+    order?.address ||
+      order?.customer?.shippingAddress ||
+      order?.customer?.storeAddress ||
+      order?.customer?.client?.address ||
+      order?.retailer?.customer?.shippingAddress ||
+      order?.retailer?.customer?.storeAddress ||
+      order?.retailer?.customer?.client?.address ||
+      "",
+  ).trim() || "N/A";
+
+const buildOrderAddressDisplay = (order: any) =>
+  [
+    getCustomerPersonName(order),
+    getStoreName(order),
+    getOrderShippingAddress(order),
+    getOrderMobileNumber(order),
+  ].join("\n");
+
 const buildOrdersFilterHref = ({
   query,
   orderType,
@@ -536,7 +566,9 @@ const OrdersPage = async (props: {
                                 )}
                               >
                                 <div className="whitespace-normal break-words leading-5">
-                                  <AddressCard ad={order.address} />
+                                  <AddressCard
+                                    ad={buildOrderAddressDisplay(order)}
+                                  />
                                 </div>
                               </td>
                             )}
@@ -544,9 +576,7 @@ const OrdersPage = async (props: {
                             {/* Phone */}
                             {showContact && (
                               <td className={tableCellClassName}>
-                                {order.phoneNumber ||
-                                  order.customer?.phoneNumber ||
-                                  "N/A"}
+                                {getOrderMobileNumber(order)}
                               </td>
                             )}
 

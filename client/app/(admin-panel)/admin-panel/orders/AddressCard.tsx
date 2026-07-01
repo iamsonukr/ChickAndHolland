@@ -12,15 +12,15 @@ import {
 const AddressCard = ({ ad }: { ad: string }) => {
   return (
     <div>
-      <Dialog>
+        <Dialog>
         <DialogTrigger asChild>
-          <p>{ad}</p>
+          <p className="whitespace-pre-line">{ad}</p>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Address</DialogTitle>
           </DialogHeader>
-          {ad}
+          <div className="whitespace-pre-line break-words">{ad}</div>
         </DialogContent>
       </Dialog>
     </div>
