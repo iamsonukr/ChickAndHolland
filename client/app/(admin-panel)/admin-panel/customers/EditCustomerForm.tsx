@@ -72,6 +72,13 @@ const EditCustomerForm = ({
       phoneNumber: "",
       country_id: "",
       currency_id: "",
+      sameAsBillingAddress: true,
+      shippingAddress: "",
+      shippingCityName: "",
+      shippingCountryId: "",
+      shippingContactPerson: "",
+      shippingEmail: "",
+      shippingPhoneNumber: "",
     },
   });
 
@@ -81,6 +88,7 @@ const EditCustomerForm = ({
   );
 
   const router = useRouter();
+  const sameAsBillingAddress = form.watch("sameAsBillingAddress");
 
   /** Load previous data into form (Edit Mode) */
   useEffect(() => {
@@ -103,6 +111,13 @@ const EditCustomerForm = ({
       contactPerson: previousData.contactPerson,
       email: previousData.email,
       phoneNumber: previousData.phoneNumber,
+      sameAsBillingAddress: previousData?.sameAsBillingAddress ?? true,
+      shippingAddress: previousData?.shippingAddress || "",
+      shippingCityName: previousData?.shippingCityName || "",
+      shippingCountryId: previousData?.shippingCountryId?.toString() || "",
+      shippingContactPerson: previousData?.shippingContactPerson || "",
+      shippingEmail: previousData?.shippingEmail || "",
+      shippingPhoneNumber: previousData?.shippingPhoneNumber || "",
 
       // ⭐ Country Value
       country_id:
@@ -139,7 +154,18 @@ const EditCustomerForm = ({
   /** Submit Edited Customer */
   const onSubmit = async (data: AddCustomerFormType) => {
     try {
-      const response = await executeAsync(data);
+      const payload = data.sameAsBillingAddress
+        ? {
+            ...data,
+            shippingAddress: data.address || "",
+            shippingCityName: data.city_name || "",
+            shippingCountryId: data.country_id || "",
+            shippingContactPerson: data.contactPerson || "",
+            shippingEmail: data.email || "",
+            shippingPhoneNumber: data.phoneNumber || "",
+          }
+        : data;
+      const response = await executeAsync(payload);
 
       toast.success(response?.message || "Customer updated successfully");
       form.reset();
@@ -406,6 +432,124 @@ const EditCustomerForm = ({
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="sameAsBillingAddress"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start gap-3 rounded-md border p-3">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={(checked) =>
+                        field.onChange(checked === true)
+                      }
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Same as Billing address</FormLabel>
+                    <FormDescription>
+                      Use the billing address and contact details for shipping.
+                    </FormDescription>
+                    <FormMessage />
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {!sameAsBillingAddress && (
+              <div className="space-y-2 rounded-md border p-3">
+                <h3 className="text-sm font-semibold">Shipping Address</h3>
+                <FormField
+                  control={form.control}
+                  name="shippingAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer Address</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Shipping address" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="shippingCityName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <Input placeholder="City" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="shippingCountryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <FormControl>
+                        <CountryCombobox
+                          countries={countries}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select Country"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="shippingContactPerson"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact Person</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Shipping contact person" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="shippingEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="shipping@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="shippingPhoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="9876543210" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             {/* SUBMIT */}
             <Button type="submit" className="w-full mt-4" disabled={loading}>

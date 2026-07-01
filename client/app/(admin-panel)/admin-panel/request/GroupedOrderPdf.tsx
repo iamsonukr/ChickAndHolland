@@ -49,7 +49,6 @@ const buildGroupedPages = (details: any[] = []) => {
 
   return Array.from(groupedDetails.values()).flatMap((groupItems) => {
     const pages = chunkItems(groupItems, 4);
-
     return pages.map((variants, pageIndex) => ({
       baseItem: groupItems[0],
       groupItems,

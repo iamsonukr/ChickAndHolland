@@ -41,6 +41,27 @@ export default class Customer extends BaseModel {
   @Column("text", { nullable: true })
   email: string;
 
+  @Column("boolean", { default: true })
+  sameAsBillingAddress: boolean;
+
+  @Column("varchar", { length: 200, nullable: true })
+  shippingAddress: string | null;
+
+  @Column("varchar", { length: 100, nullable: true })
+  shippingCityName: string | null;
+
+  @Column({ nullable: true })
+  shippingCountryId: string | null;
+
+  @Column("varchar", { length: 50, nullable: true })
+  shippingContactPerson: string | null;
+
+  @Column("text", { nullable: true })
+  shippingEmail: string | null;
+
+  @Column("text", { nullable: true })
+  shippingPhoneNumber: string | null;
+
   @Column({ nullable: true })
   quickbooksCustomerId: string;
 

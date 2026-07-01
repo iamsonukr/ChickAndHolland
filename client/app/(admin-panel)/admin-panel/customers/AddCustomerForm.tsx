@@ -70,16 +70,35 @@ const AddCustomerForm = ({
       phoneNumber: "",
       country_id: "",
       currency_id: "",
+      sameAsBillingAddress: true,
+      shippingAddress: "",
+      shippingCityName: "",
+      shippingCountryId: "",
+      shippingContactPerson: "",
+      shippingEmail: "",
+      shippingPhoneNumber: "",
     },
   });
 
   const { loading, error, executeAsync } = useHttp("/customers");
 
   const router = useRouter();
+  const sameAsBillingAddress = form.watch("sameAsBillingAddress");
 
   const onSubmit = async (data: AddCustomerFormType) => {
     try {
-      const response = await executeAsync(data);
+      const payload = data.sameAsBillingAddress
+        ? {
+            ...data,
+            shippingAddress: data.address || "",
+            shippingCityName: data.city_name || "",
+            shippingCountryId: data.country_id || "",
+            shippingContactPerson: data.contactPerson || "",
+            shippingEmail: data.email || "",
+            shippingPhoneNumber: data.phoneNumber || "",
+          }
+        : data;
+      const response = await executeAsync(payload);
 
       if (error) {
         return toast.error("Failed to add customer");
@@ -88,6 +107,7 @@ const AddCustomerForm = ({
       form.reset();
       form.setValue("country_id", "");
       form.setValue("currency_id", "");
+      form.setValue("sameAsBillingAddress", true);
       setOpen(false);
       toast.success(response.message ?? "Customer added successfully");
       router.refresh();
@@ -357,6 +377,124 @@ const AddCustomerForm = ({
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="sameAsBillingAddress"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start gap-3 rounded-md border p-3">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={(checked) =>
+                        field.onChange(checked === true)
+                      }
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Same as Billing address</FormLabel>
+                    <FormDescription>
+                      Use the billing address and contact details for shipping.
+                    </FormDescription>
+                    <FormMessage />
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {!sameAsBillingAddress && (
+              <div className="space-y-2 rounded-md border p-3">
+                <h3 className="text-sm font-semibold">Shipping Address</h3>
+                <FormField
+                  control={form.control}
+                  name="shippingAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer Address</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Shipping address" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="shippingCityName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <Input placeholder="City" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="shippingCountryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <FormControl>
+                        <CountryCombobox
+                          countries={countries}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select Country"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="shippingContactPerson"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact Person</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Shipping contact person" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="shippingEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="shipping@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="shippingPhoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="971841878487" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             <div>
               <Button type="submit" className="mt-4 w-full" disabled={loading}>

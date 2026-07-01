@@ -59,6 +59,32 @@ const getCustomerSearchText = (customer: any) =>
     .join(" ")
     .toLowerCase();
 
+const getCustomerOrderAddress = (customer: any) =>
+  firstNonBlank(
+    customer?.shippingAddress,
+    customer?.storeAddress,
+    customer?.client?.address,
+  );
+
+const getCustomerOrderPhoneNumber = (customer: any) =>
+  firstNonBlank(customer?.shippingPhoneNumber, customer?.phoneNumber);
+
+const applyCustomerOrderShippingDefaults = (
+  data: CreateOrderForm,
+  customer?: any,
+): CreateOrderForm => {
+  if (!customer) return data;
+
+  return {
+    ...data,
+    address: firstNonBlank(data.address, getCustomerOrderAddress(customer)),
+    phoneNumber: firstNonBlank(
+      data.phoneNumber,
+      getCustomerOrderPhoneNumber(customer),
+    ),
+  };
+};
+
 const toCustomerOption = (customer: any): Option => ({
   value: String(customer.id),
   label: getCustomerStoreName(customer),
@@ -962,7 +988,17 @@ export function useCreateOrder({
     if (isEditMode) return;
     if (form.getFieldState("phoneNumber").isDirty) return;
 
-    form.setValue("phoneNumber", selectedCustomer?.phoneNumber ?? "", {
+    form.setValue("phoneNumber", getCustomerOrderPhoneNumber(selectedCustomer), {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
+  }, [form, isEditMode, selectedCustomer]);
+
+  useEffect(() => {
+    if (isEditMode) return;
+    if (form.getFieldState("address").isDirty) return;
+
+    form.setValue("address", getCustomerOrderAddress(selectedCustomer), {
       shouldDirty: false,
       shouldValidate: true,
     });
@@ -1043,6 +1079,9 @@ export function useCreateOrder({
         (customer) =>
           String(customer.id) === String(data.customerId?.[0]?.value),
       ) ?? selectedCustomer;
+    const orderData = isEditMode
+      ? data
+      : applyCustomerOrderShippingDefaults(data, orderCustomer);
 
     if (isEditMode) {
       const dirtyFields = form.formState.dirtyFields as any;
@@ -1159,11 +1198,11 @@ export function useCreateOrder({
       return;
     }
 
-    const fd = buildSharedFormData(data);
+    const fd = buildSharedFormData(orderData);
     if (publishStatus) fd.append("publishStatus", publishStatus);
-    appendDateField(fd, "orderReceivedDate", data.orderReceivedDate);
-    appendDateField(fd, "orderCancellationDate", data.orderCancellationDate);
-    appendStylesFormData(fd, data.styles, detailsMap, orderCustomer);
+    appendDateField(fd, "orderReceivedDate", orderData.orderReceivedDate);
+    appendDateField(fd, "orderCancellationDate", orderData.orderCancellationDate);
+    appendStylesFormData(fd, orderData.styles, detailsMap, orderCustomer);
 
     // If the user supplied their own file, attach it so the backend can store
     // it directly instead of generating a PDF/PPT server-side.
@@ -1258,15 +1297,16 @@ export function useCreateOrder({
     const previewRequestId = previewRequestIdRef.current + 1;
     previewRequestIdRef.current = previewRequestId;
     const detailsMap = await ensureProductDetailsLoaded(data.styles);
-    const fd = buildSharedFormData(data);
-    appendDateField(fd, "orderReceivedDate", data.orderReceivedDate);
-    appendDateField(fd, "orderCancellationDate", data.orderCancellationDate);
     const orderCustomer =
       customers.find(
         (customer) =>
           String(customer.id) === String(data.customerId?.[0]?.value),
       ) ?? selectedCustomer;
-    appendStylesFormData(fd, data.styles, detailsMap, orderCustomer);
+    const orderData = applyCustomerOrderShippingDefaults(data, orderCustomer);
+    const fd = buildSharedFormData(orderData);
+    appendDateField(fd, "orderReceivedDate", orderData.orderReceivedDate);
+    appendDateField(fd, "orderCancellationDate", orderData.orderCancellationDate);
+    appendStylesFormData(fd, orderData.styles, detailsMap, orderCustomer);
 
     try {
       const response = await executePreviewAsync(fd, {}, (err) => {
@@ -1281,7 +1321,7 @@ export function useCreateOrder({
 
       if (response.success) {
         setPreviewData(
-          buildPreviewData(data, response.orders, getColourBasedOnhex),
+          buildPreviewData(orderData, response.orders, getColourBasedOnhex),
         );
         // setOpen(true);
       } else {

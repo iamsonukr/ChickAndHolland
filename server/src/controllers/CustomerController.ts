@@ -25,6 +25,80 @@ const parseStoreLocatorVisibility = (
   return fallback;
 };
 
+const parseSameAsBillingAddress = (value: unknown, fallback = true) =>
+  parseStoreLocatorVisibility(value, fallback);
+
+const getShippingDetails = (body: any) => {
+  const sameAsBillingAddress = parseSameAsBillingAddress(
+    body.sameAsBillingAddress,
+    true,
+  );
+
+  if (sameAsBillingAddress) {
+    return {
+      sameAsBillingAddress,
+      shippingAddress: body.address || "",
+      shippingCityName: body.city_name || "",
+      shippingCountryId: body.country_id || null,
+      shippingContactPerson: body.contactPerson || "",
+      shippingEmail: body.email || "",
+      shippingPhoneNumber: body.phoneNumber || "",
+    };
+  }
+
+  return {
+    sameAsBillingAddress,
+    shippingAddress: body.shippingAddress || "",
+    shippingCityName: body.shippingCityName || "",
+    shippingCountryId: body.shippingCountryId || null,
+    shippingContactPerson: body.shippingContactPerson || "",
+    shippingEmail: body.shippingEmail || "",
+    shippingPhoneNumber: body.shippingPhoneNumber || "",
+  };
+};
+
+const assignShippingDetails = (customer: Customer, body: any) => {
+  const shippingDetails = getShippingDetails(body);
+
+  customer.sameAsBillingAddress = shippingDetails.sameAsBillingAddress;
+  customer.shippingAddress = shippingDetails.shippingAddress;
+  customer.shippingCityName = shippingDetails.shippingCityName;
+  customer.shippingCountryId = shippingDetails.shippingCountryId;
+  customer.shippingContactPerson = shippingDetails.shippingContactPerson;
+  customer.shippingEmail = shippingDetails.shippingEmail;
+  customer.shippingPhoneNumber = shippingDetails.shippingPhoneNumber;
+};
+
+const withShippingFallbacks = (customer: Customer) => {
+  const sameAsBillingAddress = customer.sameAsBillingAddress ?? true;
+  const billingAddress = customer.client?.address || customer.storeAddress || "";
+  const billingCityName = customer.client?.city_name || "";
+
+  if (!sameAsBillingAddress) {
+    return {
+      sameAsBillingAddress,
+      shippingAddress: customer.shippingAddress || "",
+      shippingCityName: customer.shippingCityName || "",
+      shippingCountryId: customer.shippingCountryId || "",
+      shippingContactPerson: customer.shippingContactPerson || "",
+      shippingEmail: customer.shippingEmail || "",
+      shippingPhoneNumber: customer.shippingPhoneNumber || "",
+    };
+  }
+
+  return {
+    sameAsBillingAddress,
+    shippingAddress: customer.shippingAddress || billingAddress,
+    shippingCityName: customer.shippingCityName || billingCityName,
+    shippingCountryId: customer.shippingCountryId || customer.countryId || "",
+    shippingContactPerson:
+      customer.shippingContactPerson || customer.contactPerson || "",
+    shippingEmail: customer.shippingEmail || customer.email || "",
+    shippingPhoneNumber:
+      customer.shippingPhoneNumber || customer.phoneNumber || "",
+  };
+};
+
 const withCustomerStoreName = (customer: Customer) => {
   const customerStoreName = customer.storeName || customer.name || "";
   const showOnStoreLocator =
@@ -34,6 +108,7 @@ const withCustomerStoreName = (customer: Customer) => {
     ...customer,
     customerStoreName,
     showOnStoreLocator,
+    ...withShippingFallbacks(customer),
   };
 };
 
@@ -115,6 +190,7 @@ router.post(
     customer.phoneNumber = req.body.phoneNumber;
     customer.contactPerson = req.body.contactPerson;
     customer.email = req.body.email;
+    assignShippingDetails(customer, req.body);
 
     // Add country assignment
     if (req.body.country_id) {
@@ -219,6 +295,7 @@ router.put(
     customer.phoneNumber = req.body.phoneNumber;
     customer.contactPerson = req.body.contactPerson;
     customer.email = req.body.email;
+    assignShippingDetails(customer, req.body);
 
     // Update country assignment
     if (req.body.country_id) {

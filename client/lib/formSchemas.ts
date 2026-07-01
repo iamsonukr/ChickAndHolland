@@ -169,7 +169,8 @@ export const updateShippingStatusFormSchema = z.object({
 export type ShippingStatusForm = z.infer<typeof updateShippingStatusFormSchema>;
 
 
-export const addCustomerFormSchema = z.object({
+export const addCustomerFormSchema = z
+  .object({
   name: z.string().min(1, {
     message: "Name is required",
   }),
@@ -223,7 +224,57 @@ export const addCustomerFormSchema = z.object({
   }),
 
   currency_id: z.string().optional(),
-});
+
+  sameAsBillingAddress: z.boolean().default(true),
+  shippingAddress: z.string().optional(),
+  shippingCityName: z.string().optional(),
+  shippingCountryId: z.string().optional(),
+  shippingContactPerson: z.string().optional(),
+  shippingEmail: z.string().optional(),
+  shippingPhoneNumber: z.string().optional(),
+})
+  .superRefine((data, ctx) => {
+    if (data.sameAsBillingAddress) return;
+
+    const requiredShippingFields: {
+      key: keyof typeof data;
+      message: string;
+    }[] = [
+      { key: "shippingAddress", message: "Shipping Address is required" },
+      { key: "shippingCityName", message: "Shipping City is required" },
+      { key: "shippingCountryId", message: "Shipping Country is required" },
+      {
+        key: "shippingContactPerson",
+        message: "Shipping Contact Person is required",
+      },
+      { key: "shippingEmail", message: "Shipping Email is required" },
+      {
+        key: "shippingPhoneNumber",
+        message: "Shipping Phone Number is required",
+      },
+    ];
+
+    requiredShippingFields.forEach(({ key, message }) => {
+      if (!String(data[key] ?? "").trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message,
+        });
+      }
+    });
+
+    if (
+      data.shippingEmail &&
+      !z.string().email().safeParse(data.shippingEmail).success
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["shippingEmail"],
+        message: "Invalid Shipping Email Address",
+      });
+    }
+  });
 
 export type AddCustomerForm = z.infer<typeof addCustomerFormSchema>;
 
