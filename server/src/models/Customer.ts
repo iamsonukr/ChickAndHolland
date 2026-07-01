@@ -50,7 +50,7 @@ export default class Customer extends BaseModel {
   @Column("varchar", { length: 100, nullable: true })
   shippingCityName: string | null;
 
-  @Column({ nullable: true })
+  @Column("varchar", { length: 255, nullable: true })
   shippingCountryId: string | null;
 
   @Column("varchar", { length: 50, nullable: true })
