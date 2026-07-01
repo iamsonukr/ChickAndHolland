@@ -332,20 +332,6 @@ const buildExcelWorkbook = (
   return workbook;
 };
 
-const toBase64 = (value: ArrayBuffer | Uint8Array) => {
-  const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
-  const chunkSize = 0x8000;
-  let binary = "";
-
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(
-      ...bytes.subarray(index, index + chunkSize),
-    );
-  }
-
-  return window.btoa(binary);
-};
-
 const getCustomerName = (customer: any) =>
   customer?.customerStoreName ||
   customer?.storeName ||
@@ -611,7 +597,7 @@ const StockCatalogButtons = ({
       const fileName = selectedExportIsExcel
         ? buildExcelFileName(selectedExportShowPrice)
         : buildCatalogFileName(selectedExportShowPrice);
-      let attachmentData: ArrayBuffer | Uint8Array;
+      let attachmentBlob: Blob;
 
       if (selectedExportIsExcel) {
         const workbook = buildExcelWorkbook(
@@ -619,31 +605,33 @@ const StockCatalogButtons = ({
           colours,
           selectedExportShowPrice,
         );
-        attachmentData = XLSX.write(workbook, {
+        const workbookData = XLSX.write(workbook, {
           bookType: "xlsx",
           type: "array",
         }) as ArrayBuffer | Uint8Array;
+        attachmentBlob = new Blob([workbookData as BlobPart], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
       } else {
-        const catalogBlob = await buildCatalogPdfBlob(
+        attachmentBlob = await buildCatalogPdfBlob(
           stock,
           selectedExportShowPrice,
         );
-        attachmentData = await catalogBlob.arrayBuffer();
       }
+
+      const formData = new FormData();
+      formData.append("recipients", JSON.stringify(recipientEmails));
+      formData.append("fileName", fileName);
+      formData.append("exportKind", selectedExportIsExcel ? "excel" : "catalog");
+      formData.append("showPrice", String(selectedExportShowPrice));
+      formData.append("attachment", attachmentBlob, fileName);
 
       const response = await fetch(getApiUrl("stock-export-email"), {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          recipients: recipientEmails,
-          fileName,
-          exportKind: selectedExportIsExcel ? "excel" : "catalog",
-          showPrice: selectedExportShowPrice,
-          attachmentBase64: toBase64(attachmentData),
-        }),
+        body: formData,
       });
       const data = await response.json();
 

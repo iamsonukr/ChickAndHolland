@@ -28,7 +28,26 @@ const getAttachmentFilename = (fileUrl: string, fallbackBaseName: string) => {
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const normalizeEmailList = (value: unknown) => {
-  const rawEmails = Array.isArray(value) ? value : [value];
+  const rawEmails = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? (() => {
+          const trimmedValue = value.trim();
+
+          if (trimmedValue.startsWith("[") && trimmedValue.endsWith("]")) {
+            try {
+              const parsedValue = JSON.parse(trimmedValue);
+              if (Array.isArray(parsedValue)) return parsedValue;
+            } catch {
+              // Treat invalid JSON as a plain email value.
+            }
+          }
+
+          return trimmedValue.includes(",")
+            ? trimmedValue.split(",")
+            : [trimmedValue];
+        })()
+      : [value];
 
   return Array.from(
     new Set(
@@ -41,6 +60,8 @@ const normalizeEmailList = (value: unknown) => {
 
 export const sendStockExportEmail = async (req: Request, res: Response) => {
   try {
+    const uploadedAttachment = (req as Request & { file?: Express.Multer.File })
+      .file;
     const {
       attachmentBase64,
       exportKind,
@@ -58,7 +79,7 @@ export const sendStockExportEmail = async (req: Request, res: Response) => {
       });
     }
 
-    if (!attachmentBase64) {
+    if (!uploadedAttachment && !attachmentBase64) {
       return res.status(400).json({
         success: false,
         message: "Export attachment is required",
@@ -70,6 +91,7 @@ export const sendStockExportEmail = async (req: Request, res: Response) => {
       showPrice === true || String(showPrice).toLowerCase() === "true";
     const safeFileName = String(
       fileName ||
+        uploadedAttachment?.originalname ||
         (requestedKind === "catalog"
           ? includePrice
             ? "stock-catalog-with-price.pdf"
@@ -88,11 +110,12 @@ export const sendStockExportEmail = async (req: Request, res: Response) => {
     const attachmentFileName = isCatalog
       ? `Requested Stock List${includePrice ? "" : " - No Price"}.pdf`
       : `Requested Stock Data${includePrice ? "" : " - No Price"}.xlsx`;
-    const cleanBase64 = String(attachmentBase64).replace(
-      /^data:.*;base64,/,
-      "",
-    );
-    const attachmentBuffer = Buffer.from(cleanBase64, "base64");
+    const attachmentBuffer = uploadedAttachment?.buffer
+      ? uploadedAttachment.buffer
+      : Buffer.from(
+          String(attachmentBase64).replace(/^data:.*;base64,/, ""),
+          "base64",
+        );
 
     if (!attachmentBuffer.length) {
       return res.status(400).json({
