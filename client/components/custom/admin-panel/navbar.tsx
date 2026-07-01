@@ -24,7 +24,6 @@ export function Navbar({ title, userDetails }: NavbarProps) {
     storeName: userDetails?.storeName || "Store",
   };
 
-  console.log("Navbar user details:", userDetails);
   // Logic to hide username if it's identical to the display name
   const showUsername =
     user.username &&

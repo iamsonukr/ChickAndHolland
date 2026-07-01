@@ -51,7 +51,6 @@ const getCurrentStageLabel = (progress: any[]) => {
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
   const currentStage = sorted[sorted.length - 1];
-
   return String(
     currentStage?.stage || currentStage?.status || DEFAULT_ORDER_STAGE,
   );

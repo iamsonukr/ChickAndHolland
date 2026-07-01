@@ -47,7 +47,7 @@ export async function ContentLayout({ title, children }: ContentLayoutProps) {
     } catch {}
   }
 
-  if (userType === "RETAILER" && retailerId && !accountStoreName) {
+  if (userType === "RETAILER" && retailerId) {
     try {
       const response = await fetch(`${API_URL}/retailers/${retailerId}`, {
         headers: {
@@ -61,7 +61,7 @@ export async function ContentLayout({ title, children }: ContentLayoutProps) {
         const data = await response.json();
         const retailerData = data?.retailer ?? data?.data ?? data;
 
-        accountDisplayName ||= retailerData?.name;
+        accountDisplayName = retailerData?.name || accountDisplayName;
         accountUsername ||= retailerData?.username || accountDisplayName;
         accountStoreName ||= retailerData?.storeName;
       }

@@ -57,7 +57,7 @@ router.post(
 
     const tokenData = {
       id: retailer.id,
-      name: getCustomerStoreName(retailer.customer),
+      name: retailer.customer.name,
       customerStoreName: getCustomerStoreName(retailer.customer),
       storeName: retailer.customer.storeName,
       username: retailer.username,
@@ -75,7 +75,7 @@ router.post(
       message: "Retailer logged in successfully",
       token,
       retailerId: retailer.id,
-      name: getCustomerStoreName(retailer.customer),
+      name: retailer.customer.name,
       customerStoreName: getCustomerStoreName(retailer.customer),
       storeName: retailer.customer.storeName,
       username: retailer.username,
@@ -584,7 +584,7 @@ router.get(
         currencyId: retailer.customer.currencyId,
 
         // CUSTOMER FIELDS
-        name: getCustomerStoreName(retailer.customer),
+        name: retailer.customer.name,
         customerStoreName: getCustomerStoreName(retailer.customer),
         storeName: retailer.customer.storeName,
         storeAddress: retailer.customer.storeAddress,

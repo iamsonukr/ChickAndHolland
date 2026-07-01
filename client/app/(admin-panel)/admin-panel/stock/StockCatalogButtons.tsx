@@ -67,6 +67,9 @@ const stockExportOptions: {
 ];
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EXCEL_COLUMN_PADDING = 4;
+const EXCEL_MIN_COLUMN_WIDTH = 10;
+const EXCEL_MAX_COLUMN_WIDTH = 60;
 
 const isPdfFriendlyImage = (imageUrl: string) =>
   /\.(jpe?g|png)(?:$|\?)/i.test(imageUrl);
@@ -189,6 +192,12 @@ const getCellDisplayLength = (value: unknown) =>
     .replace(/\s+/g, " ")
     .trim().length;
 
+const getPaddedColumnWidth = (contentLength: number) =>
+  Math.min(
+    Math.max(contentLength + EXCEL_COLUMN_PADDING, EXCEL_MIN_COLUMN_WIDTH),
+    EXCEL_MAX_COLUMN_WIDTH,
+  );
+
 const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range) => {
   const widths = [];
 
@@ -200,7 +209,7 @@ const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range) => {
       longestValue = Math.max(longestValue, getCellDisplayLength(cell?.v));
     }
 
-    widths.push({ wch: Math.max(longestValue + 2, 10) });
+    widths.push({ wch: getPaddedColumnWidth(longestValue) });
   }
 
   return widths;

@@ -20,6 +20,7 @@ import ExpandStockDetails from "./ExpandStockDetails";
 import StockCatalogButtons from "./StockCatalogButtons";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import SizeSelector from "../../retailer-panel/inventory/SizeSelector";
 
 const ITEMS_PER_PAGE = 100;
 
@@ -96,6 +97,9 @@ const Stock = async (props: {
           </div>
         </div>
 
+        {/* SIZE DROPDOWN */}
+        <SizeSelector />
+
         {/* SEARCH */}
         <CustomSearchBar query={query} />
 
@@ -165,7 +169,13 @@ const Stock = async (props: {
                             Size
                           </TableCell>
                           <TableCell className="py-0 text-xs">
-                            {item.size} ({item.size_country})
+                            <span
+                              className="size-convert whitespace-normal break-words"
+                              data-eu={item.size}
+                              data-from={item.size_country}
+                            >
+                              {item.size} ({item.size_country})
+                            </span>
                           </TableCell>
                         </TableRow>
 

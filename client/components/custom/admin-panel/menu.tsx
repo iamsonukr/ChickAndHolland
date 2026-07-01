@@ -45,33 +45,45 @@ export function Menu({
   );
   const totalCount = freshCount + stockCount;
   const [liveDraftCount, setLiveDraftCount] = useState(draftCount);
+  const [liveDeletedCount, setLiveDeletedCount] = useState(0);
 
   useEffect(() => {
     let mounted = true;
-    const fetchCount = async () => {
+    const fetchOrderCount = async (params: Record<string, string>) => {
+      const requestUrl = new URL(getApiUrl("/orders"));
+      const token = getCookie("token") || localStorage.getItem("token");
+
+      Object.entries(params).forEach(([key, value]) => {
+        requestUrl.searchParams.set(key, value);
+      });
+
+      const res = await fetch(requestUrl.toString(), {
+        cache: "no-store",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const json = await res.json();
+
+      return json?.totalCount ?? json?.orders?.length ?? 0;
+    };
+
+    const fetchCounts = async () => {
       try {
-        const requestUrl = new URL(getApiUrl("/orders"));
-        const token = getCookie("token") || localStorage.getItem("token");
-
-        requestUrl.searchParams.set("page", "1");
-        requestUrl.searchParams.set("publishStatus", "draft");
-
-        const res = await fetch(requestUrl.toString(), {
-          cache: "no-store",
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
-        const json = await res.json();
+        const [draftTotal, deletedTotal] = await Promise.all([
+          fetchOrderCount({ page: "1", publishStatus: "draft" }),
+          fetchOrderCount({ page: "1", deletedOnly: "true" }),
+        ]);
         if (!mounted) return;
-        setLiveDraftCount(json?.totalCount ?? json?.orders?.length ?? 0);
+        setLiveDraftCount(draftTotal);
+        setLiveDeletedCount(deletedTotal);
       } catch (err) {
-        console.error("Error fetching draft count", err);
+        console.error("Error fetching order counts", err);
       }
     };
 
     // initial fetch
-    fetchCount();
+    fetchCounts();
     // poll every 15 seconds
-    const id = setInterval(fetchCount, 15000);
+    const id = setInterval(fetchCounts, 15000);
     return () => {
       mounted = false;
       clearInterval(id);
@@ -143,6 +155,12 @@ export function Menu({
                                     liveDraftCount > 0 && (
                                       <span className="absolute -right-2 -top-1 flex h-4 w-4 animate-bounce items-center justify-center rounded-full bg-red-600 text-[10px] text-white">
                                         {liveDraftCount}
+                                      </span>
+                                    )}
+                                  {label === "Deleted Orders" &&
+                                    liveDeletedCount > 0 && (
+                                      <span className="absolute -right-2 -top-1 flex h-4 w-4 animate-bounce items-center justify-center rounded-full bg-red-600 text-[10px] text-white">
+                                        {liveDeletedCount}
                                       </span>
                                     )}
                                   {label === "Order Request" &&

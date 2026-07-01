@@ -95,7 +95,24 @@ function useHttp<T = any>(
         ...restConfig,
       });
 
-      const responseJson = await response.json();
+      const contentType = response.headers.get("content-type") ?? "";
+      let responseJson: any;
+
+      try {
+        responseJson = contentType.includes("application/json")
+          ? await response.json()
+          : {
+              success: false,
+              message:
+                (await response.text()) ||
+                `Unexpected ${response.status} response from server`,
+            };
+      } catch {
+        responseJson = {
+          success: false,
+          message: `Invalid JSON response from server (${response.status})`,
+        };
+      }
 
       if (!response.ok || !responseJson.success) {
         // Try to extract the most useful error message from various backend shapes

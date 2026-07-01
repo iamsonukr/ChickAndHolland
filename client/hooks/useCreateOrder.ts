@@ -156,6 +156,15 @@ const getFirstFormErrorMessage = (errors: any): string | undefined => {
   return undefined;
 };
 
+const firstNonBlank = (...values: unknown[]) => {
+  for (const value of values) {
+    const text = String(value ?? "").trim();
+    if (text) return text;
+  }
+
+  return "";
+};
+
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
 function getTrailingPoNumber(poNumber?: string | null) {
@@ -251,10 +260,11 @@ function appendStyleFormData(
   );
   fd.append(
     `styles[${index}].beader`,
-    (normalizedStyle as any).beader ??
-      (normalizedStyle.styleNo?.[0] as any)?.beader ??
-      productDetails?.beader ??
-      "",
+    firstNonBlank(
+      (normalizedStyle as any).beader,
+      (normalizedStyle.styleNo?.[0] as any)?.beader,
+      productDetails?.beader,
+    ),
   );
   fd.append(
     `styles[${index}].mesh`,
@@ -442,7 +452,7 @@ export function buildPreviewData(
         currentItem.beadingColor ?? currentItem.beading,
         currentItem.product?.beading_color,
       ),
-      beader: currentItem.beader ?? currentItem.product?.beader ?? "",
+      beader: firstNonBlank(currentItem.beader, currentItem.product?.beader),
       lining: currentItem.lining,
       liningColor: resolvePreviewColour(
         currentItem.liningColor,

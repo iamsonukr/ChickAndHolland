@@ -61,6 +61,7 @@ import {
   getLowestStage,
 } from "../lib/stageFlow";
 import { buildRegularOrderStyleTotalSql } from "../lib/orderTotals";
+import { adjustStockInventoryForDeletedRetailerOrders } from "../services/stockInventory.service";
 
 import StoreStyleProgress from "../models/StoreStyleProgress"; // ⬅ top me import add karna
 // import { updateOrderAndStyleStatus } from "../services/orderStatus.service";
@@ -986,7 +987,7 @@ const buildRegularOrderPdfDetails = (
         item.mesh_color === "SAS" ? "SAS" : getColorName(item.mesh_color),
       beadingColor:
         item.beading_color === "SAS" ? "SAS" : getColorName(item.beading_color),
-      beader: item.beader || "",
+      beader: item.beader || item.product?.beader || "",
       lining: item.lining,
       liningColor:
         item.lining_color === "SAS" ? "SAS" : getColorName(item.lining_color),
@@ -1936,6 +1937,60 @@ router.post(
 );
 
 router.patch(
+  "/restore",
+  asyncHandler(async (req: Request, res: Response) => {
+    const bulk = Array.isArray(req.body?.bulk) ? req.body.bulk : [];
+
+    const regularIds: number[] = [];
+    const retailerIds: number[] = [];
+
+    bulk.forEach((item: any) => {
+      const id = Number(item?.id);
+      if (!id) return;
+
+      const source = String(item?.orderSource ?? "").toLowerCase();
+      const orderType = String(item?.orderType ?? "");
+      const isRetailerOrder = source
+        ? source === "retailer"
+        : orderType === "Fresh" || orderType === "Stock";
+
+      if (isRetailerOrder) {
+        retailerIds.push(id);
+      } else {
+        regularIds.push(id);
+      }
+    });
+
+    if (!regularIds.length && !retailerIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid orders selected to restore",
+      });
+    }
+
+    if (retailerIds.length) {
+      await adjustStockInventoryForDeletedRetailerOrders(retailerIds, "reserve");
+    }
+
+    if (regularIds.length) {
+      await Order.update({ id: In([...new Set(regularIds)]) }, { status: 0 });
+    }
+
+    if (retailerIds.length) {
+      await RetailerOrder.update(
+        { id: In([...new Set(retailerIds)]) },
+        { status: 0 },
+      );
+    }
+
+    return res.json({
+      success: true,
+      msg: "Order restored",
+    });
+  }),
+);
+
+router.patch(
   "/:id",
   raw({
     type: "multipart/form-data",
@@ -2849,11 +2904,11 @@ router.get(
     }),
   );
 
-  router.get(
-    "/beaders",
-    asyncHandler(async (_req: Request, res: Response) => {
-      const rows = await db.query(
-        `
+router.get(
+  "/beaders",
+  asyncHandler(async (_req: Request, res: Response) => {
+    const rows = await db.query(
+      `
         SELECT MIN(TRIM(ob.beader)) AS beader
         FROM \`${ORDER_BEADERS_TABLE}\` ob
         INNER JOIN orders o ON o.id = ob.orderId
@@ -2864,15 +2919,15 @@ router.get(
         GROUP BY LOWER(TRIM(ob.beader))
         ORDER BY LOWER(beader) ASC
         `,
-      );
+    );
 
-      return res.json({
-        success: true,
-        beaders: rows.map((row: any) => row.beader).filter(Boolean),
-      });
-    }),
-  );
-  
+    return res.json({
+      success: true,
+      beaders: rows.map((row: any) => row.beader).filter(Boolean),
+    });
+  }),
+);
+
   router.get(
     "/",
   asyncHandler(async (req: Request, res: Response) => {
@@ -3323,10 +3378,13 @@ router.get(
             ? detailedOrder?.customer
               ? {
                   id: detailedOrder.customer.id,
-                  name: getCustomerStoreName(detailedOrder.customer),
-                  customerStoreName: getCustomerStoreName(
-                    detailedOrder.customer,
-                  ),
+                  name: detailedOrder.customer.name ?? null,
+                  storeName: detailedOrder.customer.storeName ?? null,
+                  customerStoreName:
+                    detailedOrder.customer.storeName ??
+                    detailedOrder.customer.name ??
+                    null,
+                  contactPerson: detailedOrder.customer.contactPerson ?? null,
                   phoneNumber:
                     resolvedPhoneNumber ?? detailedOrder.customer.phoneNumber,
                   storeAddress: detailedOrder.customer.storeAddress,
@@ -3337,10 +3395,14 @@ router.get(
             : detailedOrder?.retailer?.customer
               ? {
                   id: detailedOrder.retailer.customer.id,
-                  name: getCustomerStoreName(detailedOrder.retailer.customer),
-                  customerStoreName: getCustomerStoreName(
-                    detailedOrder.retailer.customer,
-                  ),
+                  name: detailedOrder.retailer.customer.name ?? null,
+                  storeName: detailedOrder.retailer.customer.storeName ?? null,
+                  customerStoreName:
+                    detailedOrder.retailer.customer.storeName ??
+                    detailedOrder.retailer.customer.name ??
+                    null,
+                  contactPerson:
+                    detailedOrder.retailer.customer.contactPerson ?? null,
                   phoneNumber:
                     resolvedPhoneNumber ??
                     detailedOrder.retailer.customer.phoneNumber,

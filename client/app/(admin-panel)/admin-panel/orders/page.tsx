@@ -59,6 +59,24 @@ const tableHeadClassName =
 const tableCellClassName =
   "border border-border px-2 py-1.5 text-sm md:text-[15px] align-middle";
 
+const getStoreName = (order: any) =>
+  String(
+    order?.customer?.customerStoreName ||
+      order?.customer?.storeName ||
+      order?.retailer?.customer?.storeName ||
+      order?.retailer?.customer?.customerStoreName ||
+      "",
+  ).trim() || "N/A";
+
+const getCustomerPersonName = (order: any) =>
+  String(
+    order?.customer?.name ||
+      order?.customer?.contactPerson ||
+      order?.retailer?.customer?.name ||
+      order?.retailer?.customer?.contactPerson ||
+      "",
+  ).trim() || "N/A";
+
 const buildOrdersFilterHref = ({
   query,
   orderType,
@@ -358,7 +376,7 @@ const OrdersPage = async (props: {
             {/* Table */}
             <div className="w-full rounded-lg border border-border">
               <TableScrollWrapper>
-                <table className="w-full min-w-[1240px] border-collapse text-sm">
+                <table className="w-full min-w-[1360px] border-collapse text-sm">
                   <thead className="bg-muted/50">
                     <tr className="whitespace-nowrap [&>th]:align-middle">
                       <th
@@ -366,7 +384,12 @@ const OrdersPage = async (props: {
                       >
                         <Delete bulk={bulkData} type="bulk" />
                       </th>
-                      <th className={tableHeadClassName}>Customer</th>
+                      <th className={cn(tableHeadClassName, "w-[220px]")}>
+                        Store Name
+                      </th>
+                      <th className={cn(tableHeadClassName, "w-[220px]")}>
+                        Customer Name
+                      </th>
                       <th className={cn(tableHeadClassName, "w-[150px]")}>
                         PO#
                       </th>
@@ -441,14 +464,18 @@ const OrdersPage = async (props: {
                               />
                             </td>
 
-                            {/* Customer */}
+                            {/* Store Name */}
                             <td className={tableCellClassName}>
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold">
-                                  {order.customer?.name}
-                                </span>
-                                <span className="opacity-50">#{order.id}</span>
-                              </div>
+                              <span className="font-semibold">
+                                {getStoreName(order)}
+                              </span>
+                            </td>
+
+                            {/* Customer Name */}
+                            <td className={tableCellClassName}>
+                              <span className="font-semibold">
+                                {getCustomerPersonName(order)}
+                              </span>
                             </td>
 
                             {/* PO# */}

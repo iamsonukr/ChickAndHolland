@@ -342,10 +342,7 @@ const GroupedOrderPdf = ({
                                 <Text style={styles.variantInfoLabel}>QTY:</Text>
                                 <Text style={styles.variantInfoValue}>{variant.quantity ?? "-"}</Text>
                               </View>
-                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
-                                <Text style={styles.variantInfoLabel}>Beader:</Text>
-                                <Text style={styles.variantInfoValue}>{variant.beader || "-"}</Text>
-                              </View>
+                              
                               <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
                                 <Text style={styles.variantInfoLabel}>Color:</Text>
                               </View>
@@ -360,6 +357,9 @@ const GroupedOrderPdf = ({
                                   <Text style={styles.colorDetail}>-</Text>
                                 ) : null}
                               </View>
+                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
+                                <Text style={styles.variantInfoValue}>{variant.beader || "-"}</Text>
+                              </View>
                             </View>
                           </View>
 
@@ -373,8 +373,7 @@ const GroupedOrderPdf = ({
                                 />
                                 <Text style={styles.variantCodeText}>
                                   {normalizedBarcode?.split("-")[0]}
-                                  {"\n"}-
-                                  {normalizedBarcode?.split("-")[1]}
+                                  {"\n"}-{normalizedBarcode?.split("-")[1]}
                                 </Text>
                               </>
                             ) : (

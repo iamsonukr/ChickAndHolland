@@ -28,7 +28,7 @@ type ExportOrdersButtonProps = {
   currentStatus?: string;
 };
 
-const ORDER_EXPORT_DEFAULT_TITLE = "Pattern Status";
+const ORDER_EXPORT_DEFAULT_TITLE = "All Orders";
 const ORDER_EXPORT_TITLE_FILL = "F4CCCC";
 const ORDER_EXPORT_TITLE_FONT = "990000";
 const ORDER_EXPORT_HEADER_FILL = "1F4E78";
@@ -37,6 +37,8 @@ const ORDER_EXPORT_BLANK_ROWS = new Set([0, 2]);
 const ORDER_EXPORT_TITLE_ROW = 1;
 const ORDER_EXPORT_HEADER_ROW = 3;
 const ORDER_EXPORT_DATA_START_ROW = 4;
+const ORDER_EXPORT_COLUMN_PADDING = 4;
+const ORDER_EXPORT_MAX_COLUMN_WIDTH = 60;
 
 const ORDER_EXPORT_COLUMNS = [
   "Style No",
@@ -236,6 +238,12 @@ const getCellDisplayLength = (value: unknown) =>
     .replace(/\s+/g, " ")
     .trim().length;
 
+const getPaddedColumnWidth = (contentLength: number, minWidth: number) =>
+  Math.min(
+    Math.max(contentLength + ORDER_EXPORT_COLUMN_PADDING, minWidth),
+    ORDER_EXPORT_MAX_COLUMN_WIDTH,
+  );
+
 const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range) =>
   ORDER_EXPORT_COLUMNS.map((columnName, column) => {
     const layout = ORDER_EXPORT_COLUMN_LAYOUT[columnName];
@@ -247,7 +255,7 @@ const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range) =>
     }
 
     return {
-      wch: Math.max(longestValue + 2, layout.min),
+      wch: getPaddedColumnWidth(longestValue, layout.min),
     };
   });
 

@@ -300,7 +300,6 @@ const GroupedOrderPdf = ({
                                 <Text style={styles.variantInfoValue}>{variant.quantity ?? "-"}</Text>
                               </View>
                               <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
-                                <Text style={styles.variantInfoLabel}>Beader:</Text>
                                 <Text style={styles.variantInfoValue}>{variant.beader || "-"}</Text>
                               </View>
                               <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>

@@ -48,6 +48,7 @@ import {
   ORDER_STAGE_FLOW,
   getCanonicalStage,
 } from "../lib/stageFlow";
+import { adjustStockInventoryForDeletedRetailerOrders } from "../services/stockInventory.service";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
@@ -3178,6 +3179,7 @@ router.patch(
     });
 
     if (stock) {
+      await adjustStockInventoryForDeletedRetailerOrders([stock.id], "release");
       stock.status = 1;
       await stock.save();
     }
@@ -3228,6 +3230,11 @@ router.patch(
     });
 
     if (freshBulk.length > 0) {
+      await adjustStockInventoryForDeletedRetailerOrders(
+        freshBulk.map((item: any) => Number(item.id)),
+        "release",
+      );
+
       for (let index = 0; index < freshBulk.length; index++) {
         const stocks = await RetailerOrder.findOne({
           where: {
