@@ -37,8 +37,10 @@ const ORDER_EXPORT_BLANK_ROWS = new Set([0, 2]);
 const ORDER_EXPORT_TITLE_ROW = 1;
 const ORDER_EXPORT_HEADER_ROW = 3;
 const ORDER_EXPORT_DATA_START_ROW = 4;
-const ORDER_EXPORT_COLUMN_PADDING = 4;
-const ORDER_EXPORT_MAX_COLUMN_WIDTH = 60;
+const ORDER_EXPORT_COLUMN_PADDING = 8;
+const ORDER_EXPORT_WIDTH_SCALE = 1.2;
+const ORDER_EXPORT_DATA_ROW_HEIGHT = 24;
+const ORDER_EXPORT_LINE_HEIGHT = 18;
 
 const ORDER_EXPORT_COLUMNS = [
   "Style No",
@@ -49,19 +51,6 @@ const ORDER_EXPORT_COLUMNS = [
   "Beader",
   "Product Status",
 ];
-
-const ORDER_EXPORT_COLUMN_LAYOUT: Record<
-  string,
-  { min: number }
-> = {
-  "Style No": { min: 14 },
-  Size: { min: 5 },
-  Quantity: { min: 10 },
-  Color: { min: 15 },
-  "PO Number": { min: 22 },
-  Beader: { min: 12 },
-  "Product Status": { min: 14 },
-};
 
 const ORDER_EXPORT_PRINT_MARGINS = {
   left: 0.25,
@@ -233,31 +222,48 @@ const buildWorksheet = (rows: any[], title: string) => {
   return worksheet;
 };
 
-const getCellDisplayLength = (value: unknown) =>
-  String(value ?? "")
-    .replace(/\s+/g, " ")
-    .trim().length;
+const getCellDisplayMetrics = (value: unknown) => {
+  const lines = String(value ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim());
 
-const getPaddedColumnWidth = (contentLength: number, minWidth: number) =>
-  Math.min(
-    Math.max(contentLength + ORDER_EXPORT_COLUMN_PADDING, minWidth),
-    ORDER_EXPORT_MAX_COLUMN_WIDTH,
-  );
+  return {
+    lineCount: Math.max(lines.length, 1),
+    maxLineLength: Math.max(...lines.map((line) => line.length), 0),
+  };
+};
+
+const getPaddedColumnWidth = (contentLength: number) =>
+  Math.ceil(contentLength * ORDER_EXPORT_WIDTH_SCALE) +
+  ORDER_EXPORT_COLUMN_PADDING;
 
 const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range) =>
   ORDER_EXPORT_COLUMNS.map((columnName, column) => {
-    const layout = ORDER_EXPORT_COLUMN_LAYOUT[columnName];
     let longestValue = columnName.length;
 
     for (let row = ORDER_EXPORT_DATA_START_ROW; row <= range.e.r; row += 1) {
       const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
-      longestValue = Math.max(longestValue, getCellDisplayLength(cell?.v));
+      longestValue = Math.max(
+        longestValue,
+        getCellDisplayMetrics(cell?.v).maxLineLength,
+      );
     }
 
     return {
-      wch: getPaddedColumnWidth(longestValue, layout.min),
+      wch: getPaddedColumnWidth(longestValue),
     };
   });
+
+const getRowHeight = (worksheet: XLSX.WorkSheet, range: XLSX.Range, row: number) => {
+  let maxLineCount = 1;
+
+  for (let column = range.s.c; column <= range.e.c; column += 1) {
+    const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
+    maxLineCount = Math.max(maxLineCount, getCellDisplayMetrics(cell?.v).lineCount);
+  }
+
+  return Math.max(ORDER_EXPORT_DATA_ROW_HEIGHT, maxLineCount * ORDER_EXPORT_LINE_HEIGHT);
+};
 
 const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
   const ref = worksheet["!ref"];
@@ -357,7 +363,8 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
     }
   }
 
-  worksheet["!cols"] = getColumnWidths(worksheet, range);
+  const columnWidths = getColumnWidths(worksheet, range);
+  worksheet["!cols"] = columnWidths;
   worksheet["!rows"] = Array.from({ length: range.e.r + 1 }, (_, row) => ({
     hpt:
       row === ORDER_EXPORT_TITLE_ROW
@@ -366,7 +373,7 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
           ? 12
         : row === ORDER_EXPORT_HEADER_ROW
           ? 21
-          : 21,
+          : getRowHeight(worksheet, range, row),
   }));
   worksheet["!freeze"] = { xSplit: 0, ySplit: ORDER_EXPORT_DATA_START_ROW };
   worksheet["!margins"] = ORDER_EXPORT_PRINT_MARGINS;

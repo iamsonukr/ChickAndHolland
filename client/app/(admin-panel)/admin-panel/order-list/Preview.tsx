@@ -170,6 +170,7 @@ const buildRegularOrderDetails = (order: any, colors: any[]) => {
         item.beading_color === "SAS"
           ? "SAS"
           : getColorName(item.beading_color),
+      beader: item.beader || item.product?.beader || "",
       lining: item.lining,
       liningColor:
         item.lining_color === "SAS"
@@ -395,6 +396,7 @@ const Preview = ({
                 item.beading_color === std.beading_color
                   ? formatSasColor(getColorName(std.beading_color))
                   : getColorName(item.beading_color),
+              beader: item.beader || std.beader || "",
               lining: item.lining,
               liningColor:
                 item.lining_color === std.lining_color
@@ -451,6 +453,7 @@ const Preview = ({
                 item.beading_color === std.beading_color
                   ? formatSasColor(getColorName(std.beading_color))
                   : getColorName(item.beading_color),
+              beader: item.beader || std.beader || "",
               lining:
                 item.lining === std.lining
                   ? `SAS(${item.lining})`

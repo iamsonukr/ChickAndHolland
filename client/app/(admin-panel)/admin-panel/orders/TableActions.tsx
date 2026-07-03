@@ -243,6 +243,7 @@ const TableActions = ({ data }: { data: any }) => {
             item.beading_color === "SAS"
               ? "SAS"
               : getColorName(item.beading_color),
+          beader: item.beader || item.product?.beader || "",
           lining: item.lining,
           liningColor:
             item.lining_color === "SAS"
@@ -365,6 +366,7 @@ const TableActions = ({ data }: { data: any }) => {
                 i.beading_color === std.beading_color
                   ? formatSasColor(getColorName(std.beading_color))
                   : getColorName(i.beading_color),
+              beader: i.beader || std.beader || "",
 
               lining: i.lining === std.lining ? `SAS(${std.lining})` : i.lining,
 
@@ -442,6 +444,7 @@ const TableActions = ({ data }: { data: any }) => {
                 d.beading_color === std.beading_color
                   ? formatSasColor(getColorName(std.beading_color))
                   : getColorName(d.beading_color),
+              beader: d.beader || std.beader || "",
               lining: d.lining === std.lining ? `SAS(${d.lining})` : d.lining,
               liningColor:
                 d.lining_color === std.lining_color

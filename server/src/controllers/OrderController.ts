@@ -785,6 +785,42 @@ function mapOrderStyleCustomization(style: any) {
   };
 }
 
+async function applyResolvedRegularOrderBeaders(order: any) {
+  const orderId = Number(order?.id);
+  if (!orderId || !Array.isArray(order?.styles) || order.styles.length === 0) {
+    return order;
+  }
+
+  const rows = await db.query(
+    `
+    SELECT
+      s.id AS styleId,
+      TRIM(COALESCE(NULLIF(TRIM(s.beader), ''), ob.beader, p.beader)) AS beader
+    FROM orderStyles s
+    LEFT JOIN \`${ORDER_BEADERS_TABLE}\` ob ON ob.styleId = s.id
+    LEFT JOIN products p ON p.productCode = s.styleNo
+    WHERE s.orderId = ?
+    `,
+    [orderId],
+  );
+  const beadersByStyleId = new Map(
+    rows.map((row: any) => [Number(row.styleId), sanitizeText(row.beader)]),
+  );
+
+  return {
+    ...order,
+    styles: order.styles.map((style: any) => {
+      const beader = beadersByStyleId.get(Number(style.id)) || "";
+
+      return {
+        ...style,
+        beader,
+        product: style.product ? { ...style.product, beader } : style.product,
+      };
+    }),
+  };
+}
+
 const ORDER_PDF_EMAIL_LOG_PREFIX = "[AutoOrderPdfEmail]";
 
 const normalizeFieldArray = (value: any) => {
@@ -3604,6 +3640,7 @@ router.get(
       .leftJoinAndSelect("order.customer", "customer")
       .leftJoinAndSelect("order.styles", "styles")
       .leftJoinAndSelect("order.orderPayments", "orderPayments")
+      .addSelect("styles.beader")
       .where("order.id = :orderId", { orderId: Number(orderId) })
       .andWhere("order.status = 0")
       .andWhere(
@@ -3624,9 +3661,13 @@ router.get(
 
     const processedOrders = await processOrders([order]); // ← convert to array
 
+    const resolvedOrders = await Promise.all(
+      processedOrders.map(applyResolvedRegularOrderBeaders),
+    );
+
     res.json({
       success: true,
-      orders: processedOrders,
+      orders: resolvedOrders,
     });
   }),
 );

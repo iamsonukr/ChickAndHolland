@@ -72,16 +72,16 @@ const getCustomerOrderPhoneNumber = (customer: any) =>
 const applyCustomerOrderShippingDefaults = (
   data: CreateOrderForm,
   customer?: any,
+  options: { keepPhoneNumber?: boolean } = {},
 ): CreateOrderForm => {
   if (!customer) return data;
 
   return {
     ...data,
     address: firstNonBlank(data.address, getCustomerOrderAddress(customer)),
-    phoneNumber: firstNonBlank(
-      data.phoneNumber,
-      getCustomerOrderPhoneNumber(customer),
-    ),
+    phoneNumber: options.keepPhoneNumber
+      ? data.phoneNumber
+      : firstNonBlank(data.phoneNumber, getCustomerOrderPhoneNumber(customer)),
   };
 };
 
@@ -190,6 +190,9 @@ const firstNonBlank = (...values: unknown[]) => {
 
   return "";
 };
+
+const isFieldDirty = (form: any, name: string) =>
+  Boolean(form.getFieldState(name).isDirty);
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -1079,9 +1082,19 @@ export function useCreateOrder({
         (customer) =>
           String(customer.id) === String(data.customerId?.[0]?.value),
       ) ?? selectedCustomer;
+    const hasCustomAddressWithoutManualPhone =
+      isFieldDirty(form, "address") && !isFieldDirty(form, "phoneNumber");
     const orderData = isEditMode
       ? data
-      : applyCustomerOrderShippingDefaults(data, orderCustomer);
+      : applyCustomerOrderShippingDefaults(
+          hasCustomAddressWithoutManualPhone
+            ? { ...data, phoneNumber: "" }
+            : data,
+          orderCustomer,
+          {
+            keepPhoneNumber: hasCustomAddressWithoutManualPhone,
+          },
+        );
 
     if (isEditMode) {
       const dirtyFields = form.formState.dirtyFields as any;
@@ -1302,7 +1315,15 @@ export function useCreateOrder({
         (customer) =>
           String(customer.id) === String(data.customerId?.[0]?.value),
       ) ?? selectedCustomer;
-    const orderData = applyCustomerOrderShippingDefaults(data, orderCustomer);
+    const hasCustomAddressWithoutManualPhone =
+      isFieldDirty(form, "address") && !isFieldDirty(form, "phoneNumber");
+    const orderData = applyCustomerOrderShippingDefaults(
+      hasCustomAddressWithoutManualPhone ? { ...data, phoneNumber: "" } : data,
+      orderCustomer,
+      {
+        keepPhoneNumber: hasCustomAddressWithoutManualPhone,
+      },
+    );
     const fd = buildSharedFormData(orderData);
     appendDateField(fd, "orderReceivedDate", orderData.orderReceivedDate);
     appendDateField(fd, "orderCancellationDate", orderData.orderCancellationDate);
