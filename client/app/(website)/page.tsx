@@ -17,7 +17,7 @@ const FEATURES = [
     title: "Timeless Elegance",
     text: "Chic & Holland's aim is to design and create dresses that will never go out of style - something that our discerning customers will be able to enjoy and appreciate for many years to come.",
     href: "/product/1153",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/LossyCompressed/0C4A5453%20copy-LossyCompres.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/First-Section/0C4A6925%20copy.jpg",
     alt: "Timeless Elegance by Chic & Holland",
     reverse: false,
   },
@@ -25,7 +25,7 @@ const FEATURES = [
     title: "Truly Handmade",
     text: "We believe ourselves to be the guardians of this craft! In an age when everything is being made by machines, we chose to lovingly handcraft all of our garments at our own atelier.",
     href: "/product/1150",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/LossyCompressed/HF110537-LossyCompres.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/First-Section/0C4A8400%20copy.jpg",
     alt: "Truly Handmade craftsmanship by Chic & Holland",
     reverse: true,
   },
@@ -33,7 +33,7 @@ const FEATURES = [
     title: "Crystals & Embellishment",
     text: "One of our signature elements is our obsession with crystals. Each dress uses several types of crystals and beads, each using its own distinct language to communicate its purpose, accentuate a curve, and tell its own story.",
     href: "/product/1154",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/LossyCompressed/0C4A5674%20copy-LossyCompres.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/First-Section/0C4A8574%20copy.jpg",
     alt: "Crystals and embellishment details by Chic & Holland",
     reverse: false,
   },
@@ -193,7 +193,7 @@ export default function Home() {
       <div className="w-full bg-black">
         <div className="relative h-auto md:h-screen">
           <HomeHeroVideo
-            src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Landingpagevideo/newchic-video.mp4"
+            src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeVideos/HomeVideo.mp4"
             posterSrc="/Chic-Holland-HC-S26-037.jpg"
             posterAlt="Chic & Holland couture campaign"
           />
