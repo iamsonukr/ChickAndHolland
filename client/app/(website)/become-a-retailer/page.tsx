@@ -66,7 +66,7 @@ const BecomeARetailer = () => {
             {/* Mobile/tablet: use aspect ratio. Desktop (lg+): stretch to full height */}
             <div className="relative overflow-hidden rounded-sm aspect-[3/4] sm:aspect-[4/5] lg:aspect-auto lg:h-full">
               <video
-                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/IOS_Converted/Sequence_04_1_ios.mp4"
+                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/BecomeARetailer/Becomearetailer.mp4"
                 autoPlay
                 muted
                 loop

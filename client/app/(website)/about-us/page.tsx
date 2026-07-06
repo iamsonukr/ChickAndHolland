@@ -342,7 +342,7 @@ export default function BrandPage() {
             </div>
             <div className="about-slide-right order-1 md:order-2 md:w-[50%] opacity-0 transition-all duration-800 ease-out">
               <CustomizedImage
-                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/brand_page/0C4A5447%20copy.jpg"
+                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/AboutUs/CLASSIC%20MEET%20CONTEMPORARY.jpg"
                 alt="Chic & Holland - Brand page images"
                 unoptimized
                 ref={addToImagesRef}
@@ -358,7 +358,7 @@ export default function BrandPage() {
           >
             <div className="about-slide-left md:w-[50%] opacity-0 transition-all duration-800 ease-out">
               <CustomizedImage
-                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/brand_page/0C4A5809%20copy.jpg"
+                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/AboutUs/TIMELESS%20ELEGANCE.jpg"
                 alt="Chic & Holland - Brand page images"
                 unoptimized
                 ref={addToImagesRef}
@@ -410,7 +410,7 @@ export default function BrandPage() {
             </div>
             <div className="about-slide-right order-1 md:order-2 md:w-[50%] opacity-0 transition-all duration-800 ease-out">
               <CustomizedImage
-                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/brand_page/0C4A5674%20copy.jpg"
+                src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/AboutUs/TRULY%20HANDMADE.jpg"
                 alt="Chic & Holland - Brand page images"
                 unoptimized
                 ref={addToImagesRef}
