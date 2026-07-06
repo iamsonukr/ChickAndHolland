@@ -193,7 +193,7 @@ export default function Home() {
       <div className="w-full bg-black">
         <div className="relative h-auto md:h-screen">
           <HomeHeroVideo
-            src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeVideos/HomeVideo.mp4"
+            src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/HomeVideo.mp4"
             posterSrc="/Chic-Holland-HC-S26-037.jpg"
             posterAlt="Chic & Holland couture campaign"
           />
