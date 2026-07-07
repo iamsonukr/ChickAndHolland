@@ -236,6 +236,7 @@ const OrdersPage = async (props: {
   const bulkData = orders?.orders?.map((i: any) => ({
     id: i.id,
     orderType: i.orderType,
+    orderSource: i.orderSource,
   }));
   const filteredOrders =
     orders?.orders?.filter((order: any) => {
@@ -406,7 +407,7 @@ const OrdersPage = async (props: {
             {/* Table */}
             <div className="w-full rounded-lg border border-border">
               <TableScrollWrapper>
-                <table className="w-full min-w-[1360px] border-collapse text-sm">
+                <table className="w-full min-w-[1660px] border-collapse text-sm">
                   <thead className="bg-muted/50">
                     <tr className="whitespace-nowrap [&>th]:align-middle">
                       <th
@@ -422,6 +423,12 @@ const OrdersPage = async (props: {
                       </th>
                       <th className={cn(tableHeadClassName, "w-[150px]")}>
                         PO#
+                      </th>
+                      <th className={cn(tableHeadClassName, "w-[150px]")}>
+                        Estimate No
+                      </th>
+                      <th className={cn(tableHeadClassName, "w-[150px]")}>
+                        Invoice No
                       </th>
                       <th className={cn(tableHeadClassName, "w-[140px]")}>
                         Order Type
@@ -490,6 +497,7 @@ const OrdersPage = async (props: {
                               <Delete
                                 id={order.id}
                                 orderType={order.orderType}
+                                orderSource={order.orderSource}
                                 type="single"
                               />
                             </td>
@@ -511,6 +519,14 @@ const OrdersPage = async (props: {
                             {/* PO# */}
                             <td className={cn(tableCellClassName, "font-mono")}>
                               {order.purchaeOrderNo}
+                            </td>
+
+                            <td className={cn(tableCellClassName, "font-mono")}>
+                              {order.estimateNo || "-"}
+                            </td>
+
+                            <td className={cn(tableCellClassName, "font-mono")}>
+                              {order.invoiceNo || "-"}
                             </td>
 
                             {/* Order Type */}
@@ -617,7 +633,7 @@ const OrdersPage = async (props: {
                     ) : (
                       <tr>
                         <td
-                          colSpan={showContact ? 12 : 10}
+                          colSpan={showContact ? 14 : 12}
                           className="border border-border py-10 text-center text-base text-muted-foreground"
                         >
                           <div className="flex flex-col items-center gap-1">

@@ -1693,6 +1693,8 @@ router.post(
         );
         const address = fields["address"];
         const phoneNumber = fields["phoneNumber"];
+        const estimateNo = fields["estimate"];
+        const invoiceNo = fields["invoice"];
         const customerId = parsePositiveInteger(fields["customerId"]);
         const publishStatus = parsePublishStatus(fields["publishStatus"]);
         const isDraft = publishStatus === OrderPublishStatus.Draft;
@@ -1768,6 +1770,8 @@ router.post(
         order.orderCancellationDate = (orderCancellationDate ?? null) as any;
         order.address = address;
         order.phoneNumber = sanitizeText(phoneNumber) || null;
+        order.estimateNo = sanitizeText(estimateNo) || null;
+        order.invoiceNo = sanitizeText(invoiceNo) || null;
         order.publishStatus = publishStatus;
         if (customer) order.customer = customer;
 
@@ -2202,6 +2206,12 @@ router.patch(
         if (hasField("phoneNumber")) {
           order.phoneNumber = sanitizeText(fields["phoneNumber"]) || null;
         }
+        if (hasField("estimate")) {
+          order.estimateNo = sanitizeText(fields["estimate"]) || null;
+        }
+        if (hasField("invoice")) {
+          order.invoiceNo = sanitizeText(fields["invoice"]) || null;
+        }
         if (fields["publishStatus"]) {
           order.publishStatus = parsePublishStatus(fields["publishStatus"]);
         }
@@ -2625,6 +2635,66 @@ async function processOrders(orders: any[]) {
   }
 }
 
+const parseSelectedExportOrders = (value: unknown) => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  if (typeof rawValue !== "string" || !rawValue.trim()) {
+    return {
+      hasSelection: false,
+      regularIds: [] as number[],
+      retailerIds: [] as number[],
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    const selectedOrders = Array.isArray(parsed) ? parsed : [];
+    const regularIds = new Set<number>();
+    const retailerIds = new Set<number>();
+
+    selectedOrders.forEach((item: any) => {
+      const id = Number(item?.id);
+      if (!Number.isInteger(id) || id <= 0) return;
+
+      const orderSource = String(item?.orderSource || "").toLowerCase();
+      const orderType = String(item?.orderType || "");
+
+      if (
+        orderSource === "retailer" ||
+        (!orderSource && ["Fresh", "Stock"].includes(orderType))
+      ) {
+        retailerIds.add(id);
+        return;
+      }
+
+      regularIds.add(id);
+    });
+
+    return {
+      hasSelection: true,
+      regularIds: [...regularIds],
+      retailerIds: [...retailerIds],
+    };
+  } catch {
+    return {
+      hasSelection: true,
+      regularIds: [] as number[],
+      retailerIds: [] as number[],
+    };
+  }
+};
+
+const appendIdFilter = (
+  where: string[],
+  params: any[],
+  columnName: string,
+  ids: number[],
+) => {
+  if (!ids.length) return;
+
+  where.push(`${columnName} IN (${ids.map(() => "?").join(",")})`);
+  params.push(...ids);
+};
+
 router.get(
   "/export-products",
   asyncHandler(async (req: Request, res: Response) => {
@@ -2634,17 +2704,31 @@ router.get(
         stage,
         due,
         beader,
+        selectedOrders,
       }: {
         query?: string;
         orderType?: string;
         stage?: string;
         due?: string;
         beader?: string;
+        selectedOrders?: string;
       } = req.query;
-  
+   
       const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
       const beaderFilter = String(beader || "").trim();
       const hasBeaderFilter = Boolean(beaderFilter);
+      const selectedExportOrders = parseSelectedExportOrders(selectedOrders);
+
+      if (
+        selectedExportOrders.hasSelection &&
+        selectedExportOrders.regularIds.length === 0 &&
+        selectedExportOrders.retailerIds.length === 0
+      ) {
+        return res.json({
+          success: true,
+          data: [],
+        });
+      }
 
     const regularWhere = [
       "o.status = 0",
@@ -2667,10 +2751,14 @@ router.get(
     }
 
       const includeRegular =
-        !orderType || !["Fresh", "Stock"].includes(String(orderType));
+        selectedExportOrders.hasSelection
+          ? selectedExportOrders.regularIds.length > 0
+          : !orderType || !["Fresh", "Stock"].includes(String(orderType));
       const includeRetailer =
         !hasBeaderFilter &&
-        (!orderType || ["Fresh", "Stock"].includes(String(orderType)));
+        (selectedExportOrders.hasSelection
+          ? selectedExportOrders.retailerIds.length > 0
+          : !orderType || ["Fresh", "Stock"].includes(String(orderType)));
 
       if (orderType && includeRegular) {
         regularWhere.push("o.orderType = ?");
@@ -2681,6 +2769,19 @@ router.get(
         regularWhere.push("LOWER(ob.beader) = LOWER(?)");
         regularParams.push(beaderFilter);
       }
+
+      appendIdFilter(
+        regularWhere,
+        regularParams,
+        "o.id",
+        selectedExportOrders.regularIds,
+      );
+      appendIdFilter(
+        retailerWhere,
+        retailerParams,
+        "ro.id",
+        selectedExportOrders.retailerIds,
+      );
 
     if (orderType === "Fresh") {
       retailerWhere.push("ro.is_stock_order = 0");
@@ -3012,6 +3113,8 @@ router.get(
         "o.orderCancellationDate as orderCancellationDate",
         "o.address as address",
         "o.phoneNumber as phoneNumber",
+        "o.estimateNo as estimateNo",
+        "o.invoiceNo as invoiceNo",
         "o.orderStatus as orderStatus",
         "o.shippingStatus as shippingStatus",
         "o.shippingDate as shippingDate",
@@ -3039,7 +3142,7 @@ router.get(
 
     if (likeQuery) {
       regularOrdersQuery.andWhere(
-        "(LOWER(o.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
+        "(LOWER(o.purchaeOrderNo) LIKE :likeQuery OR LOWER(o.estimateNo) LIKE :likeQuery OR LOWER(o.invoiceNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
         { likeQuery },
       );
     }
@@ -3062,6 +3165,8 @@ router.get(
         "ro.orderCancellationDate as orderCancellationDate",
         "ro.address as address",
         "NULL as phoneNumber",
+        "ro.estimateNo as estimateNo",
+        "ro.invoiceNo as invoiceNo",
         "ro.orderStatus as orderStatus",
         "ro.shippingStatus as shippingStatus",
         "ro.shippingDate as shippingDate",
@@ -3080,7 +3185,7 @@ router.get(
 
     if (likeQuery) {
       retailerOrdersQuery.andWhere(
-        "(LOWER(ro.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
+        "(LOWER(ro.purchaeOrderNo) LIKE :likeQuery OR LOWER(ro.estimateNo) LIKE :likeQuery OR LOWER(ro.invoiceNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
         { likeQuery },
       );
     }
@@ -3381,6 +3486,8 @@ router.get(
         orderCancellationDate: formatDateOnly(baseOrder.orderCancellationDate),
         address: resolvedAddress,
         phoneNumber: resolvedPhoneNumber,
+        estimateNo: baseOrder.estimateNo ?? null,
+        invoiceNo: baseOrder.invoiceNo ?? null,
         orderStatus: computedOrderStatus,
         shippingStatus: baseOrder.shippingStatus,
         shippingDate: baseOrder.shippingDate,

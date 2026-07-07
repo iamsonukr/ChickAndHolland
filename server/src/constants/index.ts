@@ -45,6 +45,7 @@ export const TABLE_NAMES = {
   CURRENCIES: "currencies",
   PRODUCT_CURRENCY_PRICING: "product_currency_pricing",
   PRODUCT_QUERIES: "product_queries",
+  BEADERS: "beaders",
   STOCK_CURRENCY_PRICING: "stock_currency_pricing",
   PAGE_ACTIONS: "page_action",
     COLOR_CHART: "color_chart",

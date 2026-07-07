@@ -32,21 +32,19 @@ const normalizeEmailList = (value: unknown) => {
     ? value
     : typeof value === "string"
       ? (() => {
-          const trimmedValue = value.trim();
-
-          if (trimmedValue.startsWith("[") && trimmedValue.endsWith("]")) {
-            try {
-              const parsedValue = JSON.parse(trimmedValue);
-              if (Array.isArray(parsedValue)) return parsedValue;
-            } catch {
-              // Treat invalid JSON as a plain email value.
-            }
+        const trimmedValue = value.trim();
+        if (trimmedValue.startsWith("[") && trimmedValue.endsWith("]")) {
+          try {
+            const parsedValue = JSON.parse(trimmedValue);
+            if (Array.isArray(parsedValue)) return parsedValue;
+          } catch {
+            // Treat invalid JSON as a plain email value.
           }
-
-          return trimmedValue.includes(",")
-            ? trimmedValue.split(",")
-            : [trimmedValue];
-        })()
+        }
+        return trimmedValue.includes(",")
+          ? trimmedValue.split(",")
+          : [trimmedValue];
+      })()
       : [value];
 
   return Array.from(
@@ -91,31 +89,30 @@ export const sendStockExportEmail = async (req: Request, res: Response) => {
       showPrice === true || String(showPrice).toLowerCase() === "true";
     const safeFileName = String(
       fileName ||
-        uploadedAttachment?.originalname ||
-        (requestedKind === "catalog"
-          ? includePrice
-            ? "stock-catalog-with-price.pdf"
-            : "stock-catalog-without-price.pdf"
-          : includePrice
-            ? "stock-data-with-price.xlsx"
-            : "stock-data-without-price.xlsx"),
+      uploadedAttachment?.originalname ||
+      (requestedKind === "catalog"
+        ? includePrice
+          ? "stock-catalog-with-price.pdf"
+          : "stock-catalog-without-price.pdf"
+        : includePrice
+          ? "stock-data-with-price.xlsx"
+          : "stock-data-without-price.xlsx"),
     ).replace(/[\\/:*?"<>|]/g, "-");
     const isCatalog =
       requestedKind === "catalog" || safeFileName.toLowerCase().endsWith(".pdf");
     const exportLabel = isCatalog ? "stock list" : "stock data";
     const priceLabel = includePrice ? "with price" : "without price";
-    const emailSubject = isCatalog
+    const emailSubjectBase = isCatalog
       ? "Requested stock list attached"
       : "Requested stock data attached";
-    const attachmentFileName = isCatalog
-      ? `Requested Stock List${includePrice ? "" : " - No Price"}.pdf`
-      : `Requested Stock Data${includePrice ? "" : " - No Price"}.xlsx`;
+    const emailSubject = `${emailSubjectBase}${includePrice ? "-p" : ""}`;
+    const attachmentFileName = `${emailSubject}${isCatalog ? ".pdf" : ".xlsx"}`;
     const attachmentBuffer = uploadedAttachment?.buffer
       ? uploadedAttachment.buffer
       : Buffer.from(
-          String(attachmentBase64).replace(/^data:.*;base64,/, ""),
-          "base64",
-        );
+        String(attachmentBase64).replace(/^data:.*;base64,/, ""),
+        "base64",
+      );
 
     if (!attachmentBuffer.length) {
       return res.status(400).json({
@@ -387,7 +384,7 @@ export const sendStockEmail = async (req: Request, res: Response) => {
         y: 4.1,
         fontSize: 14,
         bold: true,
-underline: { style: "sng" },
+        underline: { style: "sng" },
         color: pink,
       });
 
@@ -406,26 +403,26 @@ underline: { style: "sng" },
       /* ================= MAIN IMAGE ================= */
       if (item.image) {
         // IMAGE BORDER
-slide.addShape(ppt.ShapeType.rect, {
-  x: 8,
-  y: 1.5,
-  w: 5,
-  h: 5.5,
-  line: border,
-  fill: { color: "FFFFFF" },
-});
+        slide.addShape(ppt.ShapeType.rect, {
+          x: 8,
+          y: 1.5,
+          w: 5,
+          h: 5.5,
+          line: border,
+          fill: { color: "FFFFFF" },
+        });
 
-// IMAGE
-slide.addImage({
-  data: item.image,
-  x: 8,
-  y: 1.5,
-  w: 5,
-  h: 5.5,
-});
+        // IMAGE
+        slide.addImage({
+          data: item.image,
+          x: 8,
+          y: 1.5,
+          w: 5,
+          h: 5.5,
+        });
 
       }
-      
+
     }
 
     /* ================= EXPORT PPT FOR EMAIL ================= */
@@ -435,11 +432,11 @@ slide.addImage({
     const pdfBuffer = await generateOrderPdf(orderData);
 
 
-  try {
-  await mail({
-    to: orderData.manufacturingEmailAddress,
-    subject: orderData.purchaseOrderNo,
-    html: `
+    try {
+      await mail({
+        to: orderData.manufacturingEmailAddress,
+        subject: orderData.purchaseOrderNo,
+        html: `
     <div style="font-family: Arial, sans-serif; font-size:14px; color:#000;">
       <p>Hello,</p>
 
@@ -461,23 +458,23 @@ slide.addImage({
       </p>
     </div>
   `,
-  attachments: [
-      {
-        filename: `${orderData.purchaseOrderNo}.pdf`,
-        content: pdfBuffer,
-      },
-    ],
-  });
+        attachments: [
+          {
+            filename: `${orderData.purchaseOrderNo}.pdf`,
+            content: pdfBuffer,
+          },
+        ],
+      });
 
-  console.log("✅ MAIL SENT TO →", orderData.manufacturingEmailAddress);
-} catch (mailErr) {
-  console.error("❌ SMTP MAIL FAILED →", mailErr);
+      console.log("✅ MAIL SENT TO →", orderData.manufacturingEmailAddress);
+    } catch (mailErr) {
+      console.error("❌ SMTP MAIL FAILED →", mailErr);
 
-  return res.status(500).json({
-    success: false,
-    message: "SMTP mail failed",
-  });
-}
+      return res.status(500).json({
+        success: false,
+        message: "SMTP mail failed",
+      });
+    }
 
     return res.json({ success: true, message: "Email sent with PPT" });
   } catch (error: any) {

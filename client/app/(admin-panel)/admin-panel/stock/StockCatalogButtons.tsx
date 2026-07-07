@@ -126,14 +126,14 @@ const downloadBlob = (blob: Blob, fileName: string) => {
 
 const buildExcelFileName = (showPrice: boolean) => {
   return showPrice
-    ? "Excel Stocklist - With Price.xlsx"
-    : "Excel Stocklist - Without Price.xlsx";
+    ? "Requested stock data attached-p.xlsx"
+    : "Requested stock data attached.xlsx";
 };
 
 const buildCatalogFileName = (showPrice: boolean) =>
   showPrice
-    ? "Stocklist Catalogue - With Price.pdf"
-    : "Stocklist Catalogue - Without Price.pdf";
+    ? "Requested stock list attached-p.pdf"
+    : "Requested stock list attached.pdf";
 
 const getColourName = (colours: any[] = [], colourValue?: string | null) => {
   if (!colourValue) return "-";

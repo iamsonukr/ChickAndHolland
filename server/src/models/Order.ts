@@ -100,6 +100,12 @@ export default class Order extends BaseModel {
   @Column("varchar", { length: 225, nullable: true })
   phoneNumber: string | null;
 
+  @Column("varchar", { length: 225, nullable: true })
+  invoiceNo: string | null;
+
+  @Column("varchar", { length: 225, nullable: true })
+  estimateNo: string | null;
+
   @Column("enum", { enum: OrderStatus, default: OrderStatus.Pattern })
   orderStatus: OrderStatus;
 

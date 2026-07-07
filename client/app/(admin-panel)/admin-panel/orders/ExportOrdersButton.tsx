@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { API_URL } from "@/lib/constants";
 import { getCookie } from "@/lib/utils";
+import { useItems } from "./Delete";
 
 if (typeof window !== "undefined") {
   (window as any).JSZip = JSZip;
@@ -399,6 +400,9 @@ export default function ExportOrdersButton({
   currentStatus,
 }: ExportOrdersButtonProps) {
   const [exporting, setExporting] = useState(false);
+  const { items: selectedOrders } = useItems();
+  const shouldExportSelectedOrders =
+    !providedRows && selectedOrders.length > 0;
 
   const handleExport = async () => {
     setExporting(true);
@@ -410,6 +414,9 @@ export default function ExportOrdersButton({
       if (stage) params.set("stage", stage);
       if (due) params.set("due", due);
       if (beader) params.set("beader", beader);
+      if (shouldExportSelectedOrders) {
+        params.set("selectedOrders", JSON.stringify(selectedOrders));
+      }
 
       let rows = providedRows;
 
@@ -466,7 +473,11 @@ export default function ExportOrdersButton({
         workbook,
         fileName ?? buildExportFileName(exportFilters, currentStatus),
       );
-      toast.success(successMessage);
+      toast.success(
+        shouldExportSelectedOrders
+          ? `Selected orders exported successfully`
+          : successMessage,
+      );
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to export orders");
     } finally {
@@ -483,7 +494,11 @@ export default function ExportOrdersButton({
       className="gap-2"
     >
       <Download className="h-4 w-4" />
-      {exporting ? "Exporting..." : buttonLabel}
+      {exporting
+        ? "Exporting..."
+        : shouldExportSelectedOrders
+          ? `Export Selected (${selectedOrders.length})`
+          : buttonLabel}
     </Button>
   );
 }

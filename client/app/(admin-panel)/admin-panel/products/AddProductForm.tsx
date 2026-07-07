@@ -54,6 +54,8 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getProductColours } from "@/lib/data";
+import BeaderSelectField from "@/components/BeaderSelectField";
+import { fetchBeaders } from "@/lib/beaders";
 
 const lining = [
   "No Lining",
@@ -139,6 +141,7 @@ const AddProductForm = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [colors, setColors] = useState([]);
+  const [beaders, setBeaders] = useState<any[]>([]);
   const [currencyComboboxOpen, setCurrencyComboboxOpen] = useState<{
     [key: number]: boolean;
   }>({});
@@ -219,6 +222,16 @@ const AddProductForm = ({
     }
   };
 
+  const beadersFun = async () => {
+    try {
+      const response = await fetchBeaders();
+      setBeaders(response);
+    } catch (error) {
+      console.error("Failed to fetch beaders:", error);
+      setBeaders([]);
+    }
+  };
+
   const watchedCategoryId = form.watch("categoryId");
   const watchedLining = form.watch("lining");
 const selectedCategory = form.watch("categoryId");
@@ -257,6 +270,7 @@ const filteredCollections = selectedCategory
 
   useEffect(() => {
     colorsFun();
+    beadersFun();
   }, []);
 
   // Listen for a global event to open the Add Product sheet programmatically
@@ -675,13 +689,11 @@ const filteredCollections = selectedCategory
               control={form.control}
               name="beader"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Beader</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter beader name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                <BeaderSelectField
+                  value={field.value}
+                  onChange={field.onChange}
+                  beaders={beaders}
+                />
               )}
             />
 

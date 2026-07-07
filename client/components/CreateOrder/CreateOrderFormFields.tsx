@@ -49,6 +49,7 @@ interface CreateOrderFormFieldsProps {
   fields: FieldArrayWithId<CreateOrderForm, "styles">[];
   fullComponentWatch: CreateOrderForm["styles"];
   colors: any[];
+  beaders: any[];
   productCategories: any[];
   productSubCategories: any[];
   currencies: any[];
@@ -88,6 +89,7 @@ export function CreateOrderFormFields({
   fields,
   fullComponentWatch,
   colors,
+  beaders,
   productCategories,
   productSubCategories,
   currencies,
@@ -203,25 +205,6 @@ export function CreateOrderFormFields({
         {/* ── Purchase Order No ── */}
         <FormField
           control={form.control}
-          name="phoneNumber"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Phone Number</FormLabel>
-              <FormControl>
-                <Input
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="Customer phone number"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
           name="purchaseOrderNo"
           render={({ field }) => (
             <FormItem>
@@ -235,6 +218,34 @@ export function CreateOrderFormFields({
         />
 
         {/* ── Manufacturing Email ── */}
+        <FormField
+          control={form.control}
+          name="estimate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Estimate No</FormLabel>
+              <FormControl>
+                <Input placeholder="EB_123ABC" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="invoice"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Invoice No</FormLabel>
+              <FormControl>
+                <Input placeholder="IN_123ABC" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <FormField
           control={form.control}
           name="manufacturingEmailAddress"
@@ -412,6 +423,26 @@ export function CreateOrderFormFields({
           )}
         />
 
+        {/* ── Phone Number ── */}
+        <FormField
+          control={form.control}
+          name="phoneNumber"
+          render={({ field }) => (
+            <FormItem className="md:col-span-3">
+              <FormLabel>Phone Number</FormLabel>
+              <FormControl>
+                <Input
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="Customer phone number"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         {/* ── Styles list ── */}
         <div className="!mt-4 space-y-2 md:col-span-3">
           <div className="flex items-center justify-between">
@@ -428,6 +459,7 @@ export function CreateOrderFormFields({
               index={index}
               fieldId={fields[index]?.id ?? String(index)}
               colors={colors}
+              beaders={beaders}
               productCategories={productCategories}
               productSubCategories={productSubCategories}
               currencies={currencies}

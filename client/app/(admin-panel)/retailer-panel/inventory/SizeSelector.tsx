@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -33,8 +34,75 @@ const convert = (euSize: number, from: string, to: string) => {
   return row[to as keyof typeof row];
 };
 
-export default function SizeSelector() {
-  const [type, setType] = useState("EU");
+type CurrencyOption = {
+  id: number | string;
+  code?: string;
+  name?: string;
+  symbol?: string;
+};
+
+type SizeSelectorProps = {
+  currencies?: CurrencyOption[];
+  currentCurrencyId?: number | string;
+  syncCurrency?: boolean;
+};
+
+const sizeCurrencyCode: Record<string, string> = {
+  EU: "EUR",
+  IT: "EUR",
+  US: "USD",
+  UK: "GBP",
+};
+
+const sizeSystems = new Set(Object.keys(sizeCurrencyCode));
+
+const getCookieValue = (name: string) => {
+  if (typeof document === "undefined") return undefined;
+
+  return document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${name}=`))
+    ?.split("=")[1];
+};
+
+const sizeSystemForCurrency = (currency?: CurrencyOption) => {
+  const code = currency?.code?.toUpperCase();
+
+  if (code === "USD") return "US";
+  if (code === "GBP") return "UK";
+
+  return "EU";
+};
+
+export default function SizeSelector({
+  currencies = [],
+  currentCurrencyId,
+  syncCurrency = false,
+}: SizeSelectorProps) {
+  const router = useRouter();
+  const currentCurrency = currencies.find(
+    (currency) => String(currency.id) === String(currentCurrencyId),
+  );
+  const [type, setType] = useState(() =>
+    syncCurrency ? sizeSystemForCurrency(currentCurrency) : "EU",
+  );
+
+  useEffect(() => {
+    if (!syncCurrency) return;
+
+    const savedSizeSystem = getCookieValue("stockSizeSystem");
+
+    if (
+      savedSizeSystem &&
+      sizeSystems.has(savedSizeSystem) &&
+      sizeCurrencyCode[savedSizeSystem] === currentCurrency?.code?.toUpperCase()
+    ) {
+      setType(savedSizeSystem);
+      return;
+    }
+
+    setType(sizeSystemForCurrency(currentCurrency));
+  }, [currentCurrency?.id, syncCurrency]);
 
   useEffect(() => {
     const all = document.querySelectorAll(".size-convert");
@@ -48,6 +116,28 @@ export default function SizeSelector() {
     });
   }, [type]);
 
+  const handleTypeChange = (value: string) => {
+    setType(value);
+
+    if (!syncCurrency) return;
+
+    document.cookie = `stockSizeSystem=${encodeURIComponent(
+      value,
+    )}; path=/; max-age=31536000; SameSite=Lax`;
+
+    const currencyCode = sizeCurrencyCode[value];
+    const selectedCurrency = currencies.find(
+      (currency) => currency.code?.toUpperCase() === currencyCode,
+    );
+
+    if (!selectedCurrency) return;
+
+    document.cookie = `currencyId=${encodeURIComponent(
+      String(selectedCurrency.id),
+    )}; path=/; max-age=31536000; SameSite=Lax`;
+    router.refresh();
+  };
+
   return (
     <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-2 sm:gap-3">
 
@@ -55,7 +145,7 @@ export default function SizeSelector() {
         🌍 Please select the country based on your size
       </p>
 
-      <Select value={type} onValueChange={(v) => setType(v)}>
+      <Select value={type} onValueChange={handleTypeChange}>
         <SelectTrigger className="w-full sm:w-[200px] bg-white dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-600 text-neutral-900 dark:text-neutral-100">
           <SelectValue placeholder="Select size system" />
         </SelectTrigger>

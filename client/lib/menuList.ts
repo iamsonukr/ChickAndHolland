@@ -181,6 +181,13 @@ export function getMenuList(pathname: string, userType: any): Group[] {
             submenus: [],
           },
           {
+            href: "/admin-panel/products/beaders",
+            label: "Beaders",
+            active: pathname.includes("/products/beaders"),
+            icon: User,
+            submenus: [],
+          },
+          {
             href: "/admin-panel/products",
             label: "Products",
             active: pathname === "/admin-panel/products",

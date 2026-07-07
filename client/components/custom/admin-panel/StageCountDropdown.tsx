@@ -22,11 +22,17 @@ export default function StageCountDropdown({
   value,
   onChange,
   className,
+  headerLabel = "Stage",
+  countLabel = "Quantity",
+  placeholder = "Filter by stage",
 }: {
   options: StageCountDropdownOption[];
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  headerLabel?: string;
+  countLabel?: string;
+  placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const selectedOption = options.find((option) => option.value === value);
@@ -50,7 +56,7 @@ export default function StageCountDropdown({
           <span className="truncate">
             {selectedOption
               ? `${selectedOption.label} (${selectedOption.count})`
-              : "Filter by stage"}
+              : placeholder}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
         </Button>
@@ -58,8 +64,10 @@ export default function StageCountDropdown({
       <PopoverContent align="start" className="w-[320px] max-w-[92vw] p-0">
         <div className="rounded-md bg-white text-sm">
           <div className="grid grid-cols-[1fr_88px] border-b bg-slate-100 text-xs font-semibold uppercase text-slate-600">
-            <div className="border-r border-slate-200 px-3 py-2">Stage</div>
-            <div className="px-3 py-2 text-right">Quantity</div>
+            <div className="border-r border-slate-200 px-3 py-2">
+              {headerLabel}
+            </div>
+            <div className="px-3 py-2 text-right">{countLabel}</div>
           </div>
           <div className="max-h-80 overflow-y-auto">
             {options.map((option) => {

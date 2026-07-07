@@ -96,10 +96,12 @@ import {
   addProductFormSchema,
 } from "@/lib/formSchemas";
 import useHttp from "@/lib/hooks/usePost";
+import { fetchBeaders } from "@/lib/beaders";
 
 export function useEditProductSheet(data: ProductData, currencies: Currency[]) {
   const [open, setOpen] = useState(false);
   const [colours, setColours] = useState<Colour[]>([]);
+  const [beaders, setBeaders] = useState<any[]>([]);
   const [coloursLoading, setColoursLoading] = useState(false);
   const [coloursError, setColoursError] = useState(false);
   const [isFormInitialized, setIsFormInitialized] = useState(false);
@@ -183,14 +185,24 @@ const loadColours = useCallback(async () => {
   }
 }, []);
 
+const loadBeaders = useCallback(async () => {
+  try {
+    const productBeaders = await fetchBeaders();
+    setBeaders(productBeaders);
+  } catch {
+    setBeaders([]);
+  }
+}, []);
+
 // 3. Update handleOpenChange to trigger both
 const handleOpenChange = useCallback((newOpen: boolean) => {
   setOpen(newOpen);
   if (newOpen) {
     resetToDefault(); // Fill the form fields immediately
     loadColours();    // Fetch the dropdown options in the background
+    loadBeaders();
   }
-}, [resetToDefault, loadColours]);
+}, [resetToDefault, loadColours, loadBeaders]);
   // Initialize form values from product data + fetched colours
 const initializeForm = useCallback(
   (availableColours: Colour[]) => {
@@ -229,7 +241,9 @@ const initializeForm = useCallback(
 
     try {
       const productColours = await fetchColours();
+      const productBeaders = await fetchBeaders().catch(() => []);
       setColours(productColours);
+      setBeaders(productBeaders);
       initializeForm(productColours);
     } catch {
       setColoursError(true);
@@ -297,6 +311,7 @@ const initializeForm = useCallback(
     handleOpenChange,
     // colours
     colours,
+    beaders,
     coloursLoading,
     coloursError,
     loadColoursAndInitialize,

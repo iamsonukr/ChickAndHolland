@@ -32,6 +32,7 @@ import { Button } from "@/components/custom/button";
 import { PasswordInput } from "@/components/custom/password-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { fetchBeaders, normalizeBeaderNames } from "@/lib/beaders";
 import {
   Dialog,
   DialogClose,
@@ -568,6 +569,8 @@ export default function OrderStatusPage({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
+  const [selectedBeader, setSelectedBeader] = useState<string>("ALL");
+  const [databaseBeaders, setDatabaseBeaders] = useState<any[]>([]);
 
   // ── Selection state ──
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -629,6 +632,12 @@ export default function OrderStatusPage({
     fetchReport();
   }, [fetchReport]);
 
+  useEffect(() => {
+    fetchBeaders()
+      .then((beaders) => setDatabaseBeaders(beaders))
+      .catch(() => setDatabaseBeaders([]));
+  }, []);
+
   if (loading) {
     return (
       <AdminLoaderScreen
@@ -647,6 +656,41 @@ export default function OrderStatusPage({
     const size = formatReportSize(raw).toLowerCase();
     return styleNo.includes(q) || size.includes(q);
   });
+  const allBeaderNames = normalizeBeaderNames([
+    ...databaseBeaders,
+    ...allItems.map(({ raw }) => String(raw.beader ?? "")),
+  ]);
+  const beaderCounts = filtered.reduce<Record<string, number>>(
+    (counts, { raw }) => {
+      const beader = String(raw.beader ?? "").trim();
+      if (!beader) return counts;
+
+      const key = beader.toLowerCase();
+      counts[key] = (counts[key] ?? 0) + 1;
+      return counts;
+    },
+    {},
+  );
+  const beaderOptions = [
+    {
+      value: "ALL",
+      label: "All Beaders",
+      count: filtered.length,
+    },
+    ...allBeaderNames.map((beader) => ({
+      value: beader,
+      label: beader,
+      count: beaderCounts[beader.toLowerCase()] ?? 0,
+    })),
+  ];
+  const beaderFiltered =
+    selectedBeader === "ALL"
+      ? filtered
+      : filtered.filter(
+          ({ raw }) =>
+            String(raw.beader ?? "").trim().toLowerCase() ===
+            selectedBeader.toLowerCase(),
+        );
   const stageCounts = ORDER_STAGE_FLOW.reduce<Record<string, number>>(
     (counts, stage) => {
       counts[stage] = 0;
@@ -654,7 +698,7 @@ export default function OrderStatusPage({
     },
     {},
   );
-  filtered.forEach(({ raw }) => {
+  beaderFiltered.forEach(({ raw }) => {
     const progress: any[] = raw.progress ?? [];
     const itemStatus = getCurrentStageLabel(progress);
     stageCounts[itemStatus] = (stageCounts[itemStatus] ?? 0) + 1;
@@ -663,7 +707,7 @@ export default function OrderStatusPage({
     {
       value: "ALL",
       label: "All Status",
-      count: filtered.length,
+      count: beaderFiltered.length,
     },
     ...ORDER_STAGE_FLOW.map((stage) => ({
       value: stage,
@@ -675,8 +719,8 @@ export default function OrderStatusPage({
   // Apply status filter
   const statusFiltered =
     selectedStatus === "ALL"
-      ? filtered
-      : filtered.filter(({ raw }) => {
+      ? beaderFiltered
+      : beaderFiltered.filter(({ raw }) => {
           const progress: any[] = raw.progress ?? [];
           const itemStatus = getCurrentStageLabel(progress).toLowerCase();
           return itemStatus === selectedStatus.toLowerCase();
@@ -804,7 +848,7 @@ export default function OrderStatusPage({
                 Order Status Report
               </h1>
               <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                Total items: {filtered.length}
+                Total items: {beaderFiltered.length}
               </p>
             </div>
               <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:items-center">
@@ -814,6 +858,15 @@ export default function OrderStatusPage({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:w-72 md:w-80"
+                />
+
+                <StageCountDropdown
+                  options={beaderOptions}
+                  value={selectedBeader}
+                  onChange={setSelectedBeader}
+                  headerLabel="Beader"
+                  countLabel="Items"
+                  placeholder="Filter by beader"
                 />
 
                 <StageCountDropdown
@@ -836,7 +889,7 @@ export default function OrderStatusPage({
         {/* Type badges */}
         <div className="mb-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
           {(["RETAILER", "STORE", "STOCK"] as ReportType[]).map((t) => {
-            const count = filtered.filter((i) => i.type === t).length;
+            const count = beaderFiltered.filter((i) => i.type === t).length;
             if (!count) return null;
             return (
               <span
@@ -847,7 +900,7 @@ export default function OrderStatusPage({
               </span>
             );
           })}
-          {filtered.length === 0 && <span>No results</span>}
+          {beaderFiltered.length === 0 && <span>No results</span>}
         </div>
 
         {/* ── Sticky Bulk Action Bar ── */}

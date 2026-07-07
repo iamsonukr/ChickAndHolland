@@ -71,6 +71,7 @@ const CreateOrder = ({
     previewData,
     savingDraftOnClose,
     colors,
+    beaders,
     customOrderType,
     setCustomOrderType,
     orderTypeArrayState,
@@ -166,6 +167,7 @@ const CreateOrder = ({
           fields={fields}
           fullComponentWatch={fullComponentWatch}
           colors={colors}
+          beaders={beaders}
           productCategories={productCategories}
           productSubCategories={productSubCategories}
           currencies={currencies}

@@ -57,6 +57,7 @@ import { CacheController } from "./controllers/CacheController";
 import WorkerController from "./controllers/WorkerController";
 import AdminScanController from "./controllers/AdminScanController";
 import AdminSettingsController from "./controllers/AdminSettingsController";
+import BeaderRouter from "./controllers/BeaderController";
 
 // import StripeRouter from './routes/stripe.routes'
 // Middleware
@@ -91,8 +92,10 @@ import { ensureStoreLocatorVisibilityColumns } from "./utils/ensureStoreLocatorV
 import { ensureFavouriteProductSizeTextColumn } from "./utils/ensureFavouriteProductSizeTextColumn";
 import { ensureBarcodeCommentsTable } from "./utils/ensureBarcodeCommentsTable";
 import { ensureBeaderColumns } from "./utils/ensureBeaderColumns";
+import { ensureBeadersTable } from "./utils/ensureBeadersTable";
 import { ensureOrderBeadersTable } from "./utils/ensureOrderBeadersTable";
 import { ensureOrderPhoneNumberColumn } from "./utils/ensureOrderPhoneNumberColumn";
+import { ensureOrderInvoiceEstimateColumns } from "./utils/ensureOrderInvoiceEstimateColumns";
 
 const router = Router();
 
@@ -167,7 +170,9 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
     await ensurePurchaseOrderNoIsNotUnique();
     await ensureBeaderColumns();
     await ensureOrderBeadersTable();
+    await ensureBeadersTable();
     await ensureOrderPhoneNumberColumn();
+    await ensureOrderInvoiceEstimateColumns();
     await ensureOrderPublishStatusColumn();
     await ensureOrderStylePricingColumns();
     await ensureCustomerPostalCodeColumn();
@@ -272,6 +277,7 @@ app.use("/api/favourites", FavouritesRouter);
 app.use("/api/cart", CartRouter);
 app.use("/api/quickbook", QuickBooksRouter);
 app.use("/api/product-colours", ProductColoursRouter);
+app.use("/api/beaders", BeaderRouter);
 app.use("/api/sponsors", Sponsor);
 app.use("/api/retailer-bank", RetailerBank);
 app.use("/api/admin-bank", AdminBank);

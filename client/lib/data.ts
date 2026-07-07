@@ -464,6 +464,36 @@ export const getOrderBeaders = async () => {
   }
 };
 
+export const getProductBeaders = async ({
+  page,
+  query,
+}: {
+  page?: number;
+  query?: string;
+} = {}) => {
+  const headers = {
+    Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
+  };
+
+  const params = new URLSearchParams();
+  if (page) params.set("page", String(page));
+  if (query) params.set("query", query);
+
+  const response = await fetch(
+    `${API_URL}/beaders${params.toString() ? `?${params.toString()}` : ""}`,
+    {
+      headers,
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    return { success: false, beaders: [], totalCount: 0 };
+  }
+
+  return response.json();
+};
+
 export const getRetailerStoreOrders = async ({
   retailerId,
   page,

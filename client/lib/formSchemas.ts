@@ -583,6 +583,8 @@ export const createOrderFormSchema = z.object({
 
   address: z.string().optional(),
   phoneNumber: z.string().optional(),
+  estimate: z.string().optional(),
+  invoice: z.string().optional(),
 
   customerId: z
     .object({

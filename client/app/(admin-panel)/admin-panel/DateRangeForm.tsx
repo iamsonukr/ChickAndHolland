@@ -23,8 +23,7 @@ import {
   endOfDay,
   format,
   parse,
-  subMonths,
-  startOfMonth,
+  startOfYear,
 } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -78,16 +77,15 @@ export const DateRangeForm = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Default to start of last month if no search params
   const [startDate, setStartDate] = useState<Date>(
     searchParams?.get("startDate")
       ? parse(searchParams?.get("startDate")!, "yyyy-MM-dd", new Date())
-      : startOfMonth(subMonths(new Date(), 1)), // e.g., March 1st, 2025
+      : startOfYear(new Date()),
   );
   const [endDate, setEndDate] = useState<Date>(
     searchParams?.get("endDate")
       ? parse(searchParams?.get("endDate")!, "yyyy-MM-dd", new Date())
-      : endOfDay(new Date()), // e.g., March 21st, 2025
+      : endOfDay(new Date()),
   );
 
   const [isStartOpen, setIsStartOpen] = useState(false);
@@ -132,6 +130,14 @@ export const DateRangeForm = () => {
     return () => clearTimeout(timeoutId);
   }, [endDate, startDate, updateURL]);
 
+  const selectedPreset = PRESETS.find(
+    (preset) =>
+      format(startDate, "yyyy-MM-dd") ===
+        format(preset.getValue().startDate, "yyyy-MM-dd") &&
+      format(endDate, "yyyy-MM-dd") ===
+        format(preset.getValue().endDate, "yyyy-MM-dd"),
+  )?.label;
+
   return (
     <div className="mb-8 flex flex-col gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-lg sm:p-6 xl:flex-row xl:items-center xl:justify-between">
       <div className="flex items-center gap-3">
@@ -139,7 +145,7 @@ export const DateRangeForm = () => {
         <span className="text-lg font-semibold text-gray-800">Date Range</span>
       </div>
 
-      <Select onValueChange={onPresetSelect}>
+      <Select value={selectedPreset} onValueChange={onPresetSelect}>
         <SelectTrigger className="w-full border-gray-200 bg-gray-50 transition-colors hover:bg-gray-100 sm:w-[200px]">
           <SelectValue
             placeholder="Select a preset"

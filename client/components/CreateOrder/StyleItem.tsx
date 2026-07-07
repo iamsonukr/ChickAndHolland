@@ -36,6 +36,7 @@ import CommentsFieldArray from "./CommentsFieldArray";
 import FileUploadField from "./FileUploadField";
 import { searchStyleNumbers } from "@/lib/data";
 import dynamic from "next/dynamic";
+import BeaderSelectField from "@/components/BeaderSelectField";
 
 import {
   calculateRetailerStylePricing,
@@ -91,6 +92,7 @@ interface StyleItemProps {
   index: number;
   fieldId: string;
   colors: any[];
+  beaders: any[];
   productCategories: any[];
   productSubCategories: any[];
   currencies: any[];
@@ -110,6 +112,7 @@ const StyleItem = ({
   index,
   fieldId,
   colors,
+  beaders,
   productCategories,
   productSubCategories,
   currencies,
@@ -147,6 +150,9 @@ const StyleItem = ({
     : null;
   const sampleMeshValue = getSelectItemValue(stylesSelect?.mesh);
   const sampleBeadingValue = getSelectItemValue(stylesSelect?.beading);
+  const sampleBeaderValue = String(
+    currentStyle?.beader || stylesSelect?.beader || productDetails?.beader || "",
+  ).trim();
   const sampleLiningValue = getSelectItemValue(stylesSelect?.lining);
   const sampleLiningColorValue = getSelectItemValue(stylesSelect?.liningColor);
   const getColorOptionValue = (colour: any) =>
@@ -806,6 +812,19 @@ const StyleItem = ({
               )}
             />
           )}
+
+          {/* Beader */}
+          <FormField
+            control={form.control}
+            name={`styles.${index}.beader`}
+            render={({ field }) => (
+              <BeaderSelectField
+                value={field.value || sampleBeaderValue}
+                onChange={field.onChange}
+                beaders={beaders}
+              />
+            )}
+          />
 
           {/* ── Quantity ── */}
           <FormField

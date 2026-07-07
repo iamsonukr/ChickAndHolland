@@ -37,6 +37,7 @@ import { Button } from "@/components/custom/button";
 // import { CurrencyPricingSection , ColourSelectField} from "./edit-product-subcomponents";
 import { EditProductFormProps ,LINING_OPTIONS, useEditProductSheet} from "@/components/custom/edit-product/types-hooks";
 import { CurrencyPricingSection,ColourSelectField } from "@/components/custom/edit-product/edit-product-subcomponents";
+import BeaderSelectField from "@/components/BeaderSelectField";
 // import {
 //   ColourSelectField,
 //   CurrencyPricingSection,
@@ -56,6 +57,7 @@ const EditProductForm = ({
     open,
     handleOpenChange,
     colours,
+    beaders,
     coloursLoading,
     coloursError,
     loadColoursAndInitialize,
@@ -303,17 +305,12 @@ const EditProductForm = ({
               control={form.control}
               name="beader"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Beader</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter beader name"
-                      {...field}
-                      disabled={showLoading}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                <BeaderSelectField
+                  value={field.value}
+                  onChange={field.onChange}
+                  beaders={beaders}
+                  disabled={showLoading}
+                />
               )}
             />
 

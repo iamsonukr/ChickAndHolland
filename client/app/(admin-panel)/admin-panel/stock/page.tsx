@@ -39,7 +39,7 @@ const Stock = async (props: {
   let currencyId = cookieStore.get("currencyId")?.value;
   const retailerId = cookieStore.get("retailerId")?.value;
 
-  if (retailerId) {
+  if (!currencyId && retailerId) {
     const latestRetailer = await getRetailerDetails(Number(retailerId));
     const latestCurrencyId =
       latestRetailer?.currencyId ||
@@ -70,6 +70,7 @@ const Stock = async (props: {
 
   const colours = await getProductColours({});
   const currencies = await getCurrencies();
+  const currencyOptions = currencies?.currencies ?? currencies ?? [];
 
   const getColourBasedOnhex = (hex: string) =>
     colours.productColours.find(
@@ -92,13 +93,17 @@ const Stock = async (props: {
             />
             <AddStockForm
               colours={colours.productColours}
-              currencies={currencies?.currencies ?? currencies}
+              currencies={currencyOptions}
             />
           </div>
         </div>
 
         {/* SIZE DROPDOWN */}
-        <SizeSelector />
+        <SizeSelector
+          currencies={currencyOptions}
+          currentCurrencyId={currencyId}
+          syncCurrency
+        />
 
         {/* SEARCH */}
         <CustomSearchBar query={query} />
@@ -231,7 +236,7 @@ const Stock = async (props: {
                 <TableActions
                   data={item}
                   colours={colours.productColours}
-                  currencies={currencies?.currencies ?? currencies}
+                  currencies={currencyOptions}
                   edit={true}
                   placeOrder={false}
                   className="mt-auto scale-95 "

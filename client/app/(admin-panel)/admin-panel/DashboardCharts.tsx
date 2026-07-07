@@ -80,8 +80,7 @@ export default function DashboardCharts({
 
     // This Year
     const firstOfYear = new Date(today.getFullYear(), 0, 1);
-    const endOfYear = new Date(today.getFullYear(), 11, 31);
-    if (isSameDay(start, firstOfYear) && isSameDay(end, endOfYear)) {
+    if (isSameDay(start, firstOfYear) && isSameDay(end, today)) {
       return "for This Year";
     }
 

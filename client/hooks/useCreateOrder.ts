@@ -21,6 +21,7 @@ import {
 } from "@/lib/formSchemas";
 import {
   getLatestRegularOrder,
+  getProductBeaders,
   getProductColours,
   getProductDetailsByProductCode,
 } from "@/lib/data";
@@ -196,6 +197,16 @@ const isFieldDirty = (form: any, name: string) =>
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
+const generateShortOrderToken = () =>
+  Math.random()
+    .toString(36)
+    .replace(/[^a-z0-9]/gi, "")
+    .slice(2, 8)
+    .toUpperCase();
+
+const generateEstimateNo = () => `EB_${generateShortOrderToken()}`;
+const generateInvoiceNo = () => `IN_${generateShortOrderToken()}`;
+
 function getTrailingPoNumber(poNumber?: string | null) {
   const match = poNumber?.match(/(\d+)\s*$/);
   return match ? Number(match[1]) : 0;
@@ -208,6 +219,8 @@ export function buildSharedFormData(data: CreateOrderForm): FormData {
   fd.append("orderType", data.orderType);
   fd.append("address", data.address ?? "");
   fd.append("phoneNumber", data.phoneNumber ?? "");
+  fd.append("estimate", data.estimate ?? "");
+  fd.append("invoice", data.invoice ?? "");
   fd.append("customerId", data.customerId?.[0]?.value ?? "");
   return fd;
 }
@@ -597,6 +610,7 @@ export function useCreateOrder({
   const [open, setOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [colors, setColors] = useState<any[]>([]);
+  const [beaders, setBeaders] = useState<any[]>([]);
   const [customOrderType, setCustomOrderType] = useState("");
   const [eachStyleProductDetails, setEachStyleProductDetails] = useState(
     new Map<string, any>(),
@@ -760,6 +774,8 @@ export function useCreateOrder({
         orderCancellationDate: toDateValue(editOrder?.orderCancellationDate),
         address: editOrder?.address ?? "",
         phoneNumber: editOrder?.phoneNumber ?? orderCustomer?.phoneNumber ?? "",
+        estimate: editOrder?.estimateNo ?? "",
+        invoice: editOrder?.invoiceNo ?? "",
         customerId: customerOption,
         styles: editOrder?.styles?.length
           ? editOrder.styles.map(mapStyleToFormValue)
@@ -775,6 +791,8 @@ export function useCreateOrder({
       orderCancellationDate: undefined,
       address: "",
       phoneNumber: "",
+      estimate: generateEstimateNo(),
+      invoice: generateInvoiceNo(),
       customerId: [],
       styles: [buildEmptyStyle()],
     };
@@ -1010,6 +1028,9 @@ export function useCreateOrder({
   // ── Load product colours on mount ───────────────────────────────────────────
   useEffect(() => {
     getProductColours({}).then((res) => setColors(res.productColours ?? []));
+    getProductBeaders({})
+      .then((res) => setBeaders(res.beaders ?? []))
+      .catch(() => setBeaders([]));
   }, []);
 
   // ── Auto-preview on watched fields change ───────────────────────────────────
@@ -1135,6 +1156,8 @@ export function useCreateOrder({
       if (dirtyFields.orderType) fd.append("orderType", data.orderType);
       if (dirtyFields.address) fd.append("address", data.address ?? "");
       if (dirtyFields.phoneNumber) fd.append("phoneNumber", data.phoneNumber ?? "");
+      if (dirtyFields.estimate) fd.append("estimate", data.estimate ?? "");
+      if (dirtyFields.invoice) fd.append("invoice", data.invoice ?? "");
       if (dirtyFields.customerId) {
         fd.append("customerId", data.customerId?.[0]?.value ?? "");
       }
@@ -1399,6 +1422,7 @@ export function useCreateOrder({
     previewData,
     savingDraftOnClose,
     colors,
+    beaders,
     customOrderType,
     setCustomOrderType,
     orderTypeArrayState,

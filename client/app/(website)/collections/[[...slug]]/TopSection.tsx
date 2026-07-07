@@ -7,13 +7,13 @@ const TopSection = ({
   subCategoryId: number;
   name: string;
 }) => {
-const videoMap = {
-  80: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001-lossyC.mp4",
-  82: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
-  83: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
-  84: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%204-lossyC.mp4",
-  85: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
-};
+  const videoMap = {
+    80: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001-lossyC.mp4",
+    82: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
+    83: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
+    84: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%204-lossyC.mp4",
+    85: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
+  };
 
   // const videoMap = {
   //   80: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/Sequence%2001.mp4",
@@ -45,7 +45,7 @@ const videoMap = {
           ].map((src, idx) => (
             <video
               key={idx}
-className="h-full w-1/4 object-cover object-top will-change-transform"              src={src}
+              className="h-full w-1/4 object-cover object-top will-change-transform" src={src}
               autoPlay
               muted
               loop
@@ -70,7 +70,7 @@ className="h-full w-1/4 object-cover object-top will-change-transform"          
         />
       )}
 
-{/* <h1 className="z-[2] text-center font-adornstoryserif text-3xl font-bold tracking-wide text-white">
+      {/* <h1 className="z-[2] text-center font-adornstoryserif text-3xl font-bold tracking-wide text-white">
         {name}
       </h1> */}
     </section>

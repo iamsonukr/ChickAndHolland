@@ -2001,6 +2001,117 @@ const normalizeProductSearchTokens = (query: unknown) => {
 const escapeLikeToken = (token: string) =>
   token.replace(/[\\%_]/g, (match) => `\\${match}`);
 
+const productSearchFields = (includeProductsBeader: boolean) => [
+  "product.id",
+  "product.productCode",
+  "product.description",
+  "product.color",
+  "product.mesh_color",
+  "product.beading_color",
+  ...(includeProductsBeader ? ["product.beader"] : []),
+  "product.lining",
+  "product.lining_color",
+  "CAST(product.price AS CHAR)",
+  "CAST(product.quantity AS CHAR)",
+  "CAST(product.minSaleQuantity AS CHAR)",
+  "CAST(product.stockAlert AS CHAR)",
+  "CAST(product.product_size AS CHAR)",
+  "CASE WHEN product.hasReturnPolicy = 1 THEN 'yes true return policy' ELSE 'no false' END",
+  "CASE WHEN product.hasDiscount = 1 THEN 'yes true discount' ELSE 'no false' END",
+  "category.name",
+  "subCategory.name",
+];
+
+const addProductSearchConditions = (
+  qb: any,
+  searchTokens: string[],
+  includeProductsBeader: boolean,
+  parameterPrefix: string,
+) => {
+  const searchableFields = productSearchFields(includeProductsBeader);
+
+  searchTokens.forEach((token, tokenIndex) => {
+    const parameterName = `${parameterPrefix}${tokenIndex}`;
+    const parameterValue = `%${escapeLikeToken(token.replace(/\s+/g, ""))}%`;
+
+    searchableFields.forEach((field) => {
+      qb.orWhere(
+        `
+        REPLACE(
+          LOWER(COALESCE(${field}, '')),
+          ' ',
+          ''
+        ) LIKE :${parameterName}
+        `,
+        {
+          [parameterName]: parameterValue,
+        }
+      );
+    });
+
+    qb.orWhere(
+      `
+      EXISTS (
+        SELECT 1
+        FROM ${TABLE_NAMES.PRODUCT_COLOURS} productColour
+        WHERE productColour.deletedAt IS NULL
+          AND LOWER(productColour.hexcode) IN (
+            LOWER(COALESCE(product.mesh_color, '')),
+            LOWER(COALESCE(product.beading_color, '')),
+            LOWER(COALESCE(product.lining_color, ''))
+          )
+          AND REPLACE(
+            LOWER(COALESCE(productColour.name, '')),
+            ' ',
+            ''
+          ) LIKE :${parameterName}
+      )
+      `,
+      {
+        [parameterName]: parameterValue,
+      }
+    );
+
+    qb.orWhere(
+      `
+      EXISTS (
+        SELECT 1
+        FROM ${TABLE_NAMES.PRODUCT_CURRENCY_PRICING} productCurrencyPricing
+        LEFT JOIN ${TABLE_NAMES.CURRENCIES} searchCurrency
+          ON searchCurrency.id = productCurrencyPricing.currencyId
+        WHERE productCurrencyPricing.deletedAt IS NULL
+          AND productCurrencyPricing.productId = product.id
+          AND (
+            REPLACE(
+              LOWER(COALESCE(CAST(productCurrencyPricing.price AS CHAR), '')),
+              ' ',
+              ''
+            ) LIKE :${parameterName}
+            OR REPLACE(
+              LOWER(COALESCE(searchCurrency.name, '')),
+              ' ',
+              ''
+            ) LIKE :${parameterName}
+            OR REPLACE(
+              LOWER(COALESCE(searchCurrency.code, '')),
+              ' ',
+              ''
+            ) LIKE :${parameterName}
+            OR REPLACE(
+              LOWER(COALESCE(searchCurrency.symbol, '')),
+              ' ',
+              ''
+            ) LIKE :${parameterName}
+          )
+      )
+      `,
+      {
+        [parameterName]: parameterValue,
+      }
+    );
+  });
+};
+
 router.get(
   "/new",
   asyncHandler(async (req: Request, res: Response) => {
@@ -2018,18 +2129,6 @@ router.get(
     const searchTokens = normalizeProductSearchTokens(query);
     const includeProductsBeader = await hasProductsBeaderColumn();
 
-    const searchableFields = [
-      "product.productCode",
-      "product.description",
-      "product.mesh_color",
-      "product.beading_color",
-      ...(includeProductsBeader ? ["product.beader"] : []),
-      "product.lining",
-      "product.lining_color",
-      "category.name",
-      "subCategory.name",
-    ];
-
     // Step 1: paginate on IDs only (avoids TypeORM join + pagination bug)
     const idQueryBuilder = Product.createQueryBuilder("product")
       .select("product.id")
@@ -2043,26 +2142,12 @@ router.get(
     if (searchTokens.length) {
       idQueryBuilder.andWhere(
         new Brackets((qb) => {
-          searchTokens.forEach((token, tokenIndex) => {
-            const parameterName = `search${tokenIndex}`;
-
-            searchableFields.forEach((field) => {
-              qb.orWhere(
-                `
-                REPLACE(
-                  LOWER(COALESCE(${field}, '')),
-                  ' ',
-                  ''
-                ) LIKE :${parameterName}
-                `,
-                {
-                  [parameterName]: `%${escapeLikeToken(
-                    token.replace(/\s+/g, "")
-                  )}%`,
-                }
-              );
-            });
-          });
+          addProductSearchConditions(
+            qb,
+            searchTokens,
+            includeProductsBeader,
+            "search",
+          );
         })
       );
     }
@@ -2076,26 +2161,12 @@ router.get(
     if (searchTokens.length) {
       countQueryBuilder.andWhere(
         new Brackets((qb) => {
-          searchTokens.forEach((token, tokenIndex) => {
-            const parameterName = `searchCount${tokenIndex}`;
-
-            searchableFields.forEach((field) => {
-              qb.orWhere(
-                `
-                REPLACE(
-                  LOWER(COALESCE(${field}, '')),
-                  ' ',
-                  ''
-                ) LIKE :${parameterName}
-                `,
-                {
-                  [parameterName]: `%${escapeLikeToken(
-                    token.replace(/\s+/g, "")
-                  )}%`,
-                }
-              );
-            });
-          });
+          addProductSearchConditions(
+            qb,
+            searchTokens,
+            includeProductsBeader,
+            "searchCount",
+          );
         })
       );
     }

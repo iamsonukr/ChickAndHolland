@@ -60,6 +60,14 @@ const OrderDetailsSheet = ({
             <p>{orderDetails.purchaeOrderNo}</p>
           </div>
           <div className={"flex flex-col gap-0.5"}>
+            <h3 className={"text-lg font-semibold"}>Estimate No:</h3>
+            <p>{orderDetails.estimateNo || "-"}</p>
+          </div>
+          <div className={"flex flex-col gap-0.5"}>
+            <h3 className={"text-lg font-semibold"}>Invoice No:</h3>
+            <p>{orderDetails.invoiceNo || "-"}</p>
+          </div>
+          <div className={"flex flex-col gap-0.5"}>
             <h3 className={"text-lg font-semibold"}>Manufacturing Email:</h3>
             <p>{orderDetails.manufacturingEmailAddress}</p>
           </div>

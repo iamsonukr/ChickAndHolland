@@ -14,6 +14,7 @@ const ADMIN_PERMISSION_ROUTES = [
   "/admin-panel/products/categories",
   "/admin-panel/products/collections",
   "/admin-panel/products/colours",
+  "/admin-panel/products/beaders",
   "/admin-panel/products",
   "/admin-panel/color-chart",
   "/admin-panel/customers",
@@ -30,6 +31,7 @@ const ADMIN_PERMISSION_INHERITANCE: Record<string, readonly string[]> = {
   "/admin-panel/deleted-orders": ["/admin-panel/orders"],
   "/admin-panel/orders/qr-scan": ["/admin-panel/orders"],
   "/admin-panel/settings": ["/admin-panel/users", "/admin-panel/user-roles"],
+  "/admin-panel/products/beaders": ["/admin-panel/products"],
 };
 
 const normalizeRoute = (route: string) => {

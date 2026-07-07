@@ -4,6 +4,7 @@ import CONFIG from "./config";
 
 import AdminBank from "./models/AdminBank";
 import BaseModel from "./models/BaseModel";
+import Beader from "./models/Beader";
 import BodyDetail from "./models/BodyDetail";
 import Category from "./models/Category";
 import ClientsModel from "./models/ClientsModel";
@@ -63,7 +64,7 @@ const db = new DataSource({
     synchronize: false,
     dropSchema: false,
     entities: [
-        AdminBank, BodyDetail, Category, ClientsModel, ColorChart,
+        AdminBank, Beader, BodyDetail, Category, ClientsModel, ColorChart,
         Contactus, Countries, Country, Currency, Customer,
         Employee, Expense, ExpenseType, Favourites, Inventory,
         NewUserRoles, Order, OrderItem, OrderPayments,
