@@ -6,6 +6,10 @@ import {
   verifyResetPassword,
 } from "../services/resetPassword.service";
 import { verifyEditPassword, updateEditPassword } from "../services/resetPassword.service";
+import {
+  peekNextSampleOrderStyleNo,
+  setSampleOrderSequence,
+} from "../utils/generatePO";
 
 const router = Router();
 
@@ -139,6 +143,44 @@ router.put(
     await updateEditPassword(newPassword);
 
     return res.json({ success: true, message: "Edit password updated successfully." });
+  }),
+);
+
+router.get(
+  "/sample-order-sequence",
+  requireAdminUser(["/admin-panel/settings"]),
+  asyncHandler(async (_req: Request, res: Response) => {
+    const sequence = await peekNextSampleOrderStyleNo();
+
+    return res.json({
+      success: true,
+      nextNumber: sequence.nextNumber,
+      nextStyleNo: sequence.styleNo,
+    });
+  }),
+);
+
+router.put(
+  "/sample-order-sequence",
+  requireAdminUser(["/admin-panel/settings"]),
+  asyncHandler(async (req: Request, res: Response) => {
+    const nextNumber = Number(req.body?.nextNumber);
+
+    if (!Number.isInteger(nextNumber) || nextNumber < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Next sample order number must be a positive whole number.",
+      });
+    }
+
+    const sequence = await setSampleOrderSequence(nextNumber);
+
+    return res.json({
+      success: true,
+      message: `Next sample order style number set to ${sequence.styleNo}.`,
+      nextNumber: sequence.nextNumber,
+      nextStyleNo: sequence.styleNo,
+    });
   }),
 );
 

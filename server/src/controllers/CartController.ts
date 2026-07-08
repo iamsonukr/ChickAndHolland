@@ -4,12 +4,123 @@ import Favourites from "../models/Favourites";
 import Retailer from "../models/Retailer";
 import Product from "../models/Product";
 import Stock from "../models/Stock";
+import Category from "../models/Category";
+import SubCategory from "../models/SubCategory";
+import ProductImage from "../models/ProductImage";
 import Busboy from "busboy";
 import sharp from "sharp";
 import { getFullUrl, storeFileInS3 } from "../lib/s3";
 import { convertToUSSize } from "../lib/sizeConversion";
+import db from "../db";
+import { TABLE_NAMES } from "../constants";
+import {
+  generateNextSampleOrderStyleNo,
+  peekNextSampleOrderStyleNo,
+} from "../utils/generatePO";
 
 const router = Router();
+const SAMPLE_CATEGORY_NAME = "Retailer Collection";
+const SAMPLE_SUBCATEGORY_NAME = "Custom Category";
+const SAMPLE_CATEGORY_ALIASES = ["Retailer Collection"];
+const SAMPLE_SUBCATEGORY_ALIASES = ["Custom Category", "Custom"];
+
+const sanitizeText = (value: unknown) => {
+  const text = String(value ?? "").trim();
+  return text && text.toLowerCase() !== "undefined" && text.toLowerCase() !== "null"
+    ? text
+    : "";
+};
+
+const parsePositiveQuantity = (value: unknown) => {
+  const quantity = Number(String(value ?? "").trim());
+  return Number.isInteger(quantity) && quantity > 0 ? quantity : 0;
+};
+
+const findCategoryByAliases = async (aliases: string[]) => {
+  const normalizedAliases = aliases.map((alias) => alias.toLowerCase());
+  const rows = await db.query(
+    `
+      SELECT id
+      FROM \`${TABLE_NAMES.CATEGORIES}\`
+      WHERE LOWER(name) IN (?)
+        AND deletedAt IS NULL
+      ORDER BY id ASC
+      LIMIT 1
+    `,
+    [normalizedAliases],
+  );
+
+  return rows?.[0]?.id
+    ? Category.findOne({ where: { id: Number(rows[0].id) } })
+    : null;
+};
+
+const findSubCategoryByAliases = async (
+  categoryId: number,
+  aliases: string[],
+) => {
+  const normalizedAliases = aliases.map((alias) => alias.toLowerCase());
+  const rows = await db.query(
+    `
+      SELECT id
+      FROM \`${TABLE_NAMES.SUBCATEGORY}\`
+      WHERE LOWER(name) IN (?)
+        AND categoryId = ?
+        AND deletedAt IS NULL
+      ORDER BY id ASC
+      LIMIT 1
+    `,
+    [normalizedAliases, categoryId],
+  );
+
+  return rows?.[0]?.id
+    ? SubCategory.findOne({ where: { id: Number(rows[0].id) } })
+    : null;
+};
+
+const resolveSampleOrderCategory = async () => {
+  let category = await findCategoryByAliases(SAMPLE_CATEGORY_ALIASES);
+
+  if (!category) {
+    category = Category.create({
+      name: SAMPLE_CATEGORY_NAME,
+      priority: 0,
+    }) as Category;
+    await category.save();
+  }
+
+  let subCategory = await findSubCategoryByAliases(
+    category.id,
+    SAMPLE_SUBCATEGORY_ALIASES,
+  );
+
+  if (!subCategory) {
+    subCategory = SubCategory.create({
+      name: SAMPLE_SUBCATEGORY_NAME,
+      priority: 0,
+      category,
+    }) as SubCategory;
+    await subCategory.save();
+  }
+
+  return { category, subCategory };
+};
+
+const generateAvailableSampleStyleNo = async () => {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const sequence = await generateNextSampleOrderStyleNo();
+    const existingProduct = await Product.findOne({
+      where: { productCode: sequence.styleNo },
+      withDeleted: true,
+    } as any);
+
+    if (!existingProduct) {
+      return sequence;
+    }
+  }
+
+  throw new Error("Unable to reserve a unique sample order style number.");
+};
 
 router.patch(
   "/quantity",
@@ -181,6 +292,228 @@ router.post(
             error instanceof Error
               ? error.message
               : "An error occurred while processing the request",
+        });
+      }
+    });
+
+    busboy.end(req.body);
+  }),
+);
+
+router.get(
+  "/sample-order/next-style",
+  asyncHandler(async (_req: Request, res: Response) => {
+    const sequence = await peekNextSampleOrderStyleNo();
+
+    return res.json({
+      success: true,
+      nextNumber: sequence.nextNumber,
+      styleNo: sequence.styleNo,
+    });
+  }),
+);
+
+router.post(
+  "/sample-order",
+  raw({
+    type: "multipart/form-data",
+    limit: "25mb",
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const busboy = Busboy({ headers: req.headers });
+    let retailerId = "";
+    let sizeCountry = "";
+    let size = "";
+    let color = "";
+    let quantity = "";
+    let uploadedImage: Promise<FileData> | null = null;
+
+    busboy.on("field", (fieldname: string, value: string) => {
+      switch (fieldname) {
+        case "retailerId":
+          retailerId = value;
+          break;
+        case "sizeCountry":
+          sizeCountry = value;
+          break;
+        case "size":
+          size = value;
+          break;
+        case "color":
+          color = value;
+          break;
+        case "quantity":
+          quantity = value;
+          break;
+      }
+    });
+
+    busboy.on(
+      "file",
+      (
+        fieldname: string,
+        file: NodeJS.ReadableStream,
+        filename: string,
+        encoding: string,
+        mimetype: string,
+      ) => {
+        if (fieldname !== "image") {
+          file.resume();
+          return;
+        }
+
+        const buffers: Buffer[] = [];
+        uploadedImage = new Promise<FileData>((resolve, reject) => {
+          file.on("data", (data: Buffer) => buffers.push(data));
+          file.on("end", () => {
+            resolve({
+              fieldname,
+              filename,
+              encoding,
+              mimetype,
+              buffer: Buffer.concat(buffers),
+            });
+          });
+          file.on("error", reject);
+        });
+      },
+    );
+
+    busboy.on("finish", async () => {
+      try {
+        const cleanRetailerId = Number(retailerId);
+        const cleanSizeCountry = sanitizeText(sizeCountry);
+        const cleanSize = sanitizeText(size);
+        const cleanColor = sanitizeText(color);
+        const cleanQuantity = parsePositiveQuantity(quantity);
+        const image = uploadedImage ? await uploadedImage : null;
+
+        if (!cleanRetailerId) {
+          return res.status(400).json({
+            success: false,
+            message: "Retailer is required.",
+          });
+        }
+
+        if (!cleanSizeCountry || !cleanSize || !cleanColor || !cleanQuantity) {
+          return res.status(400).json({
+            success: false,
+            message: "Country, size, color, and quantity are required.",
+          });
+        }
+
+        if (!image?.buffer?.length) {
+          return res.status(400).json({
+            success: false,
+            message: "Image upload is required.",
+          });
+        }
+
+        if (!image.mimetype?.startsWith("image/")) {
+          return res.status(400).json({
+            success: false,
+            message: "Only image files are allowed.",
+          });
+        }
+
+        const retailer = await Retailer.findOneOrFail({
+          where: { id: cleanRetailerId },
+          relations: ["customer", "customer.currency"],
+        });
+        const { category, subCategory } = await resolveSampleOrderCategory();
+        const sequence = await generateAvailableSampleStyleNo();
+        const compressedImage = await sharp(image.buffer)
+          .resize(1000, 1600, {
+            fit: "inside",
+            withoutEnlargement: true,
+          })
+          .webp({ quality: 100 })
+          .toBuffer();
+        const fileName = `uploads/sample-orders/${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(7)}.webp`;
+        const s3Response = await storeFileInS3(compressedImage, fileName);
+        const imageUrl = getFullUrl(s3Response?.fileName as string);
+
+        const queryRunner = db.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+          const product = new Product();
+          product.productCode = sequence.styleNo;
+          product.category = category;
+          product.subCategory = subCategory;
+          product.quantity = cleanQuantity;
+          product.color = cleanColor.slice(0, 20);
+          product.price = 0;
+          product.description = "Sample Order";
+          product.mesh_color = cleanColor;
+          product.beading_color = cleanColor;
+          product.lining = "SAS";
+          product.lining_color = "SAS";
+          product.product_size = Number(cleanSize) || 0;
+
+          const savedProduct = await queryRunner.manager.save(product);
+
+          const productImage = new ProductImage();
+          productImage.product = savedProduct;
+          productImage.isMain = true;
+          productImage.name = imageUrl;
+          await queryRunner.manager.save(productImage);
+
+          const cartItem = new Favourites();
+          cartItem.product = savedProduct;
+          cartItem.retailer = retailer;
+          cartItem.color = cleanColor;
+          cartItem.mesh_color = cleanColor;
+          cartItem.beading_color = cleanColor;
+          cartItem.add_lining = 0;
+          cartItem.lining = "SAS";
+          cartItem.lining_color = "SAS";
+          cartItem.product_size = cleanSize;
+          cartItem.admin_us_size = convertToUSSize(
+            Number(cleanSize),
+            cleanSizeCountry,
+          );
+          cartItem.quantity = cleanQuantity;
+          cartItem.product_price = 0;
+          cartItem.customization_price = 0;
+          cartItem.customization = "Sample Order";
+          cartItem.reference_image = JSON.stringify([imageUrl]);
+          cartItem.size_country = cleanSizeCountry;
+
+          if (retailer.customer?.currency) {
+            cartItem.currency = retailer.customer.currency;
+            cartItem.currencyId = retailer.customer.currency.id;
+          }
+
+          await queryRunner.manager.save(cartItem);
+          await queryRunner.commitTransaction();
+
+          const nextSequence = await peekNextSampleOrderStyleNo();
+
+          return res.json({
+            success: true,
+            message: "Sample order added to cart successfully.",
+            styleNo: sequence.styleNo,
+            nextStyleNo: nextSequence.styleNo,
+            productId: savedProduct.id,
+            cartId: cartItem.id,
+          });
+        } catch (error) {
+          await queryRunner.rollbackTransaction();
+          throw error;
+        } finally {
+          await queryRunner.release();
+        }
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : "An error occurred while placing the sample order.",
         });
       }
     });

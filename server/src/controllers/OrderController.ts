@@ -3209,7 +3209,7 @@ router.get(
         "ro.orderReceivedDate as orderReceivedDate",
         "ro.orderCancellationDate as orderCancellationDate",
         "ro.address as address",
-        "NULL as phoneNumber",
+        "ro.phoneNumber as phoneNumber",
         "ro.estimateNo as estimateNo",
         "ro.invoiceNo as invoiceNo",
         "ro.orderStatus as orderStatus",

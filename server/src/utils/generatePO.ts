@@ -1,6 +1,8 @@
 import db from "../db";
 
 const GLOBAL_PO_SEQUENCE_NAME = "global_po";
+const SAMPLE_ORDER_SEQUENCE_NAME = "sample_order_ns";
+const SAMPLE_ORDER_INITIAL_NEXT_NUMBER = 1164;
 
 type Queryable = {
   query: (query: string, parameters?: any[]) => Promise<any>;
@@ -44,7 +46,11 @@ async function ensureSequenceTable(queryable: Queryable = db) {
   }
 }
 
-async function ensureSequenceRow(queryable: Queryable = db, initialNextNumber = 1) {
+async function ensureSequenceRow(
+  queryable: Queryable = db,
+  sequenceName = GLOBAL_PO_SEQUENCE_NAME,
+  initialNextNumber = 1,
+) {
   await queryable.query(
     `
       INSERT INTO order_sequence (name, nextNumber, createdAt, updatedAt)
@@ -52,23 +58,33 @@ async function ensureSequenceRow(queryable: Queryable = db, initialNextNumber = 
       ON DUPLICATE KEY UPDATE
         updatedAt = CURRENT_TIMESTAMP(6)
     `,
-    [GLOBAL_PO_SEQUENCE_NAME, Math.max(initialNextNumber, 1)],
+    [sequenceName, Math.max(initialNextNumber, 1)],
   );
 }
 
-export async function peekGlobalNextPoNumber() {
+export async function peekSequenceNumber(
+  sequenceName = GLOBAL_PO_SEQUENCE_NAME,
+  initialNextNumber = 1,
+) {
   await ensureSequenceTable();
-  await ensureSequenceRow();
+  await ensureSequenceRow(db, sequenceName, initialNextNumber);
 
   const rows = await db.query(
     "SELECT nextNumber FROM order_sequence WHERE name = ? LIMIT 1",
-    [GLOBAL_PO_SEQUENCE_NAME],
+    [sequenceName],
   );
 
   return Math.max(Number(rows?.[0]?.nextNumber) || 1, 1);
 }
 
-async function reserveGlobalNextPoNumber() {
+export async function peekGlobalNextPoNumber() {
+  return peekSequenceNumber(GLOBAL_PO_SEQUENCE_NAME);
+}
+
+async function reserveSequenceNumber(
+  sequenceName = GLOBAL_PO_SEQUENCE_NAME,
+  initialNextNumber = 1,
+) {
   await ensureSequenceTable();
 
   const queryRunner = db.createQueryRunner();
@@ -76,11 +92,11 @@ async function reserveGlobalNextPoNumber() {
   await queryRunner.startTransaction();
 
   try {
-    await ensureSequenceRow(queryRunner);
+    await ensureSequenceRow(queryRunner, sequenceName, initialNextNumber);
 
     const rows = await queryRunner.query(
       "SELECT id, nextNumber FROM order_sequence WHERE name = ? FOR UPDATE",
-      [GLOBAL_PO_SEQUENCE_NAME],
+      [sequenceName],
     );
 
     const currentNext = Math.max(Number(rows?.[0]?.nextNumber) || 1, 1);
@@ -101,7 +117,7 @@ async function reserveGlobalNextPoNumber() {
 }
 
 export async function generateUniquePO(prefix: string) {
-  const nextNumber = await reserveGlobalNextPoNumber();
+  const nextNumber = await reserveSequenceNumber(GLOBAL_PO_SEQUENCE_NAME);
   return `${normalizePrefix(prefix)} ${nextNumber}`;
 }
 
@@ -111,6 +127,13 @@ export async function previewUniquePO(prefix: string) {
 }
 
 export async function setGlobalPoSequence(target: number) {
+  return setSequenceNumber(GLOBAL_PO_SEQUENCE_NAME, target);
+}
+
+export async function setSequenceNumber(
+  sequenceName: string,
+  target: number,
+) {
   await ensureSequenceTable();
 
   const queryRunner = db.createQueryRunner();
@@ -128,7 +151,7 @@ export async function setGlobalPoSequence(target: number) {
           nextNumber = VALUES(nextNumber),
           updatedAt = CURRENT_TIMESTAMP(6)
       `,
-      [GLOBAL_PO_SEQUENCE_NAME, safeTarget],
+      [sequenceName, safeTarget],
     );
 
     await queryRunner.commitTransaction();
@@ -139,4 +162,44 @@ export async function setGlobalPoSequence(target: number) {
   } finally {
     await queryRunner.release();
   }
+}
+
+export function formatSampleOrderStyleNo(sequenceNumber: number) {
+  return `NS${String(Math.max(Number(sequenceNumber) || 1, 1)).padStart(6, "0")}`;
+}
+
+export async function peekNextSampleOrderStyleNo() {
+  const nextNumber = await peekSequenceNumber(
+    SAMPLE_ORDER_SEQUENCE_NAME,
+    SAMPLE_ORDER_INITIAL_NEXT_NUMBER,
+  );
+
+  return {
+    nextNumber,
+    styleNo: formatSampleOrderStyleNo(nextNumber),
+  };
+}
+
+export async function generateNextSampleOrderStyleNo() {
+  const nextNumber = await reserveSequenceNumber(
+    SAMPLE_ORDER_SEQUENCE_NAME,
+    SAMPLE_ORDER_INITIAL_NEXT_NUMBER,
+  );
+
+  return {
+    nextNumber,
+    styleNo: formatSampleOrderStyleNo(nextNumber),
+  };
+}
+
+export async function setSampleOrderSequence(target: number) {
+  const nextNumber = await setSequenceNumber(
+    SAMPLE_ORDER_SEQUENCE_NAME,
+    target,
+  );
+
+  return {
+    nextNumber,
+    styleNo: formatSampleOrderStyleNo(nextNumber),
+  };
 }
