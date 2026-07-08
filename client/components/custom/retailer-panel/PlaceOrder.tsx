@@ -27,6 +27,13 @@ import { Input } from "@/components/ui/input";
 import useHttp from "@/lib/hooks/usePost";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const quantityValidationMessage = "Quantity must be greater than 0";
 
@@ -50,12 +57,24 @@ export const placeOrderFormSchema = z.object({
 
 export type PlaceOrderForm = z.infer<typeof placeOrderFormSchema>;
 
+type RetailerOption = {
+  id: number | string;
+  name: string;
+  currencyId?: number | string | null;
+};
+
 const PlaceOrder = ({
   stockId,
   quantity,
+  mode = "retailer",
+  retailerOptions = [],
+  redirectTo = "/retailer-panel/pending-orders",
 }: {
   stockId: number | string;
   quantity: number | string;
+  mode?: "retailer" | "admin";
+  retailerOptions?: RetailerOption[];
+  redirectTo?: string;
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -77,10 +96,15 @@ const PlaceOrder = ({
     }
   }, []);
 
-  const form = useForm<PlaceOrderForm>({
-    resolver: zodResolver(placeOrderFormSchema),
+  const form = useForm<PlaceOrderForm & { retailerId?: string }>({
+    resolver: zodResolver(
+      placeOrderFormSchema.extend({
+        retailerId: z.string().optional(),
+      }),
+    ),
     defaultValues: {
       quantity: "",
+      retailerId: "",
     },
   });
 
@@ -94,9 +118,18 @@ const PlaceOrder = ({
   const onSubmit = async () => {
     const qty = Number(getValues("quantity"));
     const availableQuantity = Number(quantity);
+    const selectedRetailerId =
+      mode === "admin" ? String(getValues("retailerId") || "") : retailerId;
+    const selectedRetailer = retailerOptions.find(
+      (retailer) => String(retailer.id) === String(selectedRetailerId),
+    );
 
-    if (!retailerId) {
-      toast.error("Retailer ID missing. Please login again.");
+    if (!selectedRetailerId) {
+      toast.error(
+        mode === "admin"
+          ? "Please select a customer."
+          : "Retailer ID missing. Please login again.",
+      );
       return;
     }
 
@@ -115,11 +148,14 @@ const PlaceOrder = ({
       return;
     }
 
-    const url = `/retailer-orders/stock/${retailerId}/${stockId}/${qty}`;
+    const url = `/retailer-orders/stock/${selectedRetailerId}/${stockId}/${qty}`;
 
     try {
       const response = await executeAsync(
-        { currencyId: currencyId ? Number(currencyId) : null },
+        {
+          currencyId:
+            selectedRetailer?.currencyId ?? (currencyId ? Number(currencyId) : null),
+        },
         { url } // 👈 FINAL URL GOES HERE
       );
 
@@ -127,7 +163,7 @@ const PlaceOrder = ({
         reset();
         setOpen(false);
         toast.success(response.message ?? "Order placed successfully");
-        router.push("/retailer-panel/pending-orders");
+        router.push(redirectTo);
         router.refresh();
       }
     } catch (error) {
@@ -147,12 +183,54 @@ const PlaceOrder = ({
 
         <SheetContent className="min-w-[100%] overflow-y-auto md:min-w-[50%] lg:min-w-[35%]">
           <SheetHeader>
-            <SheetTitle>Place Order</SheetTitle>
-            <SheetDescription>Enter the quantity.</SheetDescription>
+            <SheetTitle>Place Stock Order</SheetTitle>
+            <SheetDescription>
+              {mode === "admin"
+                ? "Select a customer and enter the quantity."
+                : "Enter the quantity."}
+            </SheetDescription>
           </SheetHeader>
 
           <Form {...form}>
             <form className="mt-8 space-y-2" onSubmit={handleSubmit(onSubmit)}>
+              {mode === "admin" && (
+                <FormField
+                  control={control}
+                  name="retailerId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer</FormLabel>
+                      <Select
+                        value={field.value || ""}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select customer" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {retailerOptions.length ? (
+                            retailerOptions.map((retailer) => (
+                              <SelectItem
+                                key={retailer.id}
+                                value={String(retailer.id)}
+                              >
+                                {retailer.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="__none__" disabled>
+                              No retailer customers found
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <FormField
                 control={control}
                 name="quantity"

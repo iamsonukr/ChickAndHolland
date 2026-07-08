@@ -20,6 +20,7 @@ import Style from "../models/OrderStyle";
 import Customer from "../models/Customer";
 import CONFIG from "../config";
 import Product from "../models/Product";
+import Beader from "../models/Beader";
 import fetch from "node-fetch";
 import { imageCache, productCache } from "../lib/cache.service";
 import db from "../db";
@@ -59,6 +60,7 @@ import {
   ORDER_STAGE_FLOW,
   getCanonicalStage,
   getLowestStage,
+  getStageIndex,
 } from "../lib/stageFlow";
 import { buildRegularOrderStyleTotalSql } from "../lib/orderTotals";
 import { adjustStockInventoryForDeletedRetailerOrders } from "../services/stockInventory.service";
@@ -120,6 +122,13 @@ async function buildOrderStylesBeaderSelect(alias = "s") {
     : "NULL AS beader";
 }
 
+const buildResolvedOrderStyleBeaderSql = (
+  styleAlias = "s",
+  orderBeaderAlias = "ob",
+  productAlias = "p",
+) =>
+  `TRIM(COALESCE(NULLIF(TRIM(${styleAlias}.beader), ''), NULLIF(TRIM(${orderBeaderAlias}.beader), ''), NULLIF(TRIM(${productAlias}.beader), '')))`;
+
 async function addOrderStylesBeaderFilter(
   queryBuilder: any,
   orderAlias: string,
@@ -134,9 +143,17 @@ async function addOrderStylesBeaderFilter(
   queryBuilder.andWhere(
     `EXISTS (
       SELECT 1
-      FROM \`${ORDER_BEADERS_TABLE}\` orderBeaderFilter
-      WHERE orderBeaderFilter.orderId = ${orderAlias}.id
-        AND LOWER(orderBeaderFilter.beader) = LOWER(:beaderFilter)
+      FROM orderStyles styleBeaderFilter
+      LEFT JOIN \`${ORDER_BEADERS_TABLE}\` orderBeaderFilter
+        ON orderBeaderFilter.styleId = styleBeaderFilter.id
+      LEFT JOIN products productBeaderFilter
+        ON productBeaderFilter.productCode = styleBeaderFilter.styleNo
+      WHERE styleBeaderFilter.orderId = ${orderAlias}.id
+        AND LOWER(${buildResolvedOrderStyleBeaderSql(
+          "styleBeaderFilter",
+          "orderBeaderFilter",
+          "productBeaderFilter",
+        )}) = LOWER(:beaderFilter)
     )`,
     {
       beaderFilter: beaderValue,
@@ -326,6 +343,37 @@ function getComputedOrderStage(
   );
 }
 
+function getMostAdvancedKnownStage(
+  progressStage?: string | null,
+  parentStage?: string | null,
+) {
+  const canonicalProgress = getCanonicalStage(progressStage);
+  const canonicalParent = getCanonicalStage(parentStage);
+
+  if (!canonicalProgress) {
+    return canonicalParent ?? DEFAULT_ORDER_STAGE;
+  }
+
+  if (!canonicalParent) {
+    return canonicalProgress;
+  }
+
+  return getStageIndex(canonicalParent) > getStageIndex(canonicalProgress)
+    ? canonicalParent
+    : canonicalProgress;
+}
+
+function getDisplayedOrderStage(
+  barcodes: string[],
+  progressByBarcode: Map<string, string>,
+  parentStage?: string | null,
+) {
+  return getMostAdvancedKnownStage(
+    getComputedOrderStage(barcodes, progressByBarcode),
+    parentStage,
+  );
+}
+
 const emptyStageCounts = () =>
   ORDER_STAGE_FLOW.reduce<Record<string, number>>((acc, stage) => {
     acc[stage] = 0;
@@ -464,9 +512,10 @@ async function getProductStageCounts(baseOrders: any[]) {
     regularRows.forEach((row) => {
       addStageCount(
         counts,
-        regularProgressByBarcode.get(row.barcode) ??
-          regularOrderStatusById.get(row.orderId) ??
-          DEFAULT_ORDER_STAGE,
+        getMostAdvancedKnownStage(
+          regularProgressByBarcode.get(row.barcode),
+          regularOrderStatusById.get(row.orderId),
+        ),
       );
     });
   }
@@ -486,9 +535,10 @@ async function getProductStageCounts(baseOrders: any[]) {
     retailerRows.forEach((row) => {
       addStageCount(
         counts,
-        retailerProgressByBarcode.get(row.barcode) ??
-          retailerOrderStatusById.get(row.orderId) ??
-          DEFAULT_ORDER_STAGE,
+        getMostAdvancedKnownStage(
+          retailerProgressByBarcode.get(row.barcode),
+          retailerOrderStatusById.get(row.orderId),
+        ),
       );
     });
   }
@@ -2766,7 +2816,9 @@ router.get(
       }
 
       if (hasBeaderFilter) {
-        regularWhere.push("LOWER(ob.beader) = LOWER(?)");
+        regularWhere.push(
+          `LOWER(${buildResolvedOrderStyleBeaderSql("s", "ob", "p")}) = LOWER(?)`,
+        );
         regularParams.push(beaderFilter);
       }
 
@@ -2789,7 +2841,7 @@ router.get(
       retailerWhere.push("ro.is_stock_order = 1");
     }
 
-    const orderStylesBeaderSelect = "ob.beader AS beader";
+    const orderStylesBeaderSelect = `${buildResolvedOrderStyleBeaderSql("s", "ob", "p")} AS beader`;
 
     const [regularRows, retailerRows, stockRows] = await Promise.all([
       includeRegular
@@ -2830,6 +2882,7 @@ router.get(
               FROM orderStyles s
               INNER JOIN orders o ON o.id = s.orderId
               LEFT JOIN \`${ORDER_BEADERS_TABLE}\` ob ON ob.styleId = s.id
+              LEFT JOIN products p ON p.productCode = s.styleNo
               LEFT JOIN customers c ON c.id = o.customerId
               LEFT JOIN country country ON country.id = c.countryId
               LEFT JOIN product_colours pc ON LOWER(pc.hexcode) = LOWER(s.mesh_color)
@@ -3044,23 +3097,15 @@ router.get(
 router.get(
   "/beaders",
   asyncHandler(async (_req: Request, res: Response) => {
-    const rows = await db.query(
-      `
-        SELECT MIN(TRIM(ob.beader)) AS beader
-        FROM \`${ORDER_BEADERS_TABLE}\` ob
-        INNER JOIN orders o ON o.id = ob.orderId
-        WHERE o.status = 0
-          AND COALESCE(o.publishStatus, 'published') = 'published'
-          AND ob.beader IS NOT NULL
-          AND TRIM(ob.beader) <> ''
-        GROUP BY LOWER(TRIM(ob.beader))
-        ORDER BY LOWER(beader) ASC
-        `,
-    );
+    const beaders = await Beader.find({
+      order: { name: "ASC" },
+    });
 
     return res.json({
       success: true,
-      beaders: rows.map((row: any) => row.beader).filter(Boolean),
+      beaders: beaders
+        .map((beader) => sanitizeText(beader.name))
+        .filter(Boolean),
     });
   }),
 );
@@ -3448,16 +3493,18 @@ router.get(
           : Number(detailedOrder?.quantity || 0) || 0;
       const computedOrderStatus =
         baseOrder.orderSource === "regular"
-          ? getComputedOrderStage(
+          ? getDisplayedOrderStage(
               regularBarcodesByOrderId.get(Number(baseOrder.id)) ??
                 (styles || [])
                   .map((style: any) => String(style.barcode))
                   .filter(Boolean),
               regularProgressByBarcode,
+              baseOrder.orderStatus,
             )
-          : getComputedOrderStage(
+          : getDisplayedOrderStage(
               retailerBarcodesByOrderId.get(Number(baseOrder.id)) ?? [],
               retailerProgressByBarcode,
+              baseOrder.orderStatus,
             );
 
       const recoveredStageDates =

@@ -29,6 +29,7 @@ const page = async (props: {
   const searchParams = await props.searchParams;
   const currentPage = searchParams["cPage"] ? Number(searchParams["cPage"]) : 1;
   const query = searchParams["q"] ? searchParams["q"] : "";
+  const activeTab = searchParams["tab"] === "stock" ? "stock" : "fresh";
 
   const myStockOrders = await getAdminRetailersStockOrders({
     page: currentPage,
@@ -45,7 +46,7 @@ const page = async (props: {
   return (
     <ContentLayout title="Order Request">
       <CustomSearchBar query={query} />
-      <Tabs defaultValue="fresh" className="mt-3 w-full">
+      <Tabs defaultValue={activeTab} className="mt-3 w-full">
         <TabsList className="grid h-auto w-full grid-cols-1 text-base sm:grid-cols-2 sm:text-lg">
           <TabsTrigger value="fresh" className="relative">
             {fresh}

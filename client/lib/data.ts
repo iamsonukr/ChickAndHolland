@@ -441,13 +441,13 @@ export const getOrderStageCounts = async ({
   }
 };
 
-export const getOrderBeaders = async () => {
+export const getOrderBeaders = async (): Promise<string[]> => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
 
   try {
-    const response = await fetch(`${API_URL}/orders/beaders`, {
+    const response = await fetch(`${API_URL}/beaders`, {
       headers,
       cache: "no-store",
     });
@@ -457,7 +457,19 @@ export const getOrderBeaders = async () => {
     }
 
     const json = await response.json();
-    return Array.isArray(json?.beaders) ? json.beaders : [];
+    const beaders: any[] = Array.isArray(json?.beaders) ? json.beaders : [];
+    const names: string[] = Array.from(
+      new Set(
+        beaders
+          .map((beader: any) =>
+            typeof beader === "string" ? beader : String(beader?.name ?? ""),
+          )
+          .map((name: string) => name.trim())
+          .filter(Boolean),
+      ),
+    );
+
+    return names.sort((left, right) => left.localeCompare(right));
   } catch (error) {
     console.error("[getOrderBeaders] Failed to fetch beaders", error);
     return [];

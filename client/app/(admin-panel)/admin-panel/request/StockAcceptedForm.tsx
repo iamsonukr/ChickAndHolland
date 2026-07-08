@@ -279,6 +279,7 @@ const StockAcceptedForm = ({
       orderReceivedDate: undefined,
       orderCancellationDate: undefined,
       address: "",
+      phoneNumber: "",
       customerId: "",
       styleNo: "",
       size: "",
@@ -331,6 +332,12 @@ const StockAcceptedForm = ({
         ? parseDateOnly(customerDetails.orderCancellationDate || editOrder?.orderCancellationDate)
         : undefined,
       address: customerDetails?.address || editOrder?.address || customerDetails?.storeAddress || "",
+      phoneNumber:
+        customerDetails?.phoneNumber ||
+        editOrder?.phoneNumber ||
+        editOrder?.customer?.phoneNumber ||
+        editOrder?.retailer?.customer?.phoneNumber ||
+        "",
       customerId: customerStoreName,
       styleNo: customerDetails?.productCode || "",
       size: sizeLabel.trim(),
@@ -416,6 +423,8 @@ const StockAcceptedForm = ({
       orderReceivedDate: formatDateOnly(data.orderReceivedDate),
       orderType: "Stock",
       purchaseOrderNo,
+      address: data.address,
+      phoneNumber: data.phoneNumber,
       details: Array.from({ length: pieceCount }, (_, pieceIndex) => ({
         quantity: 1,
         size: displaySize,
@@ -489,6 +498,7 @@ const StockAcceptedForm = ({
     received_date: formatDateOnly(data.orderReceivedDate),
     orderCancellationDate: formatDateOnly(data.orderCancellationDate),
     address: data.address,
+    phoneNumber: data.phoneNumber,
     customerId: data.customerId,
     styleNo: data.styleNo,
     size: data.size,
@@ -1146,6 +1156,20 @@ const StockAcceptedForm = ({
 
               <FormField
                 control={form.control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem className={"md:col-span-3"}>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+91 9876543210" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name={`styleNo` as any}
                 render={({ field }) => (
                   <FormItem>
@@ -1436,6 +1460,21 @@ const StockAcceptedForm = ({
                     value={form.watch("address")}
                     onChange={(e) => {
                       form.setValue("address", e.target.value, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                      onPreviewSubmit(form.getValues());
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-black text-sm">Phone Number</label>
+                  <input
+                    className="border w-full p-2 rounded bg-white"
+                    value={form.watch("phoneNumber") ?? ""}
+                    onChange={(e) => {
+                      form.setValue("phoneNumber", e.target.value, {
                         shouldDirty: true,
                         shouldValidate: true,
                       });

@@ -810,6 +810,7 @@ export const createStockOrderFormSchema = z.object({
   orderCancellationDate: z.date({ required_error: "Order Cancellation Date is required" }),
 
   address: z.string().optional(),
+  phoneNumber: z.string().optional(),
   customerId: z.string().min(1, "Customer is required"),
   orderId: z.number({ coerce: true }),
 

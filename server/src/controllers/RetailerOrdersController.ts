@@ -916,7 +916,8 @@ router.get(
       FROM retailer_stock_orders rf
       INNER JOIN stock s ON s.id = rf.stockId
       INNER JOIN products p ON p.id = s.styleNo
-      INNER JOIN customers r ON r.id = rf.retailerId
+      INNER JOIN retailers r ON r.id = rf.retailerId
+      INNER JOIN customers as c on c.id = r.customerId
       WHERE ${whereClauses.join(" AND ")}
     `;
 
@@ -1086,6 +1087,7 @@ router.get(
   MIN(ro.orderReceivedDate) AS orderReceivedDate,
   MIN(ro.orderCancellationDate) AS orderCancellationDate,
   MIN(ro.address) AS address,
+  MIN(COALESCE(NULLIF(ro.phoneNumber, ''), r.phoneNumber)) AS phoneNumber,
   MIN(ro.invoiceNo) AS invoiceNo,
   MIN(ro.estimateNo) AS estimateNo,
   MIN(ro.shippingAmount) AS shippingAmount,
@@ -1278,7 +1280,7 @@ router.get(
         MIN(COALESCE(NULLIF(c.storeName, ''), c.name)) AS customerStoreName,
         MIN(COALESCE(NULLIF(c.storeName, ''), c.name)) AS customer_name,
         MIN(ro.manufacturingEmailAddress) AS manufacturingEmailAddress,
-        MIN(c.phoneNumber) AS phoneNumber,
+        MIN(COALESCE(NULLIF(ro.phoneNumber, ''), c.phoneNumber)) AS phoneNumber,
         MIN(p.productCode) AS styleNo,
         MIN(COALESCE(ro.orderReceivedDate, rf.createdAt)) AS orderReceivedDate,
         MIN(COALESCE(ro.address, c.storeAddress)) AS address,

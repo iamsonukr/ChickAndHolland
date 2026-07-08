@@ -17,7 +17,8 @@ const FEATURES = [
     title: "Timeless Elegance",
     text: "Chic & Holland's aim is to design and create dresses that will never go out of style - something that our discerning customers will be able to enjoy and appreciate for many years to come.",
     href: "/product/1153",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/First-Section/0C4A6925%20copy.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/First-Section/0C4A8574%20copy.jpg",
+
     alt: "Timeless Elegance by Chic & Holland",
     reverse: false,
   },
@@ -25,7 +26,7 @@ const FEATURES = [
     title: "Truly Handmade",
     text: "We believe ourselves to be the guardians of this craft! In an age when everything is being made by machines, we chose to lovingly handcraft all of our garments at our own atelier.",
     href: "/product/1150",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/First-Section/0C4A8400%20copy.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/First-Section/0C4A6925%20copy.jpg",
     alt: "Truly Handmade craftsmanship by Chic & Holland",
     reverse: true,
   },
@@ -33,7 +34,7 @@ const FEATURES = [
     title: "Crystals & Embellishment",
     text: "One of our signature elements is our obsession with crystals. Each dress uses several types of crystals and beads, each using its own distinct language to communicate its purpose, accentuate a curve, and tell its own story.",
     href: "/product/1154",
-    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/First-Section/0C4A8574%20copy.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/First-Section/0C4A8400%20copy.jpg",
     alt: "Crystals and embellishment details by Chic & Holland",
     reverse: false,
   },
@@ -41,39 +42,37 @@ const FEATURES = [
 
 const SLIDES = [
   {
-    src: "/homepage-section3-img/HF110423A-one-more-new.jpg",
+    src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/ROCOCO%20DREAMS%20PROM%20EDIT/0C4A0683%20copy.jpg",
     width: 1508,
     height: 2260,
   },
-  { src: "/homepage-section3-img/HF110510A.jpg", width: 2732, height: 4098 },
-  { src: "/homepage-section3-img/HF110529A.jpg", width: 2732, height: 4098 },
-  { src: "/homepage-section3-img/HF110575.jpg", width: 2732, height: 4098 },
-  { src: "/homepage-section3-img/PH12012A.jpg", width: 2732, height: 4098 },
-  {
-    src: "/homepage-section3-img/unnamed-img-new.jpg",
-    width: 754,
-    height: 1130,
-  },
+  { src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/ROCOCO%20DREAMS%20PROM%20EDIT/0C4A0533%20copy.jpg", width: 2732, height: 4098 },
+  { src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/ROCOCO%20DREAMS%20PROM%20EDIT/0C4A0683%20copy.jpg", width: 2732, height: 4098 },
+
 ];
 
 const COLLECTION_VIDEOS = [
   {
-    seq: "Sequence%2005",
+    videoSrc:
+      "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/ROCOCO%20DREAMS/9.mp4",
     posterSrc: "/homepage-section3-img/HF110423A-one-more-new.jpg",
     posterAlt: "300 Hours couture collection look one",
   },
   {
-    seq: "Sequence%2003",
+    videoSrc:
+      "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/ROCOCO%20DREAMS/17.mp4",
     posterSrc: "/homepage-section3-img/HF110510A.jpg",
     posterAlt: "300 Hours couture collection look two",
   },
   {
-    seq: "Sequence%2002",
+    videoSrc:
+      "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/ROCOCO%20DREAMS/4.mp4",
     posterSrc: "/homepage-section3-img/HF110529A.jpg",
     posterAlt: "300 Hours couture collection look three",
   },
   {
-    seq: "Sequence%2004",
+    videoSrc:
+      "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/ROCOCO%20DREAMS/1.mp4",
     posterSrc: "/homepage-section3-img/HF110575.jpg",
     posterAlt: "300 Hours couture collection look four",
   },
@@ -129,7 +128,7 @@ const TrendsCarousel = dynamic(() => import("./TrendsCarousel"), {
   ),
 });
 
-function SectionHeader({
+export function SectionHeader({
   title,
   subtitle,
 }: {
@@ -238,6 +237,72 @@ export default function Home() {
         </div>
       </div>
 
+      <section className="w-full bg-[#f8f4f2] py-12 px-6 lg:px-16">
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-12">
+          {/* Left Side */}
+          <div className="relative w-full lg:w-[70%] flex justify-center">
+            {/* Frame */}
+            <img
+              src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/frame.png"
+              alt="Decorative Frame"
+              className="w-xl max-w-5xl h-auto object-contain opacity-25"
+            />
+
+            {/* Content */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8 lg:px-24">
+              <h2 className="text-4xl md:text-5xl font-serif tracking-wide text-[#b78674] uppercase">
+                Rococo Dreams
+              </h2>
+
+              <p className="mt-2 text-lg tracking-[4px] text-[#b78674]">
+                2026-27
+              </p>
+
+              <p className="mt-10 max-w-2xl text-[#b18b7c] leading-8 text-lg">
+                Rococo Dreams began with a dream of another era—one filled with
+                pastel hues, ornate details, and effortless elegance.
+              </p>
+
+              <p className="mt-8 max-w-2xl text-[#b18b7c] leading-8 text-lg">
+                Inspired by the enchanting spirit of Rococo, this collection
+                transforms its romance into modern couture through sculpted
+                corsetry, intricate embellishment, and exceptional craftsmanship.
+              </p>
+
+              <h3 className="mt-10 text-2xl font-serif text-[#b78674]">
+                A Modern Couture Fairytale
+              </h3>
+
+              <button className="mt-8 border border-[#b78674] px-10 py-3 text-[#b78674] uppercase tracking-widest hover:bg-[#b78674] hover:text-white transition-all duration-300">
+                Explore The Collection
+              </button>
+            </div>
+          </div>
+
+          {/* Right Side */}
+          <div className="w-full lg:w-[30%] flex justify-center">
+
+            <div className="m-auto flex w-full items-center justify-center md:w-1/2">
+              <LazyHlsVideo
+                src={`${BASE_HLS}/Sequence%2s001_5/hls/playlist.m3u8`}
+                fallbackSrc="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/15.mov"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                posterSrc="/section3-img/sec1.jpg"
+                posterAlt="300 Hours couture campaign video"
+                imageSizes={HALF_SECTION_IMAGE_SIZES}
+                rootMargin="250px"
+                wrapperClassName="mx-auto aspect-[9/16] w-full max-w-[505px] bg-black"
+                className="h-full w-full object-contain bg-black p-0"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div className="flex w-full justify-center bg-white pb-4 pt-6">
         <div className="relative w-[95%]">
           <Image
@@ -335,35 +400,34 @@ export default function Home() {
       </div>
 
       <div className="flex flex-col gap-4 py-8">
-  <SectionHeader title="300 HOURS" subtitle="COUTURE 2025/26" />
+        <SectionHeader title="300 HOURS" subtitle="COUTURE 2025/26" />
 
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-2">
-    {COLLECTION_VIDEOS.map(({ seq, posterSrc, posterAlt }) => (
-      <Link
-        key={seq}
-        href="/collections/72/80"
-        className="block h-full w-full"
-      >
-        <LazyHlsVideo
-          src={`${BASE_HLS}/${seq}/hls/playlist.m3u8`}
-          fallbackSrc={`${BASE_MP4}/${seq}.mp4`}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          controlsList="nodownload"
-          posterSrc={posterSrc}
-          posterAlt={posterAlt}
-          imageSizes={CAROUSEL_IMAGE_SIZES}
-          rootMargin="250px"
-          wrapperClassName="aspect-[2/3]"
-          className="h-full w-full object-cover"
-        />
-      </Link>
-    ))}
-  </div>
-</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-2">
+          {COLLECTION_VIDEOS.map(({ videoSrc, posterSrc, posterAlt }) => (
+            <Link
+              key={videoSrc}
+              href="/collections/72/80"
+              className="block h-full w-full"
+            >
+              <LazyHlsVideo
+                src={videoSrc}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                controlsList="nodownload"
+                posterSrc={posterSrc}
+                posterAlt={posterAlt}
+                imageSizes={CAROUSEL_IMAGE_SIZES}
+                rootMargin="250px"
+                wrapperClassName="aspect-[2/3]"
+                className="h-full w-full object-cover"
+              />
+            </Link>
+          ))}
+        </div>
+      </div>
 
 
       <div className="flex flex-col gap-4 py-8">
@@ -385,18 +449,35 @@ export default function Home() {
         />
       </div>
 
+      <div className="flex flex-col gap-4 py-8">
+        <SectionHeader title="ROCOCO DREAMS EVENING COLLECTION" subtitle="2026-27" />
+        <div className="relative max-w-2xl">
+          <Image
+            src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/OneBigImage.png"
+            alt="Chic & Holland dress"
+            fill
+            sizes={HALF_SECTION_IMAGE_SIZES}
+            className="object-cover"
+            loading="lazy"
+          />
+        </div>
+      </div>
+
       <div className="bg-muted py-8">
         <div className="container flex flex-col items-center gap-4 md:flex-row md:justify-between md:gap-28">
           <div className="flex-1">
             <Link href="/product/1201" className="block">
               <div className="relative aspect-[2/3] w-full overflow-hidden">
-                <Image
-                  src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/homepage/PH120116B-LossyC.jpg"
-                  alt="Chic & Holland dress"
-                  fill
-                  sizes={HALF_SECTION_IMAGE_SIZES}
-                  className="object-cover"
-                  loading="lazy"
+                <video
+                  src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/FindStore.mp4"
+                  className="h-full w-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  controlsList="nodownload"
+                  aria-label="Chic & Holland find a store video"
                 />
               </div>
             </Link>

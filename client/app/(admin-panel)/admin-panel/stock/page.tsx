@@ -5,6 +5,7 @@ import {
   getStock,
   getCurrencies,
   getRetailerDetails,
+  getCustomers,
 } from "@/lib/data";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
@@ -70,7 +71,20 @@ const Stock = async (props: {
 
   const colours = await getProductColours({});
   const currencies = await getCurrencies();
+  const customersResponse = await getCustomers({});
   const currencyOptions = currencies?.currencies ?? currencies ?? [];
+  const retailerOptions =
+    customersResponse?.customers
+      ?.map((customer: any) => ({
+        id: customer?.retailer?.id,
+        name:
+          customer?.customerStoreName ||
+          customer?.storeName ||
+          customer?.name ||
+          `Customer ${customer?.id}`,
+        currencyId: customer?.currencyId || customer?.currency?.id || null,
+      }))
+      .filter((customer: any) => customer.id) ?? [];
 
   const getColourBasedOnhex = (hex: string) =>
     colours.productColours.find(
@@ -238,7 +252,10 @@ const Stock = async (props: {
                   colours={colours.productColours}
                   currencies={currencyOptions}
                   edit={true}
-                  placeOrder={false}
+                  placeOrder={true}
+                  placeOrderMode="admin"
+                  retailerOptions={retailerOptions}
+                  placeOrderRedirectTo="/admin-panel/request?tab=stock"
                   className="mt-auto scale-95 "
                 />
               </div>

@@ -76,7 +76,7 @@ function LabelTile({ item }: { item: any }) {
 
       {barcodeUrl && (
         <View style={styles.barcodeBlock}>
-          <Text style={styles.scanText}>2D SCAN</Text>
+          {/* <Text style={styles.scanText}>2D SCAN</Text> */}
           {/* eslint-disable-next-line jsx-a11y/alt-text */}
           <Image src={barcodeUrl} style={styles.barcode} />
         </View>

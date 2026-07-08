@@ -22,7 +22,16 @@ import EditStockForm from "./EditStockForm";
 import PlaceOrder from "@/components/custom/retailer-panel/PlaceOrder";
 // import EditCustomerForm from "./EditCustomerForm";
 
-const TableActions = ({ data, colours, currencies, edit, placeOrder }: any) => {
+const TableActions = ({
+  data,
+  colours,
+  currencies,
+  edit,
+  placeOrder,
+  placeOrderMode = "retailer",
+  retailerOptions = [],
+  placeOrderRedirectTo,
+}: any) => {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const { executeAsync, loading } = useHttp(`/stock/${data.id}`, "DELETE");
@@ -33,7 +42,13 @@ const TableActions = ({ data, colours, currencies, edit, placeOrder }: any) => {
         {/* <EditCategoryForm previousData={data} /> */}
         {/* <EditCustomerForm previousData={data} /> */}
         {placeOrder && (
-          <PlaceOrder quantity={data.quantity} stockId={data.id} />
+          <PlaceOrder
+            quantity={data.quantity}
+            stockId={data.id}
+            mode={placeOrderMode}
+            retailerOptions={retailerOptions}
+            redirectTo={placeOrderRedirectTo}
+          />
         )}
         {edit && <EditStockForm previousData={data} colours={colours} currencies={currencies} />}
 

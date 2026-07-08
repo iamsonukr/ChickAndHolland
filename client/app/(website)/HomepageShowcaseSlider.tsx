@@ -6,6 +6,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/autoplay";
+import { SectionHeader } from "./page";
 
 type HomepageShowcaseSlide = {
   src: string;
@@ -42,6 +43,7 @@ export default function HomepageShowcaseSlider({
 
   return (
     <div ref={containerRef} className="w-full max-w-6xl px-4">
+  <SectionHeader title="ROCOCO DREAMS PROM EDIT" subtitle="2026-27" />
       <Swiper
         modules={[Autoplay]}
         loop

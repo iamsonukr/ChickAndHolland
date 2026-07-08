@@ -43,6 +43,7 @@ export default function HlsVideo({
   const [error, setError] = useState<string | null>(null);
   const shouldManagePlayback = shouldPlay ?? autoPlay;
   const shouldManagePlaybackRef = useRef(shouldManagePlayback);
+  const isHlsSource = /\.m3u8(?:$|[?#])/i.test(src);
 
   useEffect(() => {
     setUseFallback(false);
@@ -56,6 +57,34 @@ export default function HlsVideo({
   useEffect(() => {
     const video = videoRef.current;
     if (!video || useFallback) return;
+
+    if (!isHlsSource) {
+      const handleLoadedMetadata = () => {
+        if (autoPlay && shouldManagePlaybackRef.current) {
+          video.play().catch(() => {});
+        }
+      };
+
+      const handleError = () => {
+        if (fallbackSrc && fallbackSrc !== src) {
+          setUseFallback(true);
+          return;
+        }
+
+        setError("Failed to load video");
+      };
+
+      video.src = src;
+      video.addEventListener("loadedmetadata", handleLoadedMetadata);
+      video.addEventListener("error", handleError);
+
+      return () => {
+        video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        video.removeEventListener("error", handleError);
+        video.removeAttribute("src");
+        video.load();
+      };
+    }
 
     if (Hls.isSupported()) {
       const hls = new Hls({
@@ -153,6 +182,7 @@ export default function HlsVideo({
     maxBufferLength,
     backBufferLength,
     lowLatencyMode,
+    isHlsSource,
   ]);
 
   useEffect(() => {

@@ -81,7 +81,7 @@ export default function LabelPdf({ item }: { item: any }) {
           {/* ================= BARCODE ================= */}
           {item.barcode && (
             <View style={styles.barcodeBlock}>
-              <Text style={styles.scanText}>2D SCAN</Text>
+              {/* <Text style={styles.scanText}>2D SCAN</Text> */}
               <Image
                 alt="2d barcode"
                 src={build2dBarcodeUrl(item.barcode, 120)}
