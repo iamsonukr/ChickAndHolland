@@ -67,7 +67,7 @@ export default function HomepageShowcaseSlider({
                 height={height}
                 sizes={IMAGE_SIZES}
                 className="h-[580px] w-full object-fill transition-transform duration-500 group-hover:scale-110"
-                loading="lazy"
+                loading="eager"
               />
             </div>
           </SwiperSlide>

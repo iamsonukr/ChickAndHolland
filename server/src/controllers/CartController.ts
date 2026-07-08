@@ -7,6 +7,7 @@ import Stock from "../models/Stock";
 import Category from "../models/Category";
 import SubCategory from "../models/SubCategory";
 import ProductImage from "../models/ProductImage";
+import RetailerFavouritesOrders from "../models/ReailerFavouritesOrder";
 import Busboy from "busboy";
 import sharp from "sharp";
 import { getFullUrl, storeFileInS3 } from "../lib/s3";
@@ -482,6 +483,7 @@ router.post(
           cartItem.customization = "Sample Order";
           cartItem.reference_image = JSON.stringify([imageUrl]);
           cartItem.size_country = cleanSizeCountry;
+          cartItem.is_order_placed = 1;
 
           if (retailer.customer?.currency) {
             cartItem.currency = retailer.customer.currency;
@@ -489,17 +491,24 @@ router.post(
           }
 
           await queryRunner.manager.save(cartItem);
+
+          const requestOrder = new RetailerFavouritesOrders();
+          requestOrder.favourite_ids = String(cartItem.id);
+          requestOrder.retailer = retailer;
+          await queryRunner.manager.save(requestOrder);
+
           await queryRunner.commitTransaction();
 
           const nextSequence = await peekNextSampleOrderStyleNo();
 
           return res.json({
             success: true,
-            message: "Sample order added to cart successfully.",
+            message: "Sample order request submitted successfully.",
             styleNo: sequence.styleNo,
             nextStyleNo: nextSequence.styleNo,
             productId: savedProduct.id,
             cartId: cartItem.id,
+            requestId: requestOrder.id,
           });
         } catch (error) {
           await queryRunner.rollbackTransaction();

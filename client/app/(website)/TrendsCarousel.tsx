@@ -9,6 +9,7 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import AutoPlay from "embla-carousel-autoplay";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 const images = [
@@ -151,14 +152,22 @@ const TrendsCarousel = () => {
               <CustomizedImage
                 src={image.src}
                 alt={image.alt}
-                loading="lazy"
+                loading="eager"
                 sizes={IMAGE_SIZES}
               />
             </CarouselItem>
           ))}
         </CarouselContent>
-        <div className="flex justify-center space-x-2 py-4 max-w-[200px] mx-auto">
-          <img src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/Floral%20line.png" alt="" />
+        <div className="mx-auto flex max-w-[200px] justify-center space-x-2 py-4">
+          <Image
+            src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/Floral%20line.png"
+            alt=""
+            width={1200}
+            height={180}
+            sizes="200px"
+            loading="eager"
+            className="h-auto w-full"
+          />
         </div>
       </Carousel>
     </div>

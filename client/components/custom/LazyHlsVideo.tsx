@@ -83,7 +83,7 @@ const LazyHlsVideo = ({
         )}
         wrapperClassName="h-full w-full"
         sizes={imageSizes}
-        loading="lazy"
+        loading="eager"
       />
 
       {hasEnteredViewport && (

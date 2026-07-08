@@ -114,6 +114,7 @@ export function FreshTable({ data }: { data: any[] }) {
         <TableRow className="text-sm sm:text-base">
           <TableHead className="">Date</TableHead>
           <TableHead className="text-center">Customer</TableHead>
+          <TableHead className="text-center">Type</TableHead>
           <TableHead className="text-center">Sizes</TableHead>
           <TableHead className="text-center">Quantity</TableHead>
           <TableHead className="text-center">Total Amount</TableHead>
@@ -127,6 +128,9 @@ export function FreshTable({ data }: { data: any[] }) {
               {formatDateOnlyDisplay(invoice.formatted_date, "DD-MM-YYYY")}
             </TableCell>
             <TableCell className="text-center">{getCustomerStoreName(invoice)}</TableCell>
+            <TableCell className="text-center">
+              {invoice.requestType || "Fresh"}
+            </TableCell>
             <TableCell className="max-w-[150px] truncate text-center">
               {formatFreshTableSize(invoice)}
             </TableCell>

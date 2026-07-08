@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ShoppingBag } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -94,7 +94,7 @@ const PlaceSampleOrderForm = ({
     "POST",
   );
 
-  const refreshNextStyleNo = async () => {
+  const refreshNextStyleNo = useCallback(async () => {
     try {
       const response: any = await getNextStyle();
       if (response?.styleNo) {
@@ -103,11 +103,11 @@ const PlaceSampleOrderForm = ({
     } catch {
       setNextStyleNo("NS001164");
     }
-  };
+  }, [getNextStyle]);
 
   useEffect(() => {
     refreshNextStyleNo();
-  }, []);
+  }, [refreshNextStyleNo]);
 
   const onSubmit = async (values: SampleOrderForm) => {
     const retailerId = getCookie("retailerId");
@@ -128,7 +128,7 @@ const PlaceSampleOrderForm = ({
 
     try {
       const response: any = await placeSampleOrder(formData);
-      toast.success(response?.message ?? "Sample order added to cart");
+      toast.success(response?.message ?? "Sample order request submitted");
       if (response?.nextStyleNo) {
         setNextStyleNo(response.nextStyleNo);
       } else {
@@ -153,8 +153,8 @@ const PlaceSampleOrderForm = ({
       <div className="rounded-md border bg-background p-5 shadow-sm">
         <h1 className="text-xl font-semibold">Sample Order</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Place a custom sample order. It will be added to your cart under
-          Retailer Collection / Custom Category.
+          Place a custom sample order request. It will be sent to admin for
+          review under Retailer Collection / Custom Category.
         </p>
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>

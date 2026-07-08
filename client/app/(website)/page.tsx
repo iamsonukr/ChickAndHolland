@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-import { cn } from "@/lib/utils";
 import LazyHlsVideo from "@/components/custom/LazyHlsVideo";
 import { CustomizedImage } from "@/components/custom/CustomizedImage";
 import { Button } from "@/components/ui/button";
 import HomeHeroVideo from "./HomeHeroVideo";
+import HomepageShowcaseSlider from "./HomepageShowcaseSlider";
+import TrendsCarousel from "./TrendsCarousel";
 
 const BASE_HLS =
   "https://chicandholland-space.ams3.digitaloceanspaces.com/homepage/new-collection-videos";
@@ -94,46 +94,6 @@ const TEXT_SIZES =
 const SUBTEXT_SIZES =
   "text-lg md:text-xl 2xl:text-xl 3xl:text-3xl 4xl:text-5xl";
 
-function MediaGridSkeleton({
-  itemCount,
-  columnsClassName,
-}: {
-  itemCount: number;
-  columnsClassName: string;
-}) {
-  return (
-    <div className={cn("grid gap-4 px-4", columnsClassName)}>
-      {Array.from({ length: itemCount }).map((_, index) => (
-        <div
-          key={index}
-          className="aspect-[2/3] animate-pulse rounded-md bg-gray-200"
-          aria-hidden="true"
-        />
-      ))}
-    </div>
-  );
-}
-
-const HomepageShowcaseSlider = dynamic(() => import("./HomepageShowcaseSlider"), {
-  loading: () => (
-    <div className="w-full max-w-6xl">
-      <MediaGridSkeleton
-        itemCount={3}
-        columnsClassName="grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-      />
-    </div>
-  ),
-});
-
-const TrendsCarousel = dynamic(() => import("./TrendsCarousel"), {
-  loading: () => (
-    <MediaGridSkeleton
-      itemCount={4}
-      columnsClassName="grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-    />
-  ),
-});
-
 export function SectionHeader({
   title,
   subtitle,
@@ -142,7 +102,7 @@ export function SectionHeader({
   subtitle: string;
 }) {
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center px-4 text-center">
       <h2 className={`font-adornstoryserif ${TEXT_SIZES}`}>{title}</h2>
       <p className={`font-mysi ${SUBTEXT_SIZES}`}>{subtitle}</p>
     </div>
@@ -163,7 +123,7 @@ function ExploreButton({
 }) {
   return (
     <Link href={href}>
-      <button className="border border-[#b78674] px-10 py-3 text-xs uppercase tracking-widest text-[#b78674] transition-all duration-300 hover:bg-[#b78674] hover:text-white md:text-sm">
+      <button className="border border-[#b78674] px-6 py-3 text-[11px] uppercase tracking-widest text-[#b78674] transition-all duration-300 hover:bg-[#b78674] hover:text-white sm:px-10 sm:text-xs md:text-sm">
         {label}
       </button>
     </Link>
@@ -237,16 +197,6 @@ export default function Home() {
             posterSrc="/Chic-Holland-HC-S26-037.jpg"
             posterAlt="Chic & Holland Rococo Dreams campaign"
           />
-          {/* <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center text-white">
-            <h1 className="font-adornstoryserif text-5xl uppercase tracking-[0.15em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] md:text-7xl lg:text-8xl">
-              Rococo
-              <br />
-              Dreams
-            </h1>
-            <p className="mt-4 font-mysi text-sm uppercase tracking-[0.4em] drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)] md:text-xl">
-              A Modern Couture Fairytale
-            </p>
-          </div> */}
           <Link
             href="/collections/72/80"
             className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 text-xs uppercase tracking-widest text-white md:text-base 3xl:text-2xl 4xl:text-3xl"
@@ -260,14 +210,14 @@ export default function Home() {
           Handmade / Crystals & Embellishment) — mock shows all three
           titles sitting above their image, no staggered/reverse layout. */}
       <div className="bg-muted py-8">
-        <div className="container grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="container grid grid-cols-1 gap-8 sm:gap-6 md:grid-cols-3 md:gap-4">
           {FEATURES.map(({ title, text, href, src, alt, reverse }) => (
             <div
               key={title}
-              className={`flex flex-col gap-8 ${reverse ? "md:flex-col-reverse" : ""}`}
+              className={`flex flex-col gap-4 sm:gap-8 ${reverse ? "md:flex-col-reverse" : ""}`}
             >
               <div className="space-y-2">
-                <h2 className="text-center font-adornstoryserif text-xl uppercase tracking-wide text-[#b78674] md:text-xl 2xl:text-2xl 3xl:text-5xl 4xl:py-2 4xl:text-5xl">
+                <h2 className="text-center font-adornstoryserif text-lg uppercase tracking-wide text-[#b78674] sm:text-xl md:text-xl 2xl:text-2xl 3xl:text-5xl 4xl:py-2 4xl:text-5xl">
                   {title}
                 </h2>
               </div>
@@ -279,16 +229,11 @@ export default function Home() {
                     fill
                     sizes={FEATURE_IMAGE_SIZES}
                     className="object-cover"
-                    loading="lazy"
+                    loading="eager"
                   />
                 </div>
               </Link>
-              {/* NOTE: mock screenshots only show title + image for this
-                  section — no body copy is visible under any of the three
-                  cards. Keeping this paragraph for now since removing
-                  marketing copy is a content call, not a layout one.
-                  Let me know if you want it dropped to match exactly. */}
-              <p className="px-2 text-center font-mysi text-lg leading-5 text-muted-foreground md:px-4 md:text-lg md:leading-5 2xl:px-1 2xl:text-xl 2xl:leading-5 3xl:px-7 3xl:text-4xl 3xl:!leading-[29px] 4xl:px-16 4xl:text-4xl 4xl:!leading-[27px]">
+              <p className="px-2 text-center font-mysi text-base leading-5 text-muted-foreground sm:text-lg md:px-4 md:text-lg md:leading-5 2xl:px-1 2xl:text-xl 2xl:leading-5 3xl:px-7 3xl:text-4xl 3xl:!leading-[29px] 4xl:px-16 4xl:text-4xl 4xl:!leading-[27px]">
                 {text}
               </p>
             </div>
@@ -296,43 +241,51 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ───────────────── 3. ROCOCO DREAMS framed intro copy + video ──────────────── */}
-      <section className="w-full bg-[#f8f1ef] py-16 lg:py-20">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-16 px-8 lg:px-20">
+      {/* ───────────────── 3. ROCOCO DREAMS framed intro copy + video ────────────────
+          FIX: this block used to be a permanent flex-row, which crushed the
+          frame + video into a tiny sliver on phones. Now stacks vertically
+          below `lg`, and all the overlay text (previously fixed px sizes
+          that didn't scale down) uses responsive clamps instead. */}
+      <section className="w-full bg-[#f8f1ef] py-10 sm:py-16 lg:py-20">
+        <div className="mx-auto flex max-w-[1500px] flex-col items-center justify-between gap-10 px-4 sm:px-8 lg:flex-row lg:gap-16 lg:px-20">
 
           {/* LEFT FRAME CONTENT */}
           <div className="relative flex w-full items-center justify-center lg:w-[68%]">
-            <img
+            <Image
               src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/frame.png"
               alt="Decorative Frame"
+              width={1400}
+              height={900}
+              sizes="(min-width: 1024px) 68vw, 100vw"
+              loading="eager"
               className="w-full max-w-[1000px] object-cover opacity-70"
             />
 
-            <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-              <h2 className="font-serif text-[42px] uppercase tracking-[6px] text-[#9f766b]">
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center sm:px-6">
+              <h2 className="font-serif text-2xl uppercase tracking-[3px] text-[#9f766b] sm:text-3xl sm:tracking-[5px] md:text-[42px] md:tracking-[6px]">
                 Rococo Dreams
               </h2>
 
-              <p className="mt-1 text-[18px] tracking-[5px] text-[#9f766b]">
+              <p className="mt-1 text-xs tracking-[2px] text-[#9f766b] sm:text-sm sm:tracking-[3px] md:text-[18px] md:tracking-[5px]">
                 2026-27
               </p>
 
-              <p className="mt-4 max-w-[680px] text-[14px] uppercase leading-[24px] tracking-[1px] text-[#a8847a]">
+              <p className="mt-3 max-w-[280px] text-[11px] uppercase leading-[18px] tracking-[0.5px] text-[#a8847a] sm:max-w-[500px] sm:text-[12px] sm:leading-[20px] md:max-w-[680px] md:text-[14px] md:leading-[24px] md:tracking-[1px]">
                 Rococo Dreams began with a dream of another era—one filled with pastel
                 hues, ornate details, and effortless elegance.
               </p>
 
-              <p className="mt-2 max-w-[720px] text-[14px] uppercase leading-[24px] tracking-[1px] text-[#a8847a]">
+              <p className="mt-2 max-w-[280px] text-[11px] uppercase leading-[18px] tracking-[0.5px] text-[#a8847a] sm:max-w-[520px] sm:text-[12px] sm:leading-[20px] md:max-w-[720px] md:text-[14px] md:leading-[24px] md:tracking-[1px]">
                 Inspired by the enchanting spirit of Rococo, this collection transforms
                 its romance into modern couture through sculpted corsetry, intricate
                 embellishment, and exceptional craftsmanship.
               </p>
 
-              <h3 className="mt-4 font-serif text-[24px] text-[#9f766b]">
+              <h3 className="mt-3 font-serif text-base text-[#9f766b] sm:text-lg md:mt-4 md:text-[24px]">
                 A modern couture fairytale
               </h3>
 
-              <div className="mt-7">
+              <div className="mt-5 md:mt-7">
                 <ExploreButton href="/collections/72/80" />
               </div>
             </div>
@@ -340,7 +293,7 @@ export default function Home() {
 
           {/* RIGHT VIDEO */}
           <div className="flex w-full justify-center lg:w-[32%]">
-            <div className="w-full max-w-[380px]">
+            <div className="w-full max-w-[280px] sm:max-w-[340px] lg:max-w-[380px]">
               <LazyHlsVideo
                 src={`${BASE_HLS}/Sequence%2s001_5/hls/playlist.m3u8`}
                 fallbackSrc="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/15.mov"
@@ -408,11 +361,10 @@ export default function Home() {
 
       {/* ───────────────── 6. ROCOCO DREAMS PROM EDIT — 2026-27 ──────────────── */}
       <div className="flex flex-col items-center gap-6 bg-[#f8f4f2] py-8">
-        {/* <SectionHeader title="Rococo Dreams Prom Edit" subtitle="2026-27" /> */}
         <div className="w-full max-w-6xl px-4">
           <HomepageShowcaseSlider slides={SLIDES} />
         </div>
-        <ExploreButton href="/collections/92/82" />
+        <ExploreButton href="/collections/92/96" />
         <OrnamentDivider />
       </div>
 
@@ -429,16 +381,16 @@ export default function Home() {
             fill
             sizes="(min-width: 1024px) 1152px, 100vw"
             className="object-cover"
-            loading="lazy"
+            loading="eager"
           />
         </div>
-        <ExploreButton href="/collections/71/84" />
+        <ExploreButton href="/collections/73/97" />
       </div>
 
       {/* ───────────────── 8. FIND A STORE ──────────────── */}
       <div className="bg-muted py-8">
-        <div className="container flex flex-col items-center gap-4 md:flex-row md:justify-between md:gap-28">
-          <div className="flex-1">
+        <div className="container flex flex-col items-center gap-6 md:flex-row md:justify-between md:gap-28">
+          <div className="w-full max-w-xs sm:max-w-sm md:max-w-none md:flex-1">
             <Link href="/product/1201" className="block">
               <div className="relative aspect-[2/3] w-full overflow-hidden">
                 <video
@@ -455,11 +407,11 @@ export default function Home() {
               </div>
             </Link>
           </div>
-          <div className="flex flex-1 flex-col items-center justify-center gap-2">
-            <h2 className="text-center font-adornstoryserif text-2xl md:text-2xl 2xl:text-3xl 3xl:text-5xl 4xl:py-3 4xl:text-6xl">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-2">
+            <h2 className="text-center font-adornstoryserif text-xl md:text-2xl 2xl:text-3xl 3xl:text-5xl 4xl:py-3 4xl:text-6xl">
               Find A Store
             </h2>
-            <p className="text-center font-mysi text-muted-foreground md:px-5 md:text-lg md:leading-5 2xl:px-4 2xl:text-xl 3xl:text-4xl 4xl:px-6 4xl:text-4xl">
+            <p className="text-center font-mysi text-sm text-muted-foreground sm:text-base md:px-5 md:text-lg md:leading-5 2xl:px-4 2xl:text-xl 3xl:text-4xl 4xl:px-6 4xl:text-4xl">
               Chic &amp; Holland is also available in many stores around the world
               and has more than 100 authorized retailers within 25 countries
               carrying the brand across Europe, USA, Canada, Australia, Mexico,
@@ -474,9 +426,12 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ───────────────── 9. DUBAI FASHION WEEK / SS26 "300 HOURS" ──────────────── */}
+      {/* ───────────────── 9. DUBAI FASHION WEEK / SS26 "300 HOURS" ────────────────
+          FIX: stacked overlay headings were too large/tight on small phones
+          (three lines of big serif text over a limited-height banner).
+          Sizes now step up more gradually from mobile → desktop. */}
       <div className="flex w-full flex-col items-center bg-white pb-4 pt-6">
-        <h2 className="mb-4 text-center font-adornstoryserif text-2xl uppercase tracking-[0.2em] text-[#b78674] md:text-4xl">
+        <h2 className="mb-4 px-4 text-center font-adornstoryserif text-xl uppercase tracking-[0.15em] text-[#b78674] sm:text-2xl md:text-4xl md:tracking-[0.2em]">
           Dubai Fashion Week
         </h2>
         <div className="relative w-[95%]">
@@ -487,21 +442,21 @@ export default function Home() {
             height={2732}
             sizes="95vw"
             className="h-auto w-full"
-            loading="lazy"
+            loading="eager"
           />
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white">
-            <h2 className="font-adornstoryserif text-4xl leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)] md:text-7xl lg:text-8xl">
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
+            <h2 className="font-adornstoryserif text-xl leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)] sm:text-2xl md:text-4xl lg:text-7xl xl:text-8xl">
               SS26 &quot;300 Hours&quot;
             </h2>
-            <h3 className="mt-2 font-adornstoryserif text-2xl leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)] md:text-5xl lg:text-6xl">
+            <h3 className="mt-1 font-adornstoryserif text-base leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)] sm:text-lg md:mt-2 md:text-2xl lg:text-5xl xl:text-6xl">
               Couture Collection
             </h3>
-            <p className="mt-4 font-adornstoryserif text-xl tracking-wide opacity-95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)] md:text-3xl lg:text-4xl">
+            <p className="mt-2 font-adornstoryserif text-xs tracking-wide opacity-95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)] sm:text-sm md:mt-4 md:text-xl lg:text-3xl xl:text-4xl">
               Unveiled at Dubai Fashion Week
             </p>
             <Link
               href="/collections/72/80"
-              className="mt-6 px-4 py-2 text-xs uppercase tracking-widest text-white md:text-base"
+              className="mt-3 px-4 py-2 text-[10px] uppercase tracking-widest text-white sm:text-xs md:mt-6 md:text-base"
             >
               VIEW THE COLLECTION
             </Link>

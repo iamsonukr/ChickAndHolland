@@ -973,6 +973,11 @@ router.get(
         GROUP_CONCAT(f.admin_us_size) AS admin_us_size,
         GROUP_CONCAT(f.product_size) AS product_size,
         GROUP_CONCAT(f.size_country) AS size_country,
+        CASE
+          WHEN MAX(CASE WHEN f.customization = 'Sample Order' OR p.description = 'Sample Order' THEN 1 ELSE 0 END) = 1
+          THEN 'Sample Order'
+          ELSE 'Fresh'
+        END AS requestType,
 
         rf.retailerId AS retailerId,
 
@@ -1293,6 +1298,7 @@ router.get(
         MIN(f.lining_color) AS lining_color,
         MIN(f.reference_image) AS reference_image,
         MIN(f.customization) AS comments,
+        MIN(CASE WHEN f.customization = 'Sample Order' OR p.description = 'Sample Order' THEN 'Sample Order' ELSE 'Fresh' END) AS requestType,
         MIN(f.customization_price) AS customization_price,
         MIN(COALESCE(NULLIF(ros.size_country, ''), f.size_country)) AS size_country,
 
