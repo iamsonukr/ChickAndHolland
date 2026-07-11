@@ -8,11 +8,16 @@ const TopSection = ({
   name: string;
 }) => {
   const videoMap = {
+    // https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/collection/Web.mp4
     80: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001-lossyC.mp4",
     82: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
     83: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
     84: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%204-lossyC.mp4",
     85: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/Homepage-videos/LossyCompressed/Sequence%2001%201-lossyC.mp4",
+    95: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/collection/Web.mp4",
+    96: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/collection/Web.mp4",
+    97: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/collection/Web.mp4",
+    98: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/collection/Web.mp4",
   };
 
   // const videoMap = {

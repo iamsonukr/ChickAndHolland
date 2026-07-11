@@ -35,7 +35,7 @@ export const getCategories = async () => {
 
     const data = await response.json();
 
-    console.log("Categories received at data.ts ", data);
+    // console.log("Categories received at data.ts ", data);
 
     // 🧠 Handle different API shapes gracefully
     let categories = [];

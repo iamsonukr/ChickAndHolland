@@ -1065,10 +1065,10 @@ const buildRegularOrderPdfDetails = (
       customSizesQuantity: sizes,
       styleNo: item.styleNo,
       barcode: item.barcode,
-      size_country: item.sizeCountry,
+      size_country: item.sizeCountry ?? item.size_country,
       comments: normalizeFieldArray(item.comments).join(", "),
-      color: item.colorType,
-      image: item.convertedFirstProductImage,
+      color: item.colorType || item.color,
+      image: item.convertedFirstProductImage || item.image,
       meshColor:
         item.mesh_color === "SAS" ? "SAS" : getColorName(item.mesh_color),
       beadingColor:
@@ -1157,7 +1157,9 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
         filename: uploadedAttachment.filename,
       });
     } else {
-      const [processedOrder] = await processOrders([order]);
+      const [processedOrderRaw] = await processOrders([order]);
+      const processedOrder =
+        await applyResolvedRegularOrderBeaders(processedOrderRaw);
       const getColorName = await createColorNameResolver();
       const details = buildRegularOrderPdfDetails(processedOrder, getColorName);
 

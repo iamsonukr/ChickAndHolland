@@ -14,75 +14,77 @@ import { useRouter } from "next/navigation";
 
 const images = [
   {
-    id: "1151",
+    id: "1456",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B1/HF110615.jpg",
     alt: "Picture of chic and holland dresses",
   },
   {
-    id: "1205",
+    id: "1509",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B1/HF110673.jpg",
     alt: "Picture of chic and holland dresses",
   },
   {
-    id: "1160",
+    id: "1535",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B1/HF110702.jpg",
     alt: "Picture of chic and holland dresses",
   },
   {
-    id: "1235",
+    id: "1549",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B1/PH120133.jpg",
     alt: "Picture of chic and holland dresses",
   },
   {
-    id: "1252",
+    id: "1557",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B1/PH120141.jpg",
     alt: "Picture of chic and holland dresses",
   },
+  // B2
   {
-    id: "1168",
+    id: "1444",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B2/HF110603.jpg",
     alt: "Picture of chic and holland dresses",
   },
   {
-    id: "1156",
+    id: "1529",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B2/HF110695.jpg",
     alt: "Picture of chic and holland dresses",
   },
   {
-    id: "1204",
+    id: "1537",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B2/HF110704.jpg",
     alt: "Picture of chic and holland dresses",
   },
   {
-    id: "1154",
+    id: "1558",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B2/PH120142.jpg",
     alt: "Picture of chic and holland dresses",
   },
   {
-    id: "1147",
+    id: "1564",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B2/PH120151.jpg",
     alt: "Picture of chic and holland dresses",
   },
+  // B3
     {
-    id: "1128",
+    id: "1468",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B3/HF110628.jpg",
     alt: "Picture of chic and holland dresses",
   },  {
-    id: "1136",
+    id: "1476",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B3/HF110636.jpg",
     alt: "Picture of chic and holland dresses",
   },  {
-    id: "1170",
+    id: "1490",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B3/HF110670.jpg",
     alt: "Picture of chic and holland dresses",
   },
     {
-    id: "1172",
+    id: "1506",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B3/HF110672.jpg",
     alt: "Picture of chic and holland dresses",
   },
     {
-    id: "1151",
+    id: "1508",
     src: "https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/EDITORIAL%20CAMPAIGN/B3/PH120151.jpg",
     alt: "Picture of chic and holland dresses",
   },

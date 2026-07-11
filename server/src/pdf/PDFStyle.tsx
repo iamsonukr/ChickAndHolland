@@ -51,7 +51,7 @@ export const styles = StyleSheet.create({
     paddingRight: 8,
   },
   tableContainer: {
-    border: "1px solid #000",
+    // border: "1px solid #000",
     borderRadius: 4,
     width: "100%",
     marginBottom: 15,
@@ -60,7 +60,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     backgroundColor: "#FFD1E6",
-    borderBottom: "1px solid #000",
+    // borderBottom: "1px solid #000",
     alignItems: "center",
   },
   tableTitle: {
@@ -79,11 +79,11 @@ export const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: "row",
-    borderBottom: "1px solid #ccc",
+    // borderBottom: "1px solid #ccc",
   },
   mergedContainer: {
     flexDirection: "row",
-    borderBottom: "1px solid #ccc",
+    // borderBottom: "1px solid #ccc",
   },
   leftMergedContainer: {
     width: "40%",
@@ -95,7 +95,7 @@ export const styles = StyleSheet.create({
   },
   stackedRowTop: {
     flexDirection: "row",
-    borderBottom: "1px solid #ccc",
+    // borderBottom: "1px solid #ccc",
   },
   stackedRowBottom: {
     flexDirection: "row",
@@ -113,42 +113,42 @@ export const styles = StyleSheet.create({
     padding: 4,
     backgroundColor: "#FF5698",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   tableDataCell: {
     width: "60%",
     padding: 4,
     backgroundColor: "#FFE6F2",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   sizeHeaderCell: {
     width: "40%",
     padding: 4,
     backgroundColor: "#FF5698",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   sizeDataCell: {
     width: "60%",
     padding: 4,
     backgroundColor: "#FFE6F2",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   stackedHeaderCell: {
     width: "40%",
     padding: 4,
     backgroundColor: "#FF5698",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   stackedDataCell: {
     width: "60%",
     padding: 4,
     backgroundColor: "#FFE6F2",
     justifyContent: "center",
-    borderRight: "1px solid #ccc",
+    // borderRight: "1px solid #ccc",
   },
   headerText: {
     fontSize: 15,
@@ -173,7 +173,7 @@ export const styles = StyleSheet.create({
     color: "#FF5698",
   },
   commentsBox: {
-    border: "1px solid #ccc",
+    // border: "1px solid #ccc",
     borderRadius: 4,
     padding: 8,
     backgroundColor: "#f9f9f9",
@@ -185,10 +185,27 @@ export const styles = StyleSheet.create({
     hyphens: "none",
     wordBreak: "normal",
   },
+  commentsBulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 3,
+  },
+  commentsBullet: {
+    width: 10,
+    fontSize: 12,
+    lineHeight: 1.4,
+  },
+  commentsBulletText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 1.4,
+    hyphens: "none",
+    wordBreak: "normal",
+  },
   extraImagesContainer: {
     position: "absolute",
     left: 0,
-    right: 8,
+    right: 2,
     bottom: 0,
     flexDirection: "column",
     width: "100%",
@@ -201,9 +218,9 @@ export const styles = StyleSheet.create({
   additionalImage: {
     width: "48%",
     height: 145,
-    objectFit: "contain",
+    objectFit: "contain", 
     borderRadius: 4,
-    border: "1px solid #ccc",
+    // border: "1px solid #ccc",
     marginBottom: 8,
     marginRight: "2%",
   },
@@ -215,12 +232,12 @@ export const styles = StyleSheet.create({
     flexDirection: "column",
   },
   mainImageFrame: {
-    height: 360,
+    height: 420,
     minHeight: 360,
-    border: "1px solid #999",
+    // border: "1px solid #999",
     borderRadius: 4,
-    padding: 6,
-    justifyContent: "center",
+    padding: 0,
+    justifyContent: "flex-end",
     overflow: "hidden",
   },
   mainImagePlaceholder: {
@@ -237,11 +254,13 @@ export const styles = StyleSheet.create({
   mainImage: {
     width: "100%",
     height: "100%",
-    objectFit: "contain",
+    objectFit: "cover",
+    objectPosition: "center bottom",
+    alignSelf: "flex-end",
     borderRadius: 4,
   },
   pageVariantOverlay: {
-    // position: "absolute",
+    position: "absolute",
     top: 50,
     right: 0,
     bottom: 0,
@@ -254,7 +273,7 @@ export const styles = StyleSheet.create({
     paddingTop: 7,
     paddingBottom: 8,
     borderRadius: 4,
-    border: "1px solid #999",
+    // border: "1px solid #999",
   },
   variantOverlayTitle: {
     fontSize: 12,
@@ -302,7 +321,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     paddingHorizontal: 2,
     paddingVertical: 1,
-    alignItems: "flex-start",
+    alignItems: "flex-start", // fixed: top-align so label sits at top when colors stack
     justifyContent: "space-between",
   },
   variantInfoRowBorder: {
@@ -342,8 +361,8 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
   variantBarcode: {
-    width: 56,
-    height: 56,
+    width: 36,
+    height: 36,
     alignSelf: "center",
     marginBottom: 3,
   },

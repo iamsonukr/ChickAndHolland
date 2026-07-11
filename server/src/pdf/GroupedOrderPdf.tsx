@@ -72,16 +72,50 @@ const getVariantSizeText = (item: any) => formatEuSizeText(item);
 const getSizeSummary = (items: any[]) =>
   formatEuSizeSummary(items, { alwaysShowCount: true });
 
-const getCommentsSummary = (variants: any[], fallback?: string) => {
+const parseCommentItems = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.flatMap(parseCommentItems);
+  }
+
+  const text = String(value ?? "").trim();
+  if (!text) return [];
+
+  const items: string[] = [];
+  let current = "";
+
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] !== ",") {
+      current += text[index];
+      continue;
+    }
+
+    if (text[index + 1] === ",") {
+      current += ",";
+      index += 1;
+      continue;
+    }
+
+    const trimmed = current.trim();
+    if (trimmed) items.push(trimmed);
+    current = "";
+  }
+
+  const trimmed = current.trim();
+  if (trimmed) items.push(trimmed);
+
+  return items;
+};
+
+const getCommentItems = (variants: any[], fallback?: string) => {
   const uniqueComments = Array.from(
     new Set(
       variants
-        .map((item) => String(item.comments ?? "").trim())
+        .flatMap((item) => parseCommentItems(item.comments))
         .filter(Boolean),
     ),
   );
 
-  return uniqueComments.join("\n") || fallback || "-";
+  return uniqueComments.length ? uniqueComments : parseCommentItems(fallback);
 };
 
 const getDynamicFontSize = (text: string): number => {
@@ -124,7 +158,7 @@ const GroupedOrderPdf = ({
               <View style={styles.topBanner}>
                 <Text style={styles.bannerTexts}>
                   {baseItem?.styleNo}
-                  {totalPages > 1 ? ` (${pageIndex + 1}/${totalPages})` : ""}
+                  {/* {totalPages > 1 ? ` (${pageIndex + 1}/${totalPages})` : ""} */}
                 </Text>
                 <Text
                   style={[
@@ -234,9 +268,16 @@ const GroupedOrderPdf = ({
                     <View style={styles.customizationContainer}>
                       <Text style={styles.sectionTitle}>Customization Details</Text>
                       <View style={styles.commentsBox}>
-                        <Text style={styles.commentsText}>
-                          {getCommentsSummary(variants, baseItem?.comments)}
-                        </Text>
+                        {getCommentItems(variants, baseItem?.comments).length > 0 ? (
+                          getCommentItems(variants, baseItem?.comments).map((comment, commentIndex) => (
+                            <View key={`${comment}-${commentIndex}`} style={styles.commentsBulletRow}>
+                              <Text style={styles.commentsBullet}>•</Text>
+                              <Text style={styles.commentsBulletText}>{comment}</Text>
+                            </View>
+                          ))
+                        ) : (
+                          <Text style={styles.commentsText}>-</Text>
+                        )}
                       </View>
                     </View>
 
@@ -273,7 +314,7 @@ const GroupedOrderPdf = ({
 
               <View style={styles.pageVariantOverlay} wrap={false}>
                 <View style={styles.variantOverlay}>
-                  <Text style={styles.variantOverlayTitle}>Size 1/ 2D Barcode Details</Text>
+                  {/* <Text style={styles.variantOverlayTitle}>Size 1/ 2D Barcode Details</Text> */}
                   <View style={styles.variantGrid}>
                     {variants.map((variant: any, variantIndex: number) => {
                       const normalizedBarcode = normalizeBarcodeValue(variant.barcode);
@@ -292,16 +333,14 @@ const GroupedOrderPdf = ({
                             <Text style={styles.variantTitle}>{variant.styleNo}</Text>
                             <View style={styles.variantInfoGroup}>
                               <View style={styles.variantInfoRow}>
-                                <Text style={styles.variantInfoLabel}>Size:</Text>
-                                <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text>
+                                <Text style={styles.variantInfoLabel}>Size: {getVariantSizeText(variant)}</Text>
+                                {/* <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text> */}
                               </View>
                               <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
                                 <Text style={styles.variantInfoLabel}>QTY:</Text>
                                 <Text style={styles.variantInfoValue}>{variant.quantity ?? "-"}</Text>
                               </View>
-                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
-                                <Text style={styles.variantInfoValue}>{variant.beader || "-"}</Text>
-                              </View>
+
                               <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
                                 <Text style={styles.variantInfoLabel}>Color:</Text>
                               </View>
@@ -316,27 +355,29 @@ const GroupedOrderPdf = ({
                                   <Text style={styles.colorDetail}>-</Text>
                                 ) : null}
                               </View>
+                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
+                                <Text style={styles.variantInfoValue}>{variant.beader || "-"}</Text>
+                              </View>
                             </View>
+                          </View>
 
-                            <View style={styles.variantBarcodeSection}>
-                              {normalizedBarcode ? (
-                                <>
-                                  <Image
-                                    src={build2dBarcodeUrl(normalizedBarcode, 120)}
-                                    style={styles.variantBarcode}
-                                  />
-                                  <Text style={styles.variantCodeText}>
-                                    {normalizedBarcode?.split("-")[0]}
-                                    {"\n"}-
-                                    {normalizedBarcode?.split("-")[1]}
-                                  </Text>
-                                </>
-                              ) : (
+                          <View style={styles.variantBarcodeSection}>
+                            {normalizedBarcode ? (
+                              <>
+                                <Image
+                                  src={build2dBarcodeUrl(normalizedBarcode, 80)}
+                                  style={styles.variantBarcode}
+                                />
                                 <Text style={styles.variantCodeText}>
-                                  Barcode unavailable
+                                  {normalizedBarcode?.split("-")[0]}
+                                  {"\n"}-{normalizedBarcode?.split("-")[1]}
                                 </Text>
-                              )}
-                            </View>
+                              </>
+                            ) : (
+                              <Text style={styles.variantCodeText}>
+                                Barcode unavailable
+                              </Text>
+                            )}
                           </View>
                         </View>
                       );
