@@ -176,7 +176,7 @@ export default function Home() {
           Mock: full-bleed chateau video with "ROCOCO DREAMS" title,
           "A MODERN COUTURE FAIRYTALE" subtitle, and a CTA link. */}
       <div className="w-full bg-black">
-        <div className="relative h-auto md:h-screen">
+        <div className="relative h-[72svh] md:h-screen">
           <HomeHeroVideo
             src="https://chicandholland-space.ams3.cdn.digitaloceanspaces.com/ChangesJuly26/HomeContent/HomeVideo.mp4"
             posterSrc="/no-src/home-intro.png"
