@@ -119,6 +119,7 @@ const OrderStatus = [
   "Beading",
   "Zarkan",
   "Stitching",
+  "Repair",
   "Balance Pending",
   "Ready To Delivery",
   "Shipped",

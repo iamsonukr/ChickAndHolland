@@ -19,6 +19,7 @@ export enum OrderStatus {
   Beading = "Beading",
   Zarkan = "Zarkan",
   Stitching = "Stitching",
+  Repair = "Repair",
   BalancePending = "Balance Pending",
   ReadyToDelivery = "Ready To Delivery",
   Shipped = "Shipped",

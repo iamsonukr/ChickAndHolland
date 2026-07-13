@@ -113,7 +113,7 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                     <TableCell className="font-medium">{item.order_id}</TableCell>
                     <TableCell>{item.type === "Fresh" ? fresh : item.type}</TableCell>
                     <TableCell>
-                      {["Pattern", "Khaka", "Issue Beading", "Beading", "Zarkan", "Stitching"].includes(item.orderStatus)
+                      {["Pattern", "Khaka", "Issue Beading", "Beading", "Zarkan", "Stitching", "Repair"].includes(item.orderStatus)
                         ? "In Process"
                         : item.orderStatus}
                     </TableCell>

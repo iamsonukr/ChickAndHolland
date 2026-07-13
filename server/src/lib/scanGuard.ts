@@ -74,6 +74,8 @@ const SCANNER_ROLE_STAGE_RULES: Record<string, string[]> = {
   "beading-master": ["Beading"],
   "zarkan-master": ["Zarkan"],
   "stitching-master": ["Stitching"],
+  "repair-master": ["Repair"],
+  repair: ["Repair"],
   "balance-pending-master": ["Balance Pending"],
   "ready-to-delivery-master": ["Ready To Delivery"],
   "shipping-master": ["Shipped"],

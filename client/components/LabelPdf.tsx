@@ -38,6 +38,7 @@ export default function LabelPdf({ item }: { item: any }) {
   const { prefix, name } = formatMeshColor(item.meshColor || item.color);
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
   const beader = String(item.beader ?? "").trim();
+  const barcodeUrl = build2dBarcodeUrl(item.barcode, 260);
 
   return (
     <Document>
@@ -82,9 +83,9 @@ export default function LabelPdf({ item }: { item: any }) {
           {item.barcode && (
             <View style={styles.barcodeBlock}>
               {/* <Text style={styles.scanText}>2D SCAN</Text> */}
+              {/* eslint-disable-next-line jsx-a11y/alt-text */}
               <Image
-                alt="2d barcode"
-                src={build2dBarcodeUrl(item.barcode, 120)}
+                src={barcodeUrl}
                 style={styles.barcode}
               />
             </View>
@@ -138,14 +139,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 4,
-    paddingVertical: 6,
+    paddingVertical: 4,
   },
 
   box: {
     width: "48%",
-    minHeight: 30,           // ← ensures equal height
+    minHeight: 26,           // ← keeps enough room for larger QR
     border: "1px solid #000000",
-    paddingVertical: 4,
+    paddingVertical: 3,
     paddingHorizontal: 3,
     alignItems: "center",
     justifyContent: "center",
@@ -183,8 +184,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginHorizontal: 6,
-    marginBottom: 5,
-    marginTop: 4,
+    marginBottom: 3,
+    marginTop: 2,
     // border: "1px solid #000000",
     alignItems: "stretch",
   },
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   poText: {
-    fontSize: 7,
+    fontSize: 8.5,
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
   /* BARCODE */
   barcodeBlock: {
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 3,
   },
   scanText: {
     fontSize: 6,
@@ -229,8 +230,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   barcode: {
-    width: 54,
-    height: 54,
+    width: 68,
+    height: 68,
   },
 
   /* FOOTER */

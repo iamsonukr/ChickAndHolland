@@ -10,6 +10,7 @@ export enum StyleStage {
   Beading = "Beading",
   Zarkan = "Zarkan",
   Stitching = "Stitching",
+  Repair = "Repair",
   Balance_Pending = "Balance Pending",
   Ready_To_Delivery = "Ready To Delivery",
   Shipped = "Shipped",

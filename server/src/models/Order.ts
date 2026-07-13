@@ -19,6 +19,7 @@ export enum OrderStatus {
   Beading = "Beading",
   Zarkan = "Zarkan",
   Stitching = "Stitching",
+  Repair = "Repair",
   Balance_Pending = "Balance Pending",
   Ready_To_Delivery = "Ready To Delivery",
   Shipped = "Shipped",
@@ -84,6 +85,9 @@ export default class Order extends BaseModel {
 
   @Column("datetime", { nullable: true })
   stitching: Date;
+
+  @Column("datetime", { nullable: true })
+  repair: Date;
 
   @Column({ type: "timestamp", nullable: true })
   balance_pending?: Date;

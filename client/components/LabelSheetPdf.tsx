@@ -45,7 +45,7 @@ function LabelTile({ item }: { item: any }) {
     alwaysShowCount: true,
   })}`;
   const beader = String(item.beader ?? "").trim();
-  const barcodeUrl = build2dBarcodeUrl(item.barcode, 120);
+  const barcodeUrl = build2dBarcodeUrl(item.barcode, 260);
 
   return (
     <View style={styles.label}>
@@ -137,13 +137,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 4,
-    paddingVertical: 6,
+    paddingVertical: 4,
   },
   box: {
     width: "48%",
-    minHeight: 30,
+    minHeight: 26,
     border: "1px solid #000000",
-    paddingVertical: 4,
+    paddingVertical: 3,
     paddingHorizontal: 3,
     alignItems: "center",
     justifyContent: "center",
@@ -172,8 +172,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginHorizontal: 6,
-    marginBottom: 5,
-    marginTop: 4,
+    marginBottom: 3,
+    marginTop: 2,
     paddingVertical: 2,
     paddingHorizontal: 2,
     alignItems: "stretch",
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   poText: {
-    fontSize: 7,
+    fontSize: 8.5,
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   barcodeBlock: {
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 3,
   },
   scanText: {
     fontSize: 6,
@@ -213,8 +213,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   barcode: {
-    width: 54,
-    height: 54,
+    width: 68,
+    height: 68,
   },
   footer: {
     flexDirection: "row",

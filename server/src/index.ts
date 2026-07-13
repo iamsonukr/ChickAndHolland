@@ -96,6 +96,7 @@ import { ensureBeadersTable } from "./utils/ensureBeadersTable";
 import { ensureOrderBeadersTable } from "./utils/ensureOrderBeadersTable";
 import { ensureOrderPhoneNumberColumn } from "./utils/ensureOrderPhoneNumberColumn";
 import { ensureOrderInvoiceEstimateColumns } from "./utils/ensureOrderInvoiceEstimateColumns";
+import { ensureRepairStageSupport } from "./utils/ensureRepairStageSupport";
 
 const router = Router();
 
@@ -173,6 +174,7 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
     await ensureBeadersTable();
     await ensureOrderPhoneNumberColumn();
     await ensureOrderInvoiceEstimateColumns();
+    await ensureRepairStageSupport();
     await ensureOrderPublishStatusColumn();
     await ensureOrderStylePricingColumns();
     await ensureCustomerPostalCodeColumn();

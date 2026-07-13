@@ -2634,6 +2634,9 @@ router.post(
       case OrderStatus.Stitching:
         order.stitching = now;
         break;
+      case OrderStatus.Repair:
+        order.repair = now;
+        break;
       case OrderStatus.Balance_Pending:
         order.balance_pending = now;
         break;
@@ -3034,6 +3037,7 @@ router.get(
   beading,
   zarkan,
   stitching,
+  repair,
   balance_pending,
   ready_to_delivery,
   shipped
@@ -3060,6 +3064,7 @@ router.get(
   beading,
   zarkan,
   stitching,
+  repair,
   balance_pending,
   ready_to_delivery,
   shipped

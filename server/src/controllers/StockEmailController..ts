@@ -103,9 +103,9 @@ export const sendStockExportEmail = async (req: Request, res: Response) => {
     const exportLabel = isCatalog ? "stock list" : "stock data";
     const priceLabel = includePrice ? "with price" : "without price";
     const emailSubjectBase = isCatalog
-      ? "Requested stock list attached"
+      ? "Requested stock list attached "
       : "Requested stock data attached";
-    const emailSubject = `${emailSubjectBase}${includePrice ? "-p" : ""}`;
+    const emailSubject = `${emailSubjectBase}${includePrice ? "-With P" : "-Without P"}`;
     const attachmentFileName = `${emailSubject}${isCatalog ? ".pdf" : ".xlsx"}`;
     const attachmentBuffer = uploadedAttachment?.buffer
       ? uploadedAttachment.buffer

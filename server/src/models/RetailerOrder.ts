@@ -263,6 +263,9 @@ export class RetailerOrder extends BaseModel {
   stitching: Date;
 
   @Column("datetime", { nullable: true })
+  repair: Date;
+
+  @Column("datetime", { nullable: true })
   ready_to_delivery: Date;
 
   @Column("datetime", { nullable: true })

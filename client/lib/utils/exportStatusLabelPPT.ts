@@ -50,7 +50,7 @@ export async function downloadStatusLabelPPT(item: any, orderType?: string) {
     alwaysShowCount: true,
   })}`;
   const colorText = formatText(item?.meshColor || item?.color);
-  const barcodeUrl = build2dBarcodeUrl(item?.barcode, 240);
+  const barcodeUrl = build2dBarcodeUrl(item?.barcode, 320);
   const fileName = sanitizeFileName(
     `${formatText(item?.styleNo)}-label`,
     "status-label",
@@ -202,11 +202,11 @@ export async function downloadStatusLabelPPT(item: any, orderType?: string) {
 
   slide.addText(formatText(item?.purchaseOrderNo), {
     x: 0.36,
-    y: 1.91,
+    y: 1.9,
     w: 2.48,
-    h: 0.1,
+    h: 0.12,
     fontFace: "Arial",
-    fontSize: 8,
+    fontSize: 9.5,
     bold: true,
     color: black,
     align: "center",
@@ -232,18 +232,18 @@ export async function downloadStatusLabelPPT(item: any, orderType?: string) {
       const barcodeData = await loadImageDataUrl(barcodeUrl);
       slide.addImage({
         data: barcodeData,
-        x: 1.05,
-        y: 2.62,
-        w: 1.1,
-        h: 1.1,
+        x: 0.93,
+        y: 2.55,
+        w: 1.34,
+        h: 1.34,
       });
     } catch {
       slide.addImage({
         path: barcodeUrl,
-        x: 1.05,
-        y: 2.62,
-        w: 1.1,
-        h: 1.1,
+        x: 0.93,
+        y: 2.55,
+        w: 1.34,
+        h: 1.34,
       });
     }
   }

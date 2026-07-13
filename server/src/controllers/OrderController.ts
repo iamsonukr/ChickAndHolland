@@ -3378,6 +3378,7 @@ router.get(
         Beading: "beading",
         Zarkan: "zarkan",
         Stitching: "stitching",
+        Repair: "repair",
         "Balance Pending": "balance_pending",
         "Ready To Delivery": "ready_to_delivery",
         Shipped: "shipped",
@@ -3555,6 +3556,7 @@ router.get(
         zarkan: detailedOrder?.zarkan ?? recoveredStageDates.zarkan ?? null,
         stitching:
           detailedOrder?.stitching ?? recoveredStageDates.stitching ?? null,
+        repair: detailedOrder?.repair ?? recoveredStageDates.repair ?? null,
         balance_pending:
           detailedOrder?.balance_pending ??
           recoveredStageDates.balance_pending ??
@@ -4232,6 +4234,7 @@ router.get(
         "beading",
         "zarkan",
         "stitching",
+        "repair",
         "balance_pending",
         "ready_to_delivery",
         "shipped",
@@ -4261,6 +4264,7 @@ router.get(
         "beading",
         "zarkan",
         "stitching",
+        "repair",
         "balance_pending",
         "ready_to_delivery",
         "shipped",

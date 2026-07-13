@@ -51,6 +51,7 @@ interface StatusDateTypes {
   beading: string | null;
   zarkan: string | null;
   stitching: string | null;
+  repair: string | null;
   balance_pending: string | null;   // ✅ ADD THIS
   ready_to_delivery: string | null;
   shipped: string | null;
@@ -66,6 +67,7 @@ const statusFieldMap: Record<string, keyof StatusDateTypes | null> = {
   Beading: ORDER_STAGE_DATE_FIELD_MAP.Beading as keyof StatusDateTypes,
   Zarkan: ORDER_STAGE_DATE_FIELD_MAP.Zarkan as keyof StatusDateTypes,
   Stitching: ORDER_STAGE_DATE_FIELD_MAP.Stitching as keyof StatusDateTypes,
+  Repair: ORDER_STAGE_DATE_FIELD_MAP.Repair as keyof StatusDateTypes,
   "Balance Pending": ORDER_STAGE_DATE_FIELD_MAP[
     "Balance Pending"
   ] as keyof StatusDateTypes,
@@ -86,6 +88,7 @@ const UpdateOrderStatus = ({ orderData }: { orderData: any }) => {
     beading: null,
     zarkan: null,
     stitching: null,
+    repair: null,
     balance_pending: null,   
     ready_to_delivery: null,
     shipped: null,

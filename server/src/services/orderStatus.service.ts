@@ -10,6 +10,7 @@ const STATUS_FIELD_MAP: Record<OrderStatus, keyof Order> = {
   [OrderStatus.Beading]: "beading",
   [OrderStatus.Zarkan]: "zarkan",
   [OrderStatus.Stitching]: "stitching",
+  [OrderStatus.Repair]: "repair",
   [OrderStatus.Balance_Pending]: "balance_pending",
   [OrderStatus.Ready_To_Delivery]: "ready_to_delivery",
   [OrderStatus.Shipped]: "shipped",

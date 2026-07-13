@@ -56,6 +56,7 @@ interface DateTypes {
   beading: string | null;
   zarkan: string | null;
   stitching: string | null;
+  repair: string | null;
   balance_pending: string | null;
   ready_to_delivery: string | null;
   shipped: string | null;
@@ -78,6 +79,7 @@ const statusToDateField: Record<string, keyof DateTypes | null> = {
   Beading: ORDER_STAGE_DATE_FIELD_MAP.Beading as keyof DateTypes,
   Zarkan: ORDER_STAGE_DATE_FIELD_MAP.Zarkan as keyof DateTypes,
   Stitching: ORDER_STAGE_DATE_FIELD_MAP.Stitching as keyof DateTypes,
+  Repair: ORDER_STAGE_DATE_FIELD_MAP.Repair as keyof DateTypes,
   "Balance Pending": ORDER_STAGE_DATE_FIELD_MAP[
     "Balance Pending"
   ] as keyof DateTypes,
@@ -100,6 +102,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
     beading: null,
     zarkan: null,
     stitching: null,
+    repair: null,
     balance_pending: null,
     ready_to_delivery: null,
     shipped: null,

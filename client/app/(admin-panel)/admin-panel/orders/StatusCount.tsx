@@ -29,6 +29,7 @@ export default function StatusCount({ orderId }: { orderId: number }) {
     Beading: "bg-pink-200 text-pink-900",
     Zarkan: "bg-orange-200 text-orange-900",
     Stitching: "bg-green-200 text-green-900",
+    Repair: "bg-red-200 text-red-900",
     "Balance Pending": "bg-gray-300 text-gray-900",
     "Ready To Delivery": "bg-teal-200 text-teal-900",
     Shipped: "bg-green-300 text-green-900",

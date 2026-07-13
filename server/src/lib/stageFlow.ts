@@ -5,6 +5,7 @@ export const ORDER_STAGE_FLOW = [
   "Beading",
   "Zarkan",
   "Stitching",
+  "Repair",
   "Balance Pending",
   "Ready To Delivery",
   "Shipped",
@@ -102,6 +103,8 @@ export const getStageDateField = (stage?: string | null) => {
       return "zarkan";
     case "stitching":
       return "stitching";
+    case "repair":
+      return "repair";
     case "balance-pending":
       return "balance_pending";
     case "ready-to-delivery":

@@ -65,7 +65,7 @@ export default function StatusLabelBox({ item, orderType }: { item: any; orderTy
                 PURCHASE ORDER
               </div>
               <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg py-2 px-3 text-center">
-                <div className="text-sm font-bold text-gray-900 break-all">
+                <div className="text-base font-bold text-gray-900 break-all">
                   {item.purchaseOrderNo}
                 </div>
               </div>
@@ -96,12 +96,13 @@ export default function StatusLabelBox({ item, orderType }: { item: any; orderTy
             </div>
 
             <div className="bg-white p-3 rounded-lg border border-gray-300 shadow-inner flex justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={build2dBarcodeUrl(item.barcode, 180)}
+                src={build2dBarcodeUrl(item.barcode, 260)}
                 alt="2d barcode"
                 style={{
-                  width: "120px",
-                  height: "120px",
+                  width: "150px",
+                  height: "150px",
                   imageRendering: "pixelated",
                 }}
               />
