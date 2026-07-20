@@ -1795,7 +1795,6 @@ export async function getCountries() {
 export async function getCurrencies() {
   try {
     const data = await authorizedFetch("/currencies");
-    console.log("✅ Currencies fetched:", data);
     return Array.isArray(data.currencies) ? data.currencies : [];
   } catch (error) {
     console.error("❌ Error fetching currencies:", error);
@@ -1836,7 +1835,6 @@ export async function getCurrencies() {
 //     }
 
 //     const data = await res.json();
-//     console.log("✅ getCustomers data:", data);
 //     return data;
 //   } catch (error) {
 //     console.error("❌ Error fetching customers:", error);
@@ -1897,7 +1895,6 @@ export async function getCurrencies() {
 //     if (!res.ok) throw new Error(`Failed to fetch customers: ${res.status}`);
 
 //     const data = await res.json();
-//     console.log("✅ getCustomers data:", data);
 
 //     // ✅ Normalize shape
 //     if (Array.isArray(data)) {
@@ -1933,7 +1930,6 @@ export async function getCurrencies() {
 //     }
 
 //     const data = await res.json();
-//     console.log("✅ getCustomers data:", data);
 
 //     // normalize
 //     if (Array.isArray(data)) {
@@ -1965,18 +1961,12 @@ export async function getCustomers(params?: { page?: number; query?: string }) {
       cache: "no-store",
     });
 
-    console.log("All Customers ", res);
-    console.log("🟢 Response status:", res.status);
-
     if (!res.ok) {
       console.error("❌ Failed to fetch customers:", res.status);
       return { customers: [], totalCount: 0 };
     }
 
     const data = await res.json();
-    console.log("✅ getCustomers data:", data);
-    // customer response intentionally not logged to reduce terminal noise
-
     return {
       customers: data.customers || [],
       totalCount: data.totalCount || 0,

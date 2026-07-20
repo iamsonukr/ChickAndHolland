@@ -7,19 +7,9 @@ const router = Router();
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    console.log("Dashboard Fetch API Request: Product Queries", {
-      query: req.query,
-      path: req.originalUrl,
-    });
-
     try {
       const queries = await ProductQuery.find({
         order: { createdAt: "DESC" },
-      });
-
-      console.log("Dashboard Fetch API Response: Product Queries", {
-        status: 200,
-        count: queries.length,
       });
 
       res.json(queries);
@@ -30,7 +20,7 @@ router.get(
         message: error?.message || "Unable to load product queries",
       });
     }
-  })
+  }),
 );
 
 router.get(
@@ -48,7 +38,7 @@ router.get(
     }
 
     res.json(query);
-  })
+  }),
 );
 
 router.patch(
@@ -85,7 +75,7 @@ router.patch(
         message: error?.message || "Unable to mark product query as read",
       });
     }
-  })
+  }),
 );
 
 router.patch(
@@ -101,7 +91,7 @@ router.patch(
       success: true,
       message: "All product queries marked as read",
     });
-  })
+  }),
 );
 
 router.delete(
@@ -120,7 +110,7 @@ router.delete(
       success: false,
       message: "Product query not found",
     });
-  })
+  }),
 );
 
 export default router;

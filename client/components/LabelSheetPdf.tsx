@@ -11,6 +11,10 @@ import {
   formatEuSizeSummary,
   PDF_DISPLAY_SIZE_UNIT,
 } from "@/lib/sizeConversion";
+import {
+  getResponsiveStatusLabelFontSize,
+  getStatusLabelPurchaseOrderNo,
+} from "@/lib/statusLabelText";
 
 const LABELS_PER_PAGE = 1;
 
@@ -46,6 +50,15 @@ function LabelTile({ item }: { item: any }) {
   })}`;
   const beader = String(item.beader ?? "").trim();
   const barcodeUrl = build2dBarcodeUrl(item.barcode, 260);
+  const purchaseOrderNo = getStatusLabelPurchaseOrderNo(item);
+  const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
+    purchaseOrderNo,
+    {
+      availableWidth: 68,
+      maxFontSize: 8.5,
+      minFontSize: 4.2,
+    },
+  );
 
   return (
     <View style={styles.label}>
@@ -66,7 +79,12 @@ function LabelTile({ item }: { item: any }) {
 
       <View style={styles.poBlock}>
         <View style={styles.poValueBox}>
-          <Text style={styles.poText}>{item.purchaseOrderNo}</Text>
+          <Text
+            wrap={false}
+            style={[styles.poText, { fontSize: purchaseOrderFontSize }]}
+          >
+            {purchaseOrderNo}
+          </Text>
         </View>
         <View style={styles.beaderBox}>
           <Text style={styles.beaderLabel}>BEADER</Text>

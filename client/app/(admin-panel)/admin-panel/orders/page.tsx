@@ -35,6 +35,12 @@ import StageFilter from "./StageFilter";
 import ExportOrdersButton from "./ExportOrdersButton";
 import { ORDER_STAGE_DATE_FIELD_MAP } from "@/lib/stageFlow";
 import BeaderFilter from "./BeaderFilter";
+import {
+  buildOrderAddressDisplay,
+  getCustomerPersonName,
+  getOrderMobileNumber,
+  getStoreName,
+} from "./orderAddressDisplay";
 
 const statusToDbField: Record<string, string | null> = {
   ...ORDER_STAGE_DATE_FIELD_MAP,
@@ -58,54 +64,6 @@ const tableHeadClassName =
 
 const tableCellClassName =
   "border border-border px-2 py-1.5 text-sm md:text-[15px] align-middle";
-
-const getStoreName = (order: any) =>
-  String(
-    order?.customer?.customerStoreName ||
-      order?.customer?.storeName ||
-      order?.retailer?.customer?.storeName ||
-      order?.retailer?.customer?.customerStoreName ||
-      "",
-  ).trim() || "N/A";
-
-const getCustomerPersonName = (order: any) =>
-  String(
-    order?.customer?.name ||
-      order?.customer?.contactPerson ||
-      order?.retailer?.customer?.name ||
-      order?.retailer?.customer?.contactPerson ||
-      "",
-  ).trim() || "N/A";
-
-const getOrderMobileNumber = (order: any) =>
-  String(
-    order?.phoneNumber ||
-      order?.customer?.shippingPhoneNumber ||
-      order?.customer?.phoneNumber ||
-      order?.retailer?.customer?.shippingPhoneNumber ||
-      order?.retailer?.customer?.phoneNumber ||
-      "",
-  ).trim() || "N/A";
-
-const getOrderShippingAddress = (order: any) =>
-  String(
-    order?.address ||
-      order?.customer?.shippingAddress ||
-      order?.customer?.storeAddress ||
-      order?.customer?.client?.address ||
-      order?.retailer?.customer?.shippingAddress ||
-      order?.retailer?.customer?.storeAddress ||
-      order?.retailer?.customer?.client?.address ||
-      "",
-  ).trim() || "N/A";
-
-const buildOrderAddressDisplay = (order: any) =>
-  [
-    getCustomerPersonName(order),
-    getStoreName(order),
-    getOrderShippingAddress(order),
-    getOrderMobileNumber(order),
-  ].join("\n");
 
 const buildOrdersFilterHref = ({
   query,
@@ -212,15 +170,15 @@ const OrdersPage = async (props: {
         .trim()
         .toLowerCase();
 
-      const allowed = ["balance-pending-master", "admin", "ready-to-delivery", "balancepending" , "shipping"];
+      const allowed = [
+        "balance-pending-master",
+        "admin",
+        "ready-to-delivery",
+        "balancepending",
+        "shipping",
+      ];
 
       showContact = allowed.includes(man);
-
-      console.log({
-        userType,
-        role: userData?.role,
-        roleName: userData?.roleName,
-      });
     } catch (e) {
       // silently ignore and keep showContact = false
       console.error("Failed to fetch user data for contact info visibility", {
@@ -309,7 +267,9 @@ const OrdersPage = async (props: {
                 due={dueFilter}
                 stage={stage}
                 beader={beader}
-                stageCounts={orderStageCounts?.stageCounts ?? orders?.stageCounts}
+                stageCounts={
+                  orderStageCounts?.stageCounts ?? orders?.stageCounts
+                }
               />
               <BeaderFilter
                 beaders={beaders}
@@ -569,7 +529,9 @@ const OrdersPage = async (props: {
                               </div>
                             </td>
 
-                            <td className={cn(tableCellClassName, "text-center")}>
+                            <td
+                              className={cn(tableCellClassName, "text-center")}
+                            >
                               {order.totalQuantity ?? 0}
                             </td>
 

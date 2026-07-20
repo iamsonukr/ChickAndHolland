@@ -74,7 +74,6 @@
 
 // export const dynamic = "force-dynamic";
 
-
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "../globals.css";
@@ -136,8 +135,8 @@ export default async function RootLayout({
     page: 1,
     publishStatus: "draft",
   });
-  const draftCount = myDraftOrders?.totalCount ?? myDraftOrders?.orders?.length ?? 0;
-
+  const draftCount =
+    myDraftOrders?.totalCount ?? myDraftOrders?.orders?.length ?? 0;
 
   const unreadEnquiryCount = async () => {
     const token = (await cookies()).get("token")?.value || "";
@@ -149,22 +148,12 @@ export default async function RootLayout({
     const fetchQueries = async (path: string) => {
       try {
         const requestUrl = getApiUrl(path);
-        console.log("Dashboard Unread Query Fetch Request:", {
-          path,
-          requestUrl,
-        });
 
         const res = await fetch(requestUrl, {
           headers,
           cache: "no-store",
         });
         const data = await res.json().catch(() => []);
-        // console.log("Dashboard Unread Query Fetch Response:", {
-        //   path,
-        //   status: res.status,
-        //   ok: res.ok,
-        //   data,
-        // });
         if (!res.ok) {
           console.error("Dashboard Unread Query Fetch Error Response:", {
             path,
@@ -172,7 +161,7 @@ export default async function RootLayout({
             data,
           });
         }
-        return res.ok ? (Array.isArray(data) ? data : data.data ?? []) : [];
+        return res.ok ? (Array.isArray(data) ? data : (data.data ?? [])) : [];
       } catch (error) {
         console.error("Dashboard Unread Query Fetch Catch Error:", {
           path,
@@ -191,7 +180,7 @@ export default async function RootLayout({
       .length;
   };
 
-const unreadCount = await unreadEnquiryCount();
+  const unreadCount = await unreadEnquiryCount();
 
   return (
     <html lang="en" suppressHydrationWarning>

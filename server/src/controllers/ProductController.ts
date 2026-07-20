@@ -409,7 +409,6 @@ router.delete(
 //       limit?: string;
 //     };
 
-//     console.log("Filter Products with:", { categoryId, subCategoryId, currencyId, page, limit });
 
 //     // ─── Pagination ────────────────────────────────────────────────────────
 //     const pageNum  = Math.max(1, parseInt(page  ?? "1",   10));
@@ -508,18 +507,10 @@ router.get(
     const limitNum = Math.max(1, parseInt(limit ?? "20", 10)); // ✅ FIX: default 20, not 100
     const skip     = (pageNum - 1) * limitNum;
 
-    console.log("[DEBUG] Pagination:", { 
-      raw: { page, limit },
-      parsed: { pageNum, limitNum, skip },
-      // 🔍 If page/limit are undefined here, the caller isn't sending them
-    });
-
     // ─── WHERE clause ──────────────────────────────────────────────────────
     const where: Record<string, any> = {};
     if (categoryId)    where.categoryId    = parseInt(categoryId,    10);
     if (subCategoryId) where.subCategoryId = parseInt(subCategoryId, 10);
-
-    console.log("[DEBUG] WHERE clause:", where);
 
     // ─── Fetch page + total in parallel ───────────────────────────────────
     let products: any[], totalCount: number;
@@ -546,23 +537,6 @@ router.get(
         order: { id: "ASC" }, // ✅ FIX: Always define order for stable pagination
       });
 
-      console.log("[DEBUG] findAndCount result:", {
-        fetchedRows: products.length,
-        totalCount,
-        skip,
-        take: limitNum,
-        // 🔍 If fetchedRows === totalCount, skip/take isn't being applied —
-        // means TypeORM query is ignoring pagination (relation bug or missing order)
-      });
-
-      if (products.length === totalCount) {
-        console.warn(
-          "[DEBUG] ⚠️ fetchedRows === totalCount — pagination likely not applied.",
-          "Confirm skip:", skip, "take:", limitNum,
-          "If skip=0 and take=totalCount, caller is not sending page/limit params."
-        );
-      }
-
     } catch (err: any) {
       console.error("[DEBUG] findAndCount failed:", {
         message: err.message,
@@ -577,8 +551,6 @@ router.get(
     if (currencyId && products.length > 0) {
       const ids = products.map((p: any) => p.id);
 
-      console.log("[DEBUG] Fetching currency pricing for:", { currencyId, productIds: ids });
-
       let pricingRows: any[];
       try {
         pricingRows = await Product.query(
@@ -589,7 +561,6 @@ router.get(
            WHERE pcp.currencyId = ? AND pcp.productId IN (${ids.map(() => "?").join(",")})`,
           [currencyId, ...ids],
         );
-        console.log("[DEBUG] Pricing rows fetched:", pricingRows.length, "| Sample:", pricingRows[0] ?? "none");
       } catch (pricingErr: any) {
         console.error("[DEBUG] Currency pricing query failed:", {
           message: pricingErr.message,
@@ -601,11 +572,6 @@ router.get(
       const pricingMap = new Map(
         pricingRows.map((r: any) => [r.productId, r]),
       );
-
-      // 🔍 Check how many products got pricing matched vs missed
-      const matched  = products.filter((p: any) =>  pricingMap.has(p.id)).length;
-      const unmatched = products.filter((p: any) => !pricingMap.has(p.id)).length;
-      console.log("[DEBUG] Pricing map coverage:", { matched, unmatched });
 
       enrichedProducts = products.map((p: any) => ({
         ...p,
@@ -619,15 +585,6 @@ router.get(
     }
 
     const hasMore = skip + limitNum < totalCount;
-
-    console.log("[DEBUG] Response summary:", {
-      returning: enrichedProducts.length,
-      totalCount,
-      pageNum,
-      limitNum,
-      hasMore,
-      // 🔍 If hasMore is always false and returning === totalCount, no pagination
-    });
 
     res.json({
       products:   enrichedProducts,

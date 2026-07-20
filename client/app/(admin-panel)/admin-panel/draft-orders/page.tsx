@@ -13,6 +13,7 @@ import { cn, fresh } from "@/lib/utils";
 import AddressCard from "../orders/AddressCard";
 import CreateOrder from "../orders/CreateOrder";
 import OrderDetailsSheet from "../orders/OrderDetails";
+import { buildOrderAddressDisplay } from "../orders/orderAddressDisplay";
 import DraftOrderActions from "./DraftOrderActions";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 import {
@@ -75,117 +76,123 @@ const DraftOrdersPage = async (props: {
 
           <TableScrollWrapper>
             <table className="w-full min-w-[1080px] border-collapse text-sm">
-            <thead className="bg-muted/50">
-              <tr className="whitespace-nowrap [&>th]:align-middle">
-                <th className={cn(tableHeadClassName, "w-12")}>
-                  <DraftOrderSelectAll items={selectableDraftOrders} />
-                </th>
-                <th className={tableHeadClassName}>Customer</th>
-                <th className={cn(tableHeadClassName, "w-[150px]")}>PO#</th>
-                <th className={cn(tableHeadClassName, "w-[140px]")}>
-                  Order Type
-                </th>
-                <th className={cn(tableHeadClassName, "w-[130px]")}>
-                  Order Date
-                </th>
-                <th className={cn(tableHeadClassName, "w-[130px]")}>
-                  Ship Date
-                </th>
-                <th className={cn(tableHeadClassName, "w-[240px]")}>Address</th>
-                <th className={cn(tableHeadClassName, "w-[280px] text-center")}>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {draftOrders.length > 0 ? (
-                draftOrders.map((order: any) => (
-                  <tr
-                    key={`${order.id}-${order.purchaeOrderNo}`}
-                    className="whitespace-nowrap align-middle [&>td]:align-middle"
+              <thead className="bg-muted/50">
+                <tr className="whitespace-nowrap [&>th]:align-middle">
+                  <th className={cn(tableHeadClassName, "w-12")}>
+                    <DraftOrderSelectAll items={selectableDraftOrders} />
+                  </th>
+                  <th className={tableHeadClassName}>Customer</th>
+                  <th className={cn(tableHeadClassName, "w-[150px]")}>PO#</th>
+                  <th className={cn(tableHeadClassName, "w-[140px]")}>
+                    Order Type
+                  </th>
+                  <th className={cn(tableHeadClassName, "w-[130px]")}>
+                    Order Date
+                  </th>
+                  <th className={cn(tableHeadClassName, "w-[130px]")}>
+                    Ship Date
+                  </th>
+                  <th className={cn(tableHeadClassName, "w-[240px]")}>
+                    Address
+                  </th>
+                  <th
+                    className={cn(tableHeadClassName, "w-[280px] text-center")}
                   >
-                    <td className={cn(tableCellClassName, "text-center")}>
-                      <DraftOrderRowCheckbox
-                        item={{
-                          id: Number(order.id),
-                          orderType: String(order.orderType ?? ""),
-                        }}
-                      />
-                    </td>
-                    <td className={tableCellClassName}>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold">
-                          {order.customer?.name}
-                        </span>
-                        <span className="opacity-50">#{order.id}</span>
-                      </div>
-                    </td>
-                    <td className={cn(tableCellClassName, "font-mono")}>
-                      <div className="flex flex-col gap-1">
-                        <span>{order.purchaeOrderNo}</span>
-                        {["failed", "undelivered"].includes(
-                          String(order.emailStatus ?? "").toLowerCase(),
-                        ) && (
-                          <span className="w-fit rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                            Email failed
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className={tableCellClassName}>
-                      {order.orderType === "Fresh" ? fresh : order.orderType}
-                    </td>
-                    <td className={tableCellClassName}>
-                      {formatDateOnlyDisplay(order.orderReceivedDate)}
-                    </td>
-                    <td className={tableCellClassName}>
-                      {order.orderCancellationDate
-                        ? formatDateOnlyDisplay(order.orderCancellationDate)
-                        : "-"}
-                    </td>
-                    <td
-                      className={cn(
-                        tableCellClassName,
-                        "max-w-[240px] whitespace-normal break-words",
-                      )}
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {draftOrders.length > 0 ? (
+                  draftOrders.map((order: any) => (
+                    <tr
+                      key={`${order.id}-${order.purchaeOrderNo}`}
+                      className="whitespace-nowrap align-middle [&>td]:align-middle"
                     >
-                      <AddressCard ad={order.address} />
-                    </td>
-                    <td className={cn(tableCellClassName, "text-center")}>
-                      <div className="flex flex-wrap items-center justify-center gap-2">
-                        <OrderDetailsSheet
-                          orderDetails={order}
-                          showStatusActions={false}
+                      <td className={cn(tableCellClassName, "text-center")}>
+                        <DraftOrderRowCheckbox
+                          item={{
+                            id: Number(order.id),
+                            orderType: String(order.orderType ?? ""),
+                          }}
                         />
-                        <CreateOrder
-                          customers={customers.customers ?? []}
-                          ordersTotalCount={0}
-                          productCategories={categories}
-                          productSubCategories={subCategories}
-                          currencies={currencies}
-                          editOrder={order}
-                          triggerLabel="Edit"
-                        />
-                        <DraftOrderActions orderId={order.id} />
+                      </td>
+                      <td className={tableCellClassName}>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold">
+                            {order.customer?.name}
+                          </span>
+                          <span className="opacity-50">#{order.id}</span>
+                        </div>
+                      </td>
+                      <td className={cn(tableCellClassName, "font-mono")}>
+                        <div className="flex flex-col gap-1">
+                          <span>{order.purchaeOrderNo}</span>
+                          {["failed", "undelivered"].includes(
+                            String(order.emailStatus ?? "").toLowerCase(),
+                          ) && (
+                            <span className="w-fit rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                              Email failed
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className={tableCellClassName}>
+                        {order.orderType === "Fresh" ? fresh : order.orderType}
+                      </td>
+                      <td className={tableCellClassName}>
+                        {formatDateOnlyDisplay(order.orderReceivedDate)}
+                      </td>
+                      <td className={tableCellClassName}>
+                        {order.orderCancellationDate
+                          ? formatDateOnlyDisplay(order.orderCancellationDate)
+                          : "-"}
+                      </td>
+                      <td
+                        className={cn(
+                          tableCellClassName,
+                          "max-w-[240px] whitespace-normal break-words",
+                        )}
+                      >
+                        <AddressCard ad={buildOrderAddressDisplay(order)} />
+                      </td>
+                      <td className={cn(tableCellClassName, "text-center")}>
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <OrderDetailsSheet
+                            orderDetails={order}
+                            showStatusActions={false}
+                          />
+                          <CreateOrder
+                            customers={customers.customers ?? []}
+                            ordersTotalCount={0}
+                            productCategories={categories}
+                            productSubCategories={subCategories}
+                            currencies={currencies}
+                            editOrder={order}
+                            triggerLabel="Edit"
+                          />
+                          <DraftOrderActions orderId={order.id} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="border border-border py-10 text-center text-base text-muted-foreground"
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <p className="font-medium">No draft orders found</p>
+                        <p className="text-sm">
+                          Saved drafts will appear here.
+                        </p>
                       </div>
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="border border-border py-10 text-center text-base text-muted-foreground"
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      <p className="font-medium">No draft orders found</p>
-                      <p className="text-sm">Saved drafts will appear here.</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
           </TableScrollWrapper>
 
           {orders?.totalCount > 0 && (

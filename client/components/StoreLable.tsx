@@ -1,7 +1,14 @@
 "use client";
 
 import { build2dBarcodeUrl } from "@/lib/barcodes";
-import { formatEuSizeSummary, PDF_DISPLAY_SIZE_UNIT } from "@/lib/sizeConversion";
+import {
+  formatEuSizeSummary,
+  PDF_DISPLAY_SIZE_UNIT,
+} from "@/lib/sizeConversion";
+import {
+  getResponsiveStatusLabelFontSize,
+  getStatusLabelPurchaseOrderNo,
+} from "@/lib/statusLabelText";
 
 /* ================= COLOR MASTER (DB MIRROR) ================= */
 
@@ -86,23 +93,35 @@ const resolveColor = (color?: string) => {
 
 /* ================= LABEL COMPONENT ================= */
 
-export default function StatusLabelBox1({ item, orderType }: { item: any; orderType?: string }) {
-const { name: colorName, hex: colorHex } = resolveColor(
-  item.meshColor || item.color
-);
-const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
-const beader = String(item.beader ?? "").trim();
+export default function StatusLabelBox1({
+  item,
+  orderType,
+}: {
+  item: any;
+  orderType?: string;
+}) {
+  const { name: colorName, hex: colorHex } = resolveColor(
+    item.meshColor || item.color,
+  );
+  const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
+  const beader = String(item.beader ?? "").trim();
+  const purchaseOrderNo = getStatusLabelPurchaseOrderNo(item);
+  const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
+    purchaseOrderNo,
+    {
+      availableWidth: 165,
+      maxFontSize: 14,
+      minFontSize: 8,
+    },
+  );
 
   return (
-    <div className="w-[210px] border-2 border-gray-800 bg-gradient-to-b from-white to-gray-50 rounded-lg shadow-lg overflow-hidden">
-
+    <div className="w-[210px] overflow-hidden rounded-lg border-2 border-gray-800 bg-gradient-to-b from-white to-gray-50 shadow-lg">
       {/* HEADER */}
-      <div className="bg-gradient-to-r from-gray-900 to-gray-700 text-white py-3 text-center">
-        <div className="text-sm font-bold tracking-wide">
-          {item.styleNo}
-        </div>
+      <div className="bg-gradient-to-r from-gray-900 to-gray-700 py-3 text-center text-white">
+        <div className="text-sm font-bold tracking-wide">{item.styleNo}</div>
         {orderType && (
-          <div className="text-xs font-medium mt-1 opacity-90">
+          <div className="mt-1 text-xs font-medium opacity-90">
             {orderType} ORDER
           </div>
         )}
@@ -110,31 +129,27 @@ const beader = String(item.beader ?? "").trim();
 
       {/* BODY */}
       <div className="p-3">
-
         {/* SIZE + COLOR */}
-        <div className="flex justify-between mb-3">
-
+        <div className="mb-3 flex justify-between">
           {/* SIZE */}
           <div className="text-center">
-            <div className="text-xs font-semibold text-gray-500 mb-1">
-              SIZE
-            </div>
-            <div className="text-lg font-bold text-gray-800 bg-gray-100 py-1 px-3 rounded-md border border-gray-300">
+            <div className="mb-1 text-xs font-semibold text-gray-500">SIZE</div>
+            <div className="rounded-md border border-gray-300 bg-gray-100 px-3 py-1 text-lg font-bold text-gray-800">
               {sizeText}
             </div>
           </div>
 
           {/* COLOR */}
           <div className="text-center">
-            <div className="text-xs font-semibold text-gray-500 mb-1">
+            <div className="mb-1 text-xs font-semibold text-gray-500">
               COLOR
             </div>
 
-            <div className="flex items-center gap-2 bg-gray-100 py-1 px-2 rounded-md border border-gray-300">
+            <div className="flex items-center gap-2 rounded-md border border-gray-300 bg-gray-100 px-2 py-1">
               {/* Swatch only if HEX */}
               {colorHex && (
                 <span
-                  className="w-5 h-5 rounded border border-gray-400"
+                  className="h-5 w-5 rounded border border-gray-400"
                   style={{ backgroundColor: colorHex }}
                 />
               )}
@@ -144,26 +159,32 @@ const beader = String(item.beader ?? "").trim();
                   {colorName}
                 </div>
                 {colorHex && (
-                  <div className="text-[9px] text-gray-500 uppercase">
+                  <div className="text-[9px] uppercase text-gray-500">
                     {colorHex}
                   </div>
                 )}
               </div>
             </div>
           </div>
-
         </div>
 
         {/* PURCHASE ORDER */}
         <div className="mb-4">
           <div className="grid grid-cols-[1fr_auto] gap-2">
             <div>
-              <div className="text-xs font-semibold text-gray-500 mb-2 text-center">
+              <div className="mb-2 text-center text-xs font-semibold text-gray-500">
                 PURCHASE ORDER
               </div>
-              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg py-2 px-3 text-center">
-                <div className="text-sm font-bold text-gray-900 break-all">
-                  {item.purchaseOrderNo}
+              <div className="rounded-lg border-2 border-yellow-300 bg-yellow-50 px-3 py-2 text-center">
+                <div
+                  className="font-bold text-gray-900"
+                  style={{
+                    fontSize: `${purchaseOrderFontSize}px`,
+                    lineHeight: 1.1,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {purchaseOrderNo}
                 </div>
               </div>
             </div>
@@ -182,8 +203,8 @@ const beader = String(item.beader ?? "").trim();
 
         {/* BARCODE */}
         {item.barcode && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="text-center mb-2">
+          <div className="mt-4 border-t border-gray-200 pt-4">
+            <div className="mb-2 text-center">
               <div className="text-xs font-semibold text-gray-500">
                 SCAN TO VERIFY
               </div>
@@ -192,7 +213,7 @@ const beader = String(item.beader ?? "").trim();
               </div>
             </div>
 
-            <div className="bg-white p-3 rounded-lg border border-gray-300 shadow-inner flex justify-center">
+            <div className="flex justify-center rounded-lg border border-gray-300 bg-white p-3 shadow-inner">
               <img
                 src={build2dBarcodeUrl(item.barcode, 180)}
                 alt="2d barcode"
@@ -204,15 +225,13 @@ const beader = String(item.beader ?? "").trim();
               />
             </div>
 
-            <div className="text-[9px] text-gray-500 mt-2 px-1">
-              ✓ VERIFIED
-            </div>
+            <div className="mt-2 px-1 text-[9px] text-gray-500">✓ VERIFIED</div>
           </div>
         )}
       </div>
 
       {/* FOOTER */}
-      <div className="bg-gray-800 text-white text-[8px] py-1 px-3">
+      <div className="bg-gray-800 px-3 py-1 text-[8px] text-white">
         <div className="flex justify-between">
           <span>Chic&Holland</span>
           <span>

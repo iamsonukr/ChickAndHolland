@@ -896,7 +896,6 @@ const StockAcceptedForm = ({
     }
   };
 
-  // console.log(customers)
 
   return (
     <div>

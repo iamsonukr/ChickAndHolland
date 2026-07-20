@@ -7,7 +7,14 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import { build2dBarcodeUrl } from "@/lib/barcodes";
-import { formatEuSizeSummary, PDF_DISPLAY_SIZE_UNIT } from "@/lib/sizeConversion";
+import {
+  formatEuSizeSummary,
+  PDF_DISPLAY_SIZE_UNIT,
+} from "@/lib/sizeConversion";
+import {
+  getResponsiveStatusLabelFontSize,
+  getStatusLabelPurchaseOrderNo,
+} from "@/lib/statusLabelText";
 
 /* ======================================================
    FORMAT MESH COLOR
@@ -27,7 +34,7 @@ const formatMeshColor = (meshColor?: string) => {
 
   return {
     prefix: match[1], // SAS
-    name: match[2],   // Aquamarine Jewel
+    name: match[2], // Aquamarine Jewel
   };
 };
 
@@ -39,12 +46,20 @@ export default function LabelPdf({ item }: { item: any }) {
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
   const beader = String(item.beader ?? "").trim();
   const barcodeUrl = build2dBarcodeUrl(item.barcode, 260);
+  const purchaseOrderNo = getStatusLabelPurchaseOrderNo(item);
+  const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
+    purchaseOrderNo,
+    {
+      availableWidth: 68,
+      maxFontSize: 8.5,
+      minFontSize: 4.2,
+    },
+  );
 
   return (
     <Document>
       <Page size={[125, 130]} style={styles.page}>
         <View style={styles.container}>
-
           {/* ================= HEADER ================= */}
           <View style={styles.header}>
             <Text style={styles.headerText}>{item.styleNo}</Text>
@@ -52,12 +67,9 @@ export default function LabelPdf({ item }: { item: any }) {
 
           {/* ================= SIZE + COLOR ================= */}
           <View style={styles.row}>
-
             {/* SIZE */}
             <View style={styles.box}>
-              <Text style={styles.sizeText}>
-                {sizeText}
-              </Text>
+              <Text style={styles.sizeText}>{sizeText}</Text>
             </View>
 
             {/* COLOR (MESH COLOR – CLEAN) */}
@@ -65,13 +77,17 @@ export default function LabelPdf({ item }: { item: any }) {
               <Text style={styles.colorPrefix}>{prefix}</Text>
               <Text style={styles.colorName}>{name}</Text>
             </View>
-
           </View>
 
           {/* ================= PO ================= */}
           <View style={styles.poBlock}>
             <View style={styles.poValueBox}>
-              <Text style={styles.poText}>{item.purchaseOrderNo}</Text>
+              <Text
+                wrap={false}
+                style={[styles.poText, { fontSize: purchaseOrderFontSize }]}
+              >
+                {purchaseOrderNo}
+              </Text>
             </View>
             <View style={styles.beaderBox}>
               <Text style={styles.beaderLabel}>BEADER</Text>
@@ -84,10 +100,7 @@ export default function LabelPdf({ item }: { item: any }) {
             <View style={styles.barcodeBlock}>
               {/* <Text style={styles.scanText}>2D SCAN</Text> */}
               {/* eslint-disable-next-line jsx-a11y/alt-text */}
-              <Image
-                src={barcodeUrl}
-                style={styles.barcode}
-              />
+              <Image src={barcodeUrl} style={styles.barcode} />
             </View>
           )}
 
@@ -102,7 +115,6 @@ export default function LabelPdf({ item }: { item: any }) {
               })}
             </Text>
           </View>
-
         </View>
       </Page>
     </Document>
@@ -134,7 +146,7 @@ const styles = StyleSheet.create({
   },
 
   /* ROW */
-/* ROW */
+  /* ROW */
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -144,7 +156,7 @@ const styles = StyleSheet.create({
 
   box: {
     width: "48%",
-    minHeight: 26,           // ← keeps enough room for larger QR
+    minHeight: 26, // ← keeps enough room for larger QR
     border: "1px solid #000000",
     paddingVertical: 3,
     paddingHorizontal: 3,
@@ -157,7 +169,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "bold",
     textAlign: "center",
-    textDecoration: "none",  // ← prevents accidental strikethrough
+    textDecoration: "none", // ← prevents accidental strikethrough
   },
 
   /* COLOR */

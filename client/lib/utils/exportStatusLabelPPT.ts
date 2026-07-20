@@ -1,7 +1,14 @@
 import pptxgen from "pptxgenjs";
 
 import { build2dBarcodeUrl } from "@/lib/barcodes";
-import { formatEuSizeSummary, PDF_DISPLAY_SIZE_UNIT } from "@/lib/sizeConversion";
+import {
+  formatEuSizeSummary,
+  PDF_DISPLAY_SIZE_UNIT,
+} from "@/lib/sizeConversion";
+import {
+  getResponsiveStatusLabelFontSize,
+  getStatusLabelPurchaseOrderNo,
+} from "@/lib/statusLabelText";
 
 const sanitizeFileName = (value: unknown, fallback: string) => {
   const name = String(value ?? "").trim() || fallback;
@@ -50,6 +57,15 @@ export async function downloadStatusLabelPPT(item: any, orderType?: string) {
     alwaysShowCount: true,
   })}`;
   const colorText = formatText(item?.meshColor || item?.color);
+  const purchaseOrderNo = getStatusLabelPurchaseOrderNo(item);
+  const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
+    purchaseOrderNo,
+    {
+      availableWidth: 2.48 * 72,
+      maxFontSize: 9.5,
+      minFontSize: 4.8,
+    },
+  );
   const barcodeUrl = build2dBarcodeUrl(item?.barcode, 320);
   const fileName = sanitizeFileName(
     `${formatText(item?.styleNo)}-label`,
@@ -200,13 +216,13 @@ export async function downloadStatusLabelPPT(item: any, orderType?: string) {
     line: { color: "FBBF24", pt: 1 },
   });
 
-  slide.addText(formatText(item?.purchaseOrderNo), {
+  slide.addText(purchaseOrderNo, {
     x: 0.36,
     y: 1.9,
     w: 2.48,
     h: 0.12,
     fontFace: "Arial",
-    fontSize: 9.5,
+    fontSize: purchaseOrderFontSize,
     bold: true,
     color: black,
     align: "center",

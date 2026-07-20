@@ -48,6 +48,7 @@ import {
 } from "../lib/orderPricing";
 import ProductColour from "../models/ProductColours";
 import OrderPayments from "../models/OrderPayments";
+import Country from "../models/Country";
 import { mail } from "../lib/Utils";
 import { generateOrderPdf } from "../pdf/generateOrderPdf";
 import { formatDateOnly, parseDateOnly } from "../lib/dateOnly";
@@ -110,8 +111,7 @@ async function hasProductsBeaderColumn() {
   const columns = await db.query("SHOW COLUMNS FROM `products` LIKE ?", [
     "beader",
   ]);
-  productsBeaderColumnAvailable =
-    Array.isArray(columns) && columns.length > 0;
+  productsBeaderColumnAvailable = Array.isArray(columns) && columns.length > 0;
 
   return productsBeaderColumnAvailable;
 }
@@ -233,9 +233,10 @@ async function upsertOrderBeader({
 async function deleteOrderBeadersByStyleIds(styleIds: number[]) {
   if (!styleIds.length) return;
 
-  await db.query(`DELETE FROM \`${ORDER_BEADERS_TABLE}\` WHERE styleId IN (?)`, [
-    styleIds,
-  ]);
+  await db.query(
+    `DELETE FROM \`${ORDER_BEADERS_TABLE}\` WHERE styleId IN (?)`,
+    [styleIds],
+  );
 }
 
 async function getRegularOrderPaymentSummary(order: Order) {
@@ -275,7 +276,10 @@ function buildStageMap(rows: any[], field: "status" | "stage") {
 
   rows.forEach((row) => {
     if (row?.barcode) {
-      map.set(String(row.barcode), getCanonicalStage(row[field]) ?? DEFAULT_ORDER_STAGE);
+      map.set(
+        String(row.barcode),
+        getCanonicalStage(row[field]) ?? DEFAULT_ORDER_STAGE,
+      );
     }
   });
 
@@ -305,7 +309,9 @@ async function getLatestProgressRows(
   barcodes: string[],
 ) {
   const uniqueBarcodes = Array.from(
-    new Set(barcodes.map((barcode) => String(barcode || "").trim()).filter(Boolean)),
+    new Set(
+      barcodes.map((barcode) => String(barcode || "").trim()).filter(Boolean),
+    ),
   );
 
   if (!uniqueBarcodes.length) return [];
@@ -338,8 +344,12 @@ function getComputedOrderStage(
 
   return (
     getLowestStage(
-    barcodes.map((barcode) => progressByBarcode.get(barcode) ?? DEFAULT_ORDER_STAGE),
-    ) ?? DEFAULT_ORDER_STAGE ?? "Pattern"
+      barcodes.map(
+        (barcode) => progressByBarcode.get(barcode) ?? DEFAULT_ORDER_STAGE,
+      ),
+    ) ??
+    DEFAULT_ORDER_STAGE ??
+    "Pattern"
   );
 }
 
@@ -380,12 +390,18 @@ const emptyStageCounts = () =>
     return acc;
   }, {});
 
-const addStageCount = (counts: Record<string, number>, stage?: string | null) => {
+const addStageCount = (
+  counts: Record<string, number>,
+  stage?: string | null,
+) => {
   const canonicalStage = getCanonicalStage(stage) ?? DEFAULT_ORDER_STAGE;
   counts[canonicalStage] = (counts[canonicalStage] ?? 0) + 1;
 };
 
-const buildOrderStatusById = (orders: any[], orderSource: "regular" | "retailer") => {
+const buildOrderStatusById = (
+  orders: any[],
+  orderSource: "regular" | "retailer",
+) => {
   const statusById = new Map<number, string>();
 
   orders
@@ -405,7 +421,10 @@ const buildOrderStatusById = (orders: any[], orderSource: "regular" | "retailer"
 const dedupeProductRowsByBarcode = (
   rows: Array<{ orderId: number; barcode: string }>,
 ) => {
-  const productRowsByBarcode = new Map<string, { orderId: number; barcode: string }>();
+  const productRowsByBarcode = new Map<
+    string,
+    { orderId: number; barcode: string }
+  >();
 
   rows.forEach((row) => {
     const orderId = Number(row.orderId);
@@ -524,11 +543,7 @@ async function getProductStageCounts(baseOrders: any[]) {
     const retailerRows = await getRetailerProductRows(retailerOrderIds);
     const retailerBarcodes = retailerRows.map((row) => row.barcode);
     const retailerProgressByBarcode = buildStageMap(
-      await getLatestProgressRows(
-        "styleProgress",
-        "stage",
-        retailerBarcodes,
-      ),
+      await getLatestProgressRows("styleProgress", "stage", retailerBarcodes),
       "stage",
     );
 
@@ -576,13 +591,10 @@ async function getOrderStageCountSourceOrders({
     .from(Order, "o")
     .leftJoin("o.customer", "customer")
     .where("o.status = 0")
-    .andWhere(
-      "COALESCE(o.publishStatus, :publishedStatus) = :publishStatus",
-      {
-        publishedStatus: OrderPublishStatus.Published,
-        publishStatus: requestedPublishStatus,
-      },
-    );
+    .andWhere("COALESCE(o.publishStatus, :publishedStatus) = :publishStatus", {
+      publishedStatus: OrderPublishStatus.Published,
+      publishStatus: requestedPublishStatus,
+    });
 
   if (likeQuery) {
     regularOrdersQuery.andWhere(
@@ -637,9 +649,10 @@ async function getOrderStageCountSourceOrders({
       unionQuery = regularOrdersQuery.getQuery();
     }
   } else {
-    unionQuery = includeRetailerOrders && !hasBeaderFilter
-      ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})`
-      : regularOrdersQuery.getQuery();
+    unionQuery =
+      includeRetailerOrders && !hasBeaderFilter
+        ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})`
+        : regularOrdersQuery.getQuery();
   }
 
   const mergedParams = {
@@ -1118,11 +1131,14 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
   }
 
   if (order.publishStatus === OrderPublishStatus.Draft) {
-    console.log(`${ORDER_PDF_EMAIL_LOG_PREFIX} Email not sent: order is draft`, {
-      orderId,
-      purchaseOrderNo: order.purchaeOrderNo,
-      recipient: order.manufacturingEmailAddress,
-    });
+    console.log(
+      `${ORDER_PDF_EMAIL_LOG_PREFIX} Email not sent: order is draft`,
+      {
+        orderId,
+        purchaseOrderNo: order.purchaeOrderNo,
+        recipient: order.manufacturingEmailAddress,
+      },
+    );
     return;
   }
 
@@ -1147,7 +1163,8 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
   let emailSubject = order.purchaeOrderNo || "Order Confirmation";
 
   try {
-    const uploadedAttachment = await fetchUploadedOrderDocumentAttachment(order);
+    const uploadedAttachment =
+      await fetchUploadedOrderDocumentAttachment(order);
 
     if (uploadedAttachment) {
       attachment = uploadedAttachment;
@@ -1165,7 +1182,11 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
 
       if (!details.length) {
         const message = "No order styles to email";
-        await recordOrderEmailStatus(order.id, OrderEmailStatus.Failed, message);
+        await recordOrderEmailStatus(
+          order.id,
+          OrderEmailStatus.Failed,
+          message,
+        );
         console.warn(`${ORDER_PDF_EMAIL_LOG_PREFIX} ${message}`, {
           orderId,
           purchaseOrderNo: order.purchaeOrderNo,
@@ -1317,6 +1338,60 @@ function buildOrderAddress(
   }
 
   return `${baseAddress} (${countryName})`;
+}
+
+function buildOrderCustomerPayload(
+  customer: Customer | null | undefined,
+  resolvedPhoneNumber: string | null,
+  shippingCountryNameById: Map<string, string>,
+) {
+  if (!customer) return null;
+
+  const shippingCountryId = sanitizeText(customer.shippingCountryId);
+  const customerCountryName = sanitizeText(customer.country?.name);
+  const shippingCountryName =
+    sanitizeText(shippingCountryNameById.get(shippingCountryId)) ||
+    customerCountryName;
+
+  return {
+    id: customer.id,
+    name: customer.name ?? null,
+    storeName: customer.storeName ?? null,
+    customerStoreName: customer.storeName ?? customer.name ?? null,
+    contactPerson: customer.contactPerson ?? null,
+    phoneNumber: resolvedPhoneNumber ?? customer.phoneNumber,
+    storeAddress: customer.storeAddress,
+    postalCode: customer.postalCode,
+    country: customerCountryName || null,
+    shippingAddress: customer.shippingAddress ?? null,
+    shippingCityName:
+      sanitizeText(customer.shippingCityName) ||
+      sanitizeText(customer.client?.city_name) ||
+      null,
+    shippingCountryId: shippingCountryId || null,
+    shippingCountryName: shippingCountryName || null,
+    shippingContactPerson:
+      sanitizeText(customer.shippingContactPerson) ||
+      sanitizeText(customer.contactPerson) ||
+      sanitizeText(customer.name) ||
+      null,
+    shippingEmail:
+      sanitizeText(customer.shippingEmail) ||
+      sanitizeText(customer.email) ||
+      null,
+    shippingPhoneNumber:
+      sanitizeText(customer.shippingPhoneNumber) ||
+      resolvedPhoneNumber ||
+      sanitizeText(customer.phoneNumber) ||
+      null,
+    email: customer.email ?? null,
+    client: customer.client
+      ? {
+          address: customer.client.address ?? null,
+          city_name: customer.client.city_name ?? null,
+        }
+      : null,
+  };
 }
 
 function getCustomerStoreName(
@@ -1540,16 +1615,16 @@ function hasRegularOrderDraftStyleData(style: any) {
 
   return Boolean(
     sanitizeText(style.styleNo) ||
-      sanitizeText(style.size) ||
-      sanitizeText(style.quantity) ||
-      !["", "SAS"].includes(sanitizeText(style.mesh)) ||
-      !["", "SAS"].includes(sanitizeText(style.beading)) ||
-      !["", "SAS"].includes(sanitizeText(style.lining)) ||
-      !["", "SAS"].includes(sanitizeText(style.liningColor)) ||
-      commentsToArray(style.comments).length ||
-      normalizeFieldArray(style.customColor).length ||
-      normalizeFieldArray(style.customSize).length ||
-      normalizeFieldArray(style.customSizesQuantity).length,
+    sanitizeText(style.size) ||
+    sanitizeText(style.quantity) ||
+    !["", "SAS"].includes(sanitizeText(style.mesh)) ||
+    !["", "SAS"].includes(sanitizeText(style.beading)) ||
+    !["", "SAS"].includes(sanitizeText(style.lining)) ||
+    !["", "SAS"].includes(sanitizeText(style.liningColor)) ||
+    commentsToArray(style.comments).length ||
+    normalizeFieldArray(style.customColor).length ||
+    normalizeFieldArray(style.customSize).length ||
+    normalizeFieldArray(style.customSizesQuantity).length,
   );
 }
 
@@ -1817,7 +1892,8 @@ router.post(
         order.purchaeOrderNo = resolvedPurchaseOrderNo;
         order.manufacturingEmailAddress =
           sanitizeText(manufacturingEmailAddress) || "rubyinc@hotmail.com";
-        order.orderType = (sanitizeText(orderType) || OrderType.Store) as OrderType;
+        order.orderType = (sanitizeText(orderType) ||
+          OrderType.Store) as OrderType;
         order.orderReceivedDate = orderReceivedDate || new Date();
         order.orderCancellationDate = (orderCancellationDate ?? null) as any;
         order.address = address;
@@ -2061,7 +2137,10 @@ router.patch(
     }
 
     if (retailerIds.length) {
-      await adjustStockInventoryForDeletedRetailerOrders(retailerIds, "reserve");
+      await adjustStockInventoryForDeletedRetailerOrders(
+        retailerIds,
+        "reserve",
+      );
     }
 
     if (regularIds.length) {
@@ -2750,37 +2829,37 @@ const appendIdFilter = (
 router.get(
   "/export-products",
   asyncHandler(async (req: Request, res: Response) => {
-      const {
-        query,
-        orderType,
-        stage,
-        due,
-        beader,
-        selectedOrders,
-      }: {
-        query?: string;
-        orderType?: string;
-        stage?: string;
-        due?: string;
-        beader?: string;
-        selectedOrders?: string;
-      } = req.query;
-   
-      const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
-      const beaderFilter = String(beader || "").trim();
-      const hasBeaderFilter = Boolean(beaderFilter);
-      const selectedExportOrders = parseSelectedExportOrders(selectedOrders);
+    const {
+      query,
+      orderType,
+      stage,
+      due,
+      beader,
+      selectedOrders,
+    }: {
+      query?: string;
+      orderType?: string;
+      stage?: string;
+      due?: string;
+      beader?: string;
+      selectedOrders?: string;
+    } = req.query;
 
-      if (
-        selectedExportOrders.hasSelection &&
-        selectedExportOrders.regularIds.length === 0 &&
-        selectedExportOrders.retailerIds.length === 0
-      ) {
-        return res.json({
-          success: true,
-          data: [],
-        });
-      }
+    const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
+    const beaderFilter = String(beader || "").trim();
+    const hasBeaderFilter = Boolean(beaderFilter);
+    const selectedExportOrders = parseSelectedExportOrders(selectedOrders);
+
+    if (
+      selectedExportOrders.hasSelection &&
+      selectedExportOrders.regularIds.length === 0 &&
+      selectedExportOrders.retailerIds.length === 0
+    ) {
+      return res.json({
+        success: true,
+        data: [],
+      });
+    }
 
     const regularWhere = [
       "o.status = 0",
@@ -2802,40 +2881,39 @@ router.get(
       retailerParams.push(likeQuery, likeQuery, likeQuery);
     }
 
-      const includeRegular =
-        selectedExportOrders.hasSelection
-          ? selectedExportOrders.regularIds.length > 0
-          : !orderType || !["Fresh", "Stock"].includes(String(orderType));
-      const includeRetailer =
-        !hasBeaderFilter &&
-        (selectedExportOrders.hasSelection
-          ? selectedExportOrders.retailerIds.length > 0
-          : !orderType || ["Fresh", "Stock"].includes(String(orderType)));
+    const includeRegular = selectedExportOrders.hasSelection
+      ? selectedExportOrders.regularIds.length > 0
+      : !orderType || !["Fresh", "Stock"].includes(String(orderType));
+    const includeRetailer =
+      !hasBeaderFilter &&
+      (selectedExportOrders.hasSelection
+        ? selectedExportOrders.retailerIds.length > 0
+        : !orderType || ["Fresh", "Stock"].includes(String(orderType)));
 
-      if (orderType && includeRegular) {
-        regularWhere.push("o.orderType = ?");
-        regularParams.push(orderType);
-      }
+    if (orderType && includeRegular) {
+      regularWhere.push("o.orderType = ?");
+      regularParams.push(orderType);
+    }
 
-      if (hasBeaderFilter) {
-        regularWhere.push(
-          `LOWER(${buildResolvedOrderStyleBeaderSql("s", "ob", "p")}) = LOWER(?)`,
-        );
-        regularParams.push(beaderFilter);
-      }
-
-      appendIdFilter(
-        regularWhere,
-        regularParams,
-        "o.id",
-        selectedExportOrders.regularIds,
+    if (hasBeaderFilter) {
+      regularWhere.push(
+        `LOWER(${buildResolvedOrderStyleBeaderSql("s", "ob", "p")}) = LOWER(?)`,
       );
-      appendIdFilter(
-        retailerWhere,
-        retailerParams,
-        "ro.id",
-        selectedExportOrders.retailerIds,
-      );
+      regularParams.push(beaderFilter);
+    }
+
+    appendIdFilter(
+      regularWhere,
+      regularParams,
+      "o.id",
+      selectedExportOrders.regularIds,
+    );
+    appendIdFilter(
+      retailerWhere,
+      retailerParams,
+      "ro.id",
+      selectedExportOrders.retailerIds,
+    );
 
     if (orderType === "Fresh") {
       retailerWhere.push("ro.is_stock_order = 0");
@@ -3022,15 +3100,19 @@ router.get(
       .filter(Boolean);
     const sharedRetailerBarcodes = [...retailerBarcodes, ...stockBarcodes];
 
-    const [
-      regularProgressByBarcode,
-      retailerProgressByBarcode,
-    ] = await Promise.all([
-      getLatestProgressRows("store_style_progress", "status", regularBarcodes)
-        .then((rows) => buildStageMap(rows, "status")),
-      getLatestProgressRows("styleProgress", "stage", sharedRetailerBarcodes)
-        .then((rows) => buildStageMap(rows, "stage")),
-    ]);
+    const [regularProgressByBarcode, retailerProgressByBarcode] =
+      await Promise.all([
+        getLatestProgressRows(
+          "store_style_progress",
+          "status",
+          regularBarcodes,
+        ).then((rows) => buildStageMap(rows, "status")),
+        getLatestProgressRows(
+          "styleProgress",
+          "stage",
+          sharedRetailerBarcodes,
+        ).then((rows) => buildStageMap(rows, "stage")),
+      ]);
 
     const data = productRows
       .map((row) => {
@@ -3039,8 +3121,7 @@ router.get(
             ? regularProgressByBarcode
             : retailerProgressByBarcode;
         const barcode = String(row.barcode || "");
-        const productStatus =
-          progressMap.get(barcode) ?? DEFAULT_ORDER_STAGE;
+        const productStatus = progressMap.get(barcode) ?? DEFAULT_ORDER_STAGE;
         const quantity = Number(row.quantity ?? 1) || 1;
         const qrBoxColor = getQrBoxColorDisplay(row);
 
@@ -3071,30 +3152,30 @@ router.get(
   }),
 );
 
-  router.get(
-    "/stage-counts",
-    asyncHandler(async (req: Request, res: Response) => {
-      const { query, orderType, publishStatus, beader } = req.query as {
-        query?: string;
-        orderType?: string;
-        publishStatus?: string;
-        beader?: string;
-      };
+router.get(
+  "/stage-counts",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { query, orderType, publishStatus, beader } = req.query as {
+      query?: string;
+      orderType?: string;
+      publishStatus?: string;
+      beader?: string;
+    };
 
     const sourceOrders = await getOrderStageCountSourceOrders({
-        query,
-        orderType,
-        publishStatus,
-        beader,
-      });
+      query,
+      orderType,
+      publishStatus,
+      beader,
+    });
     const stageCounts = await getProductStageCounts(sourceOrders);
 
     return res.json({
       success: true,
       stageCounts,
     });
-    }),
-  );
+  }),
+);
 
 router.get(
   "/beaders",
@@ -3112,26 +3193,26 @@ router.get(
   }),
 );
 
-  router.get(
-    "/",
+router.get(
+  "/",
   asyncHandler(async (req: Request, res: Response) => {
     const {
       page,
       query,
-        orderType,
-        stage,
-        publishStatus,
-        beader,
-        deletedOnly,
-      }: {
-        page?: string;
-        query?: string;
-        orderType?: string;
-        stage?: string;
-        publishStatus?: string;
-        beader?: string;
-        deletedOnly?: string;
-      } = req.query;
+      orderType,
+      stage,
+      publishStatus,
+      beader,
+      deletedOnly,
+    }: {
+      page?: string;
+      query?: string;
+      orderType?: string;
+      stage?: string;
+      publishStatus?: string;
+      beader?: string;
+      deletedOnly?: string;
+    } = req.query;
 
     const skip = (page ? Number(page) - 1 : 0) * 100;
     const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
@@ -3179,12 +3260,12 @@ router.get(
 
     if (!isDeletedOnly || hasPublishStatusFilter) {
       regularOrdersQuery.andWhere(
-          "COALESCE(o.publishStatus, :publishedStatus) = :publishStatus",
-          {
-            publishedStatus: OrderPublishStatus.Published,
-            publishStatus: requestedPublishStatus,
-          },
-        );
+        "COALESCE(o.publishStatus, :publishedStatus) = :publishStatus",
+        {
+          publishedStatus: OrderPublishStatus.Published,
+          publishStatus: requestedPublishStatus,
+        },
+      );
     }
 
     if (likeQuery) {
@@ -3255,9 +3336,10 @@ router.get(
         unionQuery = regularOrdersQuery.getQuery();
       }
     } else {
-      unionQuery = includeRetailerOrders && !hasBeaderFilter
-        ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})`
-        : regularOrdersQuery.getQuery();
+      unionQuery =
+        includeRetailerOrders && !hasBeaderFilter
+          ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})`
+          : regularOrdersQuery.getQuery();
     }
 
     const finalQuery = db
@@ -3284,11 +3366,12 @@ router.get(
       ...retailerOrdersQuery.getParameters(),
     };
 
-    const [combinedOrders, countResult, productCountSourceOrders] = await Promise.all([
-      finalQuery.setParameters(mergedParams).getRawMany(),
-      countQuery.setParameters(mergedParams).getRawOne(),
-      productCountSourceQuery.setParameters(mergedParams).getRawMany(),
-    ]);
+    const [combinedOrders, countResult, productCountSourceOrders] =
+      await Promise.all([
+        finalQuery.setParameters(mergedParams).getRawMany(),
+        countQuery.setParameters(mergedParams).getRawOne(),
+        productCountSourceQuery.setParameters(mergedParams).getRawMany(),
+      ]);
     const stageCounts = await getProductStageCounts(productCountSourceOrders);
 
     const regularOrderIds = combinedOrders
@@ -3309,6 +3392,7 @@ router.get(
         .from(Order, "order")
         .leftJoinAndSelect("order.customer", "customer")
         .leftJoinAndSelect("customer.country", "customerCountry")
+        .leftJoinAndSelect("customer.client", "customerClient")
         .leftJoinAndSelect("order.styles", "styles")
         .addSelect("styles.beader")
         .where("order.id IN (:...ids)", { ids: regularOrderIds })
@@ -3323,11 +3407,36 @@ router.get(
         .leftJoinAndSelect("order.retailer", "retailer")
         .leftJoinAndSelect("retailer.customer", "customer")
         .leftJoinAndSelect("customer.country", "customerCountry")
+        .leftJoinAndSelect("customer.client", "customerClient")
         .leftJoinAndSelect("order.favourite_order", "favourite_order")
         .leftJoinAndSelect("order.Stock_order", "Stock_order")
         .where("order.id IN (:...ids)", { ids: retailerOrderIds })
         .getMany();
     }
+
+    const shippingCountryIds = Array.from(
+      new Set(
+        [
+          ...regularOrdersWithRelations.map(
+            (order: any) => order.customer?.shippingCountryId,
+          ),
+          ...retailerOrdersWithRelations.map(
+            (order: any) => order.retailer?.customer?.shippingCountryId,
+          ),
+        ]
+          .map((id) => Number(sanitizeText(id)))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      ),
+    );
+    const shippingCountries = shippingCountryIds.length
+      ? await Country.find({ where: { id: In(shippingCountryIds) } })
+      : [];
+    const shippingCountryNameById = new Map(
+      shippingCountries.map((country) => [
+        String(country.id),
+        sanitizeText(country.name),
+      ]),
+    );
 
     // Fetch and map payment data for retailer orders
     const paymentsMap = new Map<number, number>();
@@ -3448,7 +3557,9 @@ router.get(
         await getLatestProgressRows(
           "styleProgress",
           "stage",
-          retailerStyleRows.map((row: any) => String(row.barcode)).filter(Boolean),
+          retailerStyleRows
+            .map((row: any) => String(row.barcode))
+            .filter(Boolean),
         ),
         "stage",
       );
@@ -3567,45 +3678,11 @@ router.get(
           null,
         shipped: detailedOrder?.shipped ?? recoveredStageDates.shipped ?? null,
         ppt_path: detailedOrder?.ppt_path || null,
-        customer:
-          baseOrder.orderSource === "regular"
-            ? detailedOrder?.customer
-              ? {
-                  id: detailedOrder.customer.id,
-                  name: detailedOrder.customer.name ?? null,
-                  storeName: detailedOrder.customer.storeName ?? null,
-                  customerStoreName:
-                    detailedOrder.customer.storeName ??
-                    detailedOrder.customer.name ??
-                    null,
-                  contactPerson: detailedOrder.customer.contactPerson ?? null,
-                  phoneNumber:
-                    resolvedPhoneNumber ?? detailedOrder.customer.phoneNumber,
-                  storeAddress: detailedOrder.customer.storeAddress,
-                  postalCode: detailedOrder.customer.postalCode,
-                  country: detailedOrder.customer.country?.name ?? null,
-                }
-              : null
-            : detailedOrder?.retailer?.customer
-              ? {
-                  id: detailedOrder.retailer.customer.id,
-                  name: detailedOrder.retailer.customer.name ?? null,
-                  storeName: detailedOrder.retailer.customer.storeName ?? null,
-                  customerStoreName:
-                    detailedOrder.retailer.customer.storeName ??
-                    detailedOrder.retailer.customer.name ??
-                    null,
-                  contactPerson:
-                    detailedOrder.retailer.customer.contactPerson ?? null,
-                  phoneNumber:
-                    resolvedPhoneNumber ??
-                    detailedOrder.retailer.customer.phoneNumber,
-                  storeAddress: detailedOrder.retailer.customer.storeAddress,
-                  postalCode: detailedOrder.retailer.customer.postalCode,
-                  country:
-                    detailedOrder.retailer.customer.country?.name ?? null,
-                }
-              : null,
+        customer: buildOrderCustomerPayload(
+          resolvedCustomer,
+          resolvedPhoneNumber,
+          shippingCountryNameById,
+        ),
         totalQuantity,
         styles: styles || [],
         orderSource: baseOrder.orderSource,
