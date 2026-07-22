@@ -167,9 +167,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sizeText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "bold",
     textAlign: "center",
+    lineHeight: 1,
   },
   colorBox: {
     justifyContent: "center",

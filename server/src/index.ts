@@ -117,6 +117,9 @@ const port = CONFIG.PORT;
 const app = express();
 app.set("trust proxy", true);
 
+const allowedCorsOrigins = new Set(CONFIG.CORS_ORIGINS);
+const normalizeCorsOrigin = (origin: string) => origin.trim().replace(/\/+$/, "");
+
 app.post(
   "/api/payment/webhook",
   express.raw({ type: "application/json" }), // RAW BODY
@@ -130,12 +133,22 @@ app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://chicandholland.com",
-      "https://www.chicandholland.com",
-      "http://188.166.61.115",
-    ],
+    origin: (origin, callback) => {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const normalizedOrigin = normalizeCorsOrigin(origin);
+
+      if (
+        allowedCorsOrigins.has("*") ||
+        allowedCorsOrigins.has(normalizedOrigin)
+      ) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-Edit-Password"],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
