@@ -6,6 +6,19 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const splitEnvList = (value?: string | null) =>
+  String(value || "")
+    .split(/[,;\s]+/)
+    .map((item) => item.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+
+const DEFAULT_CORS_ORIGINS = [
+  "http://localhost:3000",
+  "https://chicandholland.com",
+  "https://www.chicandholland.com",
+  "http://188.166.61.115",
+];
+
 /**
  * Configuration for the application
  */
@@ -14,6 +27,14 @@ const CONFIG = {
   PORT: process.env.PORT || 5001,
   PRODUCTION:"production",
   CLIENT_URL: process.env.CLIENT_URL || "http://localhost:3000",
+  CORS_ORIGINS: Array.from(
+    new Set([
+      ...DEFAULT_CORS_ORIGINS,
+      ...splitEnvList(process.env.CLIENT_URL),
+      ...splitEnvList(process.env.CLIENT_URLS),
+      ...splitEnvList(process.env.CORS_ORIGINS),
+    ]),
+  ),
   // Updated to 127.0.0.1 for more stable connection on Ubuntu
   DB_URL: process.env.DB_URL || "mysql://root:jaikvik@127.0.0.1:3306/chickholland",
   // DB_URL: "mysql://root:@127.0.0.1:3306/chickholland",

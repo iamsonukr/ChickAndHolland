@@ -166,9 +166,10 @@ const styles = StyleSheet.create({
 
   /* SIZE */
   sizeText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "bold",
     textAlign: "center",
+    lineHeight: 1,
     textDecoration: "none", // ← prevents accidental strikethrough
   },
 
