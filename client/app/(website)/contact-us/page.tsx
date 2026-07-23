@@ -138,7 +138,7 @@ const ContactUs = () => {
                 loop={true}
                 playsInline={true}
                 controlsList="nodownload"
-                className="w-full h-full object-cover"
+                className="h-full w-full bg-black object-contain"
                 webkit-playsinline="true"
               />
               <div className="video-overlay"></div>
@@ -153,7 +153,7 @@ const ContactUs = () => {
                 GET IN TOUCH WITH OUR TEAM
               </h2>
               <p className="text-gray-300 font-mysi text-lg">
-                Let's create something extraordinary together. Our team is ready to assist you with any inquiries.
+                Let&apos;s create something extraordinary together. Our team is ready to assist you with any inquiries.
               </p>
             </div>
             <div className="form-container">
