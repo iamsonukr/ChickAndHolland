@@ -144,6 +144,7 @@ const AddCustomerForm = ({
     const latitude = place?.geometry?.location?.lat();
     const longitude = place?.geometry?.location?.lng();
 
+    
     form.setValue("coordinates", {
       latitude: latitude.toString(),
       longitude: longitude.toString(),
