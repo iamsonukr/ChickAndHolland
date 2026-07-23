@@ -50,9 +50,10 @@ export default function LabelPdf({ item }: { item: any }) {
   const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
     purchaseOrderNo,
     {
-      availableWidth: 68,
+      availableWidth: 64,
       maxFontSize: 8.5,
-      minFontSize: 4.2,
+      minFontSize: 2.4,
+      averageCharWidth: 0.72,
     },
   );
 
@@ -220,6 +221,9 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     fontWeight: "bold",
     textAlign: "center",
+    lineHeight: 1,
+    maxLines: 1,
+    width: "100%",
   },
   beaderLabel: {
     fontSize: 4.8,

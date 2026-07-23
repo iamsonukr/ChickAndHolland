@@ -266,7 +266,7 @@ export default function Home() {
                 embellishment, and exceptional craftsmanship.
               </p>
 
-              <h3 className=" font-adornstoryserif mt-3 font-serif text-xl text-[#956c5a] sm:text-2xl md:mt-4 md:text-[30px]">
+              <h3 className=" font-adornstoryserif mt-3 text-xl text-[#956c5a] sm:text-2xl md:mt-4 md:text-[30px]">
                 A modern couture fairytale
               </h3>
 
