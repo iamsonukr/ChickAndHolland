@@ -50,9 +50,9 @@ export default function LabelPdf({ item }: { item: any }) {
   const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
     purchaseOrderNo,
     {
-      availableWidth: 64,
-      maxFontSize: 8.5,
-      minFontSize: 2.4,
+      availableWidth: 108,
+      maxFontSize: 12,
+      minFontSize: 3,
       averageCharWidth: 0.72,
     },
   );
@@ -90,10 +90,6 @@ export default function LabelPdf({ item }: { item: any }) {
                 {purchaseOrderNo}
               </Text>
             </View>
-            <View style={styles.beaderBox}>
-              <Text style={styles.beaderLabel}>BEADER</Text>
-              <Text style={styles.beaderText}>{beader || "-"}</Text>
-            </View>
           </View>
 
           {/* ================= BARCODE ================= */}
@@ -107,8 +103,9 @@ export default function LabelPdf({ item }: { item: any }) {
 
           {/* ================= FOOTER ================= */}
           <View style={styles.footer}>
-            <Text>Chic&Holland</Text>
-            <Text>
+            <Text style={styles.footerBrand}>Chic&Holland</Text>
+            <Text style={styles.footerBeader}>BEADER: {beader || "-"}</Text>
+            <Text style={styles.footerDate}>
               {new Date().toLocaleDateString("en-US", {
                 month: "short",
                 day: "2-digit",
@@ -195,45 +192,26 @@ const styles = StyleSheet.create({
 
   /* PO */
   poBlock: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     marginHorizontal: 6,
     marginBottom: 3,
     marginTop: 2,
     // border: "1px solid #000000",
-    alignItems: "stretch",
+    alignItems: "center",
   },
   poValueBox: {
-    width: "62%",
+    width: "100%",
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 3,
     paddingHorizontal: 2,
   },
-  beaderBox: {
-    width: "34%",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 2,
-    paddingHorizontal: 2,
-  },
   poText: {
-    fontSize: 8.5,
+    fontSize: 12,
     fontWeight: "bold",
     textAlign: "center",
     lineHeight: 1,
     maxLines: 1,
     width: "100%",
-  },
-  beaderLabel: {
-    fontSize: 4.8,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  beaderText: {
-    fontSize: 5.8,
-    fontWeight: "bold",
-    textAlign: "center",
   },
 
   /* BARCODE */
@@ -255,8 +233,23 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 4,
     paddingVertical: 3,
     fontSize: 6,
+  },
+  footerBrand: {
+    width: "30%",
+  },
+  footerBeader: {
+    width: "40%",
+    fontSize: 5.2,
+    fontWeight: "bold",
+    textAlign: "center",
+    maxLines: 1,
+  },
+  footerDate: {
+    width: "30%",
+    textAlign: "right",
   },
 });

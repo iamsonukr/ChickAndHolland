@@ -54,9 +54,9 @@ function LabelTile({ item }: { item: any }) {
   const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
     purchaseOrderNo,
     {
-      availableWidth: 64,
-      maxFontSize: 8.5,
-      minFontSize: 2.4,
+      availableWidth: 108,
+      maxFontSize: 12,
+      minFontSize: 3,
       averageCharWidth: 0.72,
     },
   );
@@ -87,10 +87,6 @@ function LabelTile({ item }: { item: any }) {
             {purchaseOrderNo}
           </Text>
         </View>
-        <View style={styles.beaderBox}>
-          <Text style={styles.beaderLabel}>BEADER</Text>
-          <Text style={styles.beaderText}>{beader || "-"}</Text>
-        </View>
       </View>
 
       {barcodeUrl && (
@@ -102,8 +98,9 @@ function LabelTile({ item }: { item: any }) {
       )}
 
       <View style={styles.footer}>
-        <Text>Chic&Holland</Text>
-        <Text>
+        <Text style={styles.footerBrand}>Chic&Holland</Text>
+        <Text style={styles.footerBeader}>BEADER: {beader || "-"}</Text>
+        <Text style={styles.footerDate}>
           {new Date().toLocaleDateString("en-US", {
             month: "short",
             day: "2-digit",
@@ -189,42 +186,25 @@ const styles = StyleSheet.create({
     lineHeight: 1.2,
   },
   poBlock: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     marginHorizontal: 6,
     marginBottom: 3,
     marginTop: 2,
     paddingVertical: 2,
     paddingHorizontal: 2,
-    alignItems: "stretch",
-  },
-  poValueBox: {
-    width: "62%",
-    justifyContent: "center",
     alignItems: "center",
   },
-  beaderBox: {
-    width: "34%",
+  poValueBox: {
+    width: "100%",
     justifyContent: "center",
     alignItems: "center",
   },
   poText: {
-    fontSize: 8.5,
+    fontSize: 12,
     fontWeight: "bold",
     textAlign: "center",
     lineHeight: 1,
     maxLines: 1,
     width: "100%",
-  },
-  beaderLabel: {
-    fontSize: 4.8,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  beaderText: {
-    fontSize: 5.8,
-    fontWeight: "bold",
-    textAlign: "center",
   },
   barcodeBlock: {
     alignItems: "center",
@@ -242,8 +222,23 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 4,
     paddingVertical: 3,
     fontSize: 6,
+  },
+  footerBrand: {
+    width: "30%",
+  },
+  footerBeader: {
+    width: "40%",
+    fontSize: 5.2,
+    fontWeight: "bold",
+    textAlign: "center",
+    maxLines: 1,
+  },
+  footerDate: {
+    width: "30%",
+    textAlign: "right",
   },
 });
