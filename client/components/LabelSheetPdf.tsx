@@ -29,22 +29,53 @@ const chunkItems = <T,>(items: T[], size: number) => {
 };
 
 const formatMeshColor = (meshColor?: string) => {
-  if (!meshColor) return { prefix: "COLOR", name: "UNKNOWN" };
+  if (!meshColor) return { prefix: "COLOR", code: "", name: "UNKNOWN" };
+
+  const splitColorValue = (value: string) => {
+    const hyphenIndex = value.indexOf("-");
+    if (hyphenIndex <= 0) {
+      return { code: "", name: value.trim() };
+    }
+
+    return {
+      code: value.slice(0, hyphenIndex).trim(),
+      name: `- ${value.slice(hyphenIndex + 1).trim()}`,
+    };
+  };
 
   const match = meshColor.match(/^([A-Z0-9]+)\((.+)\)$/);
 
-  if (!match) {
-    return { prefix: "COLOR", name: meshColor };
+  if (match) {
+    const colorValue = splitColorValue(match[2]);
+
+    return {
+      prefix: match[1],
+      code: colorValue.code,
+      name: colorValue.name,
+    };
+  }
+
+  const hyphenIndex = meshColor.indexOf("-");
+  if (hyphenIndex > 0) {
+    const prefix = meshColor.slice(0, hyphenIndex).trim();
+    const name = meshColor.slice(hyphenIndex + 1).trim();
+
+    return {
+      prefix,
+      code: "",
+      name: `- ${name}`,
+    };
   }
 
   return {
-    prefix: match[1],
-    name: match[2],
+    prefix: "COLOR",
+    code: "",
+    name: meshColor,
   };
 };
 
 function LabelTile({ item }: { item: any }) {
-  const { prefix, name } = formatMeshColor(item.meshColor || item.color);
+  const { prefix, code, name } = formatMeshColor(item.meshColor || item.color);
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], {
     alwaysShowCount: true,
   })}`;
@@ -54,12 +85,18 @@ function LabelTile({ item }: { item: any }) {
   const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
     purchaseOrderNo,
     {
-      availableWidth: 64,
-      maxFontSize: 8.5,
-      minFontSize: 2.4,
+      availableWidth: 108,
+      maxFontSize: 13.5,
+      minFontSize: 3,
       averageCharWidth: 0.72,
     },
   );
+  const colorFontSize = getResponsiveStatusLabelFontSize(name, {
+    availableWidth: 52,
+    maxFontSize: 8,
+    minFontSize: 3.2,
+    averageCharWidth: 0.62,
+  });
 
   return (
     <View style={styles.label}>
@@ -73,8 +110,20 @@ function LabelTile({ item }: { item: any }) {
         </View>
 
         <View style={[styles.box, styles.colorBox]}>
-          <Text style={styles.colorPrefix}>{prefix}</Text>
-          <Text style={styles.colorName}>{name}</Text>
+          <Text wrap={false} style={styles.colorPrefix}>
+            {prefix}
+          </Text>
+          {code && (
+            <Text wrap={false} style={styles.colorCode}>
+              {code}
+            </Text>
+          )}
+          <Text
+            wrap={false}
+            style={[styles.colorName, { fontSize: colorFontSize }]}
+          >
+            {name}
+          </Text>
         </View>
       </View>
 
@@ -87,10 +136,6 @@ function LabelTile({ item }: { item: any }) {
             {purchaseOrderNo}
           </Text>
         </View>
-        <View style={styles.beaderBox}>
-          <Text style={styles.beaderLabel}>BEADER</Text>
-          <Text style={styles.beaderText}>{beader || "-"}</Text>
-        </View>
       </View>
 
       {barcodeUrl && (
@@ -102,8 +147,9 @@ function LabelTile({ item }: { item: any }) {
       )}
 
       <View style={styles.footer}>
-        <Text>Chic&Holland</Text>
-        <Text>
+        <Text style={styles.footerBrand}>Chic&Holland</Text>
+        <Text style={styles.footerBeader}>{beader || "-"}</Text>
+        <Text style={styles.footerDate}>
           {new Date().toLocaleDateString("en-US", {
             month: "short",
             day: "2-digit",
@@ -173,58 +219,56 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 1,
   },
-  colorBox: {
+   colorBox: {
+    marginTop: -1,
     justifyContent: "center",
   },
   colorPrefix: {
     fontSize: 7,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 2,
+    lineHeight: 1.2,
+    marginBottom: 1,
+    maxLines: 1,
+    width: "100%",
   },
-  colorName: {
-    fontSize: 6,
-    fontWeight: "normal",
+  colorCode: {
+    fontSize: 7,
+    fontWeight: "bold",
     textAlign: "center",
     lineHeight: 1.2,
+    marginBottom: 1,
+    maxLines: 1,
+    width: "100%",
   },
-  poBlock: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginHorizontal: 6,
-    marginBottom: 3,
-    marginTop: 2,
-    paddingVertical: 2,
-    paddingHorizontal: 2,
-    alignItems: "stretch",
-  },
-  poValueBox: {
-    width: "62%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  beaderBox: {
-    width: "34%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  poText: {
-    fontSize: 8.5,
+  colorName: {
+    fontSize: 8,
     fontWeight: "bold",
     textAlign: "center",
     lineHeight: 1,
     maxLines: 1,
     width: "100%",
   },
-  beaderLabel: {
-    fontSize: 4.8,
-    fontWeight: "bold",
-    textAlign: "center",
+  poBlock: {
+    marginHorizontal: 6,
+    marginBottom: 3,
+    marginTop: 2,
+    paddingVertical: 2,
+    paddingHorizontal: 2,
+    alignItems: "center",
   },
-  beaderText: {
-    fontSize: 5.8,
+  poValueBox: {
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  poText: {
+    fontSize: 12,
     fontWeight: "bold",
     textAlign: "center",
+    lineHeight: 1,
+    maxLines: 1,
+    width: "100%",
   },
   barcodeBlock: {
     alignItems: "center",
@@ -242,8 +286,25 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 4,
     paddingVertical: 3,
     fontSize: 6,
+  },
+  footerBrand: {
+    width: "30%",
+    fontSize: 4.8,
+    maxLines: 1,
+  },
+  footerBeader: {
+    width: "40%",
+    fontSize: 5.2,
+    fontWeight: "bold",
+    textAlign: "center",
+    maxLines: 1,
+  },
+  footerDate: {
+    width: "30%",
+    textAlign: "right",
   },
 });

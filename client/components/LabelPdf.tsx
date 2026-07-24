@@ -24,17 +24,48 @@ import {
    Aquamarine Jewel
 ====================================================== */
 const formatMeshColor = (meshColor?: string) => {
-  if (!meshColor) return { prefix: "COLOR", name: "UNKNOWN" };
+  if (!meshColor) return { prefix: "COLOR", code: "", name: "UNKNOWN" };
+
+  const splitColorValue = (value: string) => {
+    const hyphenIndex = value.indexOf("-");
+    if (hyphenIndex <= 0) {
+      return { code: "", name: value.trim() };
+    }
+
+    return {
+      code: value.slice(0, hyphenIndex).trim(),
+      name: `- ${value.slice(hyphenIndex + 1).trim()}`,
+    };
+  };
 
   const match = meshColor.match(/^([A-Z0-9]+)\((.+)\)$/);
 
-  if (!match) {
-    return { prefix: "COLOR", name: meshColor };
+  if (match) {
+    const colorValue = splitColorValue(match[2]);
+
+    return {
+      prefix: match[1], // SAS
+      code: colorValue.code,
+      name: colorValue.name, // Aquamarine Jewel
+    };
+  }
+
+  const hyphenIndex = meshColor.indexOf("-");
+  if (hyphenIndex > 0) {
+    const prefix = meshColor.slice(0, hyphenIndex).trim();
+    const name = meshColor.slice(hyphenIndex + 1).trim();
+
+    return {
+      prefix,
+      code: "",
+      name: `- ${name}`,
+    };
   }
 
   return {
-    prefix: match[1], // SAS
-    name: match[2], // Aquamarine Jewel
+    prefix: "COLOR",
+    code: "",
+    name: meshColor,
   };
 };
 
@@ -42,7 +73,7 @@ const formatMeshColor = (meshColor?: string) => {
    PDF LABEL
 ====================================================== */
 export default function LabelPdf({ item }: { item: any }) {
-  const { prefix, name } = formatMeshColor(item.meshColor || item.color);
+  const { prefix, code, name } = formatMeshColor(item.meshColor || item.color);
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
   const beader = String(item.beader ?? "").trim();
   const barcodeUrl = build2dBarcodeUrl(item.barcode, 260);
@@ -50,12 +81,18 @@ export default function LabelPdf({ item }: { item: any }) {
   const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
     purchaseOrderNo,
     {
-      availableWidth: 64,
-      maxFontSize: 8.5,
-      minFontSize: 2.4,
+      availableWidth: 108,
+      maxFontSize: 13.5,
+      minFontSize: 5,
       averageCharWidth: 0.72,
     },
   );
+  const colorFontSize = getResponsiveStatusLabelFontSize(name, {
+    availableWidth: 52,
+    maxFontSize: 8,
+    minFontSize: 3.2,
+    averageCharWidth: 0.62,
+  });
 
   return (
     <Document>
@@ -75,8 +112,20 @@ export default function LabelPdf({ item }: { item: any }) {
 
             {/* COLOR (MESH COLOR – CLEAN) */}
             <View style={[styles.box, styles.colorBox]}>
-              <Text style={styles.colorPrefix}>{prefix}</Text>
-              <Text style={styles.colorName}>{name}</Text>
+              <Text wrap={false} style={styles.colorPrefix}>
+                {prefix}
+              </Text>
+              {code && (
+                <Text wrap={false} style={styles.colorCode}>
+                  {code}
+                </Text>
+              )}
+              <Text
+                wrap={false}
+                style={[styles.colorName, { fontSize: colorFontSize }]}
+              >
+                {name}
+              </Text>
             </View>
           </View>
 
@@ -89,10 +138,6 @@ export default function LabelPdf({ item }: { item: any }) {
               >
                 {purchaseOrderNo}
               </Text>
-            </View>
-            <View style={styles.beaderBox}>
-              <Text style={styles.beaderLabel}>BEADER</Text>
-              <Text style={styles.beaderText}>{beader || "-"}</Text>
             </View>
           </View>
 
@@ -107,8 +152,9 @@ export default function LabelPdf({ item }: { item: any }) {
 
           {/* ================= FOOTER ================= */}
           <View style={styles.footer}>
-            <Text>Chic&Holland</Text>
-            <Text>
+            <Text style={styles.footerBrand}>Chic&Holland</Text>
+            <Text style={styles.footerBeader}>{beader || "-"}</Text>
+            <Text style={styles.footerDate}>
               {new Date().toLocaleDateString("en-US", {
                 month: "short",
                 day: "2-digit",
@@ -176,6 +222,7 @@ const styles = StyleSheet.create({
 
   /* COLOR */
   colorBox: {
+    marginTop: -1,
     justifyContent: "center",
   },
 
@@ -183,57 +230,53 @@ const styles = StyleSheet.create({
     fontSize: 7,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 2,
+    lineHeight: 1.2,
+    marginBottom: 1,
+    maxLines: 1,
+    width: "100%",
+  },
+
+  colorCode: {
+    fontSize: 7,
+    fontWeight: "bold",
+    textAlign: "center",
+    lineHeight: 1.2,
+    marginBottom: 1,
+    maxLines: 1,
+    width: "100%",
   },
 
   colorName: {
-    fontSize: 6,
-    fontWeight: "normal",
-    textAlign: "center",
-    lineHeight: 1.2,
-  },
-
-  /* PO */
-  poBlock: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginHorizontal: 6,
-    marginBottom: 3,
-    marginTop: 2,
-    // border: "1px solid #000000",
-    alignItems: "stretch",
-  },
-  poValueBox: {
-    width: "62%",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 3,
-    paddingHorizontal: 2,
-  },
-  beaderBox: {
-    width: "34%",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 2,
-    paddingHorizontal: 2,
-  },
-  poText: {
-    fontSize: 8.5,
+    fontSize: 8,
     fontWeight: "bold",
     textAlign: "center",
     lineHeight: 1,
     maxLines: 1,
     width: "100%",
   },
-  beaderLabel: {
-    fontSize: 4.8,
-    fontWeight: "bold",
-    textAlign: "center",
+
+  /* PO */
+  poBlock: {
+    marginHorizontal: 6,
+    marginBottom: 3,
+    marginTop: 2,
+    // border: "1px solid #000000",
+    alignItems: "center",
   },
-  beaderText: {
-    fontSize: 5.8,
+  poValueBox: {
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 3,
+    paddingHorizontal: 2,
+  },
+  poText: {
+    fontSize: 12,
     fontWeight: "bold",
     textAlign: "center",
+    lineHeight: 1,
+    maxLines: 1,
+    width: "100%",
   },
 
   /* BARCODE */
@@ -255,8 +298,25 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 4,
     paddingVertical: 3,
     fontSize: 6,
+  },
+  footerBrand: {
+    width: "30%",
+    fontSize: 4.8,
+    maxLines: 1,
+  },
+  footerBeader: {
+    width: "40%",
+    fontSize: 5.2,
+    fontWeight: "bold",
+    textAlign: "center",
+    maxLines: 1,
+  },
+  footerDate: {
+    width: "30%",
+    textAlign: "right",
   },
 });
