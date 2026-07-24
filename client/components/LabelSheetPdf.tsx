@@ -29,22 +29,53 @@ const chunkItems = <T,>(items: T[], size: number) => {
 };
 
 const formatMeshColor = (meshColor?: string) => {
-  if (!meshColor) return { prefix: "COLOR", name: "UNKNOWN" };
+  if (!meshColor) return { prefix: "COLOR", code: "", name: "UNKNOWN" };
+
+  const splitColorValue = (value: string) => {
+    const hyphenIndex = value.indexOf("-");
+    if (hyphenIndex <= 0) {
+      return { code: "", name: value.trim() };
+    }
+
+    return {
+      code: value.slice(0, hyphenIndex).trim(),
+      name: `- ${value.slice(hyphenIndex + 1).trim()}`,
+    };
+  };
 
   const match = meshColor.match(/^([A-Z0-9]+)\((.+)\)$/);
 
-  if (!match) {
-    return { prefix: "COLOR", name: meshColor };
+  if (match) {
+    const colorValue = splitColorValue(match[2]);
+
+    return {
+      prefix: match[1],
+      code: colorValue.code,
+      name: colorValue.name,
+    };
+  }
+
+  const hyphenIndex = meshColor.indexOf("-");
+  if (hyphenIndex > 0) {
+    const prefix = meshColor.slice(0, hyphenIndex).trim();
+    const name = meshColor.slice(hyphenIndex + 1).trim();
+
+    return {
+      prefix,
+      code: "",
+      name: `- ${name}`,
+    };
   }
 
   return {
-    prefix: match[1],
-    name: match[2],
+    prefix: "COLOR",
+    code: "",
+    name: meshColor,
   };
 };
 
 function LabelTile({ item }: { item: any }) {
-  const { prefix, name } = formatMeshColor(item.meshColor || item.color);
+  const { prefix, code, name } = formatMeshColor(item.meshColor || item.color);
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], {
     alwaysShowCount: true,
   })}`;
@@ -55,11 +86,17 @@ function LabelTile({ item }: { item: any }) {
     purchaseOrderNo,
     {
       availableWidth: 108,
-      maxFontSize: 12,
+      maxFontSize: 13.5,
       minFontSize: 3,
       averageCharWidth: 0.72,
     },
   );
+  const colorFontSize = getResponsiveStatusLabelFontSize(name, {
+    availableWidth: 52,
+    maxFontSize: 8,
+    minFontSize: 3.2,
+    averageCharWidth: 0.62,
+  });
 
   return (
     <View style={styles.label}>
@@ -73,8 +110,20 @@ function LabelTile({ item }: { item: any }) {
         </View>
 
         <View style={[styles.box, styles.colorBox]}>
-          <Text style={styles.colorPrefix}>{prefix}</Text>
-          <Text style={styles.colorName}>{name}</Text>
+          <Text wrap={false} style={styles.colorPrefix}>
+            {prefix}
+          </Text>
+          {code && (
+            <Text wrap={false} style={styles.colorCode}>
+              {code}
+            </Text>
+          )}
+          <Text
+            wrap={false}
+            style={[styles.colorName, { fontSize: colorFontSize }]}
+          >
+            {name}
+          </Text>
         </View>
       </View>
 
@@ -99,7 +148,7 @@ function LabelTile({ item }: { item: any }) {
 
       <View style={styles.footer}>
         <Text style={styles.footerBrand}>Chic&Holland</Text>
-        <Text style={styles.footerBeader}>BEADER: {beader || "-"}</Text>
+        <Text style={styles.footerBeader}>{beader || "-"}</Text>
         <Text style={styles.footerDate}>
           {new Date().toLocaleDateString("en-US", {
             month: "short",
@@ -170,20 +219,35 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 1,
   },
-  colorBox: {
+   colorBox: {
+    marginTop: -1,
     justifyContent: "center",
   },
   colorPrefix: {
     fontSize: 7,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 2,
+    lineHeight: 1.2,
+    marginBottom: 1,
+    maxLines: 1,
+    width: "100%",
   },
-  colorName: {
-    fontSize: 6,
-    fontWeight: "normal",
+  colorCode: {
+    fontSize: 7,
+    fontWeight: "bold",
     textAlign: "center",
     lineHeight: 1.2,
+    marginBottom: 1,
+    maxLines: 1,
+    width: "100%",
+  },
+  colorName: {
+    fontSize: 8,
+    fontWeight: "bold",
+    textAlign: "center",
+    lineHeight: 1,
+    maxLines: 1,
+    width: "100%",
   },
   poBlock: {
     marginHorizontal: 6,
@@ -229,6 +293,8 @@ const styles = StyleSheet.create({
   },
   footerBrand: {
     width: "30%",
+    fontSize: 4.8,
+    maxLines: 1,
   },
   footerBeader: {
     width: "40%",

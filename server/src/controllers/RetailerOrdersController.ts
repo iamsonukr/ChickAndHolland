@@ -935,16 +935,20 @@ router.get(
 router.get(
   "/admin/favorites-orders",
   asyncHandler(async (req: Request, res: Response) => {
-    const { retailerId, page, query } = req.query as {
+    const { retailerId, page, query, requestType } = req.query as {
       retailerId?: string;
       page?: string;
       query?: string;
+      requestType?: string;
     };
 
     const skip = (page ? Number(page) - 1 : 0) * 100;
     const take = 100;
     const params: any[] = [];
     const whereClauses: string[] = [];
+    const sampleOrderSql =
+      "(f.customization LIKE 'Sample Order%' OR p.description LIKE 'Sample Order%' OR p.productCode LIKE 'NS%')";
+    const normalizedRequestType = String(requestType ?? "").toLowerCase();
 
     // -----------------------------
     // BASE SQL (Correct Joins)
@@ -974,7 +978,7 @@ router.get(
         GROUP_CONCAT(f.product_size) AS product_size,
         GROUP_CONCAT(f.size_country) AS size_country,
         CASE
-          WHEN MAX(CASE WHEN f.customization = 'Sample Order' OR p.description = 'Sample Order' THEN 1 ELSE 0 END) = 1
+          WHEN MAX(CASE WHEN f.customization LIKE 'Sample Order%' OR p.description LIKE 'Sample Order%' OR p.productCode LIKE 'NS%' THEN 1 ELSE 0 END) = 1
           THEN 'Sample Order'
           ELSE 'Fresh'
         END AS requestType,
@@ -1008,6 +1012,12 @@ router.get(
     // Show only pending orders
     whereClauses.push("rf.is_approved = 0");
 
+    if (normalizedRequestType === "sample") {
+      whereClauses.push(sampleOrderSql);
+    } else if (normalizedRequestType === "fresh") {
+      whereClauses.push(`NOT ${sampleOrderSql}`);
+    }
+
     // Search
     if (query) {
       const likeQuery = `%${query.toLowerCase()}%`;
@@ -1035,15 +1045,17 @@ router.get(
     // -----------------------------
     // COUNT QUERY FIXED
     // -----------------------------
+    const countWhereClauses = [...whereClauses];
+    const countParams = [...params.slice(0, -2)];
     const countSql = `
-      SELECT COUNT(*) AS total
+      SELECT COUNT(DISTINCT rf.id) AS total
       FROM retailer_favourites_orders rf
-      WHERE rf.is_approved = 0
-      ${retailerId && retailerId !== "all" ? "AND rf.retailerId = ?" : ""}
+      INNER JOIN retailers r ON r.id = rf.retailerId
+      INNER JOIN customers c ON c.id = r.customerId
+      INNER JOIN favourites f ON FIND_IN_SET(f.id, rf.favourite_ids) > 0
+      INNER JOIN products p ON p.id = f.productId
+      WHERE ${countWhereClauses.join(" AND ")}
     `;
-
-    const countParams =
-      retailerId && retailerId !== "all" ? [Number(retailerId)] : [];
 
     // -----------------------------
     // EXECUTION
@@ -1298,7 +1310,7 @@ router.get(
         MIN(f.lining_color) AS lining_color,
         MIN(f.reference_image) AS reference_image,
         MIN(f.customization) AS comments,
-        MIN(CASE WHEN f.customization = 'Sample Order' OR p.description = 'Sample Order' THEN 'Sample Order' ELSE 'Fresh' END) AS requestType,
+        MIN(CASE WHEN f.customization LIKE 'Sample Order%' OR p.description LIKE 'Sample Order%' OR p.productCode LIKE 'NS%' THEN 'Sample Order' ELSE 'Fresh' END) AS requestType,
         MIN(f.customization_price) AS customization_price,
         MIN(COALESCE(NULLIF(ros.size_country, ''), f.size_country)) AS size_country,
 

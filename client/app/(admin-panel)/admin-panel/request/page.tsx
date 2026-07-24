@@ -29,7 +29,12 @@ const page = async (props: {
   const searchParams = await props.searchParams;
   const currentPage = searchParams["cPage"] ? Number(searchParams["cPage"]) : 1;
   const query = searchParams["q"] ? searchParams["q"] : "";
-  const activeTab = searchParams["tab"] === "stock" ? "stock" : "fresh";
+  const activeTab =
+    searchParams["tab"] === "stock"
+      ? "stock"
+      : searchParams["tab"] === "sample"
+        ? "sample"
+        : "fresh";
 
   const myStockOrders = await getAdminRetailersStockOrders({
     page: currentPage,
@@ -39,6 +44,13 @@ const page = async (props: {
   const myFreshOrders = await getAdminRetailersFreshOrders({
     page: currentPage,
     query,
+    requestType: "fresh",
+  });
+
+  const mySampleOrders = await getAdminRetailersFreshOrders({
+    page: currentPage,
+    query,
+    requestType: "sample",
   });
 
 
@@ -47,12 +59,20 @@ const page = async (props: {
     <ContentLayout title="Order Request">
       <CustomSearchBar query={query} />
       <Tabs defaultValue={activeTab} className="mt-3 w-full">
-        <TabsList className="grid h-auto w-full grid-cols-1 text-base sm:grid-cols-2 sm:text-lg">
+        <TabsList className="grid h-auto w-full grid-cols-1 text-base sm:grid-cols-3 sm:text-lg">
           <TabsTrigger value="fresh" className="relative">
             {fresh}
             {myFreshOrders?.totalCount > 0 && (
               <span className="absolute -right-2 -top-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white">
                 {myFreshOrders.totalCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="sample" className="relative">
+            Sample Orders
+            {mySampleOrders?.totalCount > 0 && (
+              <span className="absolute -right-2 -top-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white">
+                {mySampleOrders.totalCount}
               </span>
             )}
           </TabsTrigger>
@@ -72,6 +92,18 @@ const page = async (props: {
               <CustomPagination
                 currentPage={currentPage}
                 totalLength={myFreshOrders?.totalCount}
+                resetOtherFields={false}
+              />
+            </TableScrollWrapper>
+          )}
+        </TabsContent>
+        <TabsContent value="sample">
+          {mySampleOrders && (
+            <TableScrollWrapper>
+              <FreshTable data={mySampleOrders.favoritesOrders} />
+              <CustomPagination
+                currentPage={currentPage}
+                totalLength={mySampleOrders?.totalCount}
                 resetOtherFields={false}
               />
             </TableScrollWrapper>

@@ -48,6 +48,7 @@ import {
 } from "../lib/orderPricing";
 import ProductColour from "../models/ProductColours";
 import OrderPayments from "../models/OrderPayments";
+import RetailerOrdersPayment from "../models/RetailerPaymentModal";
 import Country from "../models/Country";
 import { mail } from "../lib/Utils";
 import { generateOrderPdf } from "../pdf/generateOrderPdf";
@@ -2157,6 +2158,91 @@ router.patch(
     return res.json({
       success: true,
       msg: "Order restored",
+    });
+  }),
+);
+
+router.patch(
+  "/permanent-delete",
+  asyncHandler(async (req: Request, res: Response) => {
+    const bulk = Array.isArray(req.body?.bulk) ? req.body.bulk : [];
+
+    const regularIds: number[] = [];
+    const retailerIds: number[] = [];
+
+    bulk.forEach((item: any) => {
+      const id = Number(item?.id);
+      if (!id) return;
+
+      const source = String(item?.orderSource ?? "").toLowerCase();
+      const orderType = String(item?.orderType ?? "");
+      const isRetailerOrder = source
+        ? source === "retailer"
+        : orderType === "Fresh" || orderType === "Stock";
+
+      if (isRetailerOrder) {
+        retailerIds.push(id);
+      } else {
+        regularIds.push(id);
+      }
+    });
+
+    if (!regularIds.length && !retailerIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid orders selected to delete",
+      });
+    }
+
+    const uniqueRegularIds = [...new Set(regularIds)];
+    const uniqueRetailerIds = [...new Set(retailerIds)];
+
+    const deletedRegularOrders = uniqueRegularIds.length
+      ? await Order.find({
+          select: ["id"],
+          where: { id: In(uniqueRegularIds), status: 1 },
+        })
+      : [];
+    const deletedRetailerOrders = uniqueRetailerIds.length
+      ? await RetailerOrder.find({
+          select: ["id"],
+          where: { id: In(uniqueRetailerIds), status: 1 },
+        })
+      : [];
+
+    const deletedRegularIds = deletedRegularOrders.map((order) => order.id);
+    const deletedRetailerIds = deletedRetailerOrders.map((order) => order.id);
+
+    if (deletedRegularIds.length) {
+      const styleRows = await db.query(
+        "SELECT id FROM `orderStyles` WHERE orderId IN (?)",
+        [deletedRegularIds],
+      );
+      const styleIds = Array.isArray(styleRows)
+        ? styleRows.map((row: any) => Number(row.id)).filter(Boolean)
+        : [];
+
+      await deleteOrderBeadersByStyleIds(styleIds);
+      await OrderPayments.createQueryBuilder()
+        .delete()
+        .where("orderId IN (:...ids)", { ids: deletedRegularIds })
+        .execute();
+      await Order.delete({ id: In(deletedRegularIds), status: 1 });
+    }
+
+    if (deletedRetailerIds.length) {
+      await RetailerOrdersPayment.createQueryBuilder()
+        .delete()
+        .where("orderId IN (:...ids)", { ids: deletedRetailerIds })
+        .execute();
+      await RetailerOrder.delete({ id: In(deletedRetailerIds), status: 1 });
+    }
+
+    const deletedCount = deletedRegularIds.length + deletedRetailerIds.length;
+
+    return res.json({
+      success: true,
+      msg: `${deletedCount} order${deletedCount === 1 ? "" : "s"} permanently deleted`,
     });
   }),
 );

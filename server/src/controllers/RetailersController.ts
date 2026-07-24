@@ -356,7 +356,11 @@ router.get(
          rf.rejected_comments,
          c.name as name,
          rf.retailerId as retailerId,
-        'Fresh' as order_type,
+        CASE
+          WHEN MAX(CASE WHEN f.customization LIKE 'Sample Order%' OR p.description LIKE 'Sample Order%' OR p.productCode LIKE 'NS%' THEN 1 ELSE 0 END) = 1
+          THEN 'Sample Order'
+          ELSE 'Fresh'
+        END AS order_type,
         MAX(curr.symbol) as currencySymbol,
         MAX(curr.name) as currencyName
       FROM retailer_favourites_orders rf

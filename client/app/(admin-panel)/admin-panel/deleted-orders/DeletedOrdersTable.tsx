@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -24,7 +24,15 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
   const router = useRouter();
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [restoringKeys, setRestoringKeys] = useState<Set<string>>(new Set());
-  const { executeAsync } = useHttp("/orders/restore", "PATCH");
+  const [deletingKeys, setDeletingKeys] = useState<Set<string>>(new Set());
+  const { executeAsync: restoreDeletedOrders } = useHttp(
+    "/orders/restore",
+    "PATCH",
+  );
+  const { executeAsync: permanentlyDeleteDeletedOrders } = useHttp(
+    "/orders/permanent-delete",
+    "PATCH",
+  );
 
   const orderKeys = useMemo(() => orders.map(getOrderKey), [orders]);
   const selectedOrders = orders.filter((order) =>
@@ -33,7 +41,7 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
   const allSelected =
     orderKeys.length > 0 && orderKeys.every((key) => selectedKeys.has(key));
 
-  const buildRestorePayload = (items: any[]) =>
+  const buildOrderPayload = (items: any[]) =>
     items.map((order) => ({
       id: Number(order.id),
       orderSource: order.orderSource,
@@ -47,8 +55,8 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
     setRestoringKeys((current) => new Set([...current, ...keys]));
 
     try {
-      const response = await executeAsync({
-        bulk: buildRestorePayload(items),
+      const response = await restoreDeletedOrders({
+        bulk: buildOrderPayload(items),
       });
 
       toast.success(
@@ -61,6 +69,43 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
       toast.error(error?.message ?? "Failed to restore order");
     } finally {
       setRestoringKeys((current) => {
+        const next = new Set(current);
+        keys.forEach((key) => next.delete(key));
+        return next;
+      });
+    }
+  };
+
+  const permanentlyDeleteOrders = async (items: any[]) => {
+    if (!items.length) return;
+
+    const confirmed = window.confirm(
+      `Permanently delete ${items.length} order${
+        items.length === 1 ? "" : "s"
+      }? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    const keys = items.map(getOrderKey);
+    setDeletingKeys((current) => new Set([...current, ...keys]));
+
+    try {
+      const response = await permanentlyDeleteDeletedOrders({
+        bulk: buildOrderPayload(items),
+      });
+
+      toast.success(
+        response?.msg ??
+          `${items.length} order${
+            items.length === 1 ? "" : "s"
+          } permanently deleted`,
+      );
+      setSelectedKeys(new Set());
+      router.refresh();
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to permanently delete order");
+    } finally {
+      setDeletingKeys((current) => {
         const next = new Set(current);
         keys.forEach((key) => next.delete(key));
         return next;
@@ -93,21 +138,33 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
             : `${orders.length} deleted order${orders.length === 1 ? "" : "s"}`}
         </p>
         {selectedOrders.length > 0 && (
-          <Button
-            type="button"
-            onClick={() => restoreOrders(selectedOrders)}
-            disabled={restoringKeys.size > 0}
-            className="gap-1.5 bg-red-600 text-white hover:bg-red-700"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Restore Selected ({selectedOrders.length})
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              onClick={() => restoreOrders(selectedOrders)}
+              disabled={restoringKeys.size > 0 || deletingKeys.size > 0}
+              className="gap-1.5 bg-red-600 text-white hover:bg-red-700"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Restore Selected ({selectedOrders.length})
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => permanentlyDeleteOrders(selectedOrders)}
+              disabled={restoringKeys.size > 0 || deletingKeys.size > 0}
+              className="gap-1.5"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Permanent ({selectedOrders.length})
+            </Button>
+          </div>
         )}
       </div>
 
       <div className="w-full rounded-lg border border-border">
         <TableScrollWrapper>
-          <table className="w-full min-w-[1120px] border-collapse text-sm">
+          <table className="w-full min-w-[1250px] border-collapse text-sm">
             <thead className="bg-muted/50">
               <tr className="whitespace-nowrap [&>th]:align-middle">
                 <th className={cn(tableHeadClassName, "w-[70px]")}>
@@ -143,7 +200,7 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
                 <th className={cn(tableHeadClassName, "w-[140px]")}>
                   Source
                 </th>
-                <th className={cn(tableHeadClassName, "w-[130px]")}>
+                <th className={cn(tableHeadClassName, "w-[260px]")}>
                   Action
                 </th>
               </tr>
@@ -154,6 +211,7 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
                 orders.map((order: any) => {
                   const key = getOrderKey(order);
                   const isRestoring = restoringKeys.has(key);
+                  const isDeleting = deletingKeys.has(key);
 
                   return (
                     <tr
@@ -205,17 +263,30 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
                           : "Regular"}
                       </td>
                       <td className={cn(tableCellClassName, "text-center")}>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => restoreOrders([order])}
-                          disabled={isRestoring}
-                          className="gap-1.5"
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          {isRestoring ? "Restoring..." : "Restore"}
-                        </Button>
+                        <div className="flex justify-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => restoreOrders([order])}
+                            disabled={isRestoring || isDeleting}
+                            className="gap-1.5"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            {isRestoring ? "Restoring..." : "Restore"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => permanentlyDeleteOrders([order])}
+                            disabled={isRestoring || isDeleting}
+                            className="gap-1.5"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {isDeleting ? "Deleting..." : "Delete Permanent"}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );

@@ -24,17 +24,48 @@ import {
    Aquamarine Jewel
 ====================================================== */
 const formatMeshColor = (meshColor?: string) => {
-  if (!meshColor) return { prefix: "COLOR", name: "UNKNOWN" };
+  if (!meshColor) return { prefix: "COLOR", code: "", name: "UNKNOWN" };
+
+  const splitColorValue = (value: string) => {
+    const hyphenIndex = value.indexOf("-");
+    if (hyphenIndex <= 0) {
+      return { code: "", name: value.trim() };
+    }
+
+    return {
+      code: value.slice(0, hyphenIndex).trim(),
+      name: `- ${value.slice(hyphenIndex + 1).trim()}`,
+    };
+  };
 
   const match = meshColor.match(/^([A-Z0-9]+)\((.+)\)$/);
 
-  if (!match) {
-    return { prefix: "COLOR", name: meshColor };
+  if (match) {
+    const colorValue = splitColorValue(match[2]);
+
+    return {
+      prefix: match[1], // SAS
+      code: colorValue.code,
+      name: colorValue.name, // Aquamarine Jewel
+    };
+  }
+
+  const hyphenIndex = meshColor.indexOf("-");
+  if (hyphenIndex > 0) {
+    const prefix = meshColor.slice(0, hyphenIndex).trim();
+    const name = meshColor.slice(hyphenIndex + 1).trim();
+
+    return {
+      prefix,
+      code: "",
+      name: `- ${name}`,
+    };
   }
 
   return {
-    prefix: match[1], // SAS
-    name: match[2], // Aquamarine Jewel
+    prefix: "COLOR",
+    code: "",
+    name: meshColor,
   };
 };
 
@@ -42,7 +73,7 @@ const formatMeshColor = (meshColor?: string) => {
    PDF LABEL
 ====================================================== */
 export default function LabelPdf({ item }: { item: any }) {
-  const { prefix, name } = formatMeshColor(item.meshColor || item.color);
+  const { prefix, code, name } = formatMeshColor(item.meshColor || item.color);
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
   const beader = String(item.beader ?? "").trim();
   const barcodeUrl = build2dBarcodeUrl(item.barcode, 260);
@@ -51,11 +82,17 @@ export default function LabelPdf({ item }: { item: any }) {
     purchaseOrderNo,
     {
       availableWidth: 108,
-      maxFontSize: 12,
-      minFontSize: 3,
+      maxFontSize: 13.5,
+      minFontSize: 5,
       averageCharWidth: 0.72,
     },
   );
+  const colorFontSize = getResponsiveStatusLabelFontSize(name, {
+    availableWidth: 52,
+    maxFontSize: 8,
+    minFontSize: 3.2,
+    averageCharWidth: 0.62,
+  });
 
   return (
     <Document>
@@ -75,8 +112,20 @@ export default function LabelPdf({ item }: { item: any }) {
 
             {/* COLOR (MESH COLOR – CLEAN) */}
             <View style={[styles.box, styles.colorBox]}>
-              <Text style={styles.colorPrefix}>{prefix}</Text>
-              <Text style={styles.colorName}>{name}</Text>
+              <Text wrap={false} style={styles.colorPrefix}>
+                {prefix}
+              </Text>
+              {code && (
+                <Text wrap={false} style={styles.colorCode}>
+                  {code}
+                </Text>
+              )}
+              <Text
+                wrap={false}
+                style={[styles.colorName, { fontSize: colorFontSize }]}
+              >
+                {name}
+              </Text>
             </View>
           </View>
 
@@ -104,7 +153,7 @@ export default function LabelPdf({ item }: { item: any }) {
           {/* ================= FOOTER ================= */}
           <View style={styles.footer}>
             <Text style={styles.footerBrand}>Chic&Holland</Text>
-            <Text style={styles.footerBeader}>BEADER: {beader || "-"}</Text>
+            <Text style={styles.footerBeader}>{beader || "-"}</Text>
             <Text style={styles.footerDate}>
               {new Date().toLocaleDateString("en-US", {
                 month: "short",
@@ -173,6 +222,7 @@ const styles = StyleSheet.create({
 
   /* COLOR */
   colorBox: {
+    marginTop: -1,
     justifyContent: "center",
   },
 
@@ -180,14 +230,29 @@ const styles = StyleSheet.create({
     fontSize: 7,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 2,
+    lineHeight: 1.2,
+    marginBottom: 1,
+    maxLines: 1,
+    width: "100%",
+  },
+
+  colorCode: {
+    fontSize: 7,
+    fontWeight: "bold",
+    textAlign: "center",
+    lineHeight: 1.2,
+    marginBottom: 1,
+    maxLines: 1,
+    width: "100%",
   },
 
   colorName: {
-    fontSize: 6,
-    fontWeight: "normal",
+    fontSize: 8,
+    fontWeight: "bold",
     textAlign: "center",
-    lineHeight: 1.2,
+    lineHeight: 1,
+    maxLines: 1,
+    width: "100%",
   },
 
   /* PO */
@@ -240,6 +305,8 @@ const styles = StyleSheet.create({
   },
   footerBrand: {
     width: "30%",
+    fontSize: 4.8,
+    maxLines: 1,
   },
   footerBeader: {
     width: "40%",

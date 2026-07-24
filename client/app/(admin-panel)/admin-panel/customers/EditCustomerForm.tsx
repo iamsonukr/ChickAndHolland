@@ -462,6 +462,34 @@ const EditCustomerForm = ({
                 <h3 className="text-sm font-semibold">Shipping Address</h3>
                 <FormField
                   control={form.control}
+                  name="shippingContactPerson"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact Person</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Shipping contact person" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="storeName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Store Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Rainbow Store" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="shippingAddress"
                   render={({ field }) => (
                     <FormItem>
@@ -509,12 +537,12 @@ const EditCustomerForm = ({
 
                 <FormField
                   control={form.control}
-                  name="shippingContactPerson"
+                  name="shippingPhoneNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Contact Person</FormLabel>
+                      <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="Shipping contact person" {...field} />
+                        <Input placeholder="9876543210" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -529,20 +557,6 @@ const EditCustomerForm = ({
                       <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input placeholder="shipping@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="shippingPhoneNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="9876543210" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
