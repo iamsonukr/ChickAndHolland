@@ -13,13 +13,15 @@ import {
 
 const router = Router();
 
+const SETTINGS_PERMISSION_ROUTES = [
+  "/admin-panel/settings",
+  "/admin-panel/users",
+  "/admin-panel/user-roles",
+];
+
 router.put(
   "/reset-password",
-  requireAdminUser([
-    "/admin-panel/settings",
-    "/admin-panel/users",
-    "/admin-panel/user-roles",
-  ]),
+  requireAdminUser(SETTINGS_PERMISSION_ROUTES),
   asyncHandler(async (req: Request, res: Response) => {
     const { currentPassword, newPassword, confirmPassword } = req.body as {
       currentPassword?: string;
@@ -100,11 +102,7 @@ router.post(
 
 router.put(
   "/edit-password",
-  requireAdminUser([
-    "/admin-panel/settings",
-    "/admin-panel/users",
-    "/admin-panel/user-roles",
-  ]),
+  requireAdminUser(SETTINGS_PERMISSION_ROUTES),
   asyncHandler(async (req: Request, res: Response) => {
     const { currentPassword, newPassword, confirmPassword } = req.body as {
       currentPassword?: string;
@@ -148,7 +146,7 @@ router.put(
 
 router.get(
   "/sample-order-sequence",
-  requireAdminUser(["/admin-panel/settings"]),
+  requireAdminUser(SETTINGS_PERMISSION_ROUTES),
   asyncHandler(async (_req: Request, res: Response) => {
     const sequence = await peekNextSampleOrderStyleNo();
 
@@ -162,7 +160,7 @@ router.get(
 
 router.put(
   "/sample-order-sequence",
-  requireAdminUser(["/admin-panel/settings"]),
+  requireAdminUser(SETTINGS_PERMISSION_ROUTES),
   asyncHandler(async (req: Request, res: Response) => {
     const nextNumber = Number(req.body?.nextNumber);
 

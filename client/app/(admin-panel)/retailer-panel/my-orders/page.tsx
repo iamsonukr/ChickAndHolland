@@ -24,6 +24,7 @@ import { fresh } from "@/lib/utils";
 import dayjs from "dayjs";
 import TableScrollWrapper from "@/components/TableScrollWrapper";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
+import TrackingIdText from "../../admin-panel/orders/TrackingIdText";
 
 /**
  * Shared column widths to ensure perfect alignment across different tabs.
@@ -34,7 +35,7 @@ const COL_WIDTHS = {
   orderId: "w-[130px]",
   type: "w-[150px]",
   status: "w-[130px]",
-  tracking: "w-[150px]",
+  tracking: "w-[260px]",
   amount: "w-[100px]",
   actions: "w-[100px]",
 };
@@ -117,7 +118,9 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                         ? "In Process"
                         : item.orderStatus}
                     </TableCell>
-                    <TableCell className="truncate">{item.trackingNo || "-"}</TableCell>
+                    <TableCell className="whitespace-normal">
+                      <TrackingIdText trackingId={item.trackingNo} />
+                    </TableCell>
                     <TableCell>
                       {formatDateOnlyDisplay(
                         item.orderReceivedDate ?? item.received_date,
@@ -184,7 +187,9 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                     <TableCell className="font-medium">{item.order_id}</TableCell>
                     <TableCell>{item.orderType === "Store" ? "Store Web Order" : item.orderType}</TableCell>
                     <TableCell>{item.orderStatus}</TableCell>
-                    <TableCell>{item.trackingNo || "-"}</TableCell>
+                    <TableCell className="whitespace-normal">
+                      <TrackingIdText trackingId={item.trackingNo} />
+                    </TableCell>
                     <TableCell>
                       {formatDateOnlyDisplay(item.orderReceivedDate, "DD-MM-YYYY")}
                     </TableCell>

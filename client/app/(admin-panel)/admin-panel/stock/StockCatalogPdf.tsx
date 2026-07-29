@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/alt-text */
 import React from "react";
 import {
   Document,
@@ -7,11 +8,16 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
+import {
+  formatSizeWithEuAndCountryLabel,
+  type SupportedSizeUnit,
+} from "@/lib/sizeConversion";
 
 type StockCatalogPdfProps = {
   stock: any[];
   colours: any[];
   showPrice: boolean;
+  sizeSystem?: SupportedSizeUnit;
 };
 
 const COVER_LOGO_SRC = "/logo-1-transparent.png";
@@ -102,6 +108,7 @@ const StockCatalogPdf = ({
   stock,
   colours,
   showPrice,
+  sizeSystem = "EU",
 }: StockCatalogPdfProps) => {
   const printableStock = Array.isArray(stock)
     ? stock.filter((item) => item?.product)
@@ -162,7 +169,7 @@ const StockCatalogPdf = ({
                   />
                   <DetailRow
                     label="Size"
-                    value={`${item?.size ?? "-"} (${item?.size_country ?? "-"})`}
+                    value={formatSizeWithEuAndCountryLabel(item, sizeSystem)}
                   />
                   <DetailRow
                     label="Source"
@@ -219,7 +226,7 @@ const StockCatalogPdf = ({
 
               <View style={styles.imagePanel}>
                 {image ? (
-                  <Image alt={productCode} src={image} style={styles.image} />
+                  <Image src={image} style={styles.image} />
                 ) : (
                   <View style={styles.emptyImage}>
                     <Text style={styles.emptyImageText}>No image available</Text>

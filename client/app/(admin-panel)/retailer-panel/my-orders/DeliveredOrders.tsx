@@ -10,6 +10,7 @@ import {
 import Details from "./Details";
 import { fresh } from "@/lib/utils";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
+import TrackingIdText from "../../admin-panel/orders/TrackingIdText";
 
 // Match these exactly with your main page for perfect alignment across tabs
 const COL_WIDTHS = {
@@ -17,7 +18,7 @@ const COL_WIDTHS = {
   orderId: "w-[130px]",
   type: "w-[150px]",
   status: "w-[130px]",
-  tracking: "w-[150px]",
+  tracking: "w-[260px]",
   amount: "w-[100px]",
   actions: "w-[120px]",
 };
@@ -62,7 +63,9 @@ const DeliveredOrders = ({ data, id }: { data: any[]; id: number }) => {
                   </span>
                 </TableCell>
                 
-                <TableCell className="truncate">{item.trackingNo || "-"}</TableCell>
+                <TableCell className="whitespace-normal">
+                  <TrackingIdText trackingId={item.trackingNo} />
+                </TableCell>
                 
                 <TableCell>
                   {formatDateOnlyDisplay(

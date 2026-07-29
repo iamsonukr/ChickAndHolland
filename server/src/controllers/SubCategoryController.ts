@@ -68,7 +68,7 @@ const getBulkIncreasedPrice = (
   return roundPriceUpToNearestFive(numericPrice * (1 + percentage / 100));
 };
 
-const appendLastPriceIncreaseHistory = async (subCategories: SubCategory[]) => {
+const appendPriceIncreaseHistory = async (subCategories: SubCategory[]) => {
   if (!subCategories.length) return subCategories;
 
   await ensureBulkPriceIncreaseHistoryTable();
@@ -81,32 +81,33 @@ const appendLastPriceIncreaseHistory = async (subCategories: SubCategory[]) => {
 
   const historyRows = await db.query(
     `
-      SELECT history.subcategoryId, history.percentage, history.createdAt
+      SELECT history.id, history.subcategoryId, history.percentage, history.createdAt
       FROM \`${BULK_PRICE_INCREASE_HISTORY_TABLE}\` history
-      INNER JOIN (
-        SELECT subcategoryId, MAX(id) AS id
-        FROM \`${BULK_PRICE_INCREASE_HISTORY_TABLE}\`
-        WHERE subcategoryId IN (?)
-        GROUP BY subcategoryId
-      ) latest ON latest.id = history.id
+      WHERE history.subcategoryId IN (?)
+      ORDER BY history.createdAt DESC, history.id DESC
     `,
     [subcategoryIds]
   );
 
-  const historyBySubcategoryId = new Map(
-    (Array.isArray(historyRows) ? historyRows : []).map((row: any) => [
-      Number(row.subcategoryId),
-      {
-        percentage: Number(row.percentage),
-        createdAt: row.createdAt,
-      },
-    ])
-  );
+  const historyBySubcategoryId = new Map<number, any[]>();
+
+  (Array.isArray(historyRows) ? historyRows : []).forEach((row: any) => {
+    const subcategoryId = Number(row.subcategoryId);
+    const history = {
+      id: Number(row.id),
+      percentage: Number(row.percentage),
+      createdAt: row.createdAt,
+    };
+    const histories = historyBySubcategoryId.get(subcategoryId) ?? [];
+    histories.push(history);
+    historyBySubcategoryId.set(subcategoryId, histories);
+  });
 
   return subCategories.map((subcategory) => ({
     ...subcategory,
+    priceIncreaseHistory: historyBySubcategoryId.get(Number(subcategory.id)) ?? [],
     lastPriceIncrease:
-      historyBySubcategoryId.get(Number(subcategory.id)) ?? null,
+      historyBySubcategoryId.get(Number(subcategory.id))?.[0] ?? null,
   }));
 };
 
@@ -179,7 +180,7 @@ router.get(
       const totalCount = await SubCategory.count({});
 
       return res.json({
-        subCategories: await appendLastPriceIncreaseHistory(subCategories),
+        subCategories: await appendPriceIncreaseHistory(subCategories),
         totalCount,
       });
     } else {
@@ -213,7 +214,7 @@ router.get(
       });
 
       res.json({
-        subCategories: await appendLastPriceIncreaseHistory(subCategories),
+        subCategories: await appendPriceIncreaseHistory(subCategories),
         totalCount,
       });
     }

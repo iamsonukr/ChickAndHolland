@@ -97,6 +97,12 @@ function LabelTile({ item }: { item: any }) {
     minFontSize: 3.2,
     averageCharWidth: 0.62,
   });
+  const sizeFontSize = getResponsiveStatusLabelFontSize(sizeText, {
+    availableWidth: 52,
+    maxFontSize: 12,
+    minFontSize: 3.2,
+    averageCharWidth: 0.58,
+  });
 
   return (
     <View style={styles.label}>
@@ -106,7 +112,11 @@ function LabelTile({ item }: { item: any }) {
 
       <View style={styles.row}>
         <View style={styles.box}>
-          <Text style={styles.sizeText}>{sizeText}</Text>
+          <Text
+            style={[styles.sizeText, { fontSize: sizeFontSize }]}
+          >
+            {sizeText}
+          </Text>
         </View>
 
         <View style={[styles.box, styles.colorBox]}>
@@ -218,6 +228,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
     lineHeight: 1,
+    width: "100%",
   },
    colorBox: {
     marginTop: -1,
@@ -252,7 +263,7 @@ const styles = StyleSheet.create({
   poBlock: {
     marginHorizontal: 6,
     marginBottom: 3,
-    marginTop: 2,
+    marginTop: -1,
     paddingVertical: 2,
     paddingHorizontal: 2,
     alignItems: "center",

@@ -258,14 +258,25 @@ export const normalizeSizeUnit = (value: unknown): SupportedSizeUnit | null => {
 };
 
 export const convertToEuSize = (sizeValue: unknown, unit?: unknown): string => {
+  return convertSizeUnit(sizeValue, unit, PDF_DISPLAY_SIZE_UNIT);
+};
+
+export const convertSizeUnit = (
+  sizeValue: unknown,
+  fromUnit?: unknown,
+  toUnit?: unknown,
+): string => {
   const rawValue = String(sizeValue ?? "").trim();
 
   if (!rawValue) {
     return "";
   }
 
-  const resolvedUnit =
-    normalizeSizeUnit(unit) ?? detectSizeUnitFromText(rawValue);
+  const resolvedFromUnit =
+    normalizeSizeUnit(fromUnit) ??
+    detectSizeUnitFromText(rawValue) ??
+    PDF_DISPLAY_SIZE_UNIT;
+  const resolvedToUnit = normalizeSizeUnit(toUnit) ?? PDF_DISPLAY_SIZE_UNIT;
   const normalizedValue = stripKnownSizeDecorators(rawValue);
   const parsedSize = parseSizeNumber(normalizedValue);
 
@@ -273,14 +284,135 @@ export const convertToEuSize = (sizeValue: unknown, unit?: unknown): string => {
     return normalizedValue;
   }
 
-  if (!resolvedUnit || resolvedUnit === PDF_DISPLAY_SIZE_UNIT) {
+  if (resolvedFromUnit === resolvedToUnit) {
     return String(parsedSize);
   }
 
   const matchedRow = SIZE_CHART.find(
-    (entry) => entry[resolvedUnit] === parsedSize,
+    (entry) =>
+      entry[resolvedFromUnit] === parsedSize ||
+      entry[PDF_DISPLAY_SIZE_UNIT] === parsedSize,
   );
-  return matchedRow ? String(matchedRow.EU) : String(parsedSize);
+  return matchedRow ? String(matchedRow[resolvedToUnit]) : String(parsedSize);
+};
+
+const parseDisplaySizeToken = (
+  token: string,
+  fromUnit: unknown,
+  toUnit: unknown,
+) => {
+  const trimmedToken = token.trim();
+
+  if (!trimmedToken) {
+    return "";
+  }
+
+  const quantityMatch = trimmedToken.match(/^(.*?)(?:\s*\/\s*(\d+))$/);
+  const rawSizeValue = quantityMatch?.[1]?.trim() ?? trimmedToken;
+  const countText = quantityMatch?.[2];
+  const size =
+    convertSizeUnit(rawSizeValue, fromUnit, toUnit) ||
+    stripKnownSizeDecorators(rawSizeValue) ||
+    rawSizeValue;
+
+  return countText ? `${size}/${countText}` : size;
+};
+
+export const formatSizeTextForUnit = (
+  item: {
+    customSize?: unknown;
+    customSizesQuantity?: unknown;
+    size?: unknown;
+    size_country?: unknown;
+  },
+  targetUnit?: unknown,
+  options?: { includeUnit?: boolean },
+) => {
+  const customSizeText = formatCustomSizeBulletList(item);
+
+  if (customSizeText) {
+    return customSizeText;
+  }
+
+  const rawSize = String(item.size ?? "").trim();
+
+  if (!rawSize) {
+    return "-";
+  }
+
+  const resolvedTargetUnit =
+    normalizeSizeUnit(targetUnit) ??
+    normalizeSizeUnit(item.size_country) ??
+    PDF_DISPLAY_SIZE_UNIT;
+  const sizeText = rawSize
+    .split(",")
+    .map((token) =>
+      parseDisplaySizeToken(token, item.size_country, resolvedTargetUnit),
+    )
+    .filter(Boolean)
+    .join(", ");
+
+  if (!sizeText) {
+    return "-";
+  }
+
+  if (options?.includeUnit === false) {
+    return sizeText;
+  }
+
+  return `${resolvedTargetUnit} ${sizeText}`;
+};
+
+export const formatSizeWithCountryLabel = (
+  item: {
+    customSize?: unknown;
+    customSizesQuantity?: unknown;
+    size?: unknown;
+    size_country?: unknown;
+  },
+  targetUnit?: unknown,
+) => {
+  const resolvedTargetUnit =
+    normalizeSizeUnit(targetUnit) ??
+    normalizeSizeUnit(item.size_country) ??
+    PDF_DISPLAY_SIZE_UNIT;
+  const sizeText = formatSizeTextForUnit(item, resolvedTargetUnit, {
+    includeUnit: false,
+  });
+
+  return sizeText === "-" ? "-" : `${sizeText} (${resolvedTargetUnit})`;
+};
+
+export const formatSizeWithEuAndCountryLabel = (
+  item: {
+    customSize?: unknown;
+    customSizesQuantity?: unknown;
+    size?: unknown;
+    size_country?: unknown;
+  },
+  targetUnit?: unknown,
+) => {
+  const resolvedTargetUnit =
+    normalizeSizeUnit(targetUnit) ??
+    normalizeSizeUnit(item.size_country) ??
+    PDF_DISPLAY_SIZE_UNIT;
+  const euSizeText = formatSizeTextForUnit(item, PDF_DISPLAY_SIZE_UNIT, {
+    includeUnit: false,
+  });
+
+  if (euSizeText === "-") {
+    return "-";
+  }
+
+  if (resolvedTargetUnit === PDF_DISPLAY_SIZE_UNIT) {
+    return `${PDF_DISPLAY_SIZE_UNIT} ${euSizeText}`;
+  }
+
+  const selectedSizeText = formatSizeTextForUnit(item, resolvedTargetUnit, {
+    includeUnit: false,
+  });
+
+  return `${PDF_DISPLAY_SIZE_UNIT} ${euSizeText} / ${resolvedTargetUnit} ${selectedSizeText}`;
 };
 
 export const getEuSizeEntries = (

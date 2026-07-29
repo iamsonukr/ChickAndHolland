@@ -18,6 +18,12 @@ import { Loader2, TrendingUp } from "lucide-react";
 import useHttp from "@/lib/hooks/usePost";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
+interface PriceIncreaseHistory {
+  id?: number | string;
+  percentage: number | string;
+  createdAt: string | Date;
+}
+
 interface SubCategory {
   id: number;
   name: string;
@@ -25,10 +31,8 @@ interface SubCategory {
     id: number | null;
     name: string | null;
   } | null;
-  lastPriceIncrease?: {
-    percentage: number | string;
-    createdAt: string | Date;
-  } | null;
+  lastPriceIncrease?: PriceIncreaseHistory | null;
+  priceIncreaseHistory?: PriceIncreaseHistory[];
 }
 
 interface BulkPriceIncreaseProps {
@@ -52,17 +56,29 @@ export default function BulkPriceIncrease({
   const safeName = (name: string | null | undefined, fallback = "Unknown") =>
     name ?? fallback;
 
-  const getLastIncreaseLabel = (subCategory: SubCategory) => {
-    const history = subCategory.lastPriceIncrease;
-    if (!history) return "No previous increase";
+  const historyColorClassNames = [
+    "border-blue-200 bg-blue-50 text-blue-700",
+    "border-emerald-200 bg-emerald-50 text-emerald-700",
+    "border-amber-200 bg-amber-50 text-amber-700",
+    "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700",
+    "border-cyan-200 bg-cyan-50 text-cyan-700",
+    "border-rose-200 bg-rose-50 text-rose-700",
+  ];
 
+  const getHistoryItems = (subCategory: SubCategory) => {
+    const history = subCategory.priceIncreaseHistory ?? [];
+    if (history.length) return history;
+    return subCategory.lastPriceIncrease ? [subCategory.lastPriceIncrease] : [];
+  };
+
+  const getIncreaseLabel = (history: PriceIncreaseHistory) => {
     const date = formatDateOnlyDisplay(history.createdAt);
     const percentageValue = Number(history.percentage);
     const percentageLabel = Number.isFinite(percentageValue)
       ? `${percentageValue}%`
       : `${history.percentage}%`;
 
-    return `Last increased: ${date || "-"} • ${percentageLabel}`;
+    return `${date || "-"} - ${percentageLabel}`;
   };
 
   const handleSubCategoryToggle = (subCategoryId: number) => {
@@ -164,36 +180,58 @@ export default function BulkPriceIncrease({
             </div>
 
             <div className="max-h-72 overflow-y-auto space-y-2 border rounded-md p-4">
-              {subCategories.map((sub) => (
-                <div key={sub.id} className="flex items-start space-x-2">
-                  <Checkbox
-                    id={`subcategory-${sub.id}`}
-                    checked={selectedSubCategories.includes(sub.id)}
-                    onCheckedChange={() => handleSubCategoryToggle(sub.id)}
-                    className="mt-1"
-                  />
+              {subCategories.map((sub) => {
+                const historyItems = getHistoryItems(sub);
 
-                  <Label
-                    htmlFor={`subcategory-${sub.id}`}
-                    className="flex-1 cursor-pointer leading-normal"
-                  >
-                    <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                      <span>{safeName(sub.name)}</span>
-                      <span className="text-muted-foreground">
-                        (
-                        {safeName(
-                          sub.category?.name,
-                          "No Category Assigned"
-                        )}
-                        )
+                return (
+                  <div key={sub.id} className="flex items-start space-x-2">
+                    <Checkbox
+                      id={`subcategory-${sub.id}`}
+                      checked={selectedSubCategories.includes(sub.id)}
+                      onCheckedChange={() => handleSubCategoryToggle(sub.id)}
+                      className="mt-1"
+                    />
+
+                    <Label
+                      htmlFor={`subcategory-${sub.id}`}
+                      className="flex-1 cursor-pointer leading-normal"
+                    >
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span>{safeName(sub.name)}</span>
+                        <span className="text-muted-foreground">
+                          (
+                          {safeName(
+                            sub.category?.name,
+                            "No Category Assigned"
+                          )}
+                          )
+                        </span>
                       </span>
-                    </span>
-                    <span className="block text-xs font-normal text-muted-foreground">
-                      {getLastIncreaseLabel(sub)}
-                    </span>
-                  </Label>
-                </div>
-              ))}
+
+                      {historyItems.length ? (
+                        <span className="mt-1 flex flex-wrap gap-1.5">
+                          {historyItems.map((history, index) => (
+                            <span
+                              key={`${sub.id}-${history.id ?? index}`}
+                              className={`rounded border px-2 py-0.5 text-xs font-medium ${
+                                historyColorClassNames[
+                                  index % historyColorClassNames.length
+                                ]
+                              }`}
+                            >
+                              {getIncreaseLabel(history)}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="block text-xs font-normal text-muted-foreground">
+                          No previous increase
+                        </span>
+                      )}
+                    </Label>
+                  </div>
+                );
+              })}
             </div>
 
             <p className="text-sm text-muted-foreground">

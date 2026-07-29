@@ -90,7 +90,10 @@ const sampleOrderSchema = z.object({
       return Number.isInteger(quantity) && quantity > 0;
     }, "Quantity must be greater than 0"),
   comments: z.string().optional(),
-  image: z.any().refine((files) => files?.length === 1, "Image is required"),
+  primaryImage: z
+    .any()
+    .refine((files) => files?.length === 1, "Primary Image is required"),
+  secondaryImages: z.any().optional(),
 }).refine(
   (data) =>
     data.lining === "No Lining" ||
@@ -102,6 +105,20 @@ const sampleOrderSchema = z.object({
 );
 
 type SampleOrderForm = z.infer<typeof sampleOrderSchema>;
+
+const fileListToArray = (value: unknown): File[] => {
+  if (!value) return [];
+  if (typeof FileList !== "undefined" && value instanceof FileList) {
+    return Array.from(value);
+  }
+  return Array.isArray(value) ? value.filter((file): file is File => file instanceof File) : [];
+};
+
+const buildFilePreviews = (files: File[]) =>
+  files.map((file) => ({
+    name: file.name,
+    url: URL.createObjectURL(file),
+  }));
 
 const getColourValue = (colour: any) =>
   String(colour?.hexcode || colour?.name || colour?.id || "").trim();
@@ -135,13 +152,22 @@ const PlaceSampleOrderForm = ({
       liningColor: "",
       quantity: "1",
       comments: "",
-      image: undefined,
+      primaryImage: undefined,
+      secondaryImages: undefined,
     },
   });
   const watchCountry = form.watch("sizeCountry");
   const watchAddLining = form.watch("addLining");
   const watchLining = form.watch("lining");
   const watchSize = form.watch("size");
+  const watchPrimaryImage = form.watch("primaryImage");
+  const watchSecondaryImages = form.watch("secondaryImages");
+  const [primaryImagePreviews, setPrimaryImagePreviews] = useState<
+    { name: string; url: string }[]
+  >([]);
+  const [secondaryImagePreviews, setSecondaryImagePreviews] = useState<
+    { name: string; url: string }[]
+  >([]);
   const currentSizes = useMemo(
     () => sizeOptions[watchCountry] ?? [],
     [watchCountry],
@@ -211,6 +237,20 @@ const PlaceSampleOrderForm = ({
     refreshNextStyleNo();
   }, [refreshNextStyleNo]);
 
+  useEffect(() => {
+    const previews = buildFilePreviews(fileListToArray(watchPrimaryImage));
+    setPrimaryImagePreviews(previews);
+
+    return () => previews.forEach((preview) => URL.revokeObjectURL(preview.url));
+  }, [watchPrimaryImage]);
+
+  useEffect(() => {
+    const previews = buildFilePreviews(fileListToArray(watchSecondaryImages));
+    setSecondaryImagePreviews(previews);
+
+    return () => previews.forEach((preview) => URL.revokeObjectURL(preview.url));
+  }, [watchSecondaryImages]);
+
   const onSubmit = async (values: SampleOrderForm) => {
     const retailerId = getCookie("retailerId");
 
@@ -219,7 +259,8 @@ const PlaceSampleOrderForm = ({
       return;
     }
 
-    const image = values.image?.[0];
+    const primaryImage = fileListToArray(values.primaryImage)[0];
+    const secondaryImages = fileListToArray(values.secondaryImages);
     const formData = new FormData();
     formData.append("retailerId", retailerId);
     formData.append("colorType", values.colorType);
@@ -245,7 +286,8 @@ const PlaceSampleOrderForm = ({
     formData.append("liningColor", values.liningColor ?? "");
     formData.append("quantity", values.quantity);
     formData.append("comments", values.comments ?? "");
-    formData.append("image", image);
+    formData.append("primaryImage", primaryImage);
+    secondaryImages.forEach((image) => formData.append("secondaryImages", image));
 
     try {
       const response: any = await placeSampleOrder(formData);
@@ -269,7 +311,8 @@ const PlaceSampleOrderForm = ({
         liningColor: "",
         quantity: "1",
         comments: "",
-        image: undefined,
+        primaryImage: undefined,
+        secondaryImages: undefined,
       });
       setOpen(false);
       router.refresh();
@@ -678,10 +721,10 @@ const PlaceSampleOrderForm = ({
 
                 <FormField
                   control={form.control}
-                  name="image"
+                  name="primaryImage"
                   render={({ field: { onChange, value, ...field } }) => (
                     <FormItem className="md:col-span-3">
-                      <FormLabel>Modified Photo / Image Upload</FormLabel>
+                      <FormLabel>Primary Image</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -690,6 +733,62 @@ const PlaceSampleOrderForm = ({
                           onChange={(event) => onChange(event.target.files)}
                         />
                       </FormControl>
+                      {primaryImagePreviews.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-3">
+                          {primaryImagePreviews.map((preview) => (
+                            <div
+                              key={preview.url}
+                              className="w-36 rounded-md border bg-muted/30 p-2"
+                            >
+                              <div
+                                className="h-28 rounded border bg-white bg-contain bg-center bg-no-repeat"
+                                style={{ backgroundImage: `url(${preview.url})` }}
+                              />
+                              <p className="mt-2 truncate text-xs text-muted-foreground">
+                                {preview.name}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="secondaryImages"
+                  render={({ field: { onChange, value, ...field } }) => (
+                    <FormItem className="md:col-span-3">
+                      <FormLabel>Secondary Images</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={(event) => onChange(event.target.files)}
+                        />
+                      </FormControl>
+                      {secondaryImagePreviews.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-3">
+                          {secondaryImagePreviews.map((preview) => (
+                            <div
+                              key={preview.url}
+                              className="w-28 rounded-md border bg-muted/30 p-2"
+                            >
+                              <div
+                                className="h-20 rounded border bg-white bg-cover bg-center"
+                                style={{ backgroundImage: `url(${preview.url})` }}
+                              />
+                              <p className="mt-2 truncate text-xs text-muted-foreground">
+                                {preview.name}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

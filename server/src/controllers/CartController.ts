@@ -89,6 +89,41 @@ const isAllowedImageFile = (file: FileData) => {
   return ALLOWED_IMAGE_EXTENSIONS.has(extension);
 };
 
+const getUploadedImageExtension = (file: FileData) => {
+  const extension = path.extname(file.filename).toLowerCase();
+  return ALLOWED_IMAGE_EXTENSIONS.has(extension) ? extension : ".jpg";
+};
+
+const buildSampleImageKey = (suffix: string, extension = ".webp") =>
+  `uploads/sample-orders/${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(7)}-${suffix}${extension}`;
+
+const uploadOriginalSampleImage = async (file: FileData, suffix: string) => {
+  const fileName = buildSampleImageKey(suffix, getUploadedImageExtension(file));
+  const s3Response = await storeFileInS3(file.buffer, fileName, {
+    contentType: file.mimetype || undefined,
+  });
+
+  return getFullUrl(s3Response?.fileName as string);
+};
+
+const uploadCompressedSampleImage = async (file: FileData, suffix: string) => {
+  const compressedImage = await sharp(file.buffer)
+    .resize(1000, 1600, {
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .webp({ quality: 100 })
+    .toBuffer();
+  const fileName = buildSampleImageKey(suffix);
+  const s3Response = await storeFileInS3(compressedImage, fileName, {
+    contentType: "image/webp",
+  });
+
+  return getFullUrl(s3Response?.fileName as string);
+};
+
 const findCategoryByAliases = async (aliases: string[]) => {
   const normalizedAliases = aliases.map((alias) => alias.toLowerCase());
   const rows = await db.query(
@@ -370,7 +405,7 @@ router.post(
   "/sample-order",
   raw({
     type: "multipart/form-data",
-    limit: "25mb",
+    limit: "50mb",
   }),
   asyncHandler(async (req: Request, res: Response) => {
     const busboy = Busboy({ headers: req.headers });
@@ -388,7 +423,8 @@ router.post(
     let liningColor = "";
     let quantity = "";
     let comments = "";
-    let uploadedImage: Promise<FileData> | null = null;
+    let uploadedPrimaryImage: Promise<FileData> | null = null;
+    const uploadedSecondaryImages: Promise<FileData>[] = [];
 
     busboy.on("field", (fieldname: string, value: string) => {
       switch (fieldname) {
@@ -446,7 +482,11 @@ router.post(
         encoding?: string,
         mimetype?: string,
       ) => {
-        if (fieldname !== "image") {
+        if (
+          fieldname !== "primaryImage" &&
+          fieldname !== "secondaryImages" &&
+          fieldname !== "image"
+        ) {
           file.resume();
           return;
         }
@@ -457,7 +497,7 @@ router.post(
           mimetype,
         );
         const buffers: Buffer[] = [];
-        uploadedImage = new Promise<FileData>((resolve, reject) => {
+        const uploadedFile = new Promise<FileData>((resolve, reject) => {
           file.on("data", (data: Buffer) => buffers.push(data));
           file.on("end", () => {
             resolve({
@@ -470,6 +510,12 @@ router.post(
           });
           file.on("error", reject);
         });
+
+        if (fieldname === "secondaryImages") {
+          uploadedSecondaryImages.push(uploadedFile);
+        } else {
+          uploadedPrimaryImage = uploadedFile;
+        }
       },
     );
 
@@ -494,7 +540,10 @@ router.post(
             : sanitizeText(liningColor);
         const cleanQuantity = parsePositiveQuantity(quantity);
         const cleanComments = sanitizeText(comments);
-        const image = uploadedImage ? await uploadedImage : null;
+        const primaryImage = uploadedPrimaryImage
+          ? await uploadedPrimaryImage
+          : null;
+        const secondaryImages = await Promise.all(uploadedSecondaryImages);
 
         if (!cleanRetailerId) {
           return res.status(400).json({
@@ -526,14 +575,17 @@ router.post(
           });
         }
 
-        if (!image?.buffer?.length) {
+        if (!primaryImage?.buffer?.length) {
           return res.status(400).json({
             success: false,
-            message: "Image upload is required.",
+            message: "Primary image upload is required.",
           });
         }
 
-        if (!isAllowedImageFile(image)) {
+        if (
+          !isAllowedImageFile(primaryImage) ||
+          secondaryImages.some((image) => !isAllowedImageFile(image))
+        ) {
           return res.status(400).json({
             success: false,
             message: "Only image files are allowed.",
@@ -558,18 +610,15 @@ router.post(
         ]
           .filter(Boolean)
           .join("; ");
-        const compressedImage = await sharp(image.buffer)
-          .resize(1000, 1600, {
-            fit: "inside",
-            withoutEnlargement: true,
-          })
-          .webp({ quality: 100 })
-          .toBuffer();
-        const fileName = `uploads/sample-orders/${Date.now()}-${Math.random()
-          .toString(36)
-          .substring(7)}.webp`;
-        const s3Response = await storeFileInS3(compressedImage, fileName);
-        const imageUrl = getFullUrl(s3Response?.fileName as string);
+        const imageUrl = await uploadOriginalSampleImage(
+          primaryImage,
+          "primary",
+        );
+        const secondaryImageUrls = await Promise.all(
+          secondaryImages.map((image, index) =>
+            uploadCompressedSampleImage(image, `secondary-${index + 1}`),
+          ),
+        );
 
         const queryRunner = db.createQueryRunner();
         await queryRunner.connect();
@@ -621,7 +670,9 @@ router.post(
           cartItem.product_price = 0;
           cartItem.customization_price = 0;
           cartItem.customization = sampleOrderNotes || "Sample Order";
-          cartItem.reference_image = JSON.stringify([imageUrl]);
+          cartItem.reference_image = JSON.stringify(
+            secondaryImageUrls.filter(Boolean),
+          );
           cartItem.size_country = cleanSizeCountry;
           cartItem.is_order_placed = 1;
 

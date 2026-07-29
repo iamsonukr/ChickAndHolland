@@ -12,6 +12,7 @@ import {
   View,
 } from "@react-pdf/renderer";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
+import { getCompactStyleNoBannerFontSize } from "@/lib/pdfTextSizing";
 import Mail from "nodemailer/lib/mailer";
 
 type Response = {
@@ -321,7 +322,14 @@ const FreshOrderPdf: React.FC<FreshOrderPdfProps> = ({
           <View key={index} style={styles.fullPageContainer}>
             {/* Top Banner */}
             <View style={styles.topBanner}>
-              <Text style={styles.bannerText}>{item.styleNo}</Text>
+              <Text
+                style={[
+                  styles.bannerStyleNo,
+                  { fontSize: getCompactStyleNoBannerFontSize(item.styleNo) },
+                ]}
+              >
+                {item.styleNo}
+              </Text>
               <Text style={styles.bannerTextPurchaseOrderNo}>
                 {orderData.purchaseOrderNo}
               </Text>
@@ -496,10 +504,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
+  bannerStyleNo: {
+    color: "black",
+    fontSize: 18,
+    fontWeight: "bold",
+    width: "32%",
+  },
   bannerTextPurchaseOrderNo: {
     color: "black",
     fontSize: 30,
     fontWeight: "bold",
+    textAlign: "center",
+    width: "28%",
   },
   contentContainer: {
     flex: 1,

@@ -75,7 +75,7 @@ const DraftOrdersPage = async (props: {
           <CustomSearchBar query={query} />
 
           <TableScrollWrapper>
-            <table className="w-full min-w-[1080px] border-collapse text-sm">
+            <table className="w-full min-w-[1200px] border-collapse text-sm">
               <thead className="bg-muted/50">
                 <tr className="whitespace-nowrap [&>th]:align-middle">
                   <th className={cn(tableHeadClassName, "w-12")}>
@@ -92,8 +92,8 @@ const DraftOrdersPage = async (props: {
                   <th className={cn(tableHeadClassName, "w-[130px]")}>
                     Ship Date
                   </th>
-                  <th className={cn(tableHeadClassName, "w-[240px]")}>
-                    Address
+                  <th className={cn(tableHeadClassName, "w-[360px]")}>
+                    Shipping Address
                   </th>
                   <th
                     className={cn(tableHeadClassName, "w-[280px] text-center")}
@@ -151,7 +151,7 @@ const DraftOrdersPage = async (props: {
                       <td
                         className={cn(
                           tableCellClassName,
-                          "max-w-[240px] whitespace-normal break-words",
+                          "max-w-[360px] whitespace-normal break-words",
                         )}
                       >
                         <AddressCard ad={buildOrderAddressDisplay(order)} />
