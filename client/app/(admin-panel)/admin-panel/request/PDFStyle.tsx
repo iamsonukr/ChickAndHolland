@@ -217,6 +217,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "flex-end",
+    width: "100%",
   },
   additionalImage: {
     width: "48%",

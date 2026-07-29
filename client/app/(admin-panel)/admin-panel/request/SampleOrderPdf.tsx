@@ -6,6 +6,7 @@ const SampleOrderPdf = ({ orderData }: { orderData: any }) => {
       orderData={orderData}
       showShippingDate={true}
       preserveMainImageAspect
+      keepReferenceImagesInSingleRow
     />
   );
 };

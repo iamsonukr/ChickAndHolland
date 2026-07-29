@@ -138,10 +138,12 @@ const GroupedOrderPdf = ({
   orderData,
   showShippingDate = false,
   preserveMainImageAspect = false,
+  keepReferenceImagesInSingleRow = false,
 }: {
   orderData: any;
   showShippingDate?: boolean;
   preserveMainImageAspect?: boolean;
+  keepReferenceImagesInSingleRow?: boolean;
 }) => {
   const groupedPages = buildGroupedPages(orderData?.details ?? []);
 
@@ -301,7 +303,18 @@ const GroupedOrderPdf = ({
                               key={`${imgSrc}-${imgIndex}`}
                               alt=""
                               src={imgSrc}
-                              style={styles.additionalImage}
+                              style={[
+                                styles.additionalImage,
+                                keepReferenceImagesInSingleRow
+                                  ? {
+                                      width: `${Math.max(
+                                        14,
+                                        Math.min(48, 96 / referenceImages.length),
+                                      )}%`,
+                                      height: referenceImages.length > 4 ? 92 : 118,
+                                    }
+                                  : {},
+                              ]}
                             />
                           ))}
                         </View>
