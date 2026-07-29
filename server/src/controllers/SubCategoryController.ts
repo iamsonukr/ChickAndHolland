@@ -27,6 +27,27 @@ const router = Router();
 const RES_NAME = "Sub Category";
 const PRICE_ROUNDING_INCREMENT = 5;
 const ROUNDING_EPSILON = 1e-9;
+const BULK_PRICE_INCREASE_HISTORY_TABLE = "bulk_price_increase_history";
+
+let bulkPriceIncreaseHistoryTableReady = false;
+
+const ensureBulkPriceIncreaseHistoryTable = async () => {
+  if (bulkPriceIncreaseHistoryTableReady) return;
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS \`${BULK_PRICE_INCREASE_HISTORY_TABLE}\` (
+      id INT NOT NULL AUTO_INCREMENT,
+      subcategoryId INT NOT NULL,
+      percentage DECIMAL(10,2) NOT NULL,
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      INDEX idx_bulk_price_increase_history_subcategory_id (subcategoryId),
+      INDEX idx_bulk_price_increase_history_created_at (createdAt)
+    )
+  `);
+
+  bulkPriceIncreaseHistoryTableReady = true;
+};
 
 const roundPriceUpToNearestFive = (price: number): number => {
   if (!Number.isFinite(price)) {
@@ -45,6 +66,48 @@ const getBulkIncreasedPrice = (
 ): number => {
   const numericPrice = Number(currentPrice) || 0;
   return roundPriceUpToNearestFive(numericPrice * (1 + percentage / 100));
+};
+
+const appendLastPriceIncreaseHistory = async (subCategories: SubCategory[]) => {
+  if (!subCategories.length) return subCategories;
+
+  await ensureBulkPriceIncreaseHistoryTable();
+
+  const subcategoryIds = subCategories
+    .map((subcategory) => Number(subcategory.id))
+    .filter(Boolean);
+
+  if (!subcategoryIds.length) return subCategories;
+
+  const historyRows = await db.query(
+    `
+      SELECT history.subcategoryId, history.percentage, history.createdAt
+      FROM \`${BULK_PRICE_INCREASE_HISTORY_TABLE}\` history
+      INNER JOIN (
+        SELECT subcategoryId, MAX(id) AS id
+        FROM \`${BULK_PRICE_INCREASE_HISTORY_TABLE}\`
+        WHERE subcategoryId IN (?)
+        GROUP BY subcategoryId
+      ) latest ON latest.id = history.id
+    `,
+    [subcategoryIds]
+  );
+
+  const historyBySubcategoryId = new Map(
+    (Array.isArray(historyRows) ? historyRows : []).map((row: any) => [
+      Number(row.subcategoryId),
+      {
+        percentage: Number(row.percentage),
+        createdAt: row.createdAt,
+      },
+    ])
+  );
+
+  return subCategories.map((subcategory) => ({
+    ...subcategory,
+    lastPriceIncrease:
+      historyBySubcategoryId.get(Number(subcategory.id)) ?? null,
+  }));
 };
 
 router.get(
@@ -116,7 +179,7 @@ router.get(
       const totalCount = await SubCategory.count({});
 
       return res.json({
-        subCategories,
+        subCategories: await appendLastPriceIncreaseHistory(subCategories),
         totalCount,
       });
     } else {
@@ -150,7 +213,7 @@ router.get(
       });
 
       res.json({
-        subCategories,
+        subCategories: await appendLastPriceIncreaseHistory(subCategories),
         totalCount,
       });
     }
@@ -285,6 +348,8 @@ router.post(
     const queryRunner = db.createQueryRunner();
 
     try {
+      await ensureBulkPriceIncreaseHistoryTable();
+
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
@@ -323,6 +388,23 @@ router.post(
           currencyPriceUpdates
         );
       }
+
+      const historyPlaceholders = uniqueSubcategoryIds
+        .map(() => "(?, ?)")
+        .join(", ");
+      const historyParams = uniqueSubcategoryIds.flatMap((subcategoryId) => [
+        subcategoryId,
+        percentageNumber,
+      ]);
+
+      await queryRunner.query(
+        `
+          INSERT INTO \`${BULK_PRICE_INCREASE_HISTORY_TABLE}\`
+            (subcategoryId, percentage)
+          VALUES ${historyPlaceholders}
+        `,
+        historyParams
+      );
 
       await queryRunner.commitTransaction();
 

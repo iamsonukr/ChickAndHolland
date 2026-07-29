@@ -778,18 +778,27 @@ export const getAdminRetailersFreshOrders = async ({
   retailerId,
   page,
   query,
+  requestType,
 }: {
   retailerId?: number;
   page?: number;
   query?: string;
+  requestType?: "fresh" | "sample";
 }) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
   };
 
+  const params = new URLSearchParams({
+    retailerId: String(retailerId ?? "all"),
+  });
+  if (requestType) params.set("requestType", requestType);
+  if (page) params.set("page", String(page));
+  if (query) params.set("query", query);
+
   if (!page) {
     const response = await fetch(
-      `${API_URL}/retailer-orders/admin/favorites-orders?retailerId=${retailerId ?? "all"}`,
+      `${API_URL}/retailer-orders/admin/favorites-orders?${params.toString()}`,
       {
         headers,
       },
@@ -799,7 +808,7 @@ export const getAdminRetailersFreshOrders = async ({
   }
 
   const response = await fetch(
-    `${API_URL}/retailer-orders/admin/favorites-orders?retailerId=${retailerId ?? "all"}&page=${page}&query=${encodeURIComponent(query as string)}`,
+    `${API_URL}/retailer-orders/admin/favorites-orders?${params.toString()}`,
     {
       headers,
     },

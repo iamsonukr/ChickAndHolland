@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2, TrendingUp } from "lucide-react";
 import useHttp from "@/lib/hooks/usePost";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 interface SubCategory {
   id: number;
@@ -23,6 +24,10 @@ interface SubCategory {
   category: {
     id: number | null;
     name: string | null;
+  } | null;
+  lastPriceIncrease?: {
+    percentage: number | string;
+    createdAt: string | Date;
   } | null;
 }
 
@@ -46,6 +51,19 @@ export default function BulkPriceIncrease({
 
   const safeName = (name: string | null | undefined, fallback = "Unknown") =>
     name ?? fallback;
+
+  const getLastIncreaseLabel = (subCategory: SubCategory) => {
+    const history = subCategory.lastPriceIncrease;
+    if (!history) return "No previous increase";
+
+    const date = formatDateOnlyDisplay(history.createdAt);
+    const percentageValue = Number(history.percentage);
+    const percentageLabel = Number.isFinite(percentageValue)
+      ? `${percentageValue}%`
+      : `${history.percentage}%`;
+
+    return `Last increased: ${date || "-"} • ${percentageLabel}`;
+  };
 
   const handleSubCategoryToggle = (subCategoryId: number) => {
     setSelectedSubCategories((prev) =>
@@ -145,27 +163,33 @@ export default function BulkPriceIncrease({
               </Button>
             </div>
 
-            <div className="max-h-60 overflow-y-auto space-y-2 border rounded-md p-4">
+            <div className="max-h-72 overflow-y-auto space-y-2 border rounded-md p-4">
               {subCategories.map((sub) => (
-                <div key={sub.id} className="flex items-center space-x-2">
+                <div key={sub.id} className="flex items-start space-x-2">
                   <Checkbox
                     id={`subcategory-${sub.id}`}
                     checked={selectedSubCategories.includes(sub.id)}
                     onCheckedChange={() => handleSubCategoryToggle(sub.id)}
+                    className="mt-1"
                   />
 
                   <Label
                     htmlFor={`subcategory-${sub.id}`}
-                    className="flex-1 cursor-pointer"
+                    className="flex-1 cursor-pointer leading-normal"
                   >
-                    {safeName(sub.name)}
-                    <span className="text-muted-foreground ml-2">
-                      (
-                      {safeName(
-                        sub.category?.name,
-                        "No Category Assigned"
-                      )}
-                      )
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span>{safeName(sub.name)}</span>
+                      <span className="text-muted-foreground">
+                        (
+                        {safeName(
+                          sub.category?.name,
+                          "No Category Assigned"
+                        )}
+                        )
+                      </span>
+                    </span>
+                    <span className="block text-xs font-normal text-muted-foreground">
+                      {getLastIncreaseLabel(sub)}
                     </span>
                   </Label>
                 </div>

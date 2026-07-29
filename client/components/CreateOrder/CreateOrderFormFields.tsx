@@ -474,7 +474,16 @@ export function CreateOrderFormFields({
               getColourBasedOnhex={getColourBasedOnhex}
             />
           ))}
+
+          {/* Add Style 2 */}
+          <div className="flex justify-end">
+            {/* <Label>Styles</Label> */}
+            <Button variant="secondary" onClick={addStyle} type="button">
+              Add Style <Plus className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
         </div>
+
 
         {orderPricingSummary.pricedStyles > 0 && (
           <div className="hidden md:col-span-3">

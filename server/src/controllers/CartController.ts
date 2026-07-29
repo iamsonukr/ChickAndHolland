@@ -10,6 +10,7 @@ import ProductImage from "../models/ProductImage";
 import RetailerFavouritesOrders from "../models/ReailerFavouritesOrder";
 import Busboy from "busboy";
 import sharp from "sharp";
+import path from "path";
 import { getFullUrl, storeFileInS3 } from "../lib/s3";
 import { convertToUSSize } from "../lib/sizeConversion";
 import db from "../db";
@@ -24,6 +25,15 @@ const SAMPLE_CATEGORY_NAME = "Retailer Collection";
 const SAMPLE_SUBCATEGORY_NAME = "Custom Category";
 const SAMPLE_CATEGORY_ALIASES = ["Retailer Collection"];
 const SAMPLE_SUBCATEGORY_ALIASES = ["Custom Category", "Custom"];
+const ALLOWED_IMAGE_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".gif",
+  ".heic",
+  ".heif",
+]);
 
 const sanitizeText = (value: unknown) => {
   const text = String(value ?? "").trim();
@@ -35,6 +45,48 @@ const sanitizeText = (value: unknown) => {
 const parsePositiveQuantity = (value: unknown) => {
   const quantity = Number(String(value ?? "").trim());
   return Number.isInteger(quantity) && quantity > 0 ? quantity : 0;
+};
+
+const safeJsonArray = (value: unknown) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const normalizeBusboyFileInfo = (
+  filenameOrInfo: any,
+  encoding?: string,
+  mimetype?: string,
+) => {
+  if (filenameOrInfo && typeof filenameOrInfo === "object") {
+    return {
+      filename: sanitizeText(filenameOrInfo.filename),
+      encoding: sanitizeText(filenameOrInfo.encoding),
+      mimetype: sanitizeText(
+        filenameOrInfo.mimeType ?? filenameOrInfo.mimetype,
+      ),
+    };
+  }
+
+  return {
+    filename: sanitizeText(filenameOrInfo),
+    encoding: sanitizeText(encoding),
+    mimetype: sanitizeText(mimetype),
+  };
+};
+
+const isAllowedImageFile = (file: FileData) => {
+  const mimetype = sanitizeText(file.mimetype).toLowerCase();
+  if (mimetype.startsWith("image/")) return true;
+
+  const extension = path.extname(file.filename).toLowerCase();
+  return ALLOWED_IMAGE_EXTENSIONS.has(extension);
 };
 
 const findCategoryByAliases = async (aliases: string[]) => {
@@ -323,10 +375,19 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const busboy = Busboy({ headers: req.headers });
     let retailerId = "";
+    let colorType = "";
+    let customColor = "";
     let sizeCountry = "";
     let size = "";
-    let color = "";
+    let customSize = "";
+    let mesh = "";
+    let beading = "";
+    let beader = "";
+    let addLining = "";
+    let lining = "";
+    let liningColor = "";
     let quantity = "";
+    let comments = "";
     let uploadedImage: Promise<FileData> | null = null;
 
     busboy.on("field", (fieldname: string, value: string) => {
@@ -334,17 +395,44 @@ router.post(
         case "retailerId":
           retailerId = value;
           break;
+        case "colorType":
+          colorType = value;
+          break;
+        case "customColor":
+          customColor = value;
+          break;
         case "sizeCountry":
           sizeCountry = value;
           break;
         case "size":
           size = value;
           break;
-        case "color":
-          color = value;
+        case "customSize":
+          customSize = value;
+          break;
+        case "mesh":
+          mesh = value;
+          break;
+        case "beading":
+          beading = value;
+          break;
+        case "beader":
+          beader = value;
+          break;
+        case "addLining":
+          addLining = value;
+          break;
+        case "lining":
+          lining = value;
+          break;
+        case "liningColor":
+          liningColor = value;
           break;
         case "quantity":
           quantity = value;
+          break;
+        case "comments":
+          comments = value;
           break;
       }
     });
@@ -354,24 +442,29 @@ router.post(
       (
         fieldname: string,
         file: NodeJS.ReadableStream,
-        filename: string,
-        encoding: string,
-        mimetype: string,
+        filenameOrInfo: any,
+        encoding?: string,
+        mimetype?: string,
       ) => {
         if (fieldname !== "image") {
           file.resume();
           return;
         }
 
+        const fileInfo = normalizeBusboyFileInfo(
+          filenameOrInfo,
+          encoding,
+          mimetype,
+        );
         const buffers: Buffer[] = [];
         uploadedImage = new Promise<FileData>((resolve, reject) => {
           file.on("data", (data: Buffer) => buffers.push(data));
           file.on("end", () => {
             resolve({
               fieldname,
-              filename,
-              encoding,
-              mimetype,
+              filename: fileInfo.filename,
+              encoding: fileInfo.encoding,
+              mimetype: fileInfo.mimetype,
               buffer: Buffer.concat(buffers),
             });
           });
@@ -383,10 +476,24 @@ router.post(
     busboy.on("finish", async () => {
       try {
         const cleanRetailerId = Number(retailerId);
+        const cleanColorType = sanitizeText(colorType);
+        const cleanCustomColor = sanitizeText(customColor);
         const cleanSizeCountry = sanitizeText(sizeCountry);
         const cleanSize = sanitizeText(size);
-        const cleanColor = sanitizeText(color);
+        const cleanCustomSizes = safeJsonArray(customSize)
+          .map((item: any) => sanitizeText(item?.value ?? item?.label ?? item))
+          .filter(Boolean);
+        const cleanMesh = sanitizeText(mesh);
+        const cleanBeading = sanitizeText(beading);
+        const cleanBeader = sanitizeText(beader);
+        const cleanAddLining = sanitizeText(addLining) === "1";
+        const cleanLining = sanitizeText(lining) || "No Lining";
+        const cleanLiningColor =
+          cleanLining === "No Lining"
+            ? "No Color"
+            : sanitizeText(liningColor);
         const cleanQuantity = parsePositiveQuantity(quantity);
+        const cleanComments = sanitizeText(comments);
         const image = uploadedImage ? await uploadedImage : null;
 
         if (!cleanRetailerId) {
@@ -396,10 +503,26 @@ router.post(
           });
         }
 
-        if (!cleanSizeCountry || !cleanSize || !cleanColor || !cleanQuantity) {
+        if (
+          !cleanColorType ||
+          !cleanSizeCountry ||
+          !cleanSize ||
+          (cleanSize === "Custom" && cleanCustomSizes.length === 0) ||
+          !cleanMesh ||
+          !cleanBeading ||
+          !cleanQuantity
+        ) {
           return res.status(400).json({
             success: false,
-            message: "Country, size, color, and quantity are required.",
+            message:
+              "Color type, size, mesh, beading, and quantity are required.",
+          });
+        }
+
+        if (cleanLining !== "No Lining" && !cleanLiningColor) {
+          return res.status(400).json({
+            success: false,
+            message: "Lining color is required when lining is not No Lining.",
           });
         }
 
@@ -410,7 +533,7 @@ router.post(
           });
         }
 
-        if (!image.mimetype?.startsWith("image/")) {
+        if (!isAllowedImageFile(image)) {
           return res.status(400).json({
             success: false,
             message: "Only image files are allowed.",
@@ -423,6 +546,18 @@ router.post(
         });
         const { category, subCategory } = await resolveSampleOrderCategory();
         const sequence = await generateAvailableSampleStyleNo();
+        const sampleOrderNotes = [
+          "Sample Order",
+          `Color Type: ${cleanColorType}`,
+          cleanCustomColor ? `Custom Color: ${cleanCustomColor}` : "",
+          cleanSize === "Custom" && cleanCustomSizes.length
+            ? `Custom Sizes: ${cleanCustomSizes.join(", ")}`
+            : "",
+          cleanBeader ? `Beader: ${cleanBeader}` : "",
+          cleanComments ? `Comments: ${cleanComments}` : "",
+        ]
+          .filter(Boolean)
+          .join("; ");
         const compressedImage = await sharp(image.buffer)
           .resize(1000, 1600, {
             fit: "inside",
@@ -446,14 +581,16 @@ router.post(
           product.category = category;
           product.subCategory = subCategory;
           product.quantity = cleanQuantity;
-          product.color = cleanColor.slice(0, 20);
+          product.color = (cleanCustomColor || cleanColorType).slice(0, 20);
           product.price = 0;
-          product.description = "Sample Order";
-          product.mesh_color = cleanColor;
-          product.beading_color = cleanColor;
-          product.lining = "SAS";
-          product.lining_color = "SAS";
-          product.product_size = Number(cleanSize) || 0;
+          product.description = sampleOrderNotes || "Sample Order";
+          product.mesh_color = cleanMesh;
+          product.beading_color = cleanBeading;
+          product.beader = cleanBeader || null;
+          product.lining = cleanAddLining ? cleanLining : "No Lining";
+          product.lining_color = cleanAddLining ? cleanLiningColor : "No Color";
+          product.product_size =
+            cleanSize === "Custom" ? 0 : Number(cleanSize) || 0;
 
           const savedProduct = await queryRunner.manager.save(product);
 
@@ -466,13 +603,16 @@ router.post(
           const cartItem = new Favourites();
           cartItem.product = savedProduct;
           cartItem.retailer = retailer;
-          cartItem.color = cleanColor;
-          cartItem.mesh_color = cleanColor;
-          cartItem.beading_color = cleanColor;
-          cartItem.add_lining = 0;
-          cartItem.lining = "SAS";
-          cartItem.lining_color = "SAS";
-          cartItem.product_size = cleanSize;
+          cartItem.color = cleanColorType;
+          cartItem.mesh_color = cleanMesh;
+          cartItem.beading_color = cleanBeading;
+          cartItem.add_lining = cleanAddLining ? 1 : 0;
+          cartItem.lining = cleanAddLining ? cleanLining : "No Lining";
+          cartItem.lining_color = cleanAddLining ? cleanLiningColor : "No Color";
+          cartItem.product_size =
+            cleanSize === "Custom" && cleanCustomSizes.length
+              ? `Custom: ${cleanCustomSizes.join(", ")}`
+              : cleanSize;
           cartItem.admin_us_size = convertToUSSize(
             Number(cleanSize),
             cleanSizeCountry,
@@ -480,7 +620,7 @@ router.post(
           cartItem.quantity = cleanQuantity;
           cartItem.product_price = 0;
           cartItem.customization_price = 0;
-          cartItem.customization = "Sample Order";
+          cartItem.customization = sampleOrderNotes || "Sample Order";
           cartItem.reference_image = JSON.stringify([imageUrl]);
           cartItem.size_country = cleanSizeCountry;
           cartItem.is_order_placed = 1;
