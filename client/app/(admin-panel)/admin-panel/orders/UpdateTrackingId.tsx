@@ -19,6 +19,7 @@ import {
 import useHttp from "@/lib/hooks/usePost";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import TrackingIdText from "./TrackingIdText";
 
 const UpdateTrackingId = ({
   trackingId,
@@ -72,7 +73,7 @@ const UpdateTrackingId = ({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <div className="cursor-pointer">
-          {trackingId || "Add Tracking ID"}
+          <TrackingIdText trackingId={trackingId} fallback="Add Tracking ID" />
         </div>
       </DialogTrigger>
       <DialogContent>

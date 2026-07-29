@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import * as z from "zod";
 import { Input } from "@/components/ui/input";
+import TrackingIdText from "./TrackingIdText";
 const updateFormSchema = z.object({
   id: z.string().optional(),
 });
@@ -79,9 +80,10 @@ const UpdateRetailerTrackingId = ({ orderData }: { orderData: any }) => {
           onClick={() => {
             updateForm.setValue("id", orderData.trackingNo || "");
           }}>
-          {orderData.trackingNo
-            ? orderData.trackingNo
-            : "Add Tracking ID"}
+          <TrackingIdText
+            trackingId={orderData.trackingNo}
+            fallback="Add Tracking ID"
+          />
         </div>
       </DialogTrigger>
       <DialogContent>

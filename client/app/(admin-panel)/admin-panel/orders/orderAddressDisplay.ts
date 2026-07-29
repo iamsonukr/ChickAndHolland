@@ -26,11 +26,6 @@ const displayValue = (...values: unknown[]) =>
 const getOrderCustomer = (order: any) =>
   order?.customer || order?.retailer?.customer || {};
 
-const formatCommaLine = (...values: unknown[]) => {
-  const parts = values.map(textValue).filter(Boolean);
-  return parts.length ? parts.join(", ") : "N/A";
-};
-
 const getCountryName = (country: unknown) => {
   if (typeof country === "string") return textValue(country);
   if (country && typeof country === "object" && "name" in country) {
@@ -121,12 +116,11 @@ export const getOrderShippingAddress = (order: any) =>
 
 export const buildOrderAddressDisplay = (order: any) =>
   [
-    displayValue(getShippingContactPersonValue(order)),
-    formatCommaLine(getStoreNameValue(order), getShippingAddressValue(order)),
-    formatCommaLine(
-      getShippingCityValue(order),
-      getShippingCountryValue(order),
-      getOrderMobileNumberValue(order),
-    ),
-    displayValue(getShippingEmailValue(order)),
+    `Contact Person : ${displayValue(getShippingContactPersonValue(order))}`,
+    `Store Name : ${displayValue(getStoreNameValue(order))}`,
+    `Address : ${displayValue(getShippingAddressValue(order))}`,
+    `City : ${displayValue(getShippingCityValue(order))}`,
+    `Country : ${displayValue(getShippingCountryValue(order))}`,
+    `Phone : ${displayValue(getOrderMobileNumberValue(order))}`,
+    `Email : ${displayValue(getShippingEmailValue(order))}`,
   ].join("\n");

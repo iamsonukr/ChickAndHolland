@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,19 +19,19 @@ const SampleOrderSequenceForm = () => {
     "PUT",
   );
 
-  const loadSequence = async () => {
+  const loadSequence = useCallback(async () => {
     try {
       const response: any = await fetchSequence();
       setNextNumber(String(response?.nextNumber ?? ""));
       setNextStyleNo(response?.nextStyleNo ?? "NS001164");
-    } catch {
-      toast.error("Failed to load sample order sequence");
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to load sample order sequence");
     }
-  };
+  }, [fetchSequence]);
 
   useEffect(() => {
     loadSequence();
-  }, []);
+  }, [loadSequence]);
 
   const onSave = async () => {
     const value = Number(nextNumber);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import useHttp from "@/lib/hooks/usePost";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ import { Label } from "@/components/ui/label";
 
 const AdjustSequenceButton = () => {
   const { executeAsync, loading } = useHttp("/retailer-orders/sequence", "POST");
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [pending, setPending] = useState(false);
@@ -32,6 +34,8 @@ const AdjustSequenceButton = () => {
       setPending(true);
       const res: any = await executeAsync({ nextNumber: val });
       toast.success(res?.message || `Next sequence set to ${res?.nextSequence}`);
+      window.dispatchEvent(new CustomEvent("po-sequence-updated"));
+      router.refresh();
       setOpen(false);
     } catch (err: any) {
       toast.error(err?.message || "Failed to update sequence");

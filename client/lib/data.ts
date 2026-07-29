@@ -1613,6 +1613,7 @@ export const getLatestRegularOrder = async () => {
 
   const response = await fetch(`${API_URL}/orders/latest-regular-order`, {
     headers,
+    cache: "no-store",
   });
 
   const responseJson = await response.json();
@@ -1627,6 +1628,7 @@ export const getLatestRetailerOrder = async () => {
 
   const response = await fetch(`${API_URL}/orders/latest-retailer-order`, {
     headers,
+    cache: "no-store",
   });
 
   // console.log(response)

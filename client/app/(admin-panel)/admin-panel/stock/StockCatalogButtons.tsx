@@ -17,6 +17,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { getApiUrl } from "@/lib/constants";
 import { getCookie } from "@/lib/utils";
+import {
+  formatSizeWithCountryLabel,
+  normalizeSizeUnit,
+  type SupportedSizeUnit,
+} from "@/lib/sizeConversion";
 import StockCatalogPdf from "./StockCatalogPdf";
 
 type StockCatalogButtonsProps = {
@@ -70,6 +75,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EXCEL_COLUMN_PADDING = 4;
 const EXCEL_MIN_COLUMN_WIDTH = 10;
 const EXCEL_MAX_COLUMN_WIDTH = 60;
+const STOCK_SIZE_SYSTEM_COOKIE = "stockSizeSystem";
 
 const isPdfFriendlyImage = (imageUrl: string) =>
   /\.(jpe?g|png)(?:$|\?)/i.test(imageUrl);
@@ -264,6 +270,7 @@ const buildExcelRows = (
   stock: any[],
   colours: any[],
   showPrice: boolean,
+  sizeSystem: SupportedSizeUnit,
 ) =>
   stock
     .filter((item: any) => item?.product)
@@ -280,7 +287,7 @@ const buildExcelRows = (
           item?.styleNo ||
           "",
         Quantity: item?.quantity ?? "",
-        Size: `${item?.size ?? "-"} (${item?.size_country ?? "-"})`,
+        Size: formatSizeWithCountryLabel(item, sizeSystem),
         Source: item?.sourceLocation || "-",
         Mesh: getColourLabel(
           colours,
@@ -316,8 +323,9 @@ const buildExcelWorkbook = (
   stock: any[],
   colours: any[],
   showPrice: boolean,
+  sizeSystem: SupportedSizeUnit,
 ) => {
-  const rows = buildExcelRows(stock, colours, showPrice);
+  const rows = buildExcelRows(stock, colours, showPrice, sizeSystem);
 
   if (!rows.length) {
     throw new Error("No stock products found");
@@ -340,6 +348,9 @@ const getCustomerName = (customer: any) =>
   "Customer";
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const getSelectedStockSizeSystem = (): SupportedSizeUnit =>
+  normalizeSizeUnit(getCookie(STOCK_SIZE_SYSTEM_COOKIE)) ?? "EU";
 
 const StockCatalogButtons = ({
   colours,
@@ -493,7 +504,11 @@ const StockCatalogButtons = ({
     return recipients;
   };
 
-  const buildCatalogPdfBlob = async (stock: any[], showPrice: boolean) => {
+  const buildCatalogPdfBlob = async (
+    stock: any[],
+    showPrice: boolean,
+    sizeSystem: SupportedSizeUnit,
+  ) => {
     const objectUrls: string[] = [];
 
     try {
@@ -512,6 +527,7 @@ const StockCatalogButtons = ({
           stock={preparedStock}
           colours={colours}
           showPrice={showPrice}
+          sizeSystem={sizeSystem}
         /> as any,
       ).toBlob();
     } finally {
@@ -531,7 +547,8 @@ const StockCatalogButtons = ({
       }
 
       const showPrice = mode === "with-price";
-      const blob = await buildCatalogPdfBlob(stock, showPrice);
+      const sizeSystem = getSelectedStockSizeSystem();
+      const blob = await buildCatalogPdfBlob(stock, showPrice, sizeSystem);
 
       downloadBlob(blob, buildCatalogFileName(showPrice));
 
@@ -556,7 +573,13 @@ const StockCatalogButtons = ({
         return;
       }
 
-      const workbook = buildExcelWorkbook(stock, colours, showPrice);
+      const sizeSystem = getSelectedStockSizeSystem();
+      const workbook = buildExcelWorkbook(
+        stock,
+        colours,
+        showPrice,
+        sizeSystem,
+      );
       XLSX.writeFile(workbook, buildExcelFileName(showPrice));
       toast.success("Stock data exported successfully");
     } catch (error: any) {
@@ -594,6 +617,7 @@ const StockCatalogButtons = ({
         return;
       }
 
+      const sizeSystem = getSelectedStockSizeSystem();
       const fileName = selectedExportIsExcel
         ? buildExcelFileName(selectedExportShowPrice)
         : buildCatalogFileName(selectedExportShowPrice);
@@ -604,6 +628,7 @@ const StockCatalogButtons = ({
           stock,
           colours,
           selectedExportShowPrice,
+          sizeSystem,
         );
         const workbookData = XLSX.write(workbook, {
           bookType: "xlsx",
@@ -616,6 +641,7 @@ const StockCatalogButtons = ({
         attachmentBlob = await buildCatalogPdfBlob(
           stock,
           selectedExportShowPrice,
+          sizeSystem,
         );
       }
 

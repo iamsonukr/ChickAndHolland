@@ -13,6 +13,7 @@ import {
 import Mail from "nodemailer/lib/mailer";
 import { fresh } from "@/lib/utils";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
+import { getCompactStyleNoBannerFontSize } from "@/lib/pdfTextSizing";
 
 type Response = {
   success: boolean;
@@ -135,8 +136,17 @@ const StockOrdersPdf = ({ orderData }: { orderData: any }) => {
           <View key={index} style={styles.fullPageContainer}>
             {/* Top Banner */}
             <View style={styles.topBanner}>
-              <Text style={styles.bannerText}>{item.styleNo}</Text>
-              <Text style={styles.bannerText}>{orderData.purchaseOrderNo}</Text>
+              <Text
+                style={[
+                  styles.bannerStyleNo,
+                  { fontSize: getCompactStyleNoBannerFontSize(item.styleNo) },
+                ]}
+              >
+                {item.styleNo}
+              </Text>
+              <Text style={styles.bannerPurchaseOrderNo}>
+                {orderData.purchaseOrderNo}
+              </Text>
               <View>
                 <Text style={styles.bannerText}>
                   Order Received Date:{" "}
@@ -329,6 +339,19 @@ const styles = StyleSheet.create({
     color: "black",
     fontSize: 15,
     fontWeight: "bold",
+  },
+  bannerStyleNo: {
+    color: "black",
+    fontSize: 15,
+    fontWeight: "bold",
+    width: "32%",
+  },
+  bannerPurchaseOrderNo: {
+    color: "black",
+    fontSize: 15,
+    fontWeight: "bold",
+    textAlign: "center",
+    width: "28%",
   },
   contentContainer: {
     flex: 1,

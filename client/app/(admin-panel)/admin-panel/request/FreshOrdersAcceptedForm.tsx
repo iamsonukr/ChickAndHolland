@@ -71,6 +71,7 @@ import FreshOrderPdf from "./FreshOrderPdf";
 import { formatDateOnly, parseDateOnly } from "@/lib/dateOnly";
 import { convertWebPToJPG } from "./StockAcceptedForm";
 import RetailerPdf from "./RetailerPdf";
+import SampleOrderPdf from "./SampleOrderPdf";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
 import { UploadedFileType } from "@/hooks/useCreateOrder";
 import { downloadOrderPPT } from "@/lib/utils/exportPPT";
@@ -81,9 +82,9 @@ const formatOriginalSizeDisplay = (item: {
   size?: unknown;
   size_country?: unknown;
 }) => {
-  const size = String(
+  const size = stripCustomSizePrefix(
     item?.original_size ?? item?.product_size ?? item?.size ?? "",
-  ).trim();
+  );
   const sizeCountry = String(item?.size_country ?? "").trim();
 
   if (!size) {
@@ -110,6 +111,28 @@ const hasDirtyFields = (dirtyFields: any): boolean => {
 
 const DEFAULT_MANUFACTURING_EMAIL = "rubyinc@hotmail.com";
 const DEFAULT_REQUEST_COLOUR = "SAS";
+
+const isSampleOrderRequest = (value: unknown) =>
+  String(value ?? "").toLowerCase().includes("sample");
+
+const stripCustomSizePrefix = (value: unknown) =>
+  String(value ?? "")
+    .trim()
+    .replace(/^custom\s*:\s*/i, "");
+
+const getSampleOrderComment = (value: unknown) => {
+  const text = String(value ?? "").trim();
+  const match = text.match(/(?:^|;)\s*Comments:\s*([^;]+)/i);
+  return match?.[1]?.trim() ?? "";
+};
+
+const getDisplayComments = (value: unknown, requestType?: unknown) => {
+  if (isSampleOrderRequest(requestType) || /^sample order\b/i.test(String(value ?? "").trim())) {
+    return getSampleOrderComment(value);
+  }
+
+  return String(value ?? "").trim();
+};
 
 const normalizeRequestText = (value: unknown, fallback = DEFAULT_REQUEST_COLOUR) => {
   const text = String(value ?? "").trim();
@@ -195,6 +218,7 @@ const FreshOrdersAcceptedForm = ({
   editOrder,
   onSuccess,
   editPassword,
+  requestType,
 }: {
   customers: any[];
   id: number;
@@ -204,6 +228,7 @@ const FreshOrdersAcceptedForm = ({
   editOrder?: any;
   onSuccess?: () => void;
   editPassword?: string;
+  requestType?: string;
 }) => {
   const isEditMode = editMode && Boolean(retailerOrderId);
   const [details, setDetails] = useState<any[]>([]);
@@ -311,6 +336,8 @@ const FreshOrdersAcceptedForm = ({
         throw new Error("Order details were not found");
       }
 
+      const resolvedRequestType = data[0].requestType || requestType || "Fresh";
+
       form.setValue("orderId", id);
       console.log("ORDER ID →", form.getValues("orderId"));
 
@@ -376,7 +403,8 @@ const FreshOrdersAcceptedForm = ({
         styleNo: it.productCode ?? it.styleNo ?? "", customColor: it.color,
         size: formatOriginalSizeDisplay(it),
         quantity: it.quantity,
-        comments: it.comments,
+        requestType: it.requestType || resolvedRequestType,
+        comments: getDisplayComments(it.comments, it.requestType || resolvedRequestType),
         amount: Number(it.price),
         fav_id: it.fav_id,
         customization_p: Number(it.customization_price || 0),
@@ -495,6 +523,7 @@ const FreshOrdersAcceptedForm = ({
         const match = /\((.*?)\)/.exec(cleanSize);
         const sizeCountry = match ? match[1] : "";
         const displaySize = cleanSize.split("(")[0].trim();
+        const normalizedDisplaySize = stripCustomSizePrefix(displaySize);
         const totalPieces = Math.max(getPieceCount(current.quantity), rowBarcodes.length);
 
         if (totalPieces <= 0) {
@@ -544,7 +573,7 @@ const FreshOrdersAcceptedForm = ({
 
         return Array.from({ length: totalPieces }, (_, pieceIndex) => ({
           quantity: 1,
-          size: displaySize,
+          size: normalizedDisplaySize,
           size_country: sizeCountry,
           styleNo: current.styleNo,
           comments: current.comments || "",
@@ -595,6 +624,11 @@ const FreshOrdersAcceptedForm = ({
       estimate: normalizedData.estimate,
       invoice: normalizedData.invoice,
       phoneNumber: normalizedData.phoneNumber,
+      requestType:
+        finalData?.requestType ||
+        normalizedData.styles.find((style: any) => style.requestType)?.requestType ||
+        requestType ||
+        "Fresh",
     };
 
     if (isEditMode) {
@@ -730,7 +764,10 @@ const FreshOrdersAcceptedForm = ({
           manufacturingEmailAddress: normalizedData.manufacturingEmailAddress,
           orderCancellationDate: formatDateOnly(normalizedData.orderCancellationDate),
           orderReceivedDate: formatDateOnly(normalizedData.orderReceivedDate),
-          orderType: "Fresh",
+          orderType: isSampleOrderRequest(dataSend.requestType)
+            ? "Sample Order"
+            : "Fresh",
+          requestType: dataSend.requestType,
           purchaseOrderNo,
           details: finalStyles,
           total: total_state,
@@ -778,13 +815,20 @@ const FreshOrdersAcceptedForm = ({
         normalizedData.purchaseOrderNo,
         formBarcodeGroups,
       );
+      const previewRequestType =
+        normalizedData.styles.find((style: any) => style.requestType)?.requestType ||
+        requestType ||
+        "Fresh";
 
       setPreviewData({
         customerId: normalizedData.customerId,
         manufacturingEmailAddress: normalizedData.manufacturingEmailAddress,
         orderCancellationDate: formatDateOnly(normalizedData.orderCancellationDate),
         orderReceivedDate: formatDateOnly(normalizedData.orderReceivedDate),
-        orderType: "Fresh",
+        orderType: isSampleOrderRequest(previewRequestType)
+          ? "Sample Order"
+          : "Fresh",
+        requestType: previewRequestType,
         purchaseOrderNo: normalizedData.purchaseOrderNo,
         details: finalStyles,
         total: total_state,
@@ -1681,7 +1725,13 @@ const FreshOrdersAcceptedForm = ({
               {/* 🔹 Download Button */}
               <div className="flex flex-wrap justify-end gap-3 py-3">
                 <PDFDownloadLink
-                  document={<RetailerPdf orderData={previewData} />}
+                  document={
+                    isSampleOrderRequest(previewData.requestType || previewData.orderType) ? (
+                      <SampleOrderPdf orderData={previewData} />
+                    ) : (
+                      <RetailerPdf orderData={previewData} />
+                    )
+                  }
                   fileName={`${previewData.purchaseOrderNo}.pdf`}
                 >
                   <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
@@ -1699,7 +1749,11 @@ const FreshOrdersAcceptedForm = ({
 
               {/* 🔹 Live Preview */}
               <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
-                <FreshOrderPdf orderData={previewData} />
+                {isSampleOrderRequest(previewData.requestType || previewData.orderType) ? (
+                  <SampleOrderPdf orderData={previewData} />
+                ) : (
+                  <FreshOrderPdf orderData={previewData} />
+                )}
               </PDFViewer>
             </>
           )}

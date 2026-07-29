@@ -709,7 +709,7 @@ export function useCreateOrder({
     const hasCustomSizes = customSizesQuantity.length > 0;
 
     return {
-      styleId: style?.id,
+      styleId: Number(style?.id ?? style?.styleId) || undefined,
       styleNo: styleNo
         ? ([
             {
@@ -1004,6 +1004,21 @@ export function useCreateOrder({
   useEffect(() => {
     generatePO();
   }, [watchCustomerName, generatePO]);
+
+  useEffect(() => {
+    const regeneratePurchaseOrderNo = () => {
+      generatePO();
+    };
+
+    window.addEventListener("po-sequence-updated", regeneratePurchaseOrderNo);
+
+    return () => {
+      window.removeEventListener(
+        "po-sequence-updated",
+        regeneratePurchaseOrderNo,
+      );
+    };
+  }, [generatePO]);
 
   useEffect(() => {
     if (isEditMode) return;

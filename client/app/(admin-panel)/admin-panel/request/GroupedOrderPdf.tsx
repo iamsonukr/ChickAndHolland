@@ -6,6 +6,11 @@ import {
   PDF_DISPLAY_SIZE_UNIT,
 } from "@/lib/sizeConversion";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
+import {
+  getQrBoxSizeFontSize,
+  getStyleNoBannerFontSize,
+  getStyleNoCardFontSize,
+} from "@/lib/pdfTextSizing";
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import { styles } from "./PDFStyle";
 
@@ -132,9 +137,11 @@ const getReferenceImages = (variants: any[]) =>
 const GroupedOrderPdf = ({
   orderData,
   showShippingDate = false,
+  preserveMainImageAspect = false,
 }: {
   orderData: any;
   showShippingDate?: boolean;
+  preserveMainImageAspect?: boolean;
 }) => {
   const groupedPages = buildGroupedPages(orderData?.details ?? []);
 
@@ -156,7 +163,12 @@ const GroupedOrderPdf = ({
           >
             <View style={styles.fullPageContainer} wrap={false}>
               <View style={styles.topBanner}>
-                <Text style={styles.bannerTexts}>
+                <Text
+                  style={[
+                    styles.bannerTexts,
+                    { fontSize: getStyleNoBannerFontSize(baseItem?.styleNo) },
+                  ]}
+                >
                   {baseItem?.styleNo}
                   {/* {totalPages > 1 ? ` (${pageIndex + 1}/${totalPages})` : ""} */}
                 </Text>
@@ -300,7 +312,16 @@ const GroupedOrderPdf = ({
                   <View style={styles.rightPanel}>
                     <View style={styles.mainImageFrame}>
                       {baseItem?.image ? (
-                        <Image alt="" src={baseItem.image} style={styles.mainImage} />
+                        <Image
+                          alt=""
+                          src={baseItem.image}
+                          style={[
+                            styles.mainImage,
+                            preserveMainImageAspect
+                              ? styles.mainImageContain
+                              : {},
+                          ]}
+                        />
                       ) : (
                         <View style={styles.mainImagePlaceholder}>
                           <Text style={styles.mainImagePlaceholderText}>
@@ -319,6 +340,7 @@ const GroupedOrderPdf = ({
                   <View style={styles.variantGrid}>
                     {variants.map((variant: any, variantIndex: number) => {
                       const normalizedBarcode = normalizeBarcodeValue(variant.barcode);
+                      const variantSizeText = getVariantSizeText(variant);
 
                       return (
                         <View
@@ -331,10 +353,24 @@ const GroupedOrderPdf = ({
                           ]}
                         >
                           <View style={styles.variantCardTop}>
-                            <Text style={styles.variantTitle}>{variant.styleNo}</Text>
+                            <Text
+                              style={[
+                                styles.variantTitle,
+                                { fontSize: getStyleNoCardFontSize(variant.styleNo) },
+                              ]}
+                            >
+                              {variant.styleNo}
+                            </Text>
                             <View style={styles.variantInfoGroup}>
                               <View style={styles.variantInfoRow}>
-                                <Text style={styles.variantInfoLabel}>Size: {getVariantSizeText(variant)}</Text>
+                                <Text
+                                  style={[
+                                    styles.variantInfoLabel,
+                                    { fontSize: getQrBoxSizeFontSize(variantSizeText) },
+                                  ]}
+                                >
+                                  Size: {variantSizeText}
+                                </Text>
                                 {/* <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text> */}
                               </View>
                               <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>

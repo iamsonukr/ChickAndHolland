@@ -27,11 +27,14 @@ export const styles = StyleSheet.create({
     color: "black",
     fontSize: 25,
     fontWeight: "bold",
+    width: "32%",
   },
   bannerTextPurchaseOrderNo: {
     color: "black",
     fontSize: 30,
     fontWeight: "bold",
+    textAlign: "center",
+    width: "28%",
   },
   contentContainer: {
     flex: 1,
@@ -258,6 +261,10 @@ export const styles = StyleSheet.create({
     objectPosition: "center bottom",
     alignSelf: "flex-end",
     borderRadius: 4,
+  },
+  mainImageContain: {
+    objectFit: "contain",
+    objectPosition: "center center",
   },
   pageVariantOverlay: {
     position: "absolute",

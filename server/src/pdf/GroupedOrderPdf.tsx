@@ -7,6 +7,11 @@ import {
 } from "../lib/sizeConversion";
 import { formatDateOnlyDisplay } from "../lib/dateOnly";
 import { styles } from "./PDFStyle";
+import {
+  getQrBoxSizeFontSize,
+  getStyleNoBannerFontSize,
+  getStyleNoCardFontSize,
+} from "../lib/pdfTextSizing";
 
 const fresh = "Fresh Order";
 
@@ -156,7 +161,12 @@ const GroupedOrderPdf = ({
           >
             <View style={styles.fullPageContainer} wrap={false}>
               <View style={styles.topBanner}>
-                <Text style={styles.bannerTexts}>
+                <Text
+                  style={[
+                    styles.bannerTexts,
+                    { fontSize: getStyleNoBannerFontSize(baseItem?.styleNo) },
+                  ]}
+                >
                   {baseItem?.styleNo}
                   {/* {totalPages > 1 ? ` (${pageIndex + 1}/${totalPages})` : ""} */}
                 </Text>
@@ -318,6 +328,7 @@ const GroupedOrderPdf = ({
                   <View style={styles.variantGrid}>
                     {variants.map((variant: any, variantIndex: number) => {
                       const normalizedBarcode = normalizeBarcodeValue(variant.barcode);
+                      const variantSizeText = getVariantSizeText(variant);
 
                       return (
                         <View
@@ -330,10 +341,24 @@ const GroupedOrderPdf = ({
                           ]}
                         >
                           <View style={styles.variantCardTop}>
-                            <Text style={styles.variantTitle}>{variant.styleNo}</Text>
+                            <Text
+                              style={[
+                                styles.variantTitle,
+                                { fontSize: getStyleNoCardFontSize(variant.styleNo) },
+                              ]}
+                            >
+                              {variant.styleNo}
+                            </Text>
                             <View style={styles.variantInfoGroup}>
                               <View style={styles.variantInfoRow}>
-                                <Text style={styles.variantInfoLabel}>Size: {getVariantSizeText(variant)}</Text>
+                                <Text
+                                  style={[
+                                    styles.variantInfoLabel,
+                                    { fontSize: getQrBoxSizeFontSize(variantSizeText) },
+                                  ]}
+                                >
+                                  Size: {variantSizeText}
+                                </Text>
                                 {/* <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text> */}
                               </View>
                               <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>

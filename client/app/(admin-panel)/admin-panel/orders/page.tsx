@@ -367,7 +367,7 @@ const OrdersPage = async (props: {
             {/* Table */}
             <div className="w-full rounded-lg border border-border">
               <TableScrollWrapper>
-                <table className="w-full min-w-[1660px] border-collapse text-sm">
+                <table className="w-full min-w-[1890px] border-collapse text-sm">
                   <thead className="bg-muted/50">
                     <tr className="whitespace-nowrap [&>th]:align-middle">
                       <th
@@ -406,8 +406,8 @@ const OrdersPage = async (props: {
                         Total Quantity
                       </th>
                       {showContact && (
-                        <th className={cn(tableHeadClassName, "w-[220px]")}>
-                          Address
+                        <th className={cn(tableHeadClassName, "w-[360px]")}>
+                          Shipping Address
                         </th>
                       )}
                       {showContact && (
@@ -415,7 +415,7 @@ const OrdersPage = async (props: {
                           Phone
                         </th>
                       )}
-                      <th className={cn(tableHeadClassName, "w-[170px]")}>
+                      <th className={cn(tableHeadClassName, "w-[260px]")}>
                         Tracking ID
                       </th>
                       <th
@@ -540,7 +540,7 @@ const OrdersPage = async (props: {
                               <td
                                 className={cn(
                                   tableCellClassName,
-                                  "max-w-[220px] whitespace-normal break-words",
+                                  "max-w-[360px] whitespace-normal break-words",
                                 )}
                               >
                                 <div className="whitespace-normal break-words leading-5">
@@ -559,7 +559,12 @@ const OrdersPage = async (props: {
                             )}
 
                             {/* Tracking ID */}
-                            <td className={tableCellClassName}>
+                            <td
+                                className={cn(
+                                  tableCellClassName,
+                                "max-w-[260px] whitespace-normal",
+                              )}
+                            >
                               <div className="text-black">
                                 {order.orderSource === "retailer" ? (
                                   <UpdateRetailerTrackingId orderData={order} />

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import useHttp from "@/lib/hooks/usePost";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 import { cn, fresh } from "@/lib/utils";
+import TrackingIdText from "../orders/TrackingIdText";
 
 const tableHeadClassName =
   "border border-border px-2 py-1.5 text-center text-[15px] font-semibold text-foreground align-middle";
@@ -164,7 +165,7 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
 
       <div className="w-full rounded-lg border border-border">
         <TableScrollWrapper>
-          <table className="w-full min-w-[1250px] border-collapse text-sm">
+          <table className="w-full min-w-[1340px] border-collapse text-sm">
             <thead className="bg-muted/50">
               <tr className="whitespace-nowrap [&>th]:align-middle">
                 <th className={cn(tableHeadClassName, "w-[70px]")}>
@@ -194,7 +195,7 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
                 <th className={cn(tableHeadClassName, "w-[120px]")}>
                   Total Quantity
                 </th>
-                <th className={cn(tableHeadClassName, "w-[170px]")}>
+                <th className={cn(tableHeadClassName, "w-[260px]")}>
                   Tracking ID
                 </th>
                 <th className={cn(tableHeadClassName, "w-[140px]")}>
@@ -254,8 +255,13 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
                       <td className={cn(tableCellClassName, "text-center")}>
                         {order.totalQuantity ?? 0}
                       </td>
-                      <td className={tableCellClassName}>
-                        {order.trackingNo || "-"}
+                      <td
+                        className={cn(
+                          tableCellClassName,
+                          "max-w-[260px] whitespace-normal",
+                        )}
+                      >
+                        <TrackingIdText trackingId={order.trackingNo} />
                       </td>
                       <td className={tableCellClassName}>
                         {order.orderSource === "retailer"

@@ -2562,9 +2562,20 @@ router.patch(
               }),
             );
 
-            styleEntity.photoUrls = JSON.stringify(
-              imageUrls.filter((x) => x).map((x) => x?.fileName),
+            const existingPhotoUrls = normalizeFieldArray(
+              styleEntity.photoUrls,
+            ).filter(Boolean);
+            const uploadedPhotoUrls = imageUrls
+              .filter((x) => x)
+              .map((x) => x?.fileName)
+              .filter(Boolean);
+            const nextPhotoUrls = Array.from(
+              new Set([...existingPhotoUrls, ...uploadedPhotoUrls]),
             );
+
+            if (nextPhotoUrls.length > 0) {
+              styleEntity.photoUrls = JSON.stringify(nextPhotoUrls);
+            }
 
             // STEP 4 — SAVE FINAL STYLE
             await styleEntity.save();

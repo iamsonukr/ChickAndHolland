@@ -146,7 +146,11 @@ export function FreshTable({ data }: { data: any[] }) {
             </TableCell>
             <TableCell>
               <div className="flex justify-center gap-3">
-                <FreshOrdersAcceptedForm customers={details} id={invoice.id} />
+                <FreshOrdersAcceptedForm
+                  customers={details}
+                  id={invoice.id}
+                  requestType={invoice.requestType}
+                />
 
                 <Dialog>
                   <DialogTrigger asChild>

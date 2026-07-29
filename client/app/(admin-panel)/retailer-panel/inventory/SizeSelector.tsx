@@ -9,30 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const sizeChart = [
-  { EU: 32, IT: 36, US: 0,  UK: 4  },
-  { EU: 34, IT: 38, US: 2,  UK: 6  },
-  { EU: 36, IT: 40, US: 4,  UK: 8  },
-  { EU: 38, IT: 42, US: 6,  UK: 10 },
-  { EU: 40, IT: 44, US: 8,  UK: 12 },
-  { EU: 42, IT: 46, US: 10, UK: 14 },
-  { EU: 44, IT: 48, US: 12, UK: 16 },
-  { EU: 46, IT: 50, US: 14, UK: 18 },
-  { EU: 48, IT: 52, US: 16, UK: 20 },
-  { EU: 50, IT: 54, US: 18, UK: 22 },
-  { EU: 52, IT: 56, US: 20, UK: 24 },
-  { EU: 54, IT: 58, US: 22, UK: 26 },
-  { EU: 56, IT: 60, US: 24, UK: 28 },
-  { EU: 58, IT: 62, US: 26, UK: 30 },
-  { EU: 60, IT: 64, US: 28, UK: 32 },
-];
-
-const convert = (euSize: number, from: string, to: string) => {
-  const row = sizeChart.find((r) => r[from as keyof typeof r] === euSize || r.EU === euSize);
-  if (!row) return euSize;
-  return row[to as keyof typeof row];
-};
+import { formatSizeWithCountryLabel } from "@/lib/sizeConversion";
 
 type CurrencyOption = {
   id: number | string;
@@ -55,6 +32,7 @@ const sizeCurrencyCode: Record<string, string> = {
 };
 
 const sizeSystems = new Set(Object.keys(sizeCurrencyCode));
+const stockSizeSystemCookieName = "stockSizeSystem";
 
 const getCookieValue = (name: string) => {
   if (typeof document === "undefined") return undefined;
@@ -63,6 +41,12 @@ const getCookieValue = (name: string) => {
     .split("; ")
     .find((row) => row.startsWith(`${name}=`))
     ?.split("=")[1];
+};
+
+const setCookieValue = (name: string, value: string) => {
+  document.cookie = `${name}=${encodeURIComponent(
+    value,
+  )}; path=/; max-age=31536000; SameSite=Lax`;
 };
 
 const sizeSystemForCurrency = (currency?: CurrencyOption) => {
@@ -83,36 +67,50 @@ export default function SizeSelector({
   const currentCurrency = currencies.find(
     (currency) => String(currency.id) === String(currentCurrencyId),
   );
+  const currentCurrencyCode = currentCurrency?.code?.toUpperCase();
+  const currentCurrencySizeSystem = sizeSystemForCurrency(currentCurrency);
   const [type, setType] = useState(() =>
-    syncCurrency ? sizeSystemForCurrency(currentCurrency) : "EU",
+    syncCurrency ? currentCurrencySizeSystem : "EU",
   );
 
   useEffect(() => {
     if (!syncCurrency) return;
 
-    const savedSizeSystem = getCookieValue("stockSizeSystem");
+    const savedSizeSystem = getCookieValue(stockSizeSystemCookieName);
 
     if (
       savedSizeSystem &&
       sizeSystems.has(savedSizeSystem) &&
-      sizeCurrencyCode[savedSizeSystem] === currentCurrency?.code?.toUpperCase()
+      sizeCurrencyCode[savedSizeSystem] === currentCurrencyCode
     ) {
       setType(savedSizeSystem);
+      setCookieValue(stockSizeSystemCookieName, savedSizeSystem);
       return;
     }
 
-    setType(sizeSystemForCurrency(currentCurrency));
-  }, [currentCurrency?.id, syncCurrency]);
+    setType(currentCurrencySizeSystem);
+    setCookieValue(stockSizeSystemCookieName, currentCurrencySizeSystem);
+  }, [
+    currentCurrency?.id,
+    currentCurrencyCode,
+    currentCurrencySizeSystem,
+    syncCurrency,
+  ]);
 
   useEffect(() => {
     const all = document.querySelectorAll(".size-convert");
 
     all.forEach((td) => {
-      const eu = Number(td.getAttribute("data-eu"));
+      const size = td.getAttribute("data-eu");
       const from = td.getAttribute("data-from") || "EU";
 
-      const newSize = convert(eu, from, type);
-      td.innerHTML = `${newSize} (${type})`;
+      td.textContent = formatSizeWithCountryLabel(
+        {
+          size,
+          size_country: from,
+        },
+        type,
+      );
     });
   }, [type]);
 
@@ -121,9 +119,7 @@ export default function SizeSelector({
 
     if (!syncCurrency) return;
 
-    document.cookie = `stockSizeSystem=${encodeURIComponent(
-      value,
-    )}; path=/; max-age=31536000; SameSite=Lax`;
+    setCookieValue(stockSizeSystemCookieName, value);
 
     const currencyCode = sizeCurrencyCode[value];
     const selectedCurrency = currencies.find(
@@ -132,9 +128,7 @@ export default function SizeSelector({
 
     if (!selectedCurrency) return;
 
-    document.cookie = `currencyId=${encodeURIComponent(
-      String(selectedCurrency.id),
-    )}; path=/; max-age=31536000; SameSite=Lax`;
+    setCookieValue("currencyId", String(selectedCurrency.id));
     router.refresh();
   };
 

@@ -18,7 +18,7 @@ const AddressCard = ({ ad }: { ad: string }) => {
         </DialogTrigger>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Address</DialogTitle>
+            <DialogTitle>Shipping Address</DialogTitle>
           </DialogHeader>
           <div className="whitespace-pre-line break-words">{ad}</div>
         </DialogContent>

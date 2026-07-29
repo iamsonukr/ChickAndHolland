@@ -20,6 +20,7 @@ import AddProductForm from "./AddProductForm";
 import BulkPriceIncrease from "./BulkPriceIncrease";
 import TableActions from "./TableActions";
 import TableScrollWrapper from "@/components/TableScrollWrapper";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,8 +35,21 @@ interface Product {
   lining?: string | null;
   lining_color?: string | null;
   beader?: string | null;
-  subCategory?: { name: string };
+  subCategory?: { id?: number | string; name: string };
   category?: { name: string };
+}
+
+interface PriceIncreaseHistory {
+  id?: number | string;
+  percentage: number | string;
+  createdAt: string | Date;
+}
+
+interface SubCategory {
+  id: number | string;
+  name: string;
+  lastPriceIncrease?: PriceIncreaseHistory | null;
+  priceIncreaseHistory?: PriceIncreaseHistory[];
 }
 
 interface ProductColour {
@@ -85,6 +99,54 @@ const ColourItem = ({
   );
 };
 
+const historyColorClassNames = [
+  "border-blue-200 bg-blue-50 text-blue-700",
+  "border-emerald-200 bg-emerald-50 text-emerald-700",
+  "border-amber-200 bg-amber-50 text-amber-700",
+  "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700",
+  "border-cyan-200 bg-cyan-50 text-cyan-700",
+  "border-rose-200 bg-rose-50 text-rose-700",
+];
+
+const getPriceIncreaseHistory = (subCategory?: SubCategory) => {
+  const history = subCategory?.priceIncreaseHistory ?? [];
+  if (history.length) return history;
+  return subCategory?.lastPriceIncrease ? [subCategory.lastPriceIncrease] : [];
+};
+
+const getIncreaseLabel = (history: PriceIncreaseHistory) => {
+  const date = formatDateOnlyDisplay(history.createdAt);
+  const percentageValue = Number(history.percentage);
+  const percentageLabel = Number.isFinite(percentageValue)
+    ? `${percentageValue}%`
+    : `${history.percentage}%`;
+
+  return `${date || "-"} - ${percentageLabel}`;
+};
+
+const PriceIncreaseHistoryBadges = ({
+  history,
+}: {
+  history: PriceIncreaseHistory[];
+}) => {
+  if (!history.length) return null;
+
+  return (
+    <div className="flex max-w-[260px] flex-wrap gap-1.5">
+      {history.map((item, index) => (
+        <span
+          key={`${item.id ?? item.createdAt}-${index}`}
+          className={`rounded border px-2 py-0.5 text-xs font-medium ${
+            historyColorClassNames[index % historyColorClassNames.length]
+          }`}
+        >
+          {getIncreaseLabel(item)}
+        </span>
+      ))}
+    </div>
+  );
+};
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -114,7 +176,7 @@ const ProductPage = async ({ searchParams }: PageProps) => {
   const currencies =
     currenciesResponse?.currencies ?? currenciesResponse ?? [];
 
-  const { subCategories } = collection;
+  const subCategories: SubCategory[] = collection?.subCategories ?? [];
   const { categories } = productCategories;
   const productColours: ProductColour[] =
     productColoursResponse?.productColours ?? [];
@@ -124,6 +186,29 @@ const ProductPage = async ({ searchParams }: PageProps) => {
       colour.name,
     ]),
   );
+  const subCategoryHistoryById = new Map(
+    subCategories.map((subCategory) => [
+      String(subCategory.id),
+      getPriceIncreaseHistory(subCategory),
+    ]),
+  );
+  const subCategoryHistoryByName = new Map(
+    subCategories.map((subCategory) => [
+      subCategory.name.trim().toLowerCase(),
+      getPriceIncreaseHistory(subCategory),
+    ]),
+  );
+  const getProductHistory = (product: Product) => {
+    const subCategoryId = product.subCategory?.id;
+    if (subCategoryId) {
+      return subCategoryHistoryById.get(String(subCategoryId)) ?? [];
+    }
+
+    const subCategoryName = product.subCategory?.name?.trim().toLowerCase();
+    return subCategoryName
+      ? subCategoryHistoryByName.get(subCategoryName) ?? []
+      : [];
+  };
 
   return (
     <ContentLayout title="Products">
@@ -154,6 +239,7 @@ const ProductPage = async ({ searchParams }: PageProps) => {
                 <TableHead>Colours</TableHead>
                 <TableHead>Beader</TableHead>
                 <TableHead>Price</TableHead>
+                <TableHead>Recent Increase</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -194,6 +280,11 @@ const ProductPage = async ({ searchParams }: PageProps) => {
                     {product.beader?.trim() || "-"}
                   </TableCell>
                   <TableCell>{product.price}</TableCell>
+                  <TableCell>
+                    <PriceIncreaseHistoryBadges
+                      history={getProductHistory(product)}
+                    />
+                  </TableCell>
                   <TableActions
                     data={product}
                     categories={categories}

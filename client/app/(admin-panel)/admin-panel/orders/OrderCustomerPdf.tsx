@@ -9,6 +9,7 @@ import {
 import { generateRandomColour } from "@/lib/utils";
 import { getCustomSizeEntries } from "@/lib/sizeConversion";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
+import { getCompactStyleNoBannerFontSize } from "@/lib/pdfTextSizing";
 
 const parseMaybeArray = (value: unknown): any[] => {
   if (Array.isArray(value)) return value;
@@ -39,8 +40,15 @@ const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
             wrap
           >
             <View style={styles.topBanner}>
-              <Text style={styles.bannerText}>{oData.styleNo}</Text>
-              <Text style={styles.bannerText}>
+              <Text
+                style={[
+                  styles.bannerStyleNo,
+                  { fontSize: getCompactStyleNoBannerFontSize(oData.styleNo) },
+                ]}
+              >
+                {oData.styleNo}
+              </Text>
+              <Text style={styles.bannerPurchaseOrderNo}>
                 {orderData.purchaeOrderNo || orderData.purchaseOrderNo}
               </Text>
               <View>
@@ -139,9 +147,9 @@ const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
                         ) : oData.size !== "Custom" ? (
                           <Text>{oData.size}</Text>
                         ) : (
-                          customSizesQuantity.map((sQ: any) => {
+                          customSizesQuantity.map((sQ: any, sizeIndex: number) => {
                             return (
-                              <Text>
+                              <Text key={`${sQ.size}-${sizeIndex}`}>
                                 {sQ.size} - {sQ.quantity}{" "}
                               </Text>
                             );
@@ -307,6 +315,19 @@ const styles = StyleSheet.create({
     color: "black",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  bannerStyleNo: {
+    color: "black",
+    fontSize: 18,
+    fontWeight: "bold",
+    width: "32%",
+  },
+  bannerPurchaseOrderNo: {
+    color: "black",
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+    width: "28%",
   },
   styleDetails: {
     flexDirection: "row",
