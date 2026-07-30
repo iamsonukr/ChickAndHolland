@@ -121,29 +121,66 @@ const getCommentItems = (variants: any[], fallback?: string) => {
   return uniqueComments.length ? uniqueComments : parseCommentItems(fallback);
 };
 
-const getDynamicFontSize = (text: string): number => {
-  const length = text?.length ?? 0;
-  if (length <= 10) return 26;
-  if (length <= 15) return 24;
-  if (length <= 20) return 22;
-  if (length <= 28) return 20;
-  if (length <= 36) return 18;
-  return 7;
+const getPurchaseOrderFontSize = (text?: string): number => {
+  const length = String(text ?? "").trim().length;
+
+  if (length <= 12) return 26;
+  if (length <= 18) return 23;
+  if (length <= 24) return 20;
+  if (length <= 30) return 17;
+  if (length <= 38) return 14;
+  if (length <= 48) return 11;
+  return 9;
 };
+
+const formatSingleLinePurchaseOrder = (text?: string) =>
+  String(text ?? "")
+    .trim()
+    .replace(/\s+/g, "\u00A0")
+    .replace(/-/g, "\u2011");
 
 const getReferenceImages = (variants: any[]) =>
   Array.from(new Set(variants.flatMap((item) => normalizeImages(item.refImg))));
+
+const getReferenceImageStyle = (
+  imageCount: number,
+  keepReferenceImagesInSingleRow: boolean,
+  useLargeReferenceImages: boolean,
+) => {
+  if (keepReferenceImagesInSingleRow) {
+    return {
+      width:
+        imageCount === 1
+          ? "64%"
+          : `${Math.max(15, Math.min(49, 99 / imageCount - 1))}%`,
+      height: imageCount > 4 ? 118 : 150,
+      marginRight: imageCount > 1 ? "1%" : 0,
+    };
+  }
+
+  if (useLargeReferenceImages) {
+    return {
+      width: imageCount === 1 ? "82%" : imageCount === 2 ? "49%" : "32%",
+      height: imageCount === 1 ? 230 : imageCount === 2 ? 210 : 180,
+      marginRight: imageCount > 1 ? "1%" : 0,
+    };
+  }
+
+  return {};
+};
 
 const GroupedOrderPdf = ({
   orderData,
   showShippingDate = false,
   preserveMainImageAspect = false,
   keepReferenceImagesInSingleRow = false,
+  useLargeReferenceImages = false,
 }: {
   orderData: any;
   showShippingDate?: boolean;
   preserveMainImageAspect?: boolean;
   keepReferenceImagesInSingleRow?: boolean;
+  useLargeReferenceImages?: boolean;
 }) => {
   const groupedPages = buildGroupedPages(orderData?.details ?? []);
 
@@ -151,295 +188,374 @@ const GroupedOrderPdf = ({
 
   return (
     <Document>
-      {groupedPages.map(({ baseItem, groupItems, pageIndex, totalPages, variants }, index) => {
-        const referenceImages = getReferenceImages(groupItems);
-        const sizeCountry = PDF_DISPLAY_SIZE_UNIT;
+      {groupedPages.map(
+        ({ baseItem, groupItems, pageIndex, totalPages, variants }, index) => {
+          const referenceImages = getReferenceImages(groupItems);
+          const sizeCountry = PDF_DISPLAY_SIZE_UNIT;
 
-        return (
-          <Page
-            key={`${baseItem?.styleNo ?? "style"}-${index}`}
-            size="A4"
-            style={styles.page}
-            orientation="landscape"
-            wrap={false}
-          >
-            <View style={styles.fullPageContainer} wrap={false}>
-              <View style={styles.topBanner}>
-                <Text
-                  style={[
-                    styles.bannerTexts,
-                    { fontSize: getStyleNoBannerFontSize(baseItem?.styleNo) },
-                  ]}
-                >
-                  {baseItem?.styleNo}
-                  {/* {totalPages > 1 ? ` (${pageIndex + 1}/${totalPages})` : ""} */}
-                </Text>
-                <Text
-                  style={[
-                    styles.bannerTextPurchaseOrderNo,
-                    { fontSize: getDynamicFontSize(orderData.purchaseOrderNo) },
-                  ]}
-                >
-                  {orderData.purchaseOrderNo}
-                </Text>
-                <View>
-                  <Text style={styles.bannerText}>
-                    Order Received Date:{" "}
-                    {formatDateOnlyDisplay(orderData.orderReceivedDate)}
+          return (
+            <Page
+              key={`${baseItem?.styleNo ?? "style"}-${index}`}
+              size="A4"
+              style={styles.page}
+              orientation="landscape"
+              wrap={false}
+            >
+              <View style={styles.fullPageContainer} wrap={false}>
+                <View style={styles.topBanner}>
+                  <Text
+                    style={[
+                      styles.bannerTexts,
+                      { fontSize: getStyleNoBannerFontSize(baseItem?.styleNo) },
+                    ]}
+                  >
+                    {baseItem?.styleNo}
+                    {/* {totalPages > 1 ? ` (${pageIndex + 1}/${totalPages})` : ""} */}
                   </Text>
-                  {showShippingDate && orderData.orderCancellationDate && (
-                    <Text style={styles.bannerText}>
-                      Order Shipping Date:{" "}
-                      {formatDateOnlyDisplay(orderData.orderCancellationDate)}
+                  <Text
+                    wrap={false}
+                    style={[
+                      styles.bannerTextPurchaseOrderNo,
+                      {
+                        fontSize: getPurchaseOrderFontSize(
+                          orderData.purchaseOrderNo,
+                        ),
+                      },
+                    ]}
+                  >
+                    {formatSingleLinePurchaseOrder(orderData.purchaseOrderNo)}
+                  </Text>
+                  <View style={styles.bannerDateBlock}>
+                    <Text style={styles.bannerDateText} wrap={false}>
+                      Order Received Date:{" "}
+                      {formatDateOnlyDisplay(orderData.orderReceivedDate)}
                     </Text>
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.contentContainer} wrap={false}>
-                <View style={styles.topContentRow} wrap={false}>
-                  <View style={styles.detailsSection}>
-                    <View style={styles.tableContainer}>
-                      <View style={styles.tableTitleRow}>
-                        <Text style={styles.tableTitle}>Product Specifications</Text>
-                        <Text style={styles.orderTypeText}>
-                          {orderData.orderType === "Fresh" ? fresh : orderData.orderType}
-                        </Text>
-                      </View>
-
-                      <View style={styles.tableRow}>
-                        <View style={styles.leftSection}>
-                          <View style={styles.tableHeaderCell}>
-                            <Text style={styles.headerText}>Color</Text>
-                          </View>
-                          <View style={styles.tableDataCell}>
-                            <Text style={styles.dataText}>{baseItem?.color}</Text>
-                          </View>
-                        </View>
-                        <View style={styles.rightSection}>
-                          <View style={styles.tableHeaderCell}>
-                            <Text style={styles.headerText}>Mesh Color</Text>
-                          </View>
-                          <View style={styles.tableDataCell}>
-                            <Text style={styles.dataText}>{baseItem?.meshColor}</Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      <View style={styles.tableRow}>
-                        <View style={styles.leftSection}>
-                          <View style={styles.tableHeaderCell}>
-                            <Text style={styles.headerText}>Quantity</Text>
-                          </View>
-                          <View style={styles.tableDataCell}>
-                            <Text style={styles.dataText}>{getGroupQuantity(variants)}</Text>
-                          </View>
-                        </View>
-                        <View style={styles.rightSection}>
-                          <View style={styles.tableHeaderCell}>
-                            <Text style={styles.headerText}>Beading Color</Text>
-                          </View>
-                          <View style={styles.tableDataCell}>
-                            <Text style={styles.dataText}>{baseItem?.beadingColor}</Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      <View style={styles.mergedContainer}>
-                        <View style={styles.leftMergedContainer}>
-                          <View style={styles.sizeHeaderCell}>
-                            <Text style={styles.headerText}>Size ({sizeCountry})</Text>
-                          </View>
-                          <View style={styles.sizeDataCell}>
-                            <Text style={styles.dataText} wrap>
-                              {getSizeSummary(variants)}
-                            </Text>
-                          </View>
-                        </View>
-
-                        <View style={styles.rightStackedContainer}>
-                          <View style={styles.stackedRowTop}>
-                            <View style={styles.stackedHeaderCell}>
-                              <Text style={styles.headerText}>Lining Color</Text>
-                            </View>
-                            <View style={styles.stackedDataCell}>
-                              <Text style={styles.dataText}>{baseItem?.liningColor}</Text>
-                            </View>
-                          </View>
-
-                          <View style={styles.stackedRowBottom}>
-                            <View style={styles.stackedHeaderCell}>
-                              <Text style={styles.headerText}>Lining</Text>
-                            </View>
-                            <View style={styles.stackedDataCell}>
-                              <Text style={styles.dataText}>{baseItem?.lining}</Text>
-                            </View>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-
-                    <View style={styles.customizationContainer}>
-                      <Text style={styles.sectionTitle}>Customization Details</Text>
-                      <View style={styles.commentsBox}>
-                        {getCommentItems(variants, baseItem?.comments).length > 0 ? (
-                          getCommentItems(variants, baseItem?.comments).map((comment, commentIndex) => (
-                            <View key={`${comment}-${commentIndex}`} style={styles.commentsBulletRow}>
-                              <Text style={styles.commentsBullet}>•</Text>
-                              <Text style={styles.commentsBulletText}>{comment}</Text>
-                            </View>
-                          ))
-                        ) : (
-                          <Text style={styles.commentsText}>-</Text>
-                        )}
-                      </View>
-                    </View>
-
-                    {referenceImages.length > 0 && (
-                      <View style={styles.extraImagesContainer}>
-                        <View style={styles.extraImagesGrid}>
-                          {referenceImages.map((imgSrc, imgIndex) => (
-                            <Image
-                              key={`${imgSrc}-${imgIndex}`}
-                              alt=""
-                              src={imgSrc}
-                              style={[
-                                styles.additionalImage,
-                                keepReferenceImagesInSingleRow
-                                  ? {
-                                      width: `${Math.max(
-                                        14,
-                                        Math.min(48, 96 / referenceImages.length),
-                                      )}%`,
-                                      height: referenceImages.length > 4 ? 92 : 118,
-                                    }
-                                  : {},
-                              ]}
-                            />
-                          ))}
-                        </View>
-                      </View>
+                    {showShippingDate && orderData.orderCancellationDate && (
+                      <Text style={styles.bannerDateText} wrap={false}>
+                        Order Shipping Date:{" "}
+                        {formatDateOnlyDisplay(orderData.orderCancellationDate)}
+                      </Text>
                     )}
                   </View>
+                </View>
 
-                  <View style={styles.rightPanel}>
-                    <View style={styles.mainImageFrame}>
-                      {baseItem?.image ? (
-                        <Image
-                          alt=""
-                          src={baseItem.image}
-                          style={[
-                            styles.mainImage,
-                            preserveMainImageAspect
-                              ? styles.mainImageContain
-                              : {},
-                          ]}
-                        />
-                      ) : (
-                        <View style={styles.mainImagePlaceholder}>
-                          <Text style={styles.mainImagePlaceholderText}>
-                            Product image unavailable
+                <View style={styles.contentContainer} wrap={false}>
+                  <View style={styles.topContentRow} wrap={false}>
+                    <View style={styles.detailsSection}>
+                      <View style={styles.tableContainer}>
+                        <View style={styles.tableTitleRow}>
+                          <Text style={styles.tableTitle}>
+                            Product Specifications
                           </Text>
+                          <Text style={styles.orderTypeText}>
+                            {orderData.orderType === "Fresh"
+                              ? fresh
+                              : orderData.orderType}
+                          </Text>
+                        </View>
+
+                        <View style={styles.tableRow}>
+                          <View style={styles.leftSection}>
+                            <View style={styles.tableHeaderCell}>
+                              <Text style={styles.headerText}>Color</Text>
+                            </View>
+                            <View style={styles.tableDataCell}>
+                              <Text style={styles.dataText}>
+                                {baseItem?.color}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.rightSection}>
+                            <View style={styles.tableHeaderCell}>
+                              <Text style={styles.headerText}>Mesh Color</Text>
+                            </View>
+                            <View style={styles.tableDataCell}>
+                              <Text style={styles.dataText}>
+                                {baseItem?.meshColor}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        <View style={styles.tableRow}>
+                          <View style={styles.leftSection}>
+                            <View style={styles.tableHeaderCell}>
+                              <Text style={styles.headerText}>Quantity</Text>
+                            </View>
+                            <View style={styles.tableDataCell}>
+                              <Text style={styles.dataText}>
+                                {getGroupQuantity(variants)}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.rightSection}>
+                            <View style={styles.tableHeaderCell}>
+                              <Text style={styles.headerText}>
+                                Beading Color
+                              </Text>
+                            </View>
+                            <View style={styles.tableDataCell}>
+                              <Text style={styles.dataText}>
+                                {baseItem?.beadingColor}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        <View style={styles.mergedContainer}>
+                          <View style={styles.leftMergedContainer}>
+                            <View style={styles.sizeHeaderCell}>
+                              <Text style={styles.headerText}>
+                                Size ({sizeCountry})
+                              </Text>
+                            </View>
+                            <View style={styles.sizeDataCell}>
+                              <Text style={styles.dataText} wrap>
+                                {getSizeSummary(variants)}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.rightStackedContainer}>
+                            <View style={styles.stackedRowTop}>
+                              <View style={styles.stackedHeaderCell}>
+                                <Text style={styles.headerText}>
+                                  Lining Color
+                                </Text>
+                              </View>
+                              <View style={styles.stackedDataCell}>
+                                <Text style={styles.dataText}>
+                                  {baseItem?.liningColor}
+                                </Text>
+                              </View>
+                            </View>
+
+                            <View style={styles.stackedRowBottom}>
+                              <View style={styles.stackedHeaderCell}>
+                                <Text style={styles.headerText}>Lining</Text>
+                              </View>
+                              <View style={styles.stackedDataCell}>
+                                <Text style={styles.dataText}>
+                                  {baseItem?.lining}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+
+                      <View style={styles.customizationContainer}>
+                        <Text style={styles.sectionTitle}>
+                          Customization Details
+                        </Text>
+                        <View style={styles.commentsBox}>
+                          {getCommentItems(variants, baseItem?.comments)
+                            .length > 0 ? (
+                            getCommentItems(variants, baseItem?.comments).map(
+                              (comment, commentIndex) => (
+                                <View
+                                  key={`${comment}-${commentIndex}`}
+                                  style={styles.commentsBulletRow}
+                                >
+                                  <Text style={styles.commentsBullet}>•</Text>
+                                  <Text style={styles.commentsBulletText}>
+                                    {comment}
+                                  </Text>
+                                </View>
+                              ),
+                            )
+                          ) : (
+                            <Text style={styles.commentsText}>-</Text>
+                          )}
+                        </View>
+                      </View>
+
+                      {referenceImages.length > 0 && (
+                        <View style={styles.extraImagesContainer}>
+                          <View style={styles.extraImagesGrid}>
+                            {referenceImages.map((imgSrc, imgIndex) => (
+                              <Image
+                                key={`${imgSrc}-${imgIndex}`}
+                                alt=""
+                                src={imgSrc}
+                                style={[
+                                  styles.additionalImage,
+                                  getReferenceImageStyle(
+                                    referenceImages.length,
+                                    keepReferenceImagesInSingleRow,
+                                    useLargeReferenceImages,
+                                  ),
+                                ]}
+                              />
+                            ))}
+                          </View>
                         </View>
                       )}
                     </View>
+
+                    <View style={styles.rightPanel}>
+                      <View style={styles.mainImageFrame}>
+                        {baseItem?.image ? (
+                          <Image
+                            alt=""
+                            src={baseItem.image}
+                            style={[
+                              styles.mainImage,
+                              preserveMainImageAspect
+                                ? styles.mainImageContain
+                                : {},
+                            ]}
+                          />
+                        ) : (
+                          <View style={styles.mainImagePlaceholder}>
+                            <Text style={styles.mainImagePlaceholderText}>
+                              Product image unavailable
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
                   </View>
                 </View>
-              </View>
 
-              <View style={styles.pageVariantOverlay} wrap={false}>
-                <View style={styles.variantOverlay}>
-                  {/* <Text style={styles.variantOverlayTitle}>Size 1/ 2D Barcode Details</Text> */}
-                  <View style={styles.variantGrid}>
-                    {variants.map((variant: any, variantIndex: number) => {
-                      const normalizedBarcode = normalizeBarcodeValue(variant.barcode);
-                      const variantSizeText = getVariantSizeText(variant);
+                <View style={styles.pageVariantOverlay} wrap={false}>
+                  <View style={styles.variantOverlay}>
+                    {/* <Text style={styles.variantOverlayTitle}>Size 1/ 2D Barcode Details</Text> */}
+                    <View style={styles.variantGrid}>
+                      {variants.map((variant: any, variantIndex: number) => {
+                        const normalizedBarcode = normalizeBarcodeValue(
+                          variant.barcode,
+                        );
+                        const variantSizeText = getVariantSizeText(variant);
 
-                      return (
-                        <View
-                          key={`${normalizedBarcode || variantIndex}-${variantIndex}`}
-                          style={[
-                            styles.variantCard,
-                            variantIndex < variants.length - 1
-                              ? styles.variantCardSpaced
-                              : styles.variantCardLast,
-                          ]}
-                        >
-                          <View style={styles.variantCardTop}>
-                            <Text
-                              style={[
-                                styles.variantTitle,
-                                { fontSize: getStyleNoCardFontSize(variant.styleNo) },
-                              ]}
-                            >
-                              {variant.styleNo}
-                            </Text>
-                            <View style={styles.variantInfoGroup}>
-                              <View style={styles.variantInfoRow}>
-                                <Text
+                        return (
+                          <View
+                            key={`${normalizedBarcode || variantIndex}-${variantIndex}`}
+                            style={[
+                              styles.variantCard,
+                              variantIndex < variants.length - 1
+                                ? styles.variantCardSpaced
+                                : styles.variantCardLast,
+                            ]}
+                          >
+                            <View style={styles.variantCardTop}>
+                              <Text
+                                style={[
+                                  styles.variantTitle,
+                                  {
+                                    fontSize: getStyleNoCardFontSize(
+                                      variant.styleNo,
+                                    ),
+                                  },
+                                ]}
+                              >
+                                {variant.styleNo}
+                              </Text>
+                              <View style={styles.variantInfoGroup}>
+                                <View style={styles.variantInfoRow}>
+                                  <Text
+                                    style={[
+                                      styles.variantInfoLabel,
+                                      {
+                                        fontSize:
+                                          getQrBoxSizeFontSize(variantSizeText),
+                                      },
+                                    ]}
+                                  >
+                                    Size: {variantSizeText}
+                                  </Text>
+                                  {/* <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text> */}
+                                </View>
+                                <View
                                   style={[
-                                    styles.variantInfoLabel,
-                                    { fontSize: getQrBoxSizeFontSize(variantSizeText) },
+                                    styles.variantInfoRow,
+                                    styles.variantInfoRowBorder,
                                   ]}
                                 >
-                                  Size: {variantSizeText}
-                                </Text>
-                                {/* <Text style={styles.variantInfoValue}>{getVariantSizeText(variant)}</Text> */}
-                              </View>
-                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
-                                <Text style={styles.variantInfoLabel}>QTY:</Text>
-                                <Text style={styles.variantInfoValue}>{variant.quantity ?? "-"}</Text>
-                              </View>
-                              
-                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
-                                <Text style={styles.variantInfoLabel}>Color:</Text>
-                              </View>
-                              <View style={[styles.colorValuesRow, styles.variantInfoRowBorder]}>
-                                {variant.color ? (
-                                  <Text style={styles.colorDetail}>{variant.color}</Text>
-                                ) : null}
-                                {variant.meshColor ? (
-                                  <Text style={styles.colorDetail}>{variant.meshColor}</Text>
-                                ) : null}
-                                {!variant.color && !variant.meshColor ? (
-                                  <Text style={styles.colorDetail}>-</Text>
-                                ) : null}
-                              </View>
-                              <View style={[styles.variantInfoRow, styles.variantInfoRowBorder]}>
-                                <Text style={styles.variantInfoValue}>{variant.beader || "-"}</Text>
+                                  <Text style={styles.variantInfoLabel}>
+                                    QTY:
+                                  </Text>
+                                  <Text style={styles.variantInfoValue}>
+                                    {variant.quantity ?? "-"}
+                                  </Text>
+                                </View>
+
+                                <View
+                                  style={[
+                                    styles.variantInfoRow,
+                                    styles.variantInfoRowBorder,
+                                  ]}
+                                >
+                                  <Text style={styles.variantInfoLabel}>
+                                    Color:
+                                  </Text>
+                                </View>
+                                <View
+                                  style={[
+                                    styles.colorValuesRow,
+                                    styles.variantInfoRowBorder,
+                                  ]}
+                                >
+                                  {variant.color ? (
+                                    <Text style={styles.colorDetail}>
+                                      {variant.color}
+                                    </Text>
+                                  ) : null}
+                                  {variant.meshColor ? (
+                                    <Text style={styles.colorDetail}>
+                                      {variant.meshColor}
+                                    </Text>
+                                  ) : null}
+                                  {!variant.color && !variant.meshColor ? (
+                                    <Text style={styles.colorDetail}>-</Text>
+                                  ) : null}
+                                </View>
+                                <View
+                                  style={[
+                                    styles.variantInfoRow,
+                                    styles.variantInfoRowBorder,
+                                  ]}
+                                >
+                                  <Text style={styles.variantInfoValue}>
+                                    {variant.beader || "-"}
+                                  </Text>
+                                </View>
                               </View>
                             </View>
-                          </View>
 
-                          <View style={styles.variantBarcodeSection}>
-                            {normalizedBarcode ? (
-                              <>
-                                <Image
-                                  alt=""
-                                  src={build2dBarcodeUrl(normalizedBarcode, 80)}
-                                  style={styles.variantBarcode}
-                                />
+                            <View style={styles.variantBarcodeSection}>
+                              {normalizedBarcode ? (
+                                <>
+                                  <Image
+                                    alt=""
+                                    src={build2dBarcodeUrl(
+                                      normalizedBarcode,
+                                      80,
+                                    )}
+                                    style={styles.variantBarcode}
+                                  />
+                                  <Text style={styles.variantCodeText}>
+                                    {normalizedBarcode?.split("-")[0]}
+                                    {"\n"}-{normalizedBarcode?.split("-")[1]}
+                                  </Text>
+                                </>
+                              ) : (
                                 <Text style={styles.variantCodeText}>
-                                  {normalizedBarcode?.split("-")[0]}
-                                  {"\n"}-{normalizedBarcode?.split("-")[1]}
+                                  Barcode unavailable
                                 </Text>
-                              </>
-                            ) : (
-                              <Text style={styles.variantCodeText}>
-                                Barcode unavailable
-                              </Text>
-                            )}
+                              )}
+                            </View>
                           </View>
-                        </View>
-                      );
-                    })}
+                        );
+                      })}
+                    </View>
                   </View>
                 </View>
               </View>
-            </View>
-          </Page>
-        );
-      })}
+            </Page>
+          );
+        },
+      )}
     </Document>
   );
 };

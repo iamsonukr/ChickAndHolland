@@ -175,12 +175,10 @@ const getCustomSizeQuantityEntries = (
 
   return mergeSizeEntries(
     parseMaybeArray(item.customSize)
-      .map(
-        (entry): EuSizeEntry => ({
-          size: getCustomSizeText(entry),
-          count: null,
-        }),
-      )
+      .map((entry): EuSizeEntry => ({
+        size: getCustomSizeText(entry),
+        count: null,
+      }))
       .filter((entry): entry is EuSizeEntry => Boolean(entry.size)),
   );
 };
@@ -404,15 +402,18 @@ export const formatSizeWithEuAndCountryLabel = (
     return "-";
   }
 
-  if (resolvedTargetUnit === PDF_DISPLAY_SIZE_UNIT) {
-    return `${PDF_DISPLAY_SIZE_UNIT} ${euSizeText}`;
-  }
-
   const selectedSizeText = formatSizeTextForUnit(item, resolvedTargetUnit, {
     includeUnit: false,
   });
 
-  return `${PDF_DISPLAY_SIZE_UNIT} ${euSizeText} / ${resolvedTargetUnit} ${selectedSizeText}`;
+  if (
+    resolvedTargetUnit === PDF_DISPLAY_SIZE_UNIT ||
+    selectedSizeText === euSizeText
+  ) {
+    return `${PDF_DISPLAY_SIZE_UNIT} ${euSizeText}`;
+  }
+
+  return `${resolvedTargetUnit} ${selectedSizeText}, ${PDF_DISPLAY_SIZE_UNIT} ${euSizeText}`;
 };
 
 export const getEuSizeEntries = (

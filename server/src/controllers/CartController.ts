@@ -37,7 +37,9 @@ const ALLOWED_IMAGE_EXTENSIONS = new Set([
 
 const sanitizeText = (value: unknown) => {
   const text = String(value ?? "").trim();
-  return text && text.toLowerCase() !== "undefined" && text.toLowerCase() !== "null"
+  return text &&
+    text.toLowerCase() !== "undefined" &&
+    text.toLowerCase() !== "null"
     ? text
     : "";
 };
@@ -293,7 +295,9 @@ router.post(
     busboy.on("finish", async () => {
       try {
         if (!retailerId || !productId) {
-          return res.status(400).json({ error: "Missing retailerId or productId" });
+          return res
+            .status(400)
+            .json({ error: "Missing retailerId or productId" });
         }
 
         const files = await Promise.all(filePromises);
@@ -333,40 +337,42 @@ router.post(
           retailerCurrency = retailer.customer.currency;
         }
 
-        const savePromises = productDetails.map(async (detail: any, index: number) => {
-          const cartItem = new Favourites();
-          cartItem.product = product;
-          cartItem.retailer = retailer;
-          cartItem.color = detail.color;
-          cartItem.add_lining = detail.addLining;
-          cartItem.beading_color = detail.beading;
-          cartItem.lining = detail.lining;
-          cartItem.lining_color =
-            detail.lining === "No Lining" ? "No Color" : detail.liningColor;
-          cartItem.mesh_color = detail.mesh;
-          cartItem.quantity = detail.Quantity;
-          cartItem.product_size = detail.size;
-          cartItem.size_country = detail.size_country;
-          cartItem.customization = detail.customization;
-          cartItem.admin_us_size = convertToUSSize(
-            Number(detail.size),
-            detail.size_country,
-          );
+        const savePromises = productDetails.map(
+          async (detail: any, index: number) => {
+            const cartItem = new Favourites();
+            cartItem.product = product;
+            cartItem.retailer = retailer;
+            cartItem.color = detail.color;
+            cartItem.add_lining = detail.addLining;
+            cartItem.beading_color = detail.beading;
+            cartItem.lining = detail.lining;
+            cartItem.lining_color =
+              detail.lining === "No Lining" ? "No Color" : detail.liningColor;
+            cartItem.mesh_color = detail.mesh;
+            cartItem.quantity = detail.Quantity;
+            cartItem.product_size = detail.size;
+            cartItem.size_country = detail.size_country;
+            cartItem.customization = detail.customization;
+            cartItem.admin_us_size = convertToUSSize(
+              Number(detail.size),
+              detail.size_country,
+            );
 
-          if (retailerCurrency) {
-            cartItem.currency = retailerCurrency;
-            cartItem.currencyId = retailerCurrency.id;
-          }
+            if (retailerCurrency) {
+              cartItem.currency = retailerCurrency;
+              cartItem.currencyId = retailerCurrency.id;
+            }
 
-          if (processedFiles.length > 0) {
-            const filesUrl = processedFiles
-              .filter((item) => item.fieldname === `files[${index}][]`)
-              .map((item) => item.url);
-            cartItem.reference_image = JSON.stringify(filesUrl);
-          }
+            if (processedFiles.length > 0) {
+              const filesUrl = processedFiles
+                .filter((item) => item.fieldname === `files[${index}][]`)
+                .map((item) => item.url);
+              cartItem.reference_image = JSON.stringify(filesUrl);
+            }
 
-          return cartItem.save();
-        });
+            return cartItem.save();
+          },
+        );
 
         await Promise.all(savePromises);
 
@@ -529,13 +535,18 @@ router.post(
         const cleanCustomSizes = safeJsonArray(customSize)
           .map((item: any) => sanitizeText(item?.value ?? item?.label ?? item))
           .filter(Boolean);
-        const cleanMesh = sanitizeText(mesh);
-        const cleanBeading = sanitizeText(beading);
+        const cleanIsSasColor = cleanColorType.toUpperCase() === "SAS";
+        const cleanMesh = cleanIsSasColor ? "SAS" : sanitizeText(mesh);
+        const cleanBeading = cleanIsSasColor ? "SAS" : sanitizeText(beading);
         const cleanBeader = sanitizeText(beader);
-        const cleanAddLining = sanitizeText(addLining) === "1";
-        const cleanLining = sanitizeText(lining) || "No Lining";
-        const cleanLiningColor =
-          cleanLining === "No Lining"
+        const cleanAddLining =
+          !cleanIsSasColor && sanitizeText(addLining) === "1";
+        const cleanLining = cleanIsSasColor
+          ? "SAS"
+          : sanitizeText(lining) || "No Lining";
+        const cleanLiningColor = cleanIsSasColor
+          ? "SAS"
+          : cleanLining === "No Lining"
             ? "No Color"
             : sanitizeText(liningColor);
         const cleanQuantity = parsePositiveQuantity(quantity);
@@ -636,8 +647,16 @@ router.post(
           product.mesh_color = cleanMesh;
           product.beading_color = cleanBeading;
           product.beader = cleanBeader || null;
-          product.lining = cleanAddLining ? cleanLining : "No Lining";
-          product.lining_color = cleanAddLining ? cleanLiningColor : "No Color";
+          product.lining = cleanIsSasColor
+            ? "SAS"
+            : cleanAddLining
+              ? cleanLining
+              : "No Lining";
+          product.lining_color = cleanIsSasColor
+            ? "SAS"
+            : cleanAddLining
+              ? cleanLiningColor
+              : "No Color";
           product.product_size =
             cleanSize === "Custom" ? 0 : Number(cleanSize) || 0;
 
@@ -656,8 +675,16 @@ router.post(
           cartItem.mesh_color = cleanMesh;
           cartItem.beading_color = cleanBeading;
           cartItem.add_lining = cleanAddLining ? 1 : 0;
-          cartItem.lining = cleanAddLining ? cleanLining : "No Lining";
-          cartItem.lining_color = cleanAddLining ? cleanLiningColor : "No Color";
+          cartItem.lining = cleanIsSasColor
+            ? "SAS"
+            : cleanAddLining
+              ? cleanLining
+              : "No Lining";
+          cartItem.lining_color = cleanIsSasColor
+            ? "SAS"
+            : cleanAddLining
+              ? cleanLiningColor
+              : "No Color";
           cartItem.product_size =
             cleanSize === "Custom" && cleanCustomSizes.length
               ? `Custom: ${cleanCustomSizes.join(", ")}`

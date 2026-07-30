@@ -23,18 +23,29 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
+  bannerDateText: {
+    color: "black",
+    fontSize: 16,
+    fontWeight: "bold",
+    lineHeight: 1.15,
+  },
   bannerTexts: {
     color: "black",
     fontSize: 25,
     fontWeight: "bold",
-    width: "32%",
+    width: "27%",
   },
   bannerTextPurchaseOrderNo: {
     color: "black",
     fontSize: 30,
     fontWeight: "bold",
     textAlign: "center",
-    width: "28%",
+    width: "40%",
+    lineHeight: 1,
+  },
+  bannerDateBlock: {
+    width: "38%",
+    alignItems: "flex-end",
   },
   contentContainer: {
     flex: 1,
@@ -222,7 +233,7 @@ export const styles = StyleSheet.create({
   additionalImage: {
     width: "48%",
     height: 145,
-    objectFit: "contain", 
+    objectFit: "contain",
     borderRadius: 4,
     // border: "1px solid #ccc",
     marginBottom: 8,
