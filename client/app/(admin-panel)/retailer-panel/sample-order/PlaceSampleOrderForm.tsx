@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -59,50 +59,82 @@ const liningOptions = [
 ];
 const colorTypeOptions = ["SAS", "Custom"];
 
-const sampleOrderSchema = z.object({
-  colorType: z.string().min(1, "Color Type is required"),
-  customColor: z.string().optional(),
-  sizeCountry: z.string().min(1, "Country is required"),
-  size: z.string().min(1, "Size is required"),
-  customSize: z
-    .array(
-      z.union([
-        z.string(),
-        z.object({
-          value: z.string().optional(),
-          label: z.string().optional(),
-        }),
-      ]),
-    )
-    .optional(),
-  mesh: z.string().min(1, "Mesh Color is required"),
-  beading: z.string().min(1, "Beading Color is required"),
-  beader: z.string().optional(),
-  addLining: z.boolean().optional(),
-  lining: z.string().min(1, "Lining is required"),
-  liningColor: z.string().optional(),
-  quantity: z
-    .string()
-    .trim()
-    .min(1, "Quantity is required")
-    .refine((value) => {
-      const quantity = Number(value);
-      return Number.isInteger(quantity) && quantity > 0;
-    }, "Quantity must be greater than 0"),
-  comments: z.string().optional(),
-  primaryImage: z
-    .any()
-    .refine((files) => files?.length === 1, "Primary Image is required"),
-  secondaryImages: z.any().optional(),
-}).refine(
-  (data) =>
-    data.lining === "No Lining" ||
-    Boolean(data.liningColor && data.liningColor.trim()),
-  {
-    message: "Lining Color is required when lining is not 'No Lining'",
-    path: ["liningColor"],
-  },
-);
+const sampleOrderSchema = z
+  .object({
+    colorType: z.string().min(1, "Color Type is required"),
+    customColor: z.string().optional(),
+    sizeCountry: z.string().min(1, "Country is required"),
+    size: z.string().min(1, "Size is required"),
+    customSize: z
+      .array(
+        z.union([
+          z.string(),
+          z.object({
+            value: z.string().optional(),
+            label: z.string().optional(),
+          }),
+        ]),
+      )
+      .optional(),
+    mesh: z.string().optional(),
+    beading: z.string().optional(),
+    beader: z.string().optional(),
+    addLining: z.boolean().optional(),
+    lining: z.string().optional(),
+    liningColor: z.string().optional(),
+    quantity: z
+      .string()
+      .trim()
+      .min(1, "Quantity is required")
+      .refine((value) => {
+        const quantity = Number(value);
+        return Number.isInteger(quantity) && quantity > 0;
+      }, "Quantity must be greater than 0"),
+    comments: z.string().optional(),
+    primaryImage: z
+      .any()
+      .refine((files) => files?.length === 1, "Primary Image is required"),
+    secondaryImages: z.any().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.colorType !== "Custom") return;
+
+    if (!data.mesh?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Mesh Color is required",
+        path: ["mesh"],
+      });
+    }
+
+    if (!data.beading?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Beading Color is required",
+        path: ["beading"],
+      });
+    }
+
+    if (data.addLining && !data.lining?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Lining is required",
+        path: ["lining"],
+      });
+    }
+
+    if (
+      data.addLining &&
+      data.lining !== "No Lining" &&
+      !data.liningColor?.trim()
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Lining Color is required when lining is not 'No Lining'",
+        path: ["liningColor"],
+      });
+    }
+  });
 
 type SampleOrderForm = z.infer<typeof sampleOrderSchema>;
 
@@ -111,7 +143,9 @@ const fileListToArray = (value: unknown): File[] => {
   if (typeof FileList !== "undefined" && value instanceof FileList) {
     return Array.from(value);
   }
-  return Array.isArray(value) ? value.filter((file): file is File => file instanceof File) : [];
+  return Array.isArray(value)
+    ? value.filter((file): file is File => file instanceof File)
+    : [];
 };
 
 const buildFilePreviews = (files: File[]) =>
@@ -158,6 +192,7 @@ const PlaceSampleOrderForm = ({
   });
   const watchCountry = form.watch("sizeCountry");
   const watchAddLining = form.watch("addLining");
+  const watchColorType = form.watch("colorType");
   const watchLining = form.watch("lining");
   const watchSize = form.watch("size");
   const watchPrimaryImage = form.watch("primaryImage");
@@ -168,6 +203,7 @@ const PlaceSampleOrderForm = ({
   const [secondaryImagePreviews, setSecondaryImagePreviews] = useState<
     { name: string; url: string }[]
   >([]);
+  const isCustomColorType = watchColorType === "Custom";
   const currentSizes = useMemo(
     () => sizeOptions[watchCountry] ?? [],
     [watchCountry],
@@ -191,7 +227,9 @@ const PlaceSampleOrderForm = ({
     () =>
       beaders
         .map((beader: any) =>
-          String(typeof beader === "string" ? beader : beader?.name ?? "").trim(),
+          String(
+            typeof beader === "string" ? beader : (beader?.name ?? ""),
+          ).trim(),
         )
         .filter(Boolean),
     [beaders],
@@ -241,15 +279,46 @@ const PlaceSampleOrderForm = ({
     const previews = buildFilePreviews(fileListToArray(watchPrimaryImage));
     setPrimaryImagePreviews(previews);
 
-    return () => previews.forEach((preview) => URL.revokeObjectURL(preview.url));
+    return () =>
+      previews.forEach((preview) => URL.revokeObjectURL(preview.url));
   }, [watchPrimaryImage]);
 
   useEffect(() => {
     const previews = buildFilePreviews(fileListToArray(watchSecondaryImages));
     setSecondaryImagePreviews(previews);
 
-    return () => previews.forEach((preview) => URL.revokeObjectURL(preview.url));
+    return () =>
+      previews.forEach((preview) => URL.revokeObjectURL(preview.url));
   }, [watchSecondaryImages]);
+
+  useEffect(() => {
+    if (watchColorType === "SAS") {
+      form.setValue("customColor", "", { shouldDirty: true });
+      form.setValue("mesh", "SAS", { shouldDirty: true, shouldValidate: true });
+      form.setValue("beading", "SAS", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      form.setValue("addLining", false, { shouldDirty: true });
+      form.setValue("lining", "SAS", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      form.setValue("liningColor", "SAS", { shouldDirty: true });
+      return;
+    }
+
+    if (watchColorType === "Custom") {
+      if (form.getValues("mesh") === "SAS") form.setValue("mesh", "");
+      if (form.getValues("beading") === "SAS") form.setValue("beading", "");
+      if (form.getValues("lining") === "SAS") {
+        form.setValue("lining", "No Lining");
+      }
+      if (form.getValues("liningColor") === "SAS") {
+        form.setValue("liningColor", "");
+      }
+    }
+  }, [form, watchColorType]);
 
   const onSubmit = async (values: SampleOrderForm) => {
     const retailerId = getCookie("retailerId");
@@ -261,10 +330,15 @@ const PlaceSampleOrderForm = ({
 
     const primaryImage = fileListToArray(values.primaryImage)[0];
     const secondaryImages = fileListToArray(values.secondaryImages);
+    const isCustomOrder = values.colorType === "Custom";
+    const addLining = isCustomOrder && Boolean(values.addLining);
     const formData = new FormData();
     formData.append("retailerId", retailerId);
     formData.append("colorType", values.colorType);
-    formData.append("customColor", values.customColor ?? "");
+    formData.append(
+      "customColor",
+      isCustomOrder ? (values.customColor ?? "") : "",
+    );
     formData.append("sizeCountry", values.sizeCountry);
     formData.append("size", values.size);
     formData.append(
@@ -278,16 +352,24 @@ const PlaceSampleOrderForm = ({
           .filter(Boolean),
       ),
     );
-    formData.append("mesh", values.mesh);
-    formData.append("beading", values.beading);
+    formData.append("mesh", isCustomOrder ? (values.mesh ?? "") : "SAS");
+    formData.append("beading", isCustomOrder ? (values.beading ?? "") : "SAS");
     formData.append("beader", values.beader ?? "");
-    formData.append("addLining", values.addLining ? "1" : "0");
-    formData.append("lining", values.lining);
-    formData.append("liningColor", values.liningColor ?? "");
+    formData.append("addLining", addLining ? "1" : "0");
+    formData.append(
+      "lining",
+      isCustomOrder ? (values.lining ?? "No Lining") : "SAS",
+    );
+    formData.append(
+      "liningColor",
+      isCustomOrder ? (values.liningColor ?? "") : "SAS",
+    );
     formData.append("quantity", values.quantity);
     formData.append("comments", values.comments ?? "");
     formData.append("primaryImage", primaryImage);
-    secondaryImages.forEach((image) => formData.append("secondaryImages", image));
+    secondaryImages.forEach((image) =>
+      formData.append("secondaryImages", image),
+    );
 
     try {
       const response: any = await placeSampleOrder(formData);
@@ -464,7 +546,10 @@ const PlaceSampleOrderForm = ({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Color Type</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select color type" />
@@ -483,78 +568,87 @@ const PlaceSampleOrderForm = ({
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="customColor"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Custom Color</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Color notes" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {(["mesh", "beading"] as const).map((name) => (
-                  <FormField
-                    key={name}
-                    control={form.control}
-                    name={name}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {name === "mesh" ? "Mesh Color" : "Beading Color"}
-                        </FormLabel>
-                        <Select
-                          value={
-                            colourValues.includes(String(field.value))
-                              ? String(field.value)
-                              : ""
-                          }
-                          onValueChange={field.onChange}
-                        >
+                {isCustomColorType && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="customColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Custom Color</FormLabel>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select color" />
-                            </SelectTrigger>
+                            <Input placeholder="Color notes" {...field} />
                           </FormControl>
-                          <SelectContent>
-                            {colourOptions.map((colour: any) => (
-                              <SelectItem key={colour.value} value={colour.value}>
-                                <div className="flex items-center gap-2">
-                                  {colour.hexcode && (
-                                    <span
-                                      className="h-4 w-4 rounded-full border"
-                                      style={{ backgroundColor: colour.hexcode }}
-                                    />
-                                  )}
-                                  {colour.label}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormControl>
-                          <Input
-                            className="mt-2"
-                            placeholder="Or type custom color text"
-                            value={
-                              colourValues.includes(String(field.value))
-                                ? ""
-                                : String(field.value ?? "")
-                            }
-                            onChange={(event) =>
-                              field.onChange(event.target.value)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                ))}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {(["mesh", "beading"] as const).map((name) => (
+                      <FormField
+                        key={name}
+                        control={form.control}
+                        name={name}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              {name === "mesh" ? "Mesh Color" : "Beading Color"}
+                            </FormLabel>
+                            <Select
+                              value={
+                                colourValues.includes(String(field.value))
+                                  ? String(field.value)
+                                  : ""
+                              }
+                              onValueChange={field.onChange}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select color" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {colourOptions.map((colour: any) => (
+                                  <SelectItem
+                                    key={colour.value}
+                                    value={colour.value}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {colour.hexcode && (
+                                        <span
+                                          className="h-4 w-4 rounded-full border"
+                                          style={{
+                                            backgroundColor: colour.hexcode,
+                                          }}
+                                        />
+                                      )}
+                                      {colour.label}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormControl>
+                              <Input
+                                className="mt-2"
+                                placeholder="Or type custom color text"
+                                value={
+                                  colourValues.includes(String(field.value))
+                                    ? ""
+                                    : String(field.value ?? "")
+                                }
+                                onChange={(event) =>
+                                  field.onChange(event.target.value)
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </>
+                )}
 
                 <FormField
                   control={form.control}
@@ -575,120 +669,129 @@ const PlaceSampleOrderForm = ({
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="addLining"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-2 rounded-md border px-3 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={(checked) => {
-                            field.onChange(checked);
-                            if (!checked) {
-                              form.setValue("lining", "No Lining");
-                              form.setValue("liningColor", "");
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormLabel className="m-0 cursor-pointer">
-                        Add Lining
-                      </FormLabel>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {watchAddLining && (
-                  <FormField
-                    control={form.control}
-                    name="lining"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Lining</FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            if (value === "No Lining") {
-                              form.setValue("liningColor", "");
-                            }
-                          }}
-                        >
+                {isCustomColorType && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="addLining"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-2 rounded-md border px-3 py-2">
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select lining" />
-                            </SelectTrigger>
+                            <Checkbox
+                              checked={field.value ?? false}
+                              onCheckedChange={(checked) => {
+                                field.onChange(checked);
+                                if (!checked) {
+                                  form.setValue("lining", "No Lining");
+                                  form.setValue("liningColor", "");
+                                }
+                              }}
+                            />
                           </FormControl>
-                          <SelectContent>
-                            {liningOptions.map((lining) => (
-                              <SelectItem key={lining} value={lining}>
-                                {lining}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
+                          <FormLabel className="m-0 cursor-pointer">
+                            Add Lining
+                          </FormLabel>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                {watchAddLining && watchLining !== "No Lining" && (
-                  <FormField
-                    control={form.control}
-                    name="liningColor"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Lining Color</FormLabel>
-                        <Select
-                          value={
-                            colourValues.includes(String(field.value))
-                              ? String(field.value)
-                              : ""
-                          }
-                          onValueChange={field.onChange}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select color" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {colourOptions.map((colour: any) => (
-                              <SelectItem key={colour.value} value={colour.value}>
-                                <div className="flex items-center gap-2">
-                                  {colour.hexcode && (
-                                    <span
-                                      className="h-4 w-4 rounded-full border"
-                                      style={{ backgroundColor: colour.hexcode }}
-                                    />
-                                  )}
-                                  {colour.label}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormControl>
-                          <Input
-                            className="mt-2"
-                            placeholder="Or type custom lining color text"
-                            value={
-                              colourValues.includes(String(field.value))
-                                ? ""
-                                : String(field.value ?? "")
-                            }
-                            onChange={(event) =>
-                              field.onChange(event.target.value)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                    {watchAddLining && (
+                      <FormField
+                        control={form.control}
+                        name="lining"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Lining</FormLabel>
+                            <Select
+                              value={field.value}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                if (value === "No Lining") {
+                                  form.setValue("liningColor", "");
+                                }
+                              }}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select lining" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {liningOptions.map((lining) => (
+                                  <SelectItem key={lining} value={lining}>
+                                    {lining}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     )}
-                  />
+
+                    {watchAddLining && watchLining !== "No Lining" && (
+                      <FormField
+                        control={form.control}
+                        name="liningColor"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Lining Color</FormLabel>
+                            <Select
+                              value={
+                                colourValues.includes(String(field.value))
+                                  ? String(field.value)
+                                  : ""
+                              }
+                              onValueChange={field.onChange}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select color" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {colourOptions.map((colour: any) => (
+                                  <SelectItem
+                                    key={colour.value}
+                                    value={colour.value}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {colour.hexcode && (
+                                        <span
+                                          className="h-4 w-4 rounded-full border"
+                                          style={{
+                                            backgroundColor: colour.hexcode,
+                                          }}
+                                        />
+                                      )}
+                                      {colour.label}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormControl>
+                              <Input
+                                className="mt-2"
+                                placeholder="Or type custom lining color text"
+                                value={
+                                  colourValues.includes(String(field.value))
+                                    ? ""
+                                    : String(field.value ?? "")
+                                }
+                                onChange={(event) =>
+                                  field.onChange(event.target.value)
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </>
                 )}
 
                 <FormField
@@ -742,7 +845,9 @@ const PlaceSampleOrderForm = ({
                             >
                               <div
                                 className="h-28 rounded border bg-white bg-contain bg-center bg-no-repeat"
-                                style={{ backgroundImage: `url(${preview.url})` }}
+                                style={{
+                                  backgroundImage: `url(${preview.url})`,
+                                }}
                               />
                               <p className="mt-2 truncate text-xs text-muted-foreground">
                                 {preview.name}
@@ -768,19 +873,55 @@ const PlaceSampleOrderForm = ({
                           type="file"
                           accept="image/*"
                           multiple
-                          onChange={(event) => onChange(event.target.files)}
+                          onChange={(event) => {
+                            const existingFiles = fileListToArray(
+                              form.getValues("secondaryImages"),
+                            );
+                            const selectedFiles = fileListToArray(
+                              event.target.files,
+                            );
+
+                            onChange([...existingFiles, ...selectedFiles]);
+                            event.target.value = "";
+                          }}
                         />
                       </FormControl>
                       {secondaryImagePreviews.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-3">
-                          {secondaryImagePreviews.map((preview) => (
+                          {secondaryImagePreviews.map((preview, index) => (
                             <div
                               key={preview.url}
-                              className="w-28 rounded-md border bg-muted/30 p-2"
+                              className="relative w-36 rounded-md border bg-muted/30 p-2"
                             >
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="destructive"
+                                className="absolute right-1 top-1 h-6 w-6"
+                                onClick={() => {
+                                  const updatedFiles = fileListToArray(
+                                    form.getValues("secondaryImages"),
+                                  ).filter(
+                                    (_, fileIndex) => fileIndex !== index,
+                                  );
+
+                                  form.setValue(
+                                    "secondaryImages",
+                                    updatedFiles,
+                                    {
+                                      shouldDirty: true,
+                                      shouldTouch: true,
+                                    },
+                                  );
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
                               <div
-                                className="h-20 rounded border bg-white bg-cover bg-center"
-                                style={{ backgroundImage: `url(${preview.url})` }}
+                                className="h-28 rounded border bg-white bg-contain bg-center bg-no-repeat"
+                                style={{
+                                  backgroundImage: `url(${preview.url})`,
+                                }}
                               />
                               <p className="mt-2 truncate text-xs text-muted-foreground">
                                 {preview.name}

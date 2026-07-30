@@ -15,6 +15,7 @@ const RetailerPdf = ({
     <GroupedOrderPdf
       orderData={orderData}
       showShippingDate={showShippingDate}
+      useLargeReferenceImages
     />
   );
 };

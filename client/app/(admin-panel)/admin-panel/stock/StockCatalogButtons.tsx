@@ -2,7 +2,15 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { pdf } from "@react-pdf/renderer";
-import { Download, FileSpreadsheet, Loader2, Mail, Plus, Printer, X } from "lucide-react";
+import {
+  Download,
+  FileSpreadsheet,
+  Loader2,
+  Mail,
+  Plus,
+  Printer,
+  X,
+} from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { getApiUrl } from "@/lib/constants";
 import { getCookie } from "@/lib/utils";
 import {
-  formatSizeWithCountryLabel,
+  formatSizeWithEuAndCountryLabel,
   normalizeSizeUnit,
   type SupportedSizeUnit,
 } from "@/lib/sizeConversion";
@@ -87,16 +95,14 @@ const getFirstImageUrl = (item: any) => {
     : [];
 
   return (
-    [...stockImages, ...productImages].find((image: any) => image?.name)?.name ||
+    [...stockImages, ...productImages].find((image: any) => image?.name)
+      ?.name ||
     item?.image ||
     ""
   );
 };
 
-const convertImageForPdf = async (
-  imageUrl: string,
-  objectUrls: string[],
-) => {
+const convertImageForPdf = async (imageUrl: string, objectUrls: string[]) => {
   if (!imageUrl || isPdfFriendlyImage(imageUrl)) return imageUrl;
 
   try {
@@ -187,8 +193,7 @@ const formatPrice = (value: unknown, item: any) => {
   if (!Number.isFinite(price)) return "";
 
   const currency =
-    item?.currencyCode ||
-    (String(item?.currencySymbol ?? "").trim() || "EUR");
+    item?.currencyCode || String(item?.currencySymbol ?? "").trim() || "EUR";
 
   return `${currency} ${price.toFixed(2)}`;
 };
@@ -287,7 +292,7 @@ const buildExcelRows = (
           item?.styleNo ||
           "",
         Quantity: item?.quantity ?? "",
-        Size: formatSizeWithCountryLabel(item, sizeSystem),
+        Size: formatSizeWithEuAndCountryLabel(item, sizeSystem),
         Source: item?.sourceLocation || "-",
         Mesh: getColourLabel(
           colours,
@@ -377,11 +382,7 @@ const StockCatalogButtons = ({
       : "with-price";
 
   useEffect(() => {
-    if (
-      !exportDialogOpen ||
-      customers.length ||
-      customersLoading
-    ) {
+    if (!exportDialogOpen || customers.length || customersLoading) {
       return;
     }
 
@@ -421,11 +422,7 @@ const StockCatalogButtons = ({
     };
 
     fetchCustomers();
-  }, [
-    customers.length,
-    customersLoading,
-    exportDialogOpen,
-  ]);
+  }, [customers.length, customersLoading, exportDialogOpen]);
 
   const filteredCustomers = useMemo(() => {
     const queryText = customerSearch.trim().toLowerCase();
@@ -523,12 +520,14 @@ const StockCatalogButtons = ({
       );
 
       return await pdf(
-        <StockCatalogPdf
-          stock={preparedStock}
-          colours={colours}
-          showPrice={showPrice}
-          sizeSystem={sizeSystem}
-        /> as any,
+        (
+          <StockCatalogPdf
+            stock={preparedStock}
+            colours={colours}
+            showPrice={showPrice}
+            sizeSystem={sizeSystem}
+          />
+        ) as any,
       ).toBlob();
     } finally {
       objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
@@ -648,7 +647,10 @@ const StockCatalogButtons = ({
       const formData = new FormData();
       formData.append("recipients", JSON.stringify(recipientEmails));
       formData.append("fileName", fileName);
-      formData.append("exportKind", selectedExportIsExcel ? "excel" : "catalog");
+      formData.append(
+        "exportKind",
+        selectedExportIsExcel ? "excel" : "catalog",
+      );
       formData.append("showPrice", String(selectedExportShowPrice));
       formData.append("attachment", attachmentBlob, fileName);
 

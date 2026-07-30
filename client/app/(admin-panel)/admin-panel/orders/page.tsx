@@ -406,7 +406,12 @@ const OrdersPage = async (props: {
                         Total Quantity
                       </th>
                       {showContact && (
-                        <th className={cn(tableHeadClassName, "w-[360px]")}>
+                        <th
+                          className={cn(
+                            tableHeadClassName,
+                            "w-[360px] font-bold",
+                          )}
+                        >
                           Shipping Address
                         </th>
                       )}
@@ -560,8 +565,8 @@ const OrdersPage = async (props: {
 
                             {/* Tracking ID */}
                             <td
-                                className={cn(
-                                  tableCellClassName,
+                              className={cn(
+                                tableCellClassName,
                                 "max-w-[260px] whitespace-normal",
                               )}
                             >
