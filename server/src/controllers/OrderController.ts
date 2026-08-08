@@ -240,6 +240,14 @@ async function deleteOrderBeadersByStyleIds(styleIds: number[]) {
   );
 }
 
+async function deleteStyleProgressByStyleIds(styleIds: number[]) {
+  if (!styleIds.length) return;
+
+  await db.query("DELETE FROM `styleProgress` WHERE styleId IN (?)", [
+    styleIds,
+  ]);
+}
+
 async function getRegularOrderPaymentSummary(order: Order) {
   const [totalRow] = await db.query(
     `
@@ -2222,6 +2230,7 @@ router.patch(
         ? styleRows.map((row: any) => Number(row.id)).filter(Boolean)
         : [];
 
+      await deleteStyleProgressByStyleIds(styleIds);
       await deleteOrderBeadersByStyleIds(styleIds);
       await OrderPayments.createQueryBuilder()
         .delete()
