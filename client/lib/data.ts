@@ -53,7 +53,10 @@ export const getCategories = async () => {
 
     // ❌ Remove CUSTOM category
     return categories.filter(
-      (category) => category.name?.toUpperCase() !== "CUSTOM"
+      (category) =>
+        !["CUSTOM", "RETAILER COLLECTION"].includes(
+          category.name?.toUpperCase()
+        )
     );
   } catch (error) {
     console.error("❌ Error fetching categories:", error);

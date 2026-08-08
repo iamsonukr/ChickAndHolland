@@ -40,6 +40,10 @@ export default async function CollectionProducts(props: {
 
   const categoryId = parseInt(params.slug[0], 10);
   const subCategoryId = parseInt(params.slug[1], 10);
+  if (categoryId === 95) {
+    return notFound();
+  }
+
   const resolvedCurrencyId = currencyId ? parseInt(currencyId, 10) : undefined;
   const shouldFetchFullCollection =
     FULL_INITIAL_FETCH_SUBCATEGORY_IDS.has(subCategoryId);
@@ -178,7 +182,12 @@ export async function generateMetadata(props: {
     return notFound();
   }
 
+  const categoryId = parseInt(params.slug[0], 10);
   const subCategoryId = parseInt(params.slug[1], 10);
+  if (categoryId === 95) {
+    return notFound();
+  }
+
   const categoryDetails = await getSubCategoryDetails(subCategoryId);
   const categoryName = categoryDetails?.name || "Collection";
   const description = `Check out our latest collection of ${categoryName} on Chic & Holland.`;

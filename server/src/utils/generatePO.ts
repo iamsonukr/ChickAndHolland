@@ -2,7 +2,7 @@ import db from "../db";
 
 const GLOBAL_PO_SEQUENCE_NAME = "global_po";
 const SAMPLE_ORDER_SEQUENCE_NAME = "sample_order_ns";
-const SAMPLE_ORDER_INITIAL_NEXT_NUMBER = 1164;
+const SAMPLE_ORDER_INITIAL_NEXT_NUMBER = 110064;
 
 type Queryable = {
   query: (query: string, parameters?: any[]) => Promise<any>;
@@ -56,6 +56,7 @@ async function ensureSequenceRow(
       INSERT INTO order_sequence (name, nextNumber, createdAt, updatedAt)
       VALUES (?, ?, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))
       ON DUPLICATE KEY UPDATE
+        nextNumber = GREATEST(nextNumber, VALUES(nextNumber)),
         updatedAt = CURRENT_TIMESTAMP(6)
     `,
     [sequenceName, Math.max(initialNextNumber, 1)],
@@ -195,7 +196,7 @@ export async function generateNextSampleOrderStyleNo() {
 export async function setSampleOrderSequence(target: number) {
   const nextNumber = await setSequenceNumber(
     SAMPLE_ORDER_SEQUENCE_NAME,
-    target,
+    Math.max(target, SAMPLE_ORDER_INITIAL_NEXT_NUMBER),
   );
 
   return {
