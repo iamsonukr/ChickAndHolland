@@ -9,7 +9,8 @@ import useHttp from "@/lib/hooks/usePost";
 
 const SampleOrderSequenceForm = () => {
   const [nextNumber, setNextNumber] = useState("");
-  const [nextStyleNo, setNextStyleNo] = useState("NS001164");
+  const [nextStyleNo, setNextStyleNo] = useState("NS110064");
+  const minimumSampleOrderNumber = 110064;
   const { executeAsync: fetchSequence, loading: loadingSequence } = useHttp(
     "/admin-settings/sample-order-sequence",
     "GET",
@@ -23,7 +24,7 @@ const SampleOrderSequenceForm = () => {
     try {
       const response: any = await fetchSequence();
       setNextNumber(String(response?.nextNumber ?? ""));
-      setNextStyleNo(response?.nextStyleNo ?? "NS001164");
+      setNextStyleNo(response?.nextStyleNo ?? "NS110064");
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to load sample order sequence");
     }
@@ -36,8 +37,8 @@ const SampleOrderSequenceForm = () => {
   const onSave = async () => {
     const value = Number(nextNumber);
 
-    if (!Number.isInteger(value) || value < 1) {
-      toast.error("Enter a positive whole number.");
+    if (!Number.isInteger(value) || value < minimumSampleOrderNumber) {
+      toast.error(`Enter ${minimumSampleOrderNumber} or higher.`);
       return;
     }
 
@@ -70,10 +71,10 @@ const SampleOrderSequenceForm = () => {
           <Input
             id="sample-next-number"
             type="number"
-            min={1}
+            min={minimumSampleOrderNumber}
             value={nextNumber}
             onChange={(event) => setNextNumber(event.target.value)}
-            placeholder="1164"
+            placeholder="110064"
           />
         </div>
         <Button

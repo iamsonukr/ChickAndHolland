@@ -45,7 +45,7 @@ const sizeOptions: Record<string, number[]> = {
   UK: [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32],
 };
 
-const FALLBACK_SAMPLE_STYLE_NO = "NS001164";
+const FALLBACK_SAMPLE_STYLE_NO = "NS110064";
 const NEXT_STYLE_TIMEOUT_MS = 10000;
 const liningOptions = [
   "No Lining",

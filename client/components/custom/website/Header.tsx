@@ -57,7 +57,6 @@ const Header = async () => {
         (a: any, b: any) => a.priority - b.priority
       ),
     }));
-  console.log("sortedCategories", sortedCategories)
   // console.log("These are sorted categories", sortedCategories)
 
   return (
