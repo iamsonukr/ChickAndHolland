@@ -868,6 +868,9 @@ const ActionButtons = ({
                             );
                           }}
                         />
+                      </>
+                    )}
+
                         <div
                           className={`flex grid-cols-5 ${watch[index].addLining ? "items-end" : "items-center"}`}
                         >
@@ -879,7 +882,20 @@ const ActionButtons = ({
                                 <FormControl>
                                   <Checkbox
                                     checked={field.value ?? false}
-                                    onCheckedChange={field.onChange}
+                                    onCheckedChange={(checked) => {
+                                      field.onChange(checked);
+                                      if (!checked) {
+                                        clearCustomLiningActive(item.id);
+                                        form.setValue(
+                                          `productDetails.${index}.lining`,
+                                          productDetails.lining,
+                                        );
+                                        form.setValue(
+                                          `productDetails.${index}.liningColor`,
+                                          productDetails.lining_color,
+                                        );
+                                      }
+                                    }}
                                   />
                                 </FormControl>
                                 <p className="text-xs">
@@ -1070,9 +1086,6 @@ const ActionButtons = ({
                             )}
                           </>
                         )}
-
-                      </>
-                    )}
 
                     <FormField
                       control={form.control}

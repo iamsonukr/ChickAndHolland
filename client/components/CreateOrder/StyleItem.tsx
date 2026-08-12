@@ -301,21 +301,6 @@ const StyleItem = ({
                         shouldTouch: true,
                         shouldValidate: true,
                       });
-                      form.setValue(`styles.${index}.lining`, "SAS", {
-                        shouldDirty: true,
-                        shouldTouch: true,
-                        shouldValidate: true,
-                      });
-                      form.setValue(`styles.${index}.liningColor`, "SAS", {
-                        shouldDirty: true,
-                        shouldTouch: true,
-                        shouldValidate: true,
-                      });
-                      form.setValue(`styles.${index}.addLining`, false, {
-                        shouldDirty: true,
-                        shouldTouch: true,
-                        shouldValidate: true,
-                      });
                     }
                   }}
                   value={field.value}
@@ -502,7 +487,26 @@ const StyleItem = ({
                       <FormControl>
                         <Checkbox
                           checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            if (!checked) {
+                              setCustomLiningActive(false);
+                              form.setValue(`styles.${index}.lining`, "SAS", {
+                                shouldDirty: true,
+                                shouldTouch: true,
+                                shouldValidate: true,
+                              });
+                              form.setValue(
+                                `styles.${index}.liningColor`,
+                                "SAS",
+                                {
+                                  shouldDirty: true,
+                                  shouldTouch: true,
+                                  shouldValidate: true,
+                                },
+                              );
+                            }
+                          }}
                         />
                       </FormControl>
                       <p className="text-lg">
@@ -683,6 +687,214 @@ const StyleItem = ({
           )}
 
           {/* ── Size Country ── */}
+          {watchColorType !== ColorType.Custom && (
+            <>
+              <div className="flex w-full items-end">
+                <FormField
+                  control={form.control}
+                  name={`styles.${index}.addLining`}
+                  render={({ field }) => (
+                    <FormItem className="flex h-fit w-full items-center gap-2 rounded-md border px-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value ?? false}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            if (!checked) {
+                              setCustomLiningActive(false);
+                              form.setValue(`styles.${index}.lining`, "SAS", {
+                                shouldDirty: true,
+                                shouldTouch: true,
+                                shouldValidate: true,
+                              });
+                              form.setValue(
+                                `styles.${index}.liningColor`,
+                                "SAS",
+                                {
+                                  shouldDirty: true,
+                                  shouldTouch: true,
+                                  shouldValidate: true,
+                                },
+                              );
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <p className="text-lg">
+                        Would You Like To Add Lining To This Product?
+                      </p>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {addLining && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name={`styles.${index}.lining`}
+                    render={({ field }) => {
+                      const knownLiningValues = Array.from(
+                        new Set([
+                          sampleLiningValue,
+                          ...lining,
+                          LINING_CUSTOM_VALUE,
+                        ]),
+                      );
+
+                      return (
+                        <FormItem>
+                          <FormLabel>Lining</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              const isCustom = value === LINING_CUSTOM_VALUE;
+                              setCustomLiningActive(isCustom);
+                              field.onChange(isCustom ? "" : value);
+                              if (value === "No Lining") {
+                                form.setValue(
+                                  `styles.${index}.liningColor`,
+                                  "",
+                                );
+                              }
+                              if (!isCustom) {
+                                form.trigger(`styles.${index}.lining` as any);
+                              }
+                            }}
+                            value={
+                              getCustomLiningText(
+                                field.value,
+                                knownLiningValues,
+                              ) || customLiningActive
+                                ? LINING_CUSTOM_VALUE
+                                : field.value
+                            }
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Lining" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value={sampleLiningValue}>
+                                SAS (Same as Sample)
+                              </SelectItem>
+                              {lining.map((item) => (
+                                <SelectItem key={item} value={item}>
+                                  {item}
+                                </SelectItem>
+                              ))}
+                              <SelectItem value={LINING_CUSTOM_VALUE}>
+                                Custom
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            className="mt-2"
+                            placeholder="Or type custom lining text"
+                            value={getCustomLiningText(
+                              field.value,
+                              knownLiningValues,
+                            )}
+                            onChange={(event) => {
+                              setCustomLiningActive(true);
+                              field.onChange(event.target.value);
+                            }}
+                          />
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+
+                  {currentLining && currentLining !== "No Lining" && (
+                    <FormField
+                      control={form.control}
+                      name={`styles.${index}.liningColor`}
+                      render={({ field }) => {
+                        const knownColorValues = getKnownColorValues(
+                          sampleLiningColorValue,
+                        );
+
+                        return (
+                          <FormItem>
+                            <FormLabel>Lining Color</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={getColorSelectValue(
+                                field.value,
+                                knownColorValues,
+                              )}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select Lining Color" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value={sampleLiningColorValue}>
+                                  <div className="flex gap-1">
+                                    SAS (
+                                    <div className="flex items-center">
+                                      <p
+                                        className="mx-1 h-4 w-4 rounded-full"
+                                        style={{
+                                          backgroundColor:
+                                            stylesSelect?.liningColor,
+                                          border: "1px solid #000",
+                                        }}
+                                      />
+                                      {getColourBasedOnhex(
+                                        stylesSelect?.liningColor,
+                                      )}
+                                    </div>
+                                    )
+                                  </div>
+                                </SelectItem>
+                                {colors.map((colour: any) => (
+                                  <SelectItem
+                                    key={colour.id}
+                                    value={getColorOptionValue(colour)}
+                                  >
+                                    <div className="flex items-center">
+                                      <div
+                                        className="h-4 w-4 rounded-full"
+                                        style={{
+                                          backgroundColor: getColourBasedOnId(
+                                            colour.id,
+                                          ),
+                                          border: "1px solid #000",
+                                        }}
+                                      />
+                                      <span className="ml-2">
+                                        {colour.name}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              className="mt-2"
+                              placeholder="Or type custom lining color text"
+                              value={getCustomColorText(
+                                field.value,
+                                knownColorValues,
+                              )}
+                              onChange={(event) =>
+                                field.onChange(event.target.value)
+                              }
+                            />
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            </>
+          )}
+
           <FormField
             control={form.control}
             name={`styles[${index}].sizeCountry` as any}
