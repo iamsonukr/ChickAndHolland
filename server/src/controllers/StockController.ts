@@ -235,16 +235,28 @@ router.get(
       page,
       query = "",
       currencyId,
+      source,
     }: {
       page?: string;
       query?: string;
       currencyId?: string;
+      source?: string;
     } = req.query;
 
     const likeQuery = `%${query?.toLowerCase()}%`;
+    const sourceFilter = String(source ?? "").trim().toLowerCase();
+
+    const applySourceFilter = (queryBuilder: any) => {
+      if (!sourceFilter) return queryBuilder;
+
+      return queryBuilder.andWhere("LOWER(stock.sourceLocation) = :source", {
+        source: sourceFilter,
+      });
+    };
 
     const buildStockQuery = () =>
-      stockRepository
+      applySourceFilter(
+        stockRepository
         .createQueryBuilder("stock")
         .leftJoinAndMapOne(
           "stock.product",
@@ -281,12 +293,14 @@ router.get(
           })
         )
         .andWhere("stock.isDeleted = false")
+      )
         .orderBy("stock.createdAt", "DESC")
         .addOrderBy("productImages.isMain", "DESC")
         .addOrderBy("productImages.createdAt", "ASC");
 
     const buildStockCountQuery = () =>
-      stockRepository
+      applySourceFilter(
+        stockRepository
         .createQueryBuilder("stock")
         .leftJoin(Product, "products", "stock.styleNo = products.id")
         .where(
@@ -298,7 +312,8 @@ router.get(
             });
           })
         )
-        .andWhere("stock.isDeleted = false");
+        .andWhere("stock.isDeleted = false")
+      );
 
     if (!page) {
       const stockWithProducts = await buildStockQuery().getMany();
@@ -336,6 +351,30 @@ router.get(
         totalCount,
       });
     }
+  })
+);
+
+router.get(
+  "/source-locations",
+  asyncHandler(async (_req: Request, res: Response) => {
+    const rows = await db
+      .getRepository(Stock)
+      .createQueryBuilder("stock")
+      .select("DISTINCT stock.sourceLocation", "sourceLocation")
+      .where("stock.isDeleted = false")
+      .andWhere("stock.sourceLocation IS NOT NULL")
+      .andWhere("TRIM(stock.sourceLocation) <> ''")
+      .orderBy("stock.sourceLocation", "ASC")
+      .getRawMany();
+
+    const sourceLocations = rows
+      .map((row: any) => String(row.sourceLocation ?? "").trim())
+      .filter(Boolean);
+
+    res.json({
+      success: true,
+      sourceLocations,
+    });
   })
 );
 

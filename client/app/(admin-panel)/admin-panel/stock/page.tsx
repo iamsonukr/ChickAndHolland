@@ -6,6 +6,7 @@ import {
   getCurrencies,
   getRetailerDetails,
   getCustomers,
+  getStockSourceLocations,
 } from "@/lib/data";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
@@ -22,6 +23,7 @@ import StockCatalogButtons from "./StockCatalogButtons";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import SizeSelector from "../../retailer-panel/inventory/SizeSelector";
+import StockSourceFilter from "./StockSourceFilter";
 
 const ITEMS_PER_PAGE = 100;
 
@@ -36,6 +38,7 @@ const Stock = async (props: {
   const searchParams = await props.searchParams;
   const currentPage = parsePageParam(searchParams["cPage"]);
   const query = searchParams["q"] || "";
+  const selectedSource = searchParams["source"] || "";
   const cookieStore = await cookies();
   let currencyId = cookieStore.get("currencyId")?.value;
   const retailerId = cookieStore.get("retailerId")?.value;
@@ -56,6 +59,7 @@ const Stock = async (props: {
     page: currentPage,
     query,
     currencyId: currencyId ? Number(currencyId) : undefined,
+    source: selectedSource,
   });
 
   const totalPages = Math.max(
@@ -70,6 +74,8 @@ const Stock = async (props: {
   }
 
   const colours = await getProductColours({});
+  const stockSourceResponse = await getStockSourceLocations();
+  const sourceLocations = stockSourceResponse?.sourceLocations ?? [];
   const currencies = await getCurrencies();
   const customersResponse = await getCustomers({});
   const currencyOptions = currencies?.currencies ?? currencies ?? [];
@@ -104,6 +110,7 @@ const Stock = async (props: {
               colours={colours.productColours}
               query={query}
               currencyId={currencyId ? Number(currencyId) : undefined}
+              source={selectedSource}
             />
             <AddStockForm
               colours={colours.productColours}
@@ -119,8 +126,14 @@ const Stock = async (props: {
           syncCurrency
         />
 
-        {/* SEARCH */}
-        <CustomSearchBar query={query} />
+        {/* FILTERS */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <CustomSearchBar query={query} />
+          <StockSourceFilter
+            sourceLocations={sourceLocations}
+            selectedSource={selectedSource}
+          />
+        </div>
 
         {/* GRID */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2">

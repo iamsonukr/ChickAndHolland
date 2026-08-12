@@ -36,6 +36,7 @@ type StockCatalogButtonsProps = {
   colours: any[];
   query?: string;
   currencyId?: number;
+  source?: string;
 };
 
 type CatalogMode = "with-price" | "without-price";
@@ -361,6 +362,7 @@ const StockCatalogButtons = ({
   colours,
   query = "",
   currencyId,
+  source = "",
 }: StockCatalogButtonsProps) => {
   const [loadingMode, setLoadingMode] = useState<ExportMode | null>(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -445,6 +447,7 @@ const StockCatalogButtons = ({
     const params = new URLSearchParams();
     if (query) params.set("query", query);
     if (currencyId) params.set("currencyId", String(currencyId));
+    if (source) params.set("source", source);
 
     const response = await fetch(
       `${getApiUrl("stock")}${params.toString() ? `?${params.toString()}` : ""}`,

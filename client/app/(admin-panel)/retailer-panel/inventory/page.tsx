@@ -1,5 +1,5 @@
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
-import { getProductColours, getStock } from "@/lib/data";
+import { getProductColours, getStock, getStockSourceLocations } from "@/lib/data";
 import CustomSearchBar from "@/components/custom/admin-panel/customSearchBar";
 import CustomPagination from "@/components/custom/admin-panel/customPagination";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
@@ -10,6 +10,7 @@ import StyleNoImage from "@/app/(admin-panel)/admin-panel/stock/StyleNoImage";
 import ExpandStockDetails from "@/app/(admin-panel)/admin-panel/stock/ExpandStockDetails";
 import TableActions from "../../admin-panel/stock/TableActions";
 import SizeSelector from "./SizeSelector";
+import StockSourceFilter from "../../admin-panel/stock/StockSourceFilter";
 
 // ------------------------------------
 // TYPES
@@ -17,6 +18,7 @@ import SizeSelector from "./SizeSelector";
 interface SearchParams {
   cPage?: string;
   q?: string;
+  source?: string;
 }
 
 interface InventoryProps {
@@ -24,10 +26,11 @@ interface InventoryProps {
 }
 
 export default async function Inventory({ searchParams }: InventoryProps) {
-  const { cPage, q } = await searchParams;
+  const { cPage, q, source } = await searchParams;
 
   const currentPage = cPage ? Number(cPage) : 1;
   const query = q || "";
+  const selectedSource = source || "";
 
   const cookieStore = await cookies();
   let currencyId = cookieStore.get("currencyId")?.value;
@@ -49,9 +52,12 @@ export default async function Inventory({ searchParams }: InventoryProps) {
     page: currentPage,
     query,
     currencyId: currencyId ? Number(currencyId) : undefined,
+    source: selectedSource,
   });
 
   const colours = await getProductColours({});
+  const stockSourceResponse = await getStockSourceLocations();
+  const sourceLocations = stockSourceResponse?.sourceLocations ?? [];
 
   const getColourName = (hex: string) => {
     return colours.productColours.find((c: any) => c.hexcode === hex)?.name;
@@ -69,10 +75,16 @@ export default async function Inventory({ searchParams }: InventoryProps) {
         {/* SIZE DROPDOWN */}
         <SizeSelector />
 
-        <CustomSearchBar query={query} />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <CustomSearchBar query={query} />
+          <StockSourceFilter
+            sourceLocations={sourceLocations}
+            selectedSource={selectedSource}
+          />
+        </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
-          {stock.stock?.map((item) => {
+          {stock.stock?.map((item: any) => {
             if (item.quantity < 1) return null;
             if (!item.product) return null;
 
@@ -137,6 +149,15 @@ export default async function Inventory({ searchParams }: InventoryProps) {
 
                         <TableRow>
                           <TableCell className="py-0 text-xs font-medium">
+                            Source
+                          </TableCell>
+                          <TableCell className="py-0 text-xs whitespace-normal break-words">
+                            {item.sourceLocation || "-"}
+                          </TableCell>
+                        </TableRow>
+
+                        <TableRow>
+                          <TableCell className="py-0 text-xs font-medium">
                             Mesh
                           </TableCell>
                           <TableCell className="py-1 text-xs whitespace-normal break-words">
@@ -178,6 +199,7 @@ export default async function Inventory({ searchParams }: InventoryProps) {
         <CustomPagination
           currentPage={currentPage}
           totalLength={stock.totalCount}
+          itemsPerPage={100}
         />
       </div>
     </ContentLayout>

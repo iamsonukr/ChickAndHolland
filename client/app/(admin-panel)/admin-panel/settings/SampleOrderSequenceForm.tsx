@@ -41,7 +41,6 @@ const SampleOrderSequenceForm = () => {
       toast.error(`Enter ${minimumSampleOrderNumber} or higher.`);
       return;
     }
-
     try {
       const response: any = await updateSequence({ nextNumber: value });
       setNextNumber(String(response?.nextNumber ?? value));
