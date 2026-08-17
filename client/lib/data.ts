@@ -297,10 +297,12 @@ export const getStock = async ({
   page,
   query,
   currencyId,
+  source,
 }: {
   page?: number;
   query?: string;
   currencyId?: number;
+  source?: string;
 }) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
@@ -313,8 +315,22 @@ export const getStock = async ({
   }
   if (query) queryParams.append("query", query);
   if (currencyId) queryParams.append("currencyId", currencyId.toString());
+  if (source) queryParams.append("source", source);
 
   const response = await fetch(`${API_URL}/stock?${queryParams.toString()}`, {
+    headers,
+    cache: "no-store",
+  });
+
+  return response.json();
+};
+
+export const getStockSourceLocations = async () => {
+  const headers = {
+    Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
+  };
+
+  const response = await fetch(`${API_URL}/stock/source-locations`, {
     headers,
     cache: "no-store",
   });

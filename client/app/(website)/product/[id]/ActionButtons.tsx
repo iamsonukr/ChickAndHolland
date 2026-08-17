@@ -71,15 +71,17 @@ const getColorSelectValue = (value: unknown, knownValues: string[]) => {
 };
 
 const getCustomTextValue = (value: unknown, knownValues: string[]) => {
-  const stringValue = String(value ?? "").trim();
-  return stringValue && !knownValues.includes(stringValue) ? stringValue : "";
+  const stringValue = String(value ?? "");
+  const trimmedValue = stringValue.trim();
+  return trimmedValue && !knownValues.includes(trimmedValue) ? stringValue : "";
 };
 
 const getCustomLiningText = (value: unknown, knownValues: string[]) => {
-  const stringValue = String(value ?? "").trim();
-  return stringValue &&
-    stringValue !== LINING_CUSTOM_VALUE &&
-    !knownValues.includes(stringValue)
+  const stringValue = String(value ?? "");
+  const trimmedValue = stringValue.trim();
+  return trimmedValue &&
+    trimmedValue !== LINING_CUSTOM_VALUE &&
+    !knownValues.includes(trimmedValue)
     ? stringValue
     : "";
 };
@@ -868,6 +870,9 @@ const ActionButtons = ({
                             );
                           }}
                         />
+                      </>
+                    )}
+
                         <div
                           className={`flex grid-cols-5 ${watch[index].addLining ? "items-end" : "items-center"}`}
                         >
@@ -879,7 +884,20 @@ const ActionButtons = ({
                                 <FormControl>
                                   <Checkbox
                                     checked={field.value ?? false}
-                                    onCheckedChange={field.onChange}
+                                    onCheckedChange={(checked) => {
+                                      field.onChange(checked);
+                                      if (!checked) {
+                                        clearCustomLiningActive(item.id);
+                                        form.setValue(
+                                          `productDetails.${index}.lining`,
+                                          productDetails.lining,
+                                        );
+                                        form.setValue(
+                                          `productDetails.${index}.liningColor`,
+                                          productDetails.lining_color,
+                                        );
+                                      }
+                                    }}
                                   />
                                 </FormControl>
                                 <p className="text-xs">
@@ -1070,9 +1088,6 @@ const ActionButtons = ({
                             )}
                           </>
                         )}
-
-                      </>
-                    )}
 
                     <FormField
                       control={form.control}

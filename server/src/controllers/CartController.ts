@@ -539,16 +539,19 @@ router.post(
         const cleanMesh = cleanIsSasColor ? "SAS" : sanitizeText(mesh);
         const cleanBeading = cleanIsSasColor ? "SAS" : sanitizeText(beading);
         const cleanBeader = sanitizeText(beader);
-        const cleanAddLining =
-          !cleanIsSasColor && sanitizeText(addLining) === "1";
-        const cleanLining = cleanIsSasColor
-          ? "SAS"
-          : sanitizeText(lining) || "No Lining";
-        const cleanLiningColor = cleanIsSasColor
-          ? "SAS"
-          : cleanLining === "No Lining"
+        const cleanAddLining = sanitizeText(addLining) === "1";
+        const cleanLining = cleanAddLining
+          ? sanitizeText(lining) || "No Lining"
+          : cleanIsSasColor
+            ? "SAS"
+            : "No Lining";
+        const cleanLiningColor = cleanAddLining
+          ? cleanLining === "No Lining"
             ? "No Color"
-            : sanitizeText(liningColor);
+            : sanitizeText(liningColor)
+          : cleanIsSasColor
+            ? "SAS"
+            : "No Color";
         const cleanQuantity = parsePositiveQuantity(quantity);
         const cleanComments = sanitizeText(comments);
         const primaryImage = uploadedPrimaryImage
@@ -647,16 +650,8 @@ router.post(
           product.mesh_color = cleanMesh;
           product.beading_color = cleanBeading;
           product.beader = cleanBeader || null;
-          product.lining = cleanIsSasColor
-            ? "SAS"
-            : cleanAddLining
-              ? cleanLining
-              : "No Lining";
-          product.lining_color = cleanIsSasColor
-            ? "SAS"
-            : cleanAddLining
-              ? cleanLiningColor
-              : "No Color";
+          product.lining = cleanLining;
+          product.lining_color = cleanLiningColor;
           product.product_size =
             cleanSize === "Custom" ? 0 : Number(cleanSize) || 0;
 
@@ -675,16 +670,8 @@ router.post(
           cartItem.mesh_color = cleanMesh;
           cartItem.beading_color = cleanBeading;
           cartItem.add_lining = cleanAddLining ? 1 : 0;
-          cartItem.lining = cleanIsSasColor
-            ? "SAS"
-            : cleanAddLining
-              ? cleanLining
-              : "No Lining";
-          cartItem.lining_color = cleanIsSasColor
-            ? "SAS"
-            : cleanAddLining
-              ? cleanLiningColor
-              : "No Color";
+          cartItem.lining = cleanLining;
+          cartItem.lining_color = cleanLiningColor;
           cartItem.product_size =
             cleanSize === "Custom" && cleanCustomSizes.length
               ? `Custom: ${cleanCustomSizes.join(", ")}`
