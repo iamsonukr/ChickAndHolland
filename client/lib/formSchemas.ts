@@ -683,6 +683,16 @@ export const createOrderFormSchema = z.object({
             path: ["liningColor"],
           }
         )
+        .refine(
+          (data) => {
+            if (data.size !== "Multiple") return true;
+            return Boolean(data.customSizesQuantity?.length);
+          },
+          {
+            message: "Please select at least one size",
+            path: ["customSizesQuantity"],
+          },
+        )
     )
     .min(1, {
       message: "At least one style is required",
