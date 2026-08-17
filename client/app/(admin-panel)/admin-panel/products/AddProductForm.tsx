@@ -63,6 +63,7 @@ const lining = [
   "Full Separate Lining",
   "Separate Short Lining",
   "Waist to Hips Stitched Lining",
+  "Waist to Hips Seperate Lining",
   "Waist to floor Stitched Lining",
   "Bust To Hips Stitched Lining",
   "Bust To Hips Seperate Lining",
@@ -76,18 +77,16 @@ const ProductImagePreviewGrid = ({
   onRemove: (index: number) => void;
 }) => {
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-
   useEffect(() => {
     const urls = files.map((file) => URL.createObjectURL(file));
     setPreviewUrls(urls);
-
     return () => {
       urls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [files]);
 
   if (files.length === 0) return null;
-
+  
   return (
     <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {files.map((file, index) => (

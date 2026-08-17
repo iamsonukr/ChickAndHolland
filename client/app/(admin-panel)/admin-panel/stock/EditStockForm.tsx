@@ -58,6 +58,7 @@ const lining = [
   "Full Separate Lining",
   "Separate Short Lining",
   "Waist to Hips Stitched Lining",
+  "Waist to Hips Seperate Lining",
   "Waist to floor Stitched Lining",
   "Bust To Hips Stitched Lining",
   "Bust To Hips Seperate Lining",

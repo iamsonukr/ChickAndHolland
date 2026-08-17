@@ -664,6 +664,7 @@ export const createOrderFormSchema = z.object({
             .optional(),
 
           comments: z.array(z.string()).optional(),
+          existingPhotoUrls: z.array(z.string()).optional(),
           modifiedPhotoImage: z.any().optional(),
         })
         // 🔥 Fix: Only require liningColor when needed

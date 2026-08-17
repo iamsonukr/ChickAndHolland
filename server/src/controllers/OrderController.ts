@@ -4170,6 +4170,9 @@ router.post(
                     file.fieldname ===
                     `styles[${sourceIndex}].modifiedPhotoImage`,
                 );
+                const existingPhotoUrls = normalizeFieldArray(
+                  styles[sourceIndex]?.existingPhotoUrls,
+                ).filter(Boolean);
 
                 photoUrlsPromise = Promise.all(
                   styleImages.map(async (file) => {
@@ -4185,12 +4188,16 @@ router.post(
                       )}`,
                     };
                   }),
-                ).then((imageUrls) =>
-                  imageUrls
+                ).then((imageUrls) => {
+                  const uploadedPhotoUrls = imageUrls
                     .filter((url) => url !== null)
                     .map((url) => url?.fileName)
-                    .filter((url): url is string => Boolean(url)),
-                );
+                    .filter((url): url is string => Boolean(url));
+
+                  return Array.from(
+                    new Set([...existingPhotoUrls, ...uploadedPhotoUrls]),
+                  );
+                });
                 previewPhotoUrlsBySourceIndex.set(
                   sourceIndex,
                   photoUrlsPromise,

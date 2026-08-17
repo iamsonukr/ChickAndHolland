@@ -347,6 +347,10 @@ function appendStyleFormData(
     `styles[${index}].customSizesQuantity`,
     JSON.stringify(normalizedStyle.customSizesQuantity),
   );
+  fd.append(
+    `styles[${index}].existingPhotoUrls`,
+    JSON.stringify((normalizedStyle as any).existingPhotoUrls ?? []),
+  );
   appendStylePricingFormData(
     fd,
     normalizedStyle,
@@ -745,6 +749,9 @@ export function useCreateOrder({
         quantity: String(item?.quantity ?? ""),
       })),
       comments: comments.map((comment: any) => String(comment)),
+      existingPhotoUrls: parseJsonArray(style?.photoUrls)
+        .map((url: any) => String(url ?? "").trim())
+        .filter(Boolean),
       beading: style?.beading_color || "SAS",
       beader: style?.beader || "",
       lining: style?.lining || "SAS",
