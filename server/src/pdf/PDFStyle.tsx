@@ -206,10 +206,7 @@ export const styles = StyleSheet.create({
     wordBreak: "normal",
   },
   extraImagesContainer: {
-    position: "absolute",
-    left: 0,
-    right: 2,
-    bottom: 0,
+    marginTop: 10,
     flexDirection: "column",
     width: "100%",
   },

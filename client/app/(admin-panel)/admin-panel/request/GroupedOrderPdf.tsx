@@ -142,6 +142,31 @@ const formatSingleLinePurchaseOrder = (text?: string) =>
 const getReferenceImages = (variants: any[]) =>
   Array.from(new Set(variants.flatMap((item) => normalizeImages(item.refImg))));
 
+const getReferenceImageLayout = (
+  imageCount: number,
+  keepReferenceImagesInSingleRow: boolean,
+  useLargeReferenceImages: boolean,
+) => {
+  if (keepReferenceImagesInSingleRow) {
+    return {
+      imagesPerRow: Math.max(imageCount, 1),
+      height: imageCount > 4 ? 118 : 150,
+    };
+  }
+
+  if (useLargeReferenceImages) {
+    return {
+      imagesPerRow: imageCount <= 2 ? Math.max(imageCount, 1) : 3,
+      height: imageCount === 1 ? 230 : imageCount === 2 ? 210 : 180,
+    };
+  }
+
+  return {
+    imagesPerRow: 2,
+    height: 145,
+  };
+};
+
 const getReferenceImageStyle = (
   imageCount: number,
   keepReferenceImagesInSingleRow: boolean,
@@ -376,7 +401,6 @@ const GroupedOrderPdf = ({
                             {referenceImages.map((imgSrc, imgIndex) => (
                               <Image
                                 key={`${imgSrc}-${imgIndex}`}
-                                alt=""
                                 src={imgSrc}
                                 style={[
                                   styles.additionalImage,
@@ -397,7 +421,6 @@ const GroupedOrderPdf = ({
                       <View style={styles.mainImageFrame}>
                         {baseItem?.image ? (
                           <Image
-                            alt=""
                             src={baseItem.image}
                             style={[
                               styles.mainImage,
@@ -527,7 +550,6 @@ const GroupedOrderPdf = ({
                               {normalizedBarcode ? (
                                 <>
                                   <Image
-                                    alt=""
                                     src={build2dBarcodeUrl(
                                       normalizedBarcode,
                                       80,
