@@ -3304,6 +3304,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const {
       page,
+      limit,
       query,
       orderType,
       stage,
@@ -3312,6 +3313,7 @@ router.get(
       deletedOnly,
     }: {
       page?: string;
+      limit?: string;
       query?: string;
       orderType?: string;
       stage?: string;
@@ -3320,9 +3322,9 @@ router.get(
       deletedOnly?: string;
     } = req.query;
 
-    const skip = (page ? Number(page) - 1 : 0) * 100;
+    const pageSize = Math.min(100, Math.max(1, Number(limit) || 50));
+    const skip = (page ? Number(page) - 1 : 0) * pageSize;
     const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
-    const pageSize = 100;
     const isDeletedOnly = deletedOnly === "true";
     const deletedStatus = isDeletedOnly ? 1 : 0;
     const hasPublishStatusFilter = Boolean(publishStatus);

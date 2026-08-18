@@ -143,20 +143,19 @@ const isCustomSizeValue = (size: unknown) =>
     .toLowerCase() === "custom";
 
 const normalizeStyleForPayload = (style: CreateOrderForm["styles"][number]) => {
-  if (!isCustomSizeValue(style.size)) {
-    return {
-      ...style,
-      customSize: [],
-      customSizesQuantity: [],
-    };
-  }
-
   return {
     ...style,
-    customSize: (style.customSize ?? [])
-      .map((size: any) => getCustomSizeText(size))
-      .filter(Boolean),
-    customSizesQuantity: [],
+    customSize: isCustomSizeValue(style.size)
+      ? (style.customSize ?? [])
+          .map((size: any) => getCustomSizeText(size))
+          .filter(Boolean)
+      : [],
+    customSizesQuantity: (style.customSizesQuantity ?? [])
+      .map((row: any) => ({
+        size: getCustomSizeText(row),
+        quantity: String(row?.quantity ?? "").trim(),
+      }))
+      .filter((row) => row.size && row.quantity),
   };
 };
 

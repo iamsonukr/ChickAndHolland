@@ -34,6 +34,7 @@ import {
 import { useEffect, useState } from "react";
 import CommentsFieldArray from "./CommentsFieldArray";
 import FileUploadField from "./FileUploadField";
+import CustomSizesQuantityFieldArray from "./CustomSizesQuantityFieldArray";
 import { searchStyleNumbers } from "@/lib/data";
 import dynamic from "next/dynamic";
 import BeaderSelectField from "@/components/BeaderSelectField";
@@ -56,6 +57,7 @@ const lining = [
   "Bust To Hips Seperate Lining",
 ];
 const LINING_CUSTOM_VALUE = "Custom";
+const MULTIPLE_SIZES_VALUE = "Multiple";
 
 const sizeOptions: Record<string, number[]> = {
   EU: [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60],
@@ -131,6 +133,9 @@ const StyleItem = ({
 }: StyleItemProps) => {
   const watchColorType = form.watch(`styles[${index}].colorType` as any);
   const watchSize = form.watch(`styles[${index}].size` as any);
+  const watchSizeCountry = form.watch(
+    `styles[${index}].sizeCountry` as any,
+  ) as keyof typeof sizeOptions;
   const stylesSelect = form.watch(`styles[${index}].styleNo[0]` as any) as any;
   const addLining = fullComponentWatch[index]?.addLining;
   const currentLining = fullComponentWatch[index]?.lining;
@@ -183,6 +188,33 @@ const StyleItem = ({
       resolvedPrice?.currencyCode,
       resolvedPrice?.currencySymbol,
     );
+  const sizeOptionsForCountry = sizeOptions[watchSizeCountry] ?? sizes;
+  const isMultipleSizes = watchSize === MULTIPLE_SIZES_VALUE;
+  const multipleSizeRows = currentStyle.customSizesQuantity ?? [];
+  const setMultipleSizeRows = (nextSizes: string[]) => {
+    const existingRows = currentStyle.customSizesQuantity ?? [];
+    const nextRows = nextSizes.map((size) => {
+      const existingRow = existingRows.find(
+        (row: any) => String(row?.size) === String(size),
+      );
+
+      return {
+        size: String(size),
+        quantity: existingRow?.quantity ?? "1",
+      };
+    });
+
+    form.setValue(`styles.${index}.customSizesQuantity` as any, nextRows, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+    form.setValue(`styles.${index}.quantity` as any, "1", {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+  };
 
   useEffect(() => {
     if (!addLining) {
@@ -951,6 +983,20 @@ const StyleItem = ({
                     onValueChange={(value) => {
                       field.onChange(value);
 
+                      if (value === MULTIPLE_SIZES_VALUE) {
+                        form.setValue(`styles.${index}.customSize` as any, [], {
+                          shouldDirty: true,
+                          shouldTouch: true,
+                          shouldValidate: true,
+                        });
+                        form.setValue(`styles.${index}.quantity` as any, "1", {
+                          shouldDirty: true,
+                          shouldTouch: true,
+                          shouldValidate: true,
+                        });
+                        return;
+                      }
+
                       if (value !== "Custom") {
                         form.setValue(`styles.${index}.customSize` as any, [], {
                           shouldDirty: true,
@@ -983,6 +1029,12 @@ const StyleItem = ({
                     <SelectContent>
                       <SelectItem key="size-custom" value="Custom">
                         Custom
+                      </SelectItem>
+                      <SelectItem
+                        key="size-multiple"
+                        value={MULTIPLE_SIZES_VALUE}
+                      >
+                        Multiple Sizes
                       </SelectItem>
                       {options.map((size) => (
                         <SelectItem value={size.toString()} key={size}>
@@ -1028,6 +1080,34 @@ const StyleItem = ({
             />
           )}
 
+          {isMultipleSizes && (
+            <div className="space-y-3 md:col-span-3">
+              <FormLabel>Sizes & Quantities</FormLabel>
+              <MultipleSelector
+                value={multipleSizeRows.map((row: any) => ({
+                  value: String(row?.size ?? ""),
+                  label: String(row?.size ?? ""),
+                }))}
+                defaultOptions={sizeOptionsForCountry.map((size) => ({
+                  value: String(size),
+                  label: String(size),
+                }))}
+                onChange={(options) =>
+                  setMultipleSizeRows(options.map((option) => option.value))
+                }
+                placeholder="Select all sizes for this style"
+                emptyIndicator={
+                  <p className="text-muted-foreground">No sizes found</p>
+                }
+              />
+              <CustomSizesQuantityFieldArray
+                control={form.control}
+                name={`styles.${index}.customSizesQuantity`}
+                register={form.register}
+              />
+            </div>
+          )}
+
           {/* Beader */}
           <FormField
             control={form.control}
@@ -1042,25 +1122,27 @@ const StyleItem = ({
           />
 
           {/* ── Quantity ── */}
-          <FormField
-            control={form.control}
-            name={`styles[${index}].quantity` as any}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Quantity</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="100"
-                    type="number"
-                    min={1}
-                    step={1}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {!isMultipleSizes && (
+            <FormField
+              control={form.control}
+              name={`styles[${index}].quantity` as any}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quantity</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="100"
+                      type="number"
+                      min={1}
+                      step={1}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           {selectedStyleCode && (
             <div className="hidden md:col-span-3">

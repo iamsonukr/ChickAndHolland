@@ -382,6 +382,7 @@ export const getImageByStockId = async (stockId: string) => {
 
 export const getOrders = async ({
   page,
+  limit = 50,
   query,
   orderType,
   stage,
@@ -390,6 +391,7 @@ export const getOrders = async ({
   deletedOnly,
 }: {
   page?: number;
+  limit?: number;
   query?: string;
   orderType?: string;
   stage?: string;
@@ -402,6 +404,7 @@ export const getOrders = async ({
   };
   const params = new URLSearchParams();
   if (page) params.set("page", String(page));
+  params.set("limit", String(limit));
   if (query) params.set("query", query);
   if (orderType) params.set("orderType", orderType);
   if (stage) params.set("stage", stage);
