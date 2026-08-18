@@ -50,7 +50,7 @@ export const styles = StyleSheet.create({
     flexDirection: "column",
     position: "relative",
     paddingTop: 10,
-    paddingBottom: 155,
+    paddingBottom: 0,
     paddingRight: 8,
   },
   tableContainer: {
