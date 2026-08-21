@@ -24,14 +24,14 @@ import {
 } from "@/components/ui/collapsible";
 import MultipleSelector from "@/components/custom/multi-selector";
 import { ChevronDown, Delete } from "lucide-react";
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, useWatch } from "react-hook-form";
 import {
   ColorType,
   CreateOrderForm,
   SizeCountry,
   sizes,
 } from "@/lib/formSchemas";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import CommentsFieldArray from "./CommentsFieldArray";
 import FileUploadField from "./FileUploadField";
 import CustomSizesQuantityFieldArray from "./CustomSizesQuantityFieldArray";
@@ -103,7 +103,6 @@ interface StyleItemProps {
   currencies: any[];
   colorTypeArray: { value: string; label: string }[];
   sizeCountryArray: { value: keyof typeof SizeCountry; label: string }[];
-  fullComponentWatch: any[];
   selectedCustomer: any;
   productDetailsByStyleNo: Map<string, any>;
   canRemove: boolean;
@@ -123,7 +122,6 @@ const StyleItem = ({
   currencies,
   colorTypeArray,
   sizeCountryArray,
-  fullComponentWatch,
   selectedCustomer,
   productDetailsByStyleNo,
   canRemove,
@@ -131,21 +129,23 @@ const StyleItem = ({
   getColourBasedOnId,
   getColourBasedOnhex,
 }: StyleItemProps) => {
-  const watchColorType = form.watch(`styles[${index}].colorType` as any);
-  const watchSize = form.watch(`styles[${index}].size` as any);
-  const watchSizeCountry = form.watch(
-    `styles[${index}].sizeCountry` as any,
-  ) as keyof typeof sizeOptions;
-  const stylesSelect = form.watch(`styles[${index}].styleNo[0]` as any) as any;
-  const addLining = fullComponentWatch[index]?.addLining;
-  const currentLining = fullComponentWatch[index]?.lining;
+  const currentStyle = useWatch({
+    control: form.control,
+    name: `styles.${index}` as any,
+  }) as any;
+  const watchColorType = currentStyle?.colorType;
+  const watchSize = currentStyle?.size;
+  const watchSizeCountry =
+    currentStyle?.sizeCountry as keyof typeof sizeOptions;
+  const stylesSelect = currentStyle?.styleNo?.[0] as any;
+  const addLining = currentStyle?.addLining;
+  const currentLining = currentStyle?.lining;
   const isCustomLining =
     Boolean(currentLining) &&
     currentLining !== "SAS" &&
     !lining.includes(String(currentLining));
-  const [customLiningActive, setCustomLiningActive] =
-    useState(isCustomLining);
-  const currentStyle = fullComponentWatch[index] ?? {};
+  const [customLiningActive, setCustomLiningActive] = useState(isCustomLining);
+  const styleValue = currentStyle ?? {};
   const selectedStyleCode = stylesSelect?.value ?? "";
   const productDetails = selectedStyleCode
     ? productDetailsByStyleNo.get(selectedStyleCode)
@@ -159,7 +159,7 @@ const StyleItem = ({
   const sampleMeshValue = getSelectItemValue(stylesSelect?.mesh);
   const sampleBeadingValue = getSelectItemValue(stylesSelect?.beading);
   const sampleBeaderValue = String(
-    currentStyle?.beader || stylesSelect?.beader || productDetails?.beader || "",
+    styleValue?.beader || stylesSelect?.beader || productDetails?.beader || "",
   ).trim();
   const sampleLiningValue = getSelectItemValue(stylesSelect?.lining);
   const sampleLiningColorValue = getSelectItemValue(stylesSelect?.liningColor);
@@ -177,9 +177,9 @@ const StyleItem = ({
   const stylePricing = resolvedPrice
     ? calculateRetailerStylePricing({
         basePrice: resolvedPrice.amount,
-        size: currentStyle.size,
-        quantity: currentStyle.quantity,
-        customSizesQuantity: currentStyle.customSizesQuantity,
+        size: styleValue.size,
+        quantity: styleValue.quantity,
+        customSizesQuantity: styleValue.customSizesQuantity,
       })
     : null;
   const formatPrice = (value: number) =>
@@ -190,9 +190,9 @@ const StyleItem = ({
     );
   const sizeOptionsForCountry = sizeOptions[watchSizeCountry] ?? sizes;
   const isMultipleSizes = watchSize === MULTIPLE_SIZES_VALUE;
-  const multipleSizeRows = currentStyle.customSizesQuantity ?? [];
+  const multipleSizeRows = styleValue.customSizesQuantity ?? [];
   const setMultipleSizeRows = (nextSizes: string[]) => {
-    const existingRows = currentStyle.customSizesQuantity ?? [];
+    const existingRows = styleValue.customSizesQuantity ?? [];
     const nextRows = nextSizes.map((size) => {
       const existingRow = existingRows.find(
         (row: any) => String(row?.size) === String(size),
@@ -1237,4 +1237,4 @@ const StyleItem = ({
   );
 };
 
-export default StyleItem;
+export default memo(StyleItem);
