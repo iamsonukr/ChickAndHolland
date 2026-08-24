@@ -31,7 +31,7 @@ import sharp from "sharp";
 import { getFullUrl, storeFileInS3 } from "../lib/s3";
 import Category from "../models/Category";
 import SubCategory from "../models/SubCategory";
-import { searchCache } from "../lib/cache.service";
+import { imageCache, searchCache } from "../lib/cache.service";
 import { CacheController } from "./CacheController";
 import ProductCountryPricing from "../models/ProductCountryPricing";
 import Country from "../models/Country";
@@ -95,6 +95,16 @@ const clearProductCaches = (action: string) => {
     CacheController.clearCacheByName("search");
   } catch (cacheError) {
     console.error(`Error clearing product caches after ${action}:`, cacheError);
+  }
+};
+
+const clearProductImageCaches = (action: string, imageUrls: string[] = []) => {
+  clearProductCaches(action);
+
+  for (const imageUrl of imageUrls) {
+    if (imageUrl) {
+      imageCache.clearKey(imageUrl);
+    }
   }
 };
 
@@ -364,7 +374,10 @@ router.delete(
   validate(imageIdValiadtor),
   asyncHandler(async (req: Request, res: Response) => {
     const { imageIds } = req.body as { imageIds: number[] };
-    const productImages = await ProductImage.findBy({ id: In(imageIds) });
+    const productImages = await ProductImage.find({
+      where: { id: In(imageIds) },
+      relations: ["product"],
+    });
 
     if (!productImages || productImages.length === 0)
       throw new NotFound(`No Images Found With This Ids`);
@@ -387,6 +400,10 @@ router.delete(
     await ProductImage.query(
       `DELETE FROM ${TABLE_NAMES.PRODUCT_IMAGES} WHERE id IN (?)`,
       [imageIds]
+    );
+    clearProductImageCaches(
+      "product image deletion",
+      productImages.map((image) => image.name)
     );
     res.json({ msg: deleted(PRODUCT_IMAGES) });
   })
@@ -2235,6 +2252,7 @@ router.delete(
 
     const image = await ProductImage.findOne({
       where: { id: Number(id) },
+      relations: ["product"],
     });
 
     if (!image) {
@@ -2245,6 +2263,7 @@ router.delete(
     }
 
     await ProductImage.delete({ id: Number(id) });
+    clearProductImageCaches("product image deletion", [image.name]);
 
     res.json({
       success: true,
@@ -2360,6 +2379,7 @@ router.post(
         }
 
         await ProductImage.save(productImages);
+        clearProductImageCaches("product image upload");
 
         res.json({
           success: true,
