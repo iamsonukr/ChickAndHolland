@@ -10,7 +10,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Plus, Download } from "lucide-react";
-import { useMemo } from "react";
 
 import { useCreateOrder } from "@/hooks/useCreateOrder";
 import { CreateOrderFormFields } from "@/components/CreateOrder/CreateOrderFormFields";
@@ -33,17 +32,6 @@ interface CreateOrderProps {
   onSuccess?: () => void;
   editPassword?: string;
 }
-
-const formatPreviewComments = (comments: unknown) => {
-  if (Array.isArray(comments)) {
-    return comments
-      .map((comment) => String(comment).trim())
-      .filter(Boolean)
-      .join(", ");
-  }
-
-  return typeof comments === "string" ? comments.trim() : "";
-};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -116,20 +104,8 @@ const CreateOrder = ({
   //
   const showUploadedPreview = !!uploadedFile;
   const showGeneratedPreview = !uploadedFile && !!previewData;
-  const syncedPreviewData = useMemo(() => {
-    if (!previewData) return null;
-
-    return {
-      ...previewData,
-      details: previewData.details?.map((detail: any, index: number) => ({
-        ...detail,
-        comments: formatPreviewComments(fullComponentWatch[index]?.comments),
-      })),
-    };
-  }, [fullComponentWatch, previewData]);
-
-  const previewDocumentKey = syncedPreviewData
-    ? JSON.stringify(syncedPreviewData)
+  const previewDocumentKey = previewData
+    ? `${previewData.purchaseOrderNo}-${previewData.details?.length ?? 0}`
     : "create-order-preview-empty";
 
   return (
@@ -252,16 +228,16 @@ const CreateOrder = ({
                 sourceDocument={
                   <RetailerPdf
                     key={`viewer-document-${previewDocumentKey}`}
-                    orderData={syncedPreviewData}
+                    orderData={previewData}
                   />
                 }
-                fileName={`${syncedPreviewData.purchaseOrderNo}.pdf`}
+                fileName={`${previewData.purchaseOrderNo}.pdf`}
                 heightClassName="h-[75vh]"
                 extraActions={
                   <Button
                     type="button"
                     className="inline-flex min-h-[38px] items-center rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700"
-                    onClick={() => downloadOrderPPT(syncedPreviewData)}
+                    onClick={() => downloadOrderPPT(previewData)}
                   >
                     Download PPT
                   </Button>

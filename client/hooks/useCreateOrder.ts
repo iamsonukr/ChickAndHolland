@@ -551,18 +551,40 @@ const putDraftFiles = async (files: DraftFileRecord) => {
   const db = await openDraftFileDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(CREATE_ORDER_DRAFT_STORE, "readwrite");
-    tx.objectStore(CREATE_ORDER_DRAFT_STORE).put(files, CREATE_ORDER_DRAFT_FILE_KEY);
+    tx.objectStore(CREATE_ORDER_DRAFT_STORE).put(
+      files,
+      CREATE_ORDER_DRAFT_FILE_KEY,
+    );
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
   db.close();
 };
 
+const getDraftFiles = async () => {
+  const db = await openDraftFileDb();
+  const files = await new Promise<DraftFileRecord | undefined>(
+    (resolve, reject) => {
+      const tx = db.transaction(CREATE_ORDER_DRAFT_STORE, "readonly");
+      const request = tx
+        .objectStore(CREATE_ORDER_DRAFT_STORE)
+        .get(CREATE_ORDER_DRAFT_FILE_KEY);
+      request.onsuccess = () =>
+        resolve(request.result as DraftFileRecord | undefined);
+      request.onerror = () => reject(request.error);
+    },
+  );
+  db.close();
+  return files;
+};
+
 const clearDraftFiles = async () => {
   const db = await openDraftFileDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(CREATE_ORDER_DRAFT_STORE, "readwrite");
-    tx.objectStore(CREATE_ORDER_DRAFT_STORE).delete(CREATE_ORDER_DRAFT_FILE_KEY);
+    tx.objectStore(CREATE_ORDER_DRAFT_STORE).delete(
+      CREATE_ORDER_DRAFT_FILE_KEY,
+    );
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -766,9 +788,7 @@ export function useCreateOrder({
     if (isEditMode) {
       const orderCustomer = editOrder?.customer;
       const customerOption =
-        orderCustomer?.id != null
-          ? [toCustomerOption(orderCustomer)]
-          : [];
+        orderCustomer?.id != null ? [toCustomerOption(orderCustomer)] : [];
 
       return {
         purchaseOrderNo: editOrder?.purchaeOrderNo ?? "",
@@ -816,6 +836,14 @@ export function useCreateOrder({
   });
 
   const fullComponentWatch = form.watch("styles");
+  const selectedStyleCodesSignature = useMemo(
+    () =>
+      (fullComponentWatch ?? [])
+        .map((style) => style?.styleNo?.[0]?.value)
+        .filter(Boolean)
+        .join("|"),
+    [fullComponentWatch],
+  );
   const watchedForm = useWatch({ control: form.control });
   const autoDraftOnCloseRef = useRef(false);
 
@@ -867,9 +895,9 @@ export function useCreateOrder({
 
       const styleFiles = values.styles.reduce<Record<string, File[]>>(
         (filesByIndex, style, index) => {
-          const files = Array.from((style.modifiedPhotoImage ?? []) as any).filter(
-            (file): file is File => file instanceof File,
-          );
+          const files = Array.from(
+            (style.modifiedPhotoImage ?? []) as any,
+          ).filter((file): file is File => file instanceof File);
           if (files.length) filesByIndex[String(index)] = files;
           return filesByIndex;
         },
@@ -877,7 +905,6 @@ export function useCreateOrder({
       );
 
       try {
-        await putDraftFiles({ uploadedFile, styleFiles });
         localStorage.setItem(
           CREATE_ORDER_DRAFT_KEY,
           JSON.stringify({
@@ -889,12 +916,20 @@ export function useCreateOrder({
             uploadedFileType,
           }),
         );
+        await putDraftFiles({ uploadedFile, styleFiles });
         console.info("[CreateOrderAutosave] Draft saved", { reason });
       } catch (error) {
         console.error("[CreateOrderAutosave] Failed to save draft", error);
       }
     },
-    [form, getAutosavedDraftOrderId, isEditMode, open, uploadedFile, uploadedFileType],
+    [
+      form,
+      getAutosavedDraftOrderId,
+      isEditMode,
+      open,
+      uploadedFile,
+      uploadedFileType,
+    ],
   );
 
   useEffect(() => {
@@ -909,10 +944,51 @@ export function useCreateOrder({
   useEffect(() => {
     if (isEditMode || !open) return;
 
-    clearAutosavedDraft();
-    form.reset(buildDefaultValues());
-    setPreviewData(null);
-    clearUploadedFile();
+    let cancelled = false;
+
+    const restoreDraftOrReset = async () => {
+      setPreviewData(null);
+      clearUploadedFile();
+
+      try {
+        const draft = JSON.parse(
+          localStorage.getItem(CREATE_ORDER_DRAFT_KEY) ?? "{}",
+        );
+        const draftFormData = draft?.formData as CreateOrderForm | undefined;
+
+        if (!draftFormData?.styles?.length) {
+          form.reset(buildDefaultValues());
+          return;
+        }
+
+        const draftFiles = await getDraftFiles().catch(() => undefined);
+        if (cancelled) return;
+
+        const restoredValues: CreateOrderForm = {
+          ...draftFormData,
+          orderReceivedDate:
+            toDateValue(draftFormData.orderReceivedDate) ?? new Date(),
+          orderCancellationDate:
+            toDateValue(draftFormData.orderCancellationDate) ?? new Date(),
+          styles: draftFormData.styles.map((style, index) => ({
+            ...style,
+            modifiedPhotoImage: draftFiles?.styleFiles?.[String(index)] ?? [],
+          })),
+        };
+
+        form.reset(restoredValues);
+        if (draftFiles?.uploadedFile) setUploadedFile(draftFiles.uploadedFile);
+        toast.info("Restored your unsaved order draft");
+      } catch {
+        if (!cancelled) form.reset(buildDefaultValues());
+      }
+    };
+
+    restoreDraftOrReset();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, open]);
 
@@ -921,7 +997,7 @@ export function useCreateOrder({
 
     const timeout = window.setTimeout(() => {
       saveAutosavedDraft("form-change");
-    }, 800);
+    }, 2500);
 
     return () => window.clearTimeout(timeout);
   }, [isEditMode, open, saveAutosavedDraft, watchedForm]);
@@ -1030,10 +1106,14 @@ export function useCreateOrder({
     if (isEditMode) return;
     if (form.getFieldState("phoneNumber").isDirty) return;
 
-    form.setValue("phoneNumber", getCustomerOrderPhoneNumber(selectedCustomer), {
-      shouldDirty: false,
-      shouldValidate: true,
-    });
+    form.setValue(
+      "phoneNumber",
+      getCustomerOrderPhoneNumber(selectedCustomer),
+      {
+        shouldDirty: false,
+        shouldValidate: true,
+      },
+    );
   }, [form, isEditMode, selectedCustomer]);
 
   useEffect(() => {
@@ -1053,24 +1133,6 @@ export function useCreateOrder({
       .then((res) => setBeaders(res.beaders ?? []))
       .catch(() => setBeaders([]));
   }, []);
-
-  // ── Auto-preview on watched fields change ───────────────────────────────────
-  // When the user has uploaded their own file we skip auto-generation entirely —
-  // the shell will render the upload instead.
-  useEffect(() => {
-    if (!open) return; // ← add this guard
-
-    if (uploadedFile) return; // user supplied their own file — skip generation
-    if (!watchedForm?.orderReceivedDate) return;
-    if (!form.formState.isValid) return;
-
-    const timeout = setTimeout(() => {
-      onPreviewSubmit(form.getValues());
-    }, 900);
-
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadedFile, watchedForm, form.formState.isValid]);
 
   // ── Product details loader ──────────────────────────────────────────────────
   const ensureProductDetailsLoaded = useCallback(
@@ -1110,8 +1172,8 @@ export function useCreateOrder({
   );
 
   useEffect(() => {
-    ensureProductDetailsLoaded(fullComponentWatch);
-  }, [ensureProductDetailsLoaded, fullComponentWatch]);
+    ensureProductDetailsLoaded(form.getValues("styles"));
+  }, [ensureProductDetailsLoaded, form, selectedStyleCodesSignature]);
 
   // ── onSubmit ────────────────────────────────────────────────────────────────
   const submitOrder = async (
@@ -1176,7 +1238,8 @@ export function useCreateOrder({
       }
       if (dirtyFields.orderType) fd.append("orderType", data.orderType);
       if (dirtyFields.address) fd.append("address", data.address ?? "");
-      if (dirtyFields.phoneNumber) fd.append("phoneNumber", data.phoneNumber ?? "");
+      if (dirtyFields.phoneNumber)
+        fd.append("phoneNumber", data.phoneNumber ?? "");
       if (dirtyFields.estimate) fd.append("estimate", data.estimate ?? "");
       if (dirtyFields.invoice) fd.append("invoice", data.invoice ?? "");
       if (dirtyFields.customerId) {
@@ -1250,7 +1313,9 @@ export function useCreateOrder({
         setPreviewData(null);
         router.refresh();
       } catch (err: any) {
-        toast.error(err?.message ?? updateError?.message ?? "Failed to update order");
+        toast.error(
+          err?.message ?? updateError?.message ?? "Failed to update order",
+        );
       }
       return;
     }
@@ -1258,7 +1323,11 @@ export function useCreateOrder({
     const fd = buildSharedFormData(orderData);
     if (publishStatus) fd.append("publishStatus", publishStatus);
     appendDateField(fd, "orderReceivedDate", orderData.orderReceivedDate);
-    appendDateField(fd, "orderCancellationDate", orderData.orderCancellationDate);
+    appendDateField(
+      fd,
+      "orderCancellationDate",
+      orderData.orderCancellationDate,
+    );
     appendStylesFormData(fd, orderData.styles, detailsMap, orderCustomer);
 
     // If the user supplied their own file, attach it so the backend can store
@@ -1280,7 +1349,7 @@ export function useCreateOrder({
             },
           )
         : await executeAsync(fd, {}, (err) => {
-        toast.error(err?.message ?? "Failed to add order");
+            toast.error(err?.message ?? "Failed to add order");
           });
 
       if (!response.success) {
@@ -1370,7 +1439,11 @@ export function useCreateOrder({
     );
     const fd = buildSharedFormData(orderData);
     appendDateField(fd, "orderReceivedDate", orderData.orderReceivedDate);
-    appendDateField(fd, "orderCancellationDate", orderData.orderCancellationDate);
+    appendDateField(
+      fd,
+      "orderCancellationDate",
+      orderData.orderCancellationDate,
+    );
     appendStylesFormData(fd, orderData.styles, detailsMap, orderCustomer);
 
     try {

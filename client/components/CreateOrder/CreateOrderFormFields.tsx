@@ -452,12 +452,12 @@ export function CreateOrderFormFields({
             </Button>
           </div>
 
-          {fullComponentWatch.map((_, index) => (
+          {fields.map((fieldArrayItem, index) => (
             <StyleItem
-              key={fields[index]?.id ?? index}
+              key={fieldArrayItem.id}
               form={form}
               index={index}
-              fieldId={fields[index]?.id ?? String(index)}
+              fieldId={fieldArrayItem.id}
               colors={colors}
               beaders={beaders}
               productCategories={productCategories}
@@ -465,7 +465,6 @@ export function CreateOrderFormFields({
               currencies={currencies}
               colorTypeArray={colorTypeArray}
               sizeCountryArray={sizeCountryArray}
-              fullComponentWatch={fullComponentWatch}
               selectedCustomer={selectedCustomer}
               productDetailsByStyleNo={productDetailsByStyleNo}
               canRemove={fields.length > 1}
@@ -483,7 +482,6 @@ export function CreateOrderFormFields({
             </Button>
           </div>
         </div>
-
 
         {orderPricingSummary.pricedStyles > 0 && (
           <div className="hidden md:col-span-3">
