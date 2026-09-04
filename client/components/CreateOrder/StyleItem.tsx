@@ -293,6 +293,40 @@ const StyleItem = ({
   }, [addLining, isCustomLining]);
 
   useEffect(() => {
+    if (isCustomColorType) return;
+
+    setCustomColorActiveByField({});
+
+    const meshPath = `styles.${index}.mesh` as const;
+    const beadingPath = `styles.${index}.beading` as const;
+    const customColorPath = `styles.${index}.customColor` as const;
+
+    if (form.getValues(meshPath as any) !== "SAS") {
+      form.setValue(meshPath as any, "SAS", {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
+    }
+
+    if (form.getValues(beadingPath as any) !== "SAS") {
+      form.setValue(beadingPath as any, "SAS", {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
+    }
+
+    if ((form.getValues(customColorPath as any) ?? []).length) {
+      form.setValue(customColorPath as any, [], {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
+    }
+  }, [form, index, isCustomColorType]);
+
+  useEffect(() => {
     if (!addLining || !currentLining || currentLining === "No Lining") return;
     if (!currentMesh) return;
 
@@ -382,7 +416,7 @@ const StyleItem = ({
           {/* ── Color Type ── */}
           <FormField
             control={form.control}
-            name={`styles[${index}].colorType` as any}
+            name={`styles.${index}.colorType` as any}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Color Type</FormLabel>
