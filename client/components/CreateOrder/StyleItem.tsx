@@ -56,6 +56,7 @@ const lining = [
   "Bust To Hips Stitched Lining",
   "Bust To Hips Seperate Lining",
 ];
+const COLOR_CUSTOM_VALUE = "Custom";
 const LINING_CUSTOM_VALUE = "Custom";
 const MULTIPLE_SIZES_VALUE = "Multiple";
 
@@ -140,11 +141,15 @@ const StyleItem = ({
   const stylesSelect = currentStyle?.styleNo?.[0] as any;
   const addLining = currentStyle?.addLining;
   const currentLining = currentStyle?.lining;
+  const currentMesh = currentStyle?.mesh;
   const isCustomLining =
     Boolean(currentLining) &&
     currentLining !== "SAS" &&
     !lining.includes(String(currentLining));
   const [customLiningActive, setCustomLiningActive] = useState(isCustomLining);
+  const [customColorActiveByField, setCustomColorActiveByField] = useState<
+    Record<string, boolean>
+  >({});
   const styleValue = currentStyle ?? {};
   const selectedStyleCode = stylesSelect?.value ?? "";
   const productDetails = selectedStyleCode
@@ -215,6 +220,12 @@ const StyleItem = ({
       shouldValidate: true,
     });
   };
+  const setCustomColorActive = (fieldName: string, active: boolean) => {
+    setCustomColorActiveByField((prev) => ({
+      ...prev,
+      [fieldName]: active,
+    }));
+  };
 
   useEffect(() => {
     if (!addLining) {
@@ -226,6 +237,17 @@ const StyleItem = ({
       setCustomLiningActive(true);
     }
   }, [addLining, isCustomLining]);
+
+  useEffect(() => {
+    if (!addLining || !currentLining || currentLining === "No Lining") return;
+    if (!currentMesh) return;
+
+    form.setValue(`styles.${index}.liningColor`, currentMesh, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+  }, [addLining, currentLining, currentMesh, form, index]);
 
   // Dynamically mount the AddProductForm on the page (only once on the first StyleItem)
   const AddProductFormDynamic = dynamic(
@@ -319,8 +341,18 @@ const StyleItem = ({
                 <Select
                   onValueChange={(value) => {
                     field.onChange(value);
+                    if (value === ColorType.Custom) {
+                      setCustomColorActive("mesh", true);
+                      setCustomColorActive("beading", true);
+                      if (addLining) {
+                        setCustomColorActive("liningColor", true);
+                      }
+                    }
                     // When switching away from Custom, clear custom color fields
                     if (value !== ColorType.Custom) {
+                      setCustomColorActive("mesh", false);
+                      setCustomColorActive("beading", false);
+                      setCustomColorActive("liningColor", false);
                       form.setValue(`styles.${index}.customColor`, [], {
                         shouldDirty: true,
                         shouldTouch: true,
@@ -367,16 +399,30 @@ const StyleItem = ({
                 name={`styles.${index}.mesh`}
                 render={({ field }) => {
                   const knownColorValues = getKnownColorValues(sampleMeshValue);
+                  const customText = getCustomColorText(
+                    field.value,
+                    knownColorValues,
+                  );
+                  const customActive =
+                    customColorActiveByField.mesh || Boolean(customText);
 
                   return (
                     <FormItem>
                       <FormLabel>Mesh Color</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
-                        value={getColorSelectValue(
-                          field.value,
-                          knownColorValues,
-                        )}
+                        onValueChange={(value) => {
+                          const isCustom = value === COLOR_CUSTOM_VALUE;
+                          setCustomColorActive("mesh", isCustom);
+                          field.onChange(isCustom ? "" : value);
+                        }}
+                        value={
+                          customActive
+                            ? COLOR_CUSTOM_VALUE
+                            : getColorSelectValue(
+                                field.value,
+                                knownColorValues,
+                              )
+                        }
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -419,17 +465,22 @@ const StyleItem = ({
                               </div>
                             </SelectItem>
                           ))}
+                          <SelectItem value={COLOR_CUSTOM_VALUE}>
+                            Custom
+                          </SelectItem>
                         </SelectContent>
                       </Select>
-                      <Input
-                        className="mt-2"
-                        placeholder="Or type custom mesh text"
-                        value={getCustomColorText(
-                          field.value,
-                          knownColorValues,
-                        )}
-                        onChange={(event) => field.onChange(event.target.value)}
-                      />
+                      {customActive && (
+                        <Input
+                          className="mt-2"
+                          placeholder="Or type custom mesh text"
+                          value={customText}
+                          onChange={(event) => {
+                            setCustomColorActive("mesh", true);
+                            field.onChange(event.target.value);
+                          }}
+                        />
+                      )}
                       <FormMessage />
                     </FormItem>
                   );
@@ -443,16 +494,30 @@ const StyleItem = ({
                 render={({ field }) => {
                   const knownColorValues =
                     getKnownColorValues(sampleBeadingValue);
+                  const customText = getCustomColorText(
+                    field.value,
+                    knownColorValues,
+                  );
+                  const customActive =
+                    customColorActiveByField.beading || Boolean(customText);
 
                   return (
                     <FormItem>
                       <FormLabel>Beading Color</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
-                        value={getColorSelectValue(
-                          field.value,
-                          knownColorValues,
-                        )}
+                        onValueChange={(value) => {
+                          const isCustom = value === COLOR_CUSTOM_VALUE;
+                          setCustomColorActive("beading", isCustom);
+                          field.onChange(isCustom ? "" : value);
+                        }}
+                        value={
+                          customActive
+                            ? COLOR_CUSTOM_VALUE
+                            : getColorSelectValue(
+                                field.value,
+                                knownColorValues,
+                              )
+                        }
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -495,17 +560,22 @@ const StyleItem = ({
                               </div>
                             </SelectItem>
                           ))}
+                          <SelectItem value={COLOR_CUSTOM_VALUE}>
+                            Custom
+                          </SelectItem>
                         </SelectContent>
                       </Select>
-                      <Input
-                        className="mt-2"
-                        placeholder="Or type custom beading text"
-                        value={getCustomColorText(
-                          field.value,
-                          knownColorValues,
-                        )}
-                        onChange={(event) => field.onChange(event.target.value)}
-                      />
+                      {customActive && (
+                        <Input
+                          className="mt-2"
+                          placeholder="Or type custom beading text"
+                          value={customText}
+                          onChange={(event) => {
+                            setCustomColorActive("beading", true);
+                            field.onChange(event.target.value);
+                          }}
+                        />
+                      )}
                       <FormMessage />
                     </FormItem>
                   );
@@ -524,8 +594,23 @@ const StyleItem = ({
                           checked={field.value ?? false}
                           onCheckedChange={(checked) => {
                             field.onChange(checked);
+                            if (checked) {
+                              if (watchColorType === ColorType.Custom) {
+                                setCustomColorActive("liningColor", true);
+                              }
+                              form.setValue(
+                                `styles.${index}.liningColor`,
+                                form.getValues(`styles.${index}.mesh`) || "SAS",
+                                {
+                                  shouldDirty: true,
+                                  shouldTouch: true,
+                                  shouldValidate: true,
+                                },
+                              );
+                            }
                             if (!checked) {
                               setCustomLiningActive(false);
+                              setCustomColorActive("liningColor", false);
                               form.setValue(`styles.${index}.lining`, "SAS", {
                                 shouldDirty: true,
                                 shouldTouch: true,
@@ -576,6 +661,7 @@ const StyleItem = ({
                               setCustomLiningActive(isCustom);
                               field.onChange(isCustom ? "" : value);
                               if (value === "No Lining") {
+                                setCustomColorActive("liningColor", false);
                                 form.setValue(
                                   `styles.${index}.liningColor`,
                                   "",
@@ -640,16 +726,31 @@ const StyleItem = ({
                         const knownColorValues = getKnownColorValues(
                           sampleLiningColorValue,
                         );
+                        const customText = getCustomColorText(
+                          field.value,
+                          knownColorValues,
+                        );
+                        const customActive =
+                          customColorActiveByField.liningColor ||
+                          Boolean(customText);
 
                         return (
                           <FormItem>
                             <FormLabel>Lining Color</FormLabel>
                             <Select
-                              onValueChange={field.onChange}
-                              value={getColorSelectValue(
-                                field.value,
-                                knownColorValues,
-                              )}
+                              onValueChange={(value) => {
+                                const isCustom = value === COLOR_CUSTOM_VALUE;
+                                setCustomColorActive("liningColor", isCustom);
+                                field.onChange(isCustom ? "" : value);
+                              }}
+                              value={
+                                customActive
+                                  ? COLOR_CUSTOM_VALUE
+                                  : getColorSelectValue(
+                                      field.value,
+                                      knownColorValues,
+                                    )
+                              }
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -697,19 +798,22 @@ const StyleItem = ({
                                     </div>
                                   </SelectItem>
                                 ))}
+                                <SelectItem value={COLOR_CUSTOM_VALUE}>
+                                  Custom
+                                </SelectItem>
                               </SelectContent>
                             </Select>
-                            <Input
-                              className="mt-2"
-                              placeholder="Or type custom lining color text"
-                              value={getCustomColorText(
-                                field.value,
-                                knownColorValues,
-                              )}
-                              onChange={(event) =>
-                                field.onChange(event.target.value)
-                              }
-                            />
+                            {customActive && (
+                              <Input
+                                className="mt-2"
+                                placeholder="Or type custom lining color text"
+                                value={customText}
+                                onChange={(event) => {
+                                  setCustomColorActive("liningColor", true);
+                                  field.onChange(event.target.value);
+                                }}
+                              />
+                            )}
                             <FormMessage />
                           </FormItem>
                         );
