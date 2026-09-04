@@ -30,6 +30,7 @@ import { Calendar as CalendarIcon, Plus } from "lucide-react";
 import { UseFormReturn, FieldArrayWithId } from "react-hook-form";
 import dayjs from "dayjs";
 import { cn } from "@/lib/utils";
+import { useMemo } from "react";
 
 import MultipleSelector, { Option } from "@/components/custom/multi-selector";
 import { CreateOrderForm, ColorType, SizeCountry } from "@/lib/formSchemas";
@@ -117,43 +118,47 @@ export function CreateOrderFormFields({
   getColourBasedOnId,
   getColourBasedOnhex,
 }: CreateOrderFormFieldsProps) {
-  const orderPricingSummary = fullComponentWatch.reduce(
-    (summary, style) => {
-      const styleCode = style?.styleNo?.[0]?.value;
-      const productDetails = styleCode
-        ? productDetailsByStyleNo.get(styleCode)
-        : null;
+  const orderPricingSummary = useMemo(
+    () =>
+      fullComponentWatch.reduce(
+        (summary, style) => {
+          const styleCode = style?.styleNo?.[0]?.value;
+          const productDetails = styleCode
+            ? productDetailsByStyleNo.get(styleCode)
+            : null;
 
-      if (!productDetails) return summary;
+          if (!productDetails) return summary;
 
-      const resolvedPrice = resolveProductCurrencyPrice(
-        productDetails,
-        selectedCustomer?.currencyId ?? selectedCustomer?.currency?.id,
-      );
-      const pricing = calculateRetailerStylePricing({
-        basePrice: resolvedPrice.amount,
-        size: style.size,
-        quantity: style.quantity,
-        customSizesQuantity: style.customSizesQuantity,
-      });
+          const resolvedPrice = resolveProductCurrencyPrice(
+            productDetails,
+            selectedCustomer?.currencyId ?? selectedCustomer?.currency?.id,
+          );
+          const pricing = calculateRetailerStylePricing({
+            basePrice: resolvedPrice.amount,
+            size: style.size,
+            quantity: style.quantity,
+            customSizesQuantity: style.customSizesQuantity,
+          });
 
-      return {
-        subtotal: summary.subtotal + pricing.subtotal,
-        discount: summary.discount + pricing.discount,
-        total: summary.total + pricing.total,
-        pricedStyles: summary.pricedStyles + 1,
-        currencyCode: summary.currencyCode || resolvedPrice.currencyCode,
-        currencySymbol: summary.currencySymbol || resolvedPrice.currencySymbol,
-      };
-    },
-    {
-      subtotal: 0,
-      discount: 0,
-      total: 0,
-      pricedStyles: 0,
-      currencyCode: "",
-      currencySymbol: "",
-    },
+          return {
+            subtotal: summary.subtotal + pricing.subtotal,
+            discount: summary.discount + pricing.discount,
+            total: summary.total + pricing.total,
+            pricedStyles: summary.pricedStyles + 1,
+            currencyCode: summary.currencyCode || resolvedPrice.currencyCode,
+            currencySymbol: summary.currencySymbol || resolvedPrice.currencySymbol,
+          };
+        },
+        {
+          subtotal: 0,
+          discount: 0,
+          total: 0,
+          pricedStyles: 0,
+          currencyCode: "",
+          currencySymbol: "",
+        },
+      ),
+    [fullComponentWatch, productDetailsByStyleNo, selectedCustomer],
   );
 
   const formatSummaryPrice = (value: number) =>

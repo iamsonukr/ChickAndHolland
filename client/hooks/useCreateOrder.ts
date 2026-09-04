@@ -844,8 +844,10 @@ export function useCreateOrder({
         .join("|"),
     [fullComponentWatch],
   );
-  const watchedForm = useWatch({ control: form.control });
   const autoDraftOnCloseRef = useRef(false);
+  const autosaveTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(
+    null,
+  );
 
   const clearAutosavedDraft = useCallback(() => {
     if (typeof window === "undefined" || isEditMode) return;
@@ -995,12 +997,25 @@ export function useCreateOrder({
   useEffect(() => {
     if (typeof window === "undefined" || isEditMode || !open) return;
 
-    const timeout = window.setTimeout(() => {
-      saveAutosavedDraft("form-change");
-    }, 2500);
+    const subscription = form.watch(() => {
+      if (autosaveTimeoutRef.current) {
+        window.clearTimeout(autosaveTimeoutRef.current);
+      }
 
-    return () => window.clearTimeout(timeout);
-  }, [isEditMode, open, saveAutosavedDraft, watchedForm]);
+      autosaveTimeoutRef.current = window.setTimeout(() => {
+        autosaveTimeoutRef.current = null;
+        saveAutosavedDraft("form-change");
+      }, 2500);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      if (autosaveTimeoutRef.current) {
+        window.clearTimeout(autosaveTimeoutRef.current);
+        autosaveTimeoutRef.current = null;
+      }
+    };
+  }, [form, isEditMode, open, saveAutosavedDraft]);
 
   useEffect(() => {
     if (typeof window === "undefined" || isEditMode) return;
