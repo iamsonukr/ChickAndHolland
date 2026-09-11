@@ -4,7 +4,7 @@ import {
   paparazzi,
   videos,
 } from "@/app/(website)/collections/[[...slug]]/videos";
-import { API_URL } from "./constants";
+import { API_URL, getApiUrl, parseJsonResponse } from "./constants";
 import { cookies } from "next/headers";
 
 export const fetchWrapper = async (
@@ -19,21 +19,22 @@ export const fetchWrapper = async (
     ...options.headers,
   };
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const response = await fetch(getApiUrl(endpoint), {
     ...options,
     headers,
   });
 
-  return response.json();
+  return parseJsonResponse(response, endpoint);
 };
 
 export const getCategories = async () => {
   try {
-    const response = await fetch(`${API_URL}/categories`, {
+    const requestUrl = getApiUrl("categories");
+    const response = await fetch(requestUrl, {
       cache: "no-store",
     });
 
-    const data = await response.json();
+    const data = await parseJsonResponse(response, requestUrl);
 
     // console.log("Categories received at data.ts ", data);
 

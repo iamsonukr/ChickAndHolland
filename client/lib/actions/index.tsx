@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { API_URL, getApiUrl } from "../constants";
+import { getApiUrl, parseJsonResponse } from "../constants";
 import { LoginForm } from "../formSchemas";
 import { actionClient } from "./safe-action";
 import z from "zod";
@@ -144,7 +144,7 @@ export const submitEnquiryForm = actionClient
 
 export const loginForm = async (values: LoginForm) => {
   try {
-    const res = await fetch(`${API_URL}/users/login`, {
+    const res = await fetch(getApiUrl("users/login"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -152,7 +152,7 @@ export const loginForm = async (values: LoginForm) => {
       body: JSON.stringify(values),
     });
 
-    const data = await res.json();
+    const data = await parseJsonResponse(res, "users/login");
 
     if (!res.ok || !data.token) {
       return {
@@ -208,13 +208,13 @@ export const loginForm = async (values: LoginForm) => {
 
 export const retailerLoginForm = async (values: LoginForm) => {
   try {
-    const res = await fetch(`${API_URL}/retailers/login`, {
+    const res = await fetch(getApiUrl("retailers/login"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
     });
 
-    const data = await res.json();
+    const data = await parseJsonResponse(res, "retailers/login");
 
     if (!res.ok || !data.success || !data.token || !data.retailerId) {
       return {
