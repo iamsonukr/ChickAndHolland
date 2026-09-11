@@ -28,3 +28,6 @@ export const build2dBarcodeUrl = (
 
   return `https://api.qrserver.com/v1/create-qr-code/?${params.toString()}`;
 };
+
+export const buildPdf2dBarcodeUrl = (barcode?: string | null) =>
+  build2dBarcodeUrl(barcode, 1000);

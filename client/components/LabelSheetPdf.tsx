@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
-import { build2dBarcodeUrl } from "@/lib/barcodes";
+import { buildPdf2dBarcodeUrl } from "@/lib/barcodes";
 import {
   formatEuSizeSummary,
   PDF_DISPLAY_SIZE_UNIT,
@@ -80,7 +80,7 @@ function LabelTile({ item }: { item: any }) {
     alwaysShowCount: true,
   })}`;
   const beader = String(item.beader ?? "").trim();
-  const barcodeUrl = build2dBarcodeUrl(item.barcode, 260);
+  const barcodeUrl = buildPdf2dBarcodeUrl(item.barcode);
   const purchaseOrderNo = getStatusLabelPurchaseOrderNo(item);
   const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
     purchaseOrderNo,

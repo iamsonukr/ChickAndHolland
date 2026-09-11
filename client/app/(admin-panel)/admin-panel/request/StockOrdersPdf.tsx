@@ -1,5 +1,5 @@
 import React from "react";
-import { build2dBarcodeUrl } from "@/lib/barcodes";
+import { buildPdf2dBarcodeUrl } from "@/lib/barcodes";
 import {
   Document,
   Image,
@@ -79,7 +79,7 @@ const StockOrdersPdf = ({ orderData }: { orderData: any }) => {
                 
                 <Image
                   alt="2d barcode"
-                  src={build2dBarcodeUrl(item.barcode, 180)}
+                  src={buildPdf2dBarcodeUrl(item.barcode)}
                   style={styles.barcodeImage}
                 />
 

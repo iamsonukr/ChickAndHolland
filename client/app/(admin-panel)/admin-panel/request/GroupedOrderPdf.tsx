@@ -1,5 +1,5 @@
 import { fresh } from "@/lib/utils";
-import { build2dBarcodeUrl, normalizeBarcodeValue } from "@/lib/barcodes";
+import { buildPdf2dBarcodeUrl, normalizeBarcodeValue } from "@/lib/barcodes";
 import {
   formatEuSizeSummary,
   formatEuSizeText,
@@ -550,9 +550,8 @@ const GroupedOrderPdf = ({
                               {normalizedBarcode ? (
                                 <>
                                   <Image
-                                    src={build2dBarcodeUrl(
+                                    src={buildPdf2dBarcodeUrl(
                                       normalizedBarcode,
-                                      80,
                                     )}
                                     style={styles.variantBarcode}
                                   />

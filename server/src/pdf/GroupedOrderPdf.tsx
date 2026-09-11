@@ -1,4 +1,4 @@
-import { build2dBarcodeUrl, normalizeBarcodeValue } from "../lib/barcodes";
+import { buildPdf2dBarcodeUrl, normalizeBarcodeValue } from "../lib/barcodes";
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import {
   formatEuSizeSummary,
@@ -390,7 +390,7 @@ const GroupedOrderPdf = ({
                             {normalizedBarcode ? (
                               <>
                                 <Image
-                                  src={build2dBarcodeUrl(normalizedBarcode, 80)}
+                                  src={buildPdf2dBarcodeUrl(normalizedBarcode)}
                                   style={styles.variantBarcode}
                                 />
                                 <Text style={styles.variantCodeText}>
