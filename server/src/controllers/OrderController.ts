@@ -424,9 +424,10 @@ const emptyStageCounts = () =>
 const addStageCount = (
   counts: Record<string, number>,
   stage?: string | null,
+  quantity = 1,
 ) => {
   const canonicalStage = getCanonicalStage(stage) ?? DEFAULT_ORDER_STAGE;
-  counts[canonicalStage] = (counts[canonicalStage] ?? 0) + 1;
+  counts[canonicalStage] = (counts[canonicalStage] ?? 0) + quantity;
 };
 
 const buildOrderStatusById = (
@@ -450,19 +451,20 @@ const buildOrderStatusById = (
 };
 
 const dedupeProductRowsByBarcode = (
-  rows: Array<{ orderId: number; barcode: string }>,
+  rows: Array<{ orderId: number; barcode: string; quantity?: number }>,
 ) => {
   const productRowsByBarcode = new Map<
     string,
-    { orderId: number; barcode: string }
+    { orderId: number; barcode: string; quantity: number }
   >();
 
   rows.forEach((row) => {
     const orderId = Number(row.orderId);
     const barcode = String(row.barcode || "").trim();
+    const quantity = Number(row.quantity ?? 1) || 1;
 
     if (!orderId || !barcode || productRowsByBarcode.has(barcode)) return;
-    productRowsByBarcode.set(barcode, { orderId, barcode });
+    productRowsByBarcode.set(barcode, { orderId, barcode, quantity });
   });
 
   return Array.from(productRowsByBarcode.values());
@@ -476,7 +478,7 @@ const getRegularProductRows = async (orderIds: number[]) => {
     await Promise.all([
       queryOptionalRows(
         `
-        SELECT orderId, barcode
+        SELECT orderId, barcode, quantity
         FROM orderStyles
         WHERE orderId IN (${placeholders})
         `,
@@ -484,7 +486,7 @@ const getRegularProductRows = async (orderIds: number[]) => {
       ),
       queryOptionalRows(
         `
-        SELECT orderId, barcode
+        SELECT orderId, barcode, quantity
         FROM orderstyles
         WHERE orderId IN (${placeholders})
         `,
@@ -492,7 +494,7 @@ const getRegularProductRows = async (orderIds: number[]) => {
       ),
       queryOptionalRows(
         `
-        SELECT orderId, barcode
+        SELECT orderId, barcode, quantity
         FROM store_order_styles
         WHERE orderId IN (${placeholders})
         `,
@@ -514,7 +516,7 @@ const getRetailerProductRows = async (orderIds: number[]) => {
   const [freshStyleRows, stockStyleRows] = await Promise.all([
     queryOptionalRows(
       `
-      SELECT retailerOrderId AS orderId, barcode
+      SELECT retailerOrderId AS orderId, barcode, quantity
       FROM retailer_order_styles
       WHERE retailerOrderId IN (${placeholders})
       `,
@@ -522,7 +524,7 @@ const getRetailerProductRows = async (orderIds: number[]) => {
     ),
     queryOptionalRows(
       `
-      SELECT retailerOrderId AS orderId, barcode
+      SELECT retailerOrderId AS orderId, barcode, quantity
       FROM stock_order_styles
       WHERE retailerOrderId IN (${placeholders})
       `,
@@ -566,6 +568,7 @@ async function getProductStageCounts(baseOrders: any[]) {
           regularProgressByBarcode.get(row.barcode),
           regularOrderStatusById.get(row.orderId),
         ),
+        row.quantity,
       );
     });
   }
@@ -585,6 +588,7 @@ async function getProductStageCounts(baseOrders: any[]) {
           retailerProgressByBarcode.get(row.barcode),
           retailerOrderStatusById.get(row.orderId),
         ),
+        row.quantity,
       );
     });
   }
@@ -608,12 +612,6 @@ async function getAllStatusQuantity(baseOrders: any[]) {
         relations: ["styles"],
       })
     : [];
-  const retailerOrders: any[] = retailerOrderIds.length
-    ? await RetailerOrder.find({
-        where: { id: In(retailerOrderIds) },
-      })
-    : [];
-
   const regularQuantity = regularOrders.reduce(
     (sum: number, order: any) =>
       sum +
@@ -621,13 +619,11 @@ async function getAllStatusQuantity(baseOrders: any[]) {
         (styleSum: number, style: any) =>
           styleSum + getStyleTotalQuantity(style),
         0,
-      ),
+    ),
     0,
   );
-  const retailerQuantity = retailerOrders.reduce(
-    (sum: number, order: any) => sum + (Number(order.quantity || 0) || 0),
-    0,
-  );
+  const retailerQuantity = (await getRetailerProductRows(retailerOrderIds))
+    .reduce((sum: number, row: any) => sum + (Number(row.quantity || 0) || 0), 0);
 
   return regularQuantity + retailerQuantity;
 }
@@ -3703,17 +3699,18 @@ router.get(
     );
 
     const retailerBarcodesByOrderId = new Map<number, string[]>();
+    const retailerQuantityByOrderId = new Map<number, number>();
     let retailerProgressByBarcode = new Map<string, string>();
 
     if (retailerOrderIds.length > 0) {
       const placeholders = retailerOrderIds.map(() => "?").join(",");
       const retailerStyleRows = await db.query(
         `
-        SELECT retailerOrderId AS orderId, barcode
+        SELECT retailerOrderId AS orderId, barcode, quantity
         FROM retailer_order_styles
         WHERE retailerOrderId IN (${placeholders})
         UNION ALL
-        SELECT retailerOrderId AS orderId, barcode
+        SELECT retailerOrderId AS orderId, barcode, quantity
         FROM stock_order_styles
         WHERE retailerOrderId IN (${placeholders})
         `,
@@ -3728,6 +3725,12 @@ router.get(
         const existing = retailerBarcodesByOrderId.get(orderId) ?? [];
         existing.push(barcode);
         retailerBarcodesByOrderId.set(orderId, existing);
+
+        const quantity = Number(row.quantity ?? 1) || 1;
+        retailerQuantityByOrderId.set(
+          orderId,
+          (retailerQuantityByOrderId.get(orderId) ?? 0) + quantity,
+        );
       });
 
       retailerProgressByBarcode = buildStageMap(
@@ -3781,7 +3784,8 @@ router.get(
               (sum: number, style: any) => sum + getStyleTotalQuantity(style),
               0,
             )
-          : Number(detailedOrder?.quantity || 0) || 0;
+          : (retailerQuantityByOrderId.get(Number(baseOrder.id)) ??
+            (Number(detailedOrder?.quantity || 0) || 0));
       const computedOrderStatus =
         baseOrder.orderSource === "regular"
           ? getDisplayedOrderStage(
