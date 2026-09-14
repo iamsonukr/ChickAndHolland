@@ -4844,6 +4844,7 @@ PublicStoreRoutes.get(
         s.size,
         s.sizeCountry AS size_country,
         s.quantity,
+        s.customSizesQuantity,
         TRIM(COALESCE(NULLIF(TRIM(s.beader), ''), ob.beader, p.beader)) AS beader,
 
         o.purchaeOrderNo,
@@ -4894,14 +4895,15 @@ PublicStoreRoutes.get(
         size: row.size,
         size_country: row.size_country,
         quantity: row.quantity,
+        customSizesQuantity: safeArray(row.customSizesQuantity),
         meshColor: row.meshColor,
         meshColorRaw: row.meshColorRaw,
         beader: row.beader ?? "",
         purchaseOrderNo: row.purchaeOrderNo,
 
-        totalQty: row.quantity,
+        totalQty: getStyleTotalQuantity(row),
         completedQty,
-        remainingQty: row.quantity - completedQty,
+        remainingQty: getStyleTotalQuantity(row) - completedQty,
         progress,
       });
     }

@@ -71,6 +71,15 @@ const getReportQrBoxColor = (item: any) =>
   );
 
 const getReportQuantity = (item: any) => {
+  const customSizesQuantity = Array.isArray(item?.customSizesQuantity)
+    ? item.customSizesQuantity
+    : [];
+  const customTotal = customSizesQuantity.reduce(
+    (total: number, row: any) => total + Number(row?.quantity || 0),
+    0,
+  );
+  if (customTotal > 0) return customTotal;
+
   const quantity = Number(item?.quantity ?? item?.totalQty ?? 1);
   return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 };
