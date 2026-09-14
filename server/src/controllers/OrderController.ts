@@ -79,7 +79,8 @@ function safeArray(value: any) {
   if (Array.isArray(value)) return value;
   if (typeof value === "string") {
     try {
-      return JSON.parse(value);
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
