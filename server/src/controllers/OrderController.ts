@@ -89,6 +89,7 @@ function safeArray(value: any) {
 
 let orderStylesBeaderColumnAvailable: boolean | null = null;
 let productsBeaderColumnAvailable: boolean | null = null;
+let orderStylesCustomSizesQuantityColumnAvailable: boolean | null = null;
 
 async function hasOrderStylesBeaderColumn() {
   if (orderStylesBeaderColumnAvailable !== null) {
@@ -117,10 +118,30 @@ async function hasProductsBeaderColumn() {
   return productsBeaderColumnAvailable;
 }
 
+async function hasOrderStylesCustomSizesQuantityColumn() {
+  if (orderStylesCustomSizesQuantityColumnAvailable !== null) {
+    return orderStylesCustomSizesQuantityColumnAvailable;
+  }
+
+  const columns = await db.query("SHOW COLUMNS FROM `orderStyles` LIKE ?", [
+    "customSizesQuantity",
+  ]);
+  orderStylesCustomSizesQuantityColumnAvailable =
+    Array.isArray(columns) && columns.length > 0;
+
+  return orderStylesCustomSizesQuantityColumnAvailable;
+}
+
 async function buildOrderStylesBeaderSelect(alias = "s") {
   return (await hasOrderStylesBeaderColumn())
     ? `${alias}.beader AS beader`
     : "NULL AS beader";
+}
+
+async function buildOrderStylesCustomSizesQuantitySelect(alias = "s") {
+  return (await hasOrderStylesCustomSizesQuantityColumn())
+    ? `${alias}.customSizesQuantity AS customSizesQuantity`
+    : "'[]' AS customSizesQuantity";
 }
 
 const buildResolvedOrderStyleBeaderSql = (
@@ -4833,6 +4854,8 @@ PublicStoreRoutes.get(
   "/store-status/report/:orderId",
   asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = req.params;
+    const customSizesQuantitySelect =
+      await buildOrderStylesCustomSizesQuantitySelect("s");
 
     const rows = await db.query(
       `
@@ -4844,7 +4867,7 @@ PublicStoreRoutes.get(
         s.size,
         s.sizeCountry AS size_country,
         s.quantity,
-        s.customSizesQuantity,
+        ${customSizesQuantitySelect},
         TRIM(COALESCE(NULLIF(TRIM(s.beader), ''), ob.beader, p.beader)) AS beader,
 
         o.purchaeOrderNo,
