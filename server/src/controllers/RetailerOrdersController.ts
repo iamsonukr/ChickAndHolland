@@ -80,11 +80,11 @@ const getRetailerOrderProductStageCounts = async (orderIds: number[]) => {
   const placeholders = validOrderIds.map(() => "?").join(",");
   const styleRows = await db.query(
     `
-      SELECT barcode
+      SELECT barcode, quantity
       FROM retailer_order_styles
       WHERE retailerOrderId IN (${placeholders})
       UNION ALL
-      SELECT barcode
+      SELECT barcode, quantity
       FROM stock_order_styles
       WHERE retailerOrderId IN (${placeholders})
     `,
@@ -120,9 +120,13 @@ const getRetailerOrderProductStageCounts = async (orderIds: number[]) => {
     );
   });
 
-  barcodes.forEach((barcode: string) => {
+  styleRows.forEach((row: any) => {
+    const barcode = String(row.barcode || "").trim();
+    if (!barcode) return;
+
     const stage = latestStageByBarcode.get(barcode) ?? DEFAULT_ORDER_STAGE;
-    counts[stage] = (counts[stage] ?? 0) + 1;
+    const quantity = Number(row.quantity ?? 1) || 1;
+    counts[stage] = (counts[stage] ?? 0) + quantity;
   });
 
   return counts;
@@ -2282,7 +2286,7 @@ router.get(
         END AS type,
         payments.orderId as payment_id,
         ro.purchaseAmount AS total,
-        ${retailerOrderQuantitySql("ro")} AS totalQuantity,
+        COALESCE(styleQty.totalQuantity, ${retailerOrderQuantitySql("ro")}) AS totalQuantity,
         DATE_FORMAT(ro.orderReceivedDate,'%Y-%m-%d')  AS received_date,
         ro.manufacturingEmailAddress as email,
         ro.orderStatus,
@@ -2308,6 +2312,19 @@ router.get(
         FROM retailer_order_payments 
         GROUP BY orderId
       ) AS payments ON payments.orderId = ro.id
+      LEFT JOIN (
+        SELECT orderId, SUM(totalQuantity) AS totalQuantity
+        FROM (
+          SELECT retailerOrderId AS orderId, SUM(COALESCE(quantity, 1)) AS totalQuantity
+          FROM retailer_order_styles
+          GROUP BY retailerOrderId
+          UNION ALL
+          SELECT retailerOrderId AS orderId, SUM(COALESCE(quantity, 1)) AS totalQuantity
+          FROM stock_order_styles
+          GROUP BY retailerOrderId
+        ) AS styleQuantityRows
+        GROUP BY orderId
+      ) AS styleQty ON styleQty.orderId = ro.id
       left join retailers r on r.id = ro.retailerId
       LEFT JOIN customers c ON c.id = r.customerId 
       LEFT JOIN currencies curr ON curr.id = c.currencyId
