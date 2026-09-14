@@ -80,7 +80,7 @@ const getReportQuantity = (item: any) => {
   );
   if (customTotal > 0) return customTotal;
 
-  const quantity = Number(item?.quantity ?? item?.totalQty ?? 1);
+  const quantity = Number(item?.totalQty ?? item?.quantity ?? 1);
   return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 };
 
