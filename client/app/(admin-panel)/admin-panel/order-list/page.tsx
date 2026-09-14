@@ -100,6 +100,9 @@ const page = async (props: {
             query={query}
             stage={stage}
             stageCounts={orderStageCounts?.stageCounts ?? acceptedOrders?.stageCounts}
+            allStatusCount={
+              orderStageCounts?.allStatusCount ?? acceptedOrders?.allStatusCount
+            }
           />
         </div>
       </div>

@@ -570,6 +570,46 @@ async function getProductStageCounts(baseOrders: any[]) {
   return counts;
 }
 
+async function getAllStatusQuantity(baseOrders: any[]) {
+  const regularOrderIds = baseOrders
+    .filter((order) => order.orderSource === "regular")
+    .map((order) => Number(order.id))
+    .filter(Boolean);
+  const retailerOrderIds = baseOrders
+    .filter((order) => order.orderSource === "retailer")
+    .map((order) => Number(order.id))
+    .filter(Boolean);
+
+  const regularOrders: any[] = regularOrderIds.length
+    ? await Order.find({
+        where: { id: In(regularOrderIds) },
+        relations: ["styles"],
+      })
+    : [];
+  const retailerOrders: any[] = retailerOrderIds.length
+    ? await RetailerOrder.find({
+        where: { id: In(retailerOrderIds) },
+      })
+    : [];
+
+  const regularQuantity = regularOrders.reduce(
+    (sum: number, order: any) =>
+      sum +
+      (order.styles || []).reduce(
+        (styleSum: number, style: any) =>
+          styleSum + getStyleTotalQuantity(style),
+        0,
+      ),
+    0,
+  );
+  const retailerQuantity = retailerOrders.reduce(
+    (sum: number, order: any) => sum + (Number(order.quantity || 0) || 0),
+    0,
+  );
+
+  return regularQuantity + retailerQuantity;
+}
+
 async function getOrderStageCountSourceOrders({
   query,
   orderType,
@@ -3274,11 +3314,15 @@ router.get(
       publishStatus,
       beader,
     });
-    const stageCounts = await getProductStageCounts(sourceOrders);
+    const [stageCounts, allStatusCount] = await Promise.all([
+      getProductStageCounts(sourceOrders),
+      getAllStatusQuantity(sourceOrders),
+    ]);
 
     return res.json({
       success: true,
       stageCounts,
+      allStatusCount,
     });
   }),
 );
@@ -3480,7 +3524,10 @@ router.get(
         countQuery.setParameters(mergedParams).getRawOne(),
         productCountSourceQuery.setParameters(mergedParams).getRawMany(),
       ]);
-    const stageCounts = await getProductStageCounts(productCountSourceOrders);
+    const [stageCounts, allStatusCount] = await Promise.all([
+      getProductStageCounts(productCountSourceOrders),
+      getAllStatusQuantity(productCountSourceOrders),
+    ]);
 
     const regularOrderIds = combinedOrders
       .filter((order) => order.orderSource === "regular")
@@ -3834,6 +3881,7 @@ router.get(
         ? stageFilteredOrders.length
         : parseInt(countResult?.count || "0"),
       stageCounts,
+      allStatusCount,
     });
   }),
 );

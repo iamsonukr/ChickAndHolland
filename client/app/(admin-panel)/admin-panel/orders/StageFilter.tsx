@@ -37,6 +37,7 @@ export default function StageFilter({
   stage,
   beader,
   stageCounts,
+  allStatusCount,
 }: {
   query?: string;
   orderType?: string;
@@ -44,13 +45,16 @@ export default function StageFilter({
   stage?: string;
   beader?: string;
   stageCounts?: Record<string, number>;
+  allStatusCount?: number;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const totalStageCount = ORDER_STAGE_FLOW.reduce(
+  const summedStageCount = ORDER_STAGE_FLOW.reduce(
     (total, option) => total + (stageCounts?.[option] ?? 0),
     0,
   );
+  const totalStageCount =
+    typeof allStatusCount === "number" ? allStatusCount : summedStageCount;
   const selectedStage = stage || "__all__";
   const stageOptions = [
     {
@@ -67,7 +71,13 @@ export default function StageFilter({
 
   const handleStageChange = (value: string) => {
     const nextStage = value === "__all__" ? "" : value;
-    const search = buildSearch({ query, orderType, due, stage: nextStage, beader });
+    const search = buildSearch({
+      query,
+      orderType,
+      due,
+      stage: nextStage,
+      beader,
+    });
     const nextPath = pathname ?? "/admin-panel/orders";
     router.push(search ? `${nextPath}?${search}` : nextPath);
   };
