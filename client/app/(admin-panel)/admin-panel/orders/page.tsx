@@ -270,6 +270,9 @@ const OrdersPage = async (props: {
                 stageCounts={
                   orderStageCounts?.stageCounts ?? orders?.stageCounts
                 }
+                allStatusCount={
+                  orderStageCounts?.allStatusCount ?? orders?.allStatusCount
+                }
               />
               <BeaderFilter
                 beaders={beaders}
