@@ -6,7 +6,7 @@ import {
   Image,
   StyleSheet,
 } from "@react-pdf/renderer";
-import { build2dBarcodeUrl } from "@/lib/barcodes";
+import { buildPdf2dBarcodeUrl } from "@/lib/barcodes";
 import { formatEuSizeSummary, PDF_DISPLAY_SIZE_UNIT } from "@/lib/sizeConversion";
 
 /* ======================================================
@@ -88,7 +88,7 @@ export default function LabelPdf({ item }: { item: any }) {
               {/* <Text style={styles.scanText}>2D SCAN</Text> */}
               <Image
                 alt="2d barcode"
-                src={build2dBarcodeUrl(item.barcode, 120)}
+                src={buildPdf2dBarcodeUrl(item.barcode)}
                 style={styles.barcode}
               />
             </View>

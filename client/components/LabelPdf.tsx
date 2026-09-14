@@ -6,7 +6,7 @@ import {
   Image,
   StyleSheet,
 } from "@react-pdf/renderer";
-import { build2dBarcodeUrl } from "@/lib/barcodes";
+import { buildPdf2dBarcodeUrl } from "@/lib/barcodes";
 import {
   formatEuSizeSummary,
   PDF_DISPLAY_SIZE_UNIT,
@@ -76,7 +76,7 @@ export default function LabelPdf({ item }: { item: any }) {
   const { prefix, code, name } = formatMeshColor(item.meshColor || item.color);
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
   const beader = String(item.beader ?? "").trim();
-  const barcodeUrl = build2dBarcodeUrl(item.barcode, 260);
+  const barcodeUrl = buildPdf2dBarcodeUrl(item.barcode);
   const purchaseOrderNo = getStatusLabelPurchaseOrderNo(item);
   const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
     purchaseOrderNo,
