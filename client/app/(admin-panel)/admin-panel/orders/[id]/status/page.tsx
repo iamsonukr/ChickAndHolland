@@ -70,6 +70,14 @@ const getReportQrBoxColor = (item: any) =>
       "",
   );
 
+const getReportQuantity = (item: any) => {
+  const quantity = Number(item?.quantity ?? item?.totalQty ?? 1);
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+};
+
+const getReportQuantityTotal = (items: NormalizedItem[]) =>
+  items.reduce((total, { raw }) => total + getReportQuantity(raw), 0);
+
 type ReportType = "RETAILER" | "STORE" | "STOCK";
 
 interface NormalizedItem {
@@ -666,7 +674,7 @@ export default function OrderStatusPage({
       if (!beader) return counts;
 
       const key = beader.toLowerCase();
-      counts[key] = (counts[key] ?? 0) + 1;
+      counts[key] = (counts[key] ?? 0) + getReportQuantity(raw);
       return counts;
     },
     {},
@@ -675,7 +683,7 @@ export default function OrderStatusPage({
     {
       value: "ALL",
       label: "All Beaders",
-      count: filtered.length,
+      count: getReportQuantityTotal(filtered),
     },
     ...allBeaderNames.map((beader) => ({
       value: beader,
@@ -701,13 +709,14 @@ export default function OrderStatusPage({
   beaderFiltered.forEach(({ raw }) => {
     const progress: any[] = raw.progress ?? [];
     const itemStatus = getCurrentStageLabel(progress);
-    stageCounts[itemStatus] = (stageCounts[itemStatus] ?? 0) + 1;
+    stageCounts[itemStatus] =
+      (stageCounts[itemStatus] ?? 0) + getReportQuantity(raw);
   });
   const statusOptions = [
     {
       value: "ALL",
       label: "All Status",
-      count: beaderFiltered.length,
+      count: getReportQuantityTotal(beaderFiltered),
     },
     ...ORDER_STAGE_FLOW.map((stage) => ({
       value: stage,
@@ -753,7 +762,7 @@ export default function OrderStatusPage({
     return {
       "Style No": raw.styleNo ?? "",
       Size: formatReportSize(raw),
-      Quantity: raw.quantity ?? raw.totalQty ?? 1,
+      Quantity: getReportQuantity(raw),
       Color: getReportQrBoxColor(raw),
       "PO Number": raw.purchaseOrderNo ?? raw.purchaeOrderNo ?? "",
       Beader: raw.beader ?? "",
@@ -848,7 +857,7 @@ export default function OrderStatusPage({
                 Order Status Report
               </h1>
               <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                Total items: {beaderFiltered.length}
+                Total items: {getReportQuantityTotal(beaderFiltered)}
               </p>
             </div>
               <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:items-center">
@@ -889,7 +898,9 @@ export default function OrderStatusPage({
         {/* Type badges */}
         <div className="mb-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
           {(["RETAILER", "STORE", "STOCK"] as ReportType[]).map((t) => {
-            const count = beaderFiltered.filter((i) => i.type === t).length;
+            const count = getReportQuantityTotal(
+              beaderFiltered.filter((i) => i.type === t),
+            );
             if (!count) return null;
             return (
               <span
