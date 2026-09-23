@@ -500,12 +500,8 @@ const StyleItem = ({
                           field.onChange(isCustom ? "" : value);
                         }}
                         value={
-                          customActive
-                            ? COLOR_CUSTOM_VALUE
-                            : getColorSelectValue(
-                                field.value,
-                                knownColorValues,
-                              )
+                          getColorSelectValue(field.value, knownColorValues) ||
+                          (customActive ? COLOR_CUSTOM_VALUE : "")
                         }
                       >
                         <FormControl>
@@ -594,12 +590,8 @@ const StyleItem = ({
                           field.onChange(isCustom ? "" : value);
                         }}
                         value={
-                          customActive
-                            ? COLOR_CUSTOM_VALUE
-                            : getColorSelectValue(
-                                field.value,
-                                knownColorValues,
-                              )
+                          getColorSelectValue(field.value, knownColorValues) ||
+                          (customActive ? COLOR_CUSTOM_VALUE : "")
                         }
                       >
                         <FormControl>
@@ -817,12 +809,10 @@ const StyleItem = ({
                                 field.onChange(isCustom ? "" : value);
                               }}
                               value={
-                                customActive
-                                  ? COLOR_CUSTOM_VALUE
-                                  : getColorSelectValue(
-                                      field.value,
-                                      knownColorValues,
-                                    )
+                                getColorSelectValue(
+                                  field.value,
+                                  knownColorValues,
+                                ) || (customActive ? COLOR_CUSTOM_VALUE : "")
                               }
                             >
                               <FormControl>
