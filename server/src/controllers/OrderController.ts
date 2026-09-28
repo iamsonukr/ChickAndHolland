@@ -564,6 +564,145 @@ const getRetailerProductRows = async (
   return dedupeProductRowsByBarcode(matchingRows);
 };
 
+async function getStatusReportQuantityByOrderId(baseOrders: any[]) {
+  const quantityByOrderId = new Map<number, number>();
+  const addQuantity = (orderId: unknown, quantity: unknown) => {
+    const id = Number(orderId);
+    if (!id) return;
+
+    const numericQuantity = Number(quantity);
+    quantityByOrderId.set(
+      id,
+      (quantityByOrderId.get(id) ?? 0) +
+        (Number.isFinite(numericQuantity) && numericQuantity > 0
+          ? numericQuantity
+          : 1),
+    );
+  };
+
+  const regularOrderIds = baseOrders
+    .filter((order) => order.orderSource === "regular")
+    .map((order) => Number(order.id))
+    .filter(Boolean);
+  const freshRetailerOrderIds = baseOrders
+    .filter(
+      (order) =>
+        order.orderSource === "retailer" &&
+        String(order.orderType || "") === "Fresh",
+    )
+    .map((order) => Number(order.id))
+    .filter(Boolean);
+  const stockRetailerOrderIds = baseOrders
+    .filter(
+      (order) =>
+        order.orderSource === "retailer" &&
+        String(order.orderType || "") === "Stock",
+    )
+    .map((order) => Number(order.id))
+    .filter(Boolean);
+
+  if (regularOrderIds.length) {
+    const placeholders = regularOrderIds.map(() => "?").join(",");
+    const customSizesQuantitySelect =
+      await buildOrderStylesCustomSizesQuantitySelect("s");
+    const regularRows = await queryOptionalRows(
+      `
+      SELECT
+        s.orderId AS orderId,
+        s.quantity AS quantity,
+        ${customSizesQuantitySelect}
+      FROM orderStyles s
+      INNER JOIN orders o
+        ON o.id = s.orderId
+      LEFT JOIN product_colours pc
+        ON LOWER(pc.hexcode) = LOWER(s.mesh_color)
+      LEFT JOIN \`${ORDER_BEADERS_TABLE}\` ob
+        ON ob.styleId = s.id
+      LEFT JOIN products p
+        ON p.productCode = s.styleNo
+      WHERE o.id IN (${placeholders})
+        AND COALESCE(o.publishStatus, 'published') = 'published'
+      `,
+      regularOrderIds,
+    );
+
+    regularRows.forEach((row: any) => {
+      const quantity = getStyleTotalQuantity(row);
+      addQuantity(row.orderId, quantity > 0 ? quantity : row.quantity);
+    });
+  }
+
+  if (freshRetailerOrderIds.length) {
+    const placeholders = freshRetailerOrderIds.map(() => "?").join(",");
+    const freshRows = await queryOptionalRows(
+      `
+      SELECT
+        ro.id AS orderId,
+        ros.quantity AS quantity
+      FROM retailer_order_styles ros
+      INNER JOIN retailer_orders ro
+        ON ro.id = ros.retailerOrderId
+      LEFT JOIN retailer_favourites_orders rfo
+        ON rfo.id = ro.favouriteOrderId
+      LEFT JOIN products p
+        ON p.productCode = ros.styleNo
+      LEFT JOIN favourites matchedFavourite
+        ON FIND_IN_SET(matchedFavourite.id, rfo.favourite_ids) > 0
+       AND matchedFavourite.productId = p.id
+       AND (
+            ros.size = CAST(matchedFavourite.admin_us_size AS CHAR)
+         OR ros.size = CAST(matchedFavourite.product_size AS CHAR)
+         OR ros.size = CONCAT(
+              CAST(matchedFavourite.product_size AS CHAR),
+              ' (',
+              matchedFavourite.size_country,
+              ')'
+            )
+       )
+       AND (
+            ros.size_country = matchedFavourite.size_country
+         OR ros.size_country IS NULL
+         OR ros.size_country = ''
+       )
+      LEFT JOIN product_colours pc
+        ON LOWER(pc.hexcode) = LOWER(matchedFavourite.mesh_color)
+      WHERE ro.id IN (${placeholders})
+      `,
+      freshRetailerOrderIds,
+    );
+
+    freshRows.forEach((row: any) => addQuantity(row.orderId, row.quantity));
+  }
+
+  if (stockRetailerOrderIds.length) {
+    const placeholders = stockRetailerOrderIds.map(() => "?").join(",");
+    const stockRows = await queryOptionalRows(
+      `
+      SELECT
+        ro.id AS orderId,
+        sos.quantity AS quantity
+      FROM stock_order_styles sos
+      INNER JOIN retailer_orders ro
+        ON ro.id = sos.retailerOrderId
+      INNER JOIN retailer_stock_orders rso
+        ON rso.id = ro.stockOrderId
+      INNER JOIN stock s
+        ON s.id = rso.stockId
+      LEFT JOIN products p
+        ON p.productCode = sos.styleNo
+      LEFT JOIN product_colours pc
+        ON LOWER(pc.hexcode) = LOWER(s.mesh_color)
+      WHERE ro.id IN (${placeholders})
+      `,
+      stockRetailerOrderIds,
+    );
+
+    stockRows.forEach((row: any) => addQuantity(row.orderId, row.quantity));
+  }
+
+  return quantityByOrderId;
+}
+
 async function getProductStageCounts(baseOrders: any[]) {
   const counts = emptyStageCounts();
 
@@ -3775,6 +3914,9 @@ router.get(
       );
     }
 
+    const statusReportQuantityByOrderId =
+      await getStatusReportQuantityByOrderId(combinedOrders);
+
     // Final formatting
     const formattedOrders = combinedOrders.map((baseOrder) => {
       let detailedOrder;
@@ -3809,13 +3951,14 @@ router.get(
         };
       });
       const totalQuantity =
-        baseOrder.orderSource === "regular"
+        statusReportQuantityByOrderId.get(Number(baseOrder.id)) ??
+        (baseOrder.orderSource === "regular"
           ? (styles || []).reduce(
               (sum: number, style: any) => sum + getStyleTotalQuantity(style),
               0,
             )
           : (retailerQuantityByOrderId.get(Number(baseOrder.id)) ??
-            (Number(detailedOrder?.quantity || 0) || 0));
+            (Number(detailedOrder?.quantity || 0) || 0)));
       const computedOrderStatus =
         baseOrder.orderSource === "regular"
           ? getDisplayedOrderStage(

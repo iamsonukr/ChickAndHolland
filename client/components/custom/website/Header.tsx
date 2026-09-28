@@ -192,7 +192,7 @@ const Header = async () => {
           className="logo-ios-se logo-ios-standard logo-ios-x-series logo-ios-plus logo-ios-pro-max logo-ios-15-pro-max logo-android-fallback flex w-4/12 justify-center sm:w-3/12 md:ml-0 md:inline-block md:w-fit"
         >
           <img
-            src="https://ymts.blr1.cdn.digitaloceanspaces.com/chicandholland/Brand_New/logo.png"
+            src="https://chicandholland-space.ams3.digitaloceanspaces.com/chicandholland/Brand_New/logo.png"
             alt="Chic & Holland"
             className="w-[110px] md:w-[75px] 2xl:w-[80px] 3xl:w-[100px] 4xl:w-[105px]"
           />
