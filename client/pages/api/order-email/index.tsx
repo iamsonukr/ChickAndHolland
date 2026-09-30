@@ -335,7 +335,7 @@ const OrderCustomerPdf: React.FC<OrderCustomerPdfProps> = ({ orderData }) => {
                             style={{
                               width: "100%",
                               height: 200,
-                              objectFit: "cover",
+                              objectFit: "contain",
                             }}
                           />
                         </View>
@@ -382,7 +382,7 @@ const OrderCustomerPdf: React.FC<OrderCustomerPdfProps> = ({ orderData }) => {
                     style={{
                       width: "100%",
                       height: 450,
-                      objectFit: "cover",
+                      objectFit: "contain",
                     }}
                   />
                 </View>

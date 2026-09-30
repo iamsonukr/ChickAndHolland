@@ -254,8 +254,8 @@ export const styles = StyleSheet.create({
   mainImage: {
     width: "100%",
     height: "100%",
-    objectFit: "cover",
-    objectPosition: "center bottom",
+    objectFit: "contain",
+    objectPosition: "center center",
     alignSelf: "flex-end",
     borderRadius: 4,
   },

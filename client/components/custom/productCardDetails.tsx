@@ -193,12 +193,12 @@ const ProductDetailsSheet: React.FC<{ data: any }> = ({ data }) => {
                   {referenceImages.map((image: any, index: number) => (
                     <div
                       key={index}
-                      className="h-auto overflow-hidden rounded border"
+                      className="aspect-[4/5] overflow-hidden rounded border bg-muted/30"
                     >
                       <img
                         src={image}
                         alt={`Reference ${index + 1}`}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain p-1"
                         loading="lazy"
                       />
                     </div>

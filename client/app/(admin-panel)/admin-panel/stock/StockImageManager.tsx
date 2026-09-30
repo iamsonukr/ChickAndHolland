@@ -5,6 +5,8 @@ import { ImagePlus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/custom/button";
 import { CustomizedImage } from "@/components/custom/CustomizedImage";
 import { cn } from "@/lib/utils";
+import { IMAGE_FILE_ACCEPT, prepareImageFiles } from "@/lib/imageFiles";
+import { toast } from "sonner";
 
 export type StockImage = {
   id?: number;
@@ -57,16 +59,20 @@ const StockImageManager = ({
     };
   }, [selectedFiles]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []).filter((file) =>
-      file.type.startsWith("image/"),
-    );
-
-    if (files.length) {
-      onSelectedFilesChange([...selectedFiles, ...files]);
-    }
-
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const selectedImages = Array.from(event.target.files ?? []);
     event.target.value = "";
+
+    try {
+      const files = await prepareImageFiles(selectedImages);
+      if (files.length) {
+        onSelectedFilesChange([...selectedFiles, ...files]);
+      }
+    } catch {
+      toast.error("Could not process one or more images");
+    }
   };
 
   const removeSelectedFile = (fileKey: string) => {
@@ -96,7 +102,7 @@ const StockImageManager = ({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept={IMAGE_FILE_ACCEPT}
         multiple
         className="hidden"
         onChange={handleFileChange}

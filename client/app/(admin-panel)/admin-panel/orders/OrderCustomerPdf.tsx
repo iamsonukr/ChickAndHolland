@@ -205,7 +205,7 @@ const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
                               style={{
                                 width: "100%",
                                 height: 200,
-                                objectFit: "cover",
+                                objectFit: "contain",
                               }}
                             />
                           </View>
@@ -271,6 +271,7 @@ const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
                     style={{
                       width: "100%",
                       height: "360px",
+                      objectFit: "contain",
                     }}
                   />
                 ) : (

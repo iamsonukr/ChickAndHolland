@@ -142,7 +142,7 @@ const ActionButtons = ({
                         </p>
                       </div>
                       <img
-                        className="aspect-square h-full w-full object-cover"
+                        className="aspect-square h-full w-full bg-muted/30 object-contain"
                         src={item.product.images[0].name}
                         alt="profile-picture"
                       />
@@ -161,7 +161,7 @@ const ActionButtons = ({
                         </p>
                       </div>
                       <img
-                        className="aspect-square h-full w-full object-cover"
+                        className="aspect-square h-full w-full bg-muted/30 object-contain"
                         src={item.image_name}
                         alt="profile-picture"
                       />

@@ -56,6 +56,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getProductColours } from "@/lib/data";
 import BeaderSelectField from "@/components/BeaderSelectField";
 import { fetchBeaders } from "@/lib/beaders";
+import { IMAGE_FILE_ACCEPT, prepareImageFiles } from "@/lib/imageFiles";
 
 const lining = [
   "No Lining",
@@ -86,7 +87,7 @@ const ProductImagePreviewGrid = ({
   }, [files]);
 
   if (files.length === 0) return null;
-  
+
   return (
     <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {files.map((file, index) => (
@@ -233,17 +234,15 @@ const AddProductForm = ({
 
   const watchedCategoryId = form.watch("categoryId");
   const watchedLining = form.watch("lining");
-const selectedCategory = form.watch("categoryId");
+  const selectedCategory = form.watch("categoryId");
 
-const filteredCollections = selectedCategory
-  ? subCategories?.filter(
-      (s) => s.category?.id === Number(selectedCategory)
-    )
-  : [];
+  const filteredCollections = selectedCategory
+    ? subCategories?.filter((s) => s.category?.id === Number(selectedCategory))
+    : [];
 
   const filteredSubCategories = subCategories.filter(
-  (s) => s.category?.id === Number(selectedCategory)
-);
+    (s) => s.category?.id === Number(selectedCategory),
+  );
 
   // Get already selected currencies to filter them out
   // Also filter out EUR since it's the default currency (already has its own field)
@@ -780,17 +779,28 @@ const filteredCollections = selectedCategory
                   <FormControl>
                     <Input
                       type="file"
-                      accept="image/*"
+                      accept={IMAGE_FILE_ACCEPT}
                       multiple
-                      onChange={(event) => {
-                        const newFiles = Array.from(event.target.files ?? []);
+                      onChange={async (event) => {
+                        const selectedFiles = Array.from(
+                          event.target.files ?? [],
+                        );
+                        event.target.value = "";
+                        if (selectedFiles.length === 0) return;
+
+                        let newFiles: File[];
+                        try {
+                          newFiles = await prepareImageFiles(selectedFiles);
+                        } catch {
+                          toast.error("Could not process one or more images");
+                          return;
+                        }
                         if (newFiles.length === 0) return;
 
                         field.onChange([
                           ...Array.from((field.value ?? []) as File[]),
                           ...newFiles,
                         ]);
-                        event.target.value = "";
                       }}
                     />
                   </FormControl>

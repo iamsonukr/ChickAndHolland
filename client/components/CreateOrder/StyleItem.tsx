@@ -31,7 +31,7 @@ import {
   SizeCountry,
   sizes,
 } from "@/lib/formSchemas";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CommentsFieldArray from "./CommentsFieldArray";
 import FileUploadField from "./FileUploadField";
 import CustomSizesQuantityFieldArray from "./CustomSizesQuantityFieldArray";
@@ -180,6 +180,9 @@ const StyleItem = ({
   ).trim();
   const sampleLiningValue = getSelectItemValue(stylesSelect?.lining);
   const sampleLiningColorValue = getSelectItemValue(stylesSelect?.liningColor);
+  const resolvedMeshLiningColor =
+    getSelectItemValue(currentMesh) === "SAS" ? sampleMeshValue : currentMesh;
+  const previousAutoLiningColor = useRef<string | undefined>();
   const colorOptions = useMemo(
     () =>
       colors.map((colour: any) => ({
@@ -328,14 +331,28 @@ const StyleItem = ({
 
   useEffect(() => {
     if (!addLining || !currentLining || currentLining === "No Lining") return;
-    if (!currentMesh) return;
+    if (!resolvedMeshLiningColor) return;
 
-    form.setValue(`styles.${index}.liningColor`, currentMesh, {
+    const liningColorPath = `styles.${index}.liningColor` as const;
+    const currentLiningColor = String(
+      form.getValues(liningColorPath as any) ?? "",
+    ).trim();
+    const shouldUseMeshDefault =
+      !currentLiningColor ||
+      currentLiningColor === "SAS" ||
+      currentLiningColor === previousAutoLiningColor.current;
+
+    if (!shouldUseMeshDefault || currentLiningColor === resolvedMeshLiningColor) {
+      return;
+    }
+
+    form.setValue(liningColorPath as any, resolvedMeshLiningColor, {
       shouldDirty: true,
       shouldTouch: true,
       shouldValidate: true,
     });
-  }, [addLining, currentLining, currentMesh, form, index]);
+    previousAutoLiningColor.current = String(resolvedMeshLiningColor);
+  }, [addLining, currentLining, form, index, resolvedMeshLiningColor]);
 
   return (
     <Collapsible key={fieldId} defaultOpen={index === 0} className="space-y-2">
