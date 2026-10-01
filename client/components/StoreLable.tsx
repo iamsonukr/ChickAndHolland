@@ -9,6 +9,7 @@ import {
   getResponsiveStatusLabelFontSize,
   getStatusLabelPurchaseOrderNo,
 } from "@/lib/statusLabelText";
+import { getStatusLabelColorValue } from "@/lib/statusLabelColor";
 
 /* ================= COLOR MASTER (DB MIRROR) ================= */
 
@@ -101,7 +102,7 @@ export default function StatusLabelBox1({
   orderType?: string;
 }) {
   const { name: colorName, hex: colorHex } = resolveColor(
-    item.meshColor || item.color,
+    getStatusLabelColorValue(item),
   );
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
   const beader = String(item.beader ?? "").trim();

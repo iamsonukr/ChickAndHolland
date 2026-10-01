@@ -15,6 +15,7 @@ import {
   getResponsiveStatusLabelFontSize,
   getStatusLabelPurchaseOrderNo,
 } from "@/lib/statusLabelText";
+import { getStatusLabelColorValue } from "@/lib/statusLabelColor";
 
 /* ======================================================
    FORMAT MESH COLOR
@@ -73,7 +74,9 @@ const formatMeshColor = (meshColor?: string) => {
    PDF LABEL
 ====================================================== */
 export default function LabelPdf({ item }: { item: any }) {
-  const { prefix, code, name } = formatMeshColor(item.meshColor || item.color);
+  const { prefix, code, name } = formatMeshColor(
+    getStatusLabelColorValue(item),
+  );
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
   const beader = String(item.beader ?? "").trim();
   const barcodeUrl = buildPdf2dBarcodeUrl(item.barcode);

@@ -15,6 +15,7 @@ import {
   getResponsiveStatusLabelFontSize,
   getStatusLabelPurchaseOrderNo,
 } from "@/lib/statusLabelText";
+import { getStatusLabelColorValue } from "@/lib/statusLabelColor";
 
 const LABELS_PER_PAGE = 1;
 
@@ -75,7 +76,9 @@ const formatMeshColor = (meshColor?: string) => {
 };
 
 function LabelTile({ item }: { item: any }) {
-  const { prefix, code, name } = formatMeshColor(item.meshColor || item.color);
+  const { prefix, code, name } = formatMeshColor(
+    getStatusLabelColorValue(item),
+  );
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], {
     alwaysShowCount: true,
   })}`;

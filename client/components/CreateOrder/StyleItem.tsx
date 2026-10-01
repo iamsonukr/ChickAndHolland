@@ -182,6 +182,10 @@ const StyleItem = ({
   const sampleLiningColorValue = getSelectItemValue(stylesSelect?.liningColor);
   const resolvedMeshLiningColor =
     getSelectItemValue(currentMesh) === "SAS" ? sampleMeshValue : currentMesh;
+  const standardLiningColorValue = getSelectItemValue(
+    resolvedMeshLiningColor,
+    sampleLiningColorValue,
+  );
   const previousAutoLiningColor = useRef<string | undefined>();
   const colorOptions = useMemo(
     () =>
@@ -209,13 +213,15 @@ const StyleItem = ({
         new Set([sampleBeadingValue, ...colorOptionValues].filter(Boolean)),
       ),
       liningColor: Array.from(
-        new Set([sampleLiningColorValue, ...colorOptionValues].filter(Boolean)),
+        new Set(
+          [standardLiningColorValue, ...colorOptionValues].filter(Boolean),
+        ),
       ),
     }),
     [
       colorOptionValues,
       sampleBeadingValue,
-      sampleLiningColorValue,
+      standardLiningColorValue,
       sampleMeshValue,
     ],
   );
@@ -331,7 +337,7 @@ const StyleItem = ({
 
   useEffect(() => {
     if (!addLining || !currentLining || currentLining === "No Lining") return;
-    if (!resolvedMeshLiningColor) return;
+    if (!standardLiningColorValue) return;
 
     const liningColorPath = `styles.${index}.liningColor` as const;
     const currentLiningColor = String(
@@ -342,17 +348,20 @@ const StyleItem = ({
       currentLiningColor === "SAS" ||
       currentLiningColor === previousAutoLiningColor.current;
 
-    if (!shouldUseMeshDefault || currentLiningColor === resolvedMeshLiningColor) {
+    if (
+      !shouldUseMeshDefault ||
+      currentLiningColor === standardLiningColorValue
+    ) {
       return;
     }
 
-    form.setValue(liningColorPath as any, resolvedMeshLiningColor, {
+    form.setValue(liningColorPath as any, standardLiningColorValue, {
       shouldDirty: true,
       shouldTouch: true,
       shouldValidate: true,
     });
-    previousAutoLiningColor.current = String(resolvedMeshLiningColor);
-  }, [addLining, currentLining, form, index, resolvedMeshLiningColor]);
+    previousAutoLiningColor.current = String(standardLiningColorValue);
+  }, [addLining, currentLining, form, index, standardLiningColorValue]);
 
   return (
     <Collapsible key={fieldId} defaultOpen={index === 0} className="space-y-2">
@@ -690,7 +699,7 @@ const StyleItem = ({
                               }
                               form.setValue(
                                 `styles.${index}.liningColor`,
-                                form.getValues(`styles.${index}.mesh`) || "SAS",
+                                standardLiningColorValue || "SAS",
                                 {
                                   shouldDirty: true,
                                   shouldTouch: true,
@@ -838,7 +847,7 @@ const StyleItem = ({
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value={sampleLiningColorValue}>
+                                <SelectItem value={standardLiningColorValue}>
                                   <div className="flex gap-1">
                                     SAS (
                                     <div className="flex items-center">
@@ -846,12 +855,12 @@ const StyleItem = ({
                                         className="mx-1 h-4 w-4 rounded-full"
                                         style={{
                                           backgroundColor:
-                                            stylesSelect?.liningColor,
+                                            standardLiningColorValue,
                                           border: "1px solid #000",
                                         }}
                                       />
                                       {getColourBasedOnhex(
-                                        stylesSelect?.liningColor,
+                                        standardLiningColorValue,
                                       )}
                                     </div>
                                     )
@@ -917,6 +926,17 @@ const StyleItem = ({
                           checked={field.value ?? false}
                           onCheckedChange={(checked) => {
                             field.onChange(checked);
+                            if (checked) {
+                              form.setValue(
+                                `styles.${index}.liningColor`,
+                                standardLiningColorValue || "SAS",
+                                {
+                                  shouldDirty: true,
+                                  shouldTouch: true,
+                                  shouldValidate: true,
+                                },
+                              );
+                            }
                             if (!checked) {
                               setCustomLiningActive(false);
                               form.setValue(`styles.${index}.lining`, "SAS", {
@@ -1039,7 +1059,7 @@ const StyleItem = ({
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value={sampleLiningColorValue}>
+                                <SelectItem value={standardLiningColorValue}>
                                   <div className="flex gap-1">
                                     SAS (
                                     <div className="flex items-center">
@@ -1047,12 +1067,12 @@ const StyleItem = ({
                                         className="mx-1 h-4 w-4 rounded-full"
                                         style={{
                                           backgroundColor:
-                                            stylesSelect?.liningColor,
+                                            standardLiningColorValue,
                                           border: "1px solid #000",
                                         }}
                                       />
                                       {getColourBasedOnhex(
-                                        stylesSelect?.liningColor,
+                                        standardLiningColorValue,
                                       )}
                                     </div>
                                     )

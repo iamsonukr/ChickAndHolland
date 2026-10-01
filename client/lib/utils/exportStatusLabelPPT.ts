@@ -9,6 +9,7 @@ import {
   getResponsiveStatusLabelFontSize,
   getStatusLabelPurchaseOrderNo,
 } from "@/lib/statusLabelText";
+import { getStatusLabelColorValue } from "@/lib/statusLabelColor";
 
 const sanitizeFileName = (value: unknown, fallback: string) => {
   const name = String(value ?? "").trim() || fallback;
@@ -56,7 +57,7 @@ export async function downloadStatusLabelPPT(item: any, orderType?: string) {
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], {
     alwaysShowCount: true,
   })}`;
-  const colorText = formatText(item?.meshColor || item?.color);
+  const colorText = formatText(getStatusLabelColorValue(item));
   const purchaseOrderNo = getStatusLabelPurchaseOrderNo(item);
   const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
     purchaseOrderNo,

@@ -9,6 +9,7 @@ import {
   getResponsiveStatusLabelFontSize,
   getStatusLabelPurchaseOrderNo,
 } from "@/lib/statusLabelText";
+import { getStatusLabelColorValue } from "@/lib/statusLabelColor";
 
 /* ================= LABEL COMPONENT ================= */
 
@@ -21,6 +22,7 @@ export default function StatusLabelBox({
 }) {
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
   const beader = String(item.beader ?? "").trim();
+  const colorText = getStatusLabelColorValue(item);
   const purchaseOrderNo = getStatusLabelPurchaseOrderNo(item);
   const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
     purchaseOrderNo,
@@ -63,7 +65,7 @@ export default function StatusLabelBox({
 
             <div className="rounded-md border border-gray-300 bg-gray-100 px-3 py-2">
               <div className="text-center text-xs font-bold leading-tight text-gray-800">
-                {item.meshColor || item.color}
+                {colorText || "UNKNOWN"}
               </div>
             </div>
           </div>
