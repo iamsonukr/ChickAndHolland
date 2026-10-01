@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useRef, useState } from "react";
+import { IMAGE_FILE_ACCEPT, prepareImageFiles } from "@/lib/imageFiles";
 
 const ViewImages = ({ productData }: any) => {
   const { executeAsync, loading } = useHttp(
@@ -38,29 +39,39 @@ const ViewImages = ({ productData }: any) => {
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFiles(event.target.files);
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+
+    try {
+      setSelectedFiles(await prepareImageFiles(files));
+    } catch {
+      setSelectedFiles([]);
+      toast.error("Could not process one or more images");
+    }
   };
 
   const handleClearFiles = () => {
     if (fileRef.current) {
       fileRef.current.value = "";
     }
-    setSelectedFiles(null);
+    setSelectedFiles([]);
   };
 
-  const fileCount = selectedFiles?.length ?? 0;
+  const fileCount = selectedFiles.length;
 
   return (
-    <Dialog >
+    <Dialog>
       <DialogTrigger asChild>
         <Button size={"icon"} variant={"secondary"}>
           <Image />
         </Button>
       </DialogTrigger>
-      <DialogContent className={' '}>
+      <DialogContent className={" "}>
         <DialogHeader className="mt-6">
           <DialogTitle asChild>
             <div className="flex items-center justify-between">
@@ -75,10 +86,7 @@ const ViewImages = ({ productData }: any) => {
                         const formData = new FormData();
 
                         for (let i = 0; i < fileCount; i++) {
-                          formData.append(
-                            `images[${i}]`,
-                            selectedFiles?.item(i) as File,
-                          );
+                          formData.append(`images[${i}]`, selectedFiles[i]);
                         }
 
                         formData.append("productId", productData.id);
@@ -87,7 +95,7 @@ const ViewImages = ({ productData }: any) => {
                           return toast.error("Error uploading images");
                         });
 
-                        setSelectedFiles(null);
+                        setSelectedFiles([]);
 
                         toast("Images uploaded successfully");
                         router.refresh();
@@ -123,18 +131,24 @@ const ViewImages = ({ productData }: any) => {
           className="hidden"
           onChange={handleFileChange}
           multiple
-          accept="image/*"
+          accept={IMAGE_FILE_ACCEPT}
         />
 
-        <Carousel opts={{ loop: true }} className={'max-h-[80dvh]  lg:max-h-[90dvh]'}>
-          <CarouselContent className={'max-h-[80dvh]  lg:max-h-[90dvh]'}>
+        <Carousel
+          opts={{ loop: true }}
+          className={"max-h-[80dvh] lg:max-h-[90dvh]"}
+        >
+          <CarouselContent className={"max-h-[80dvh] lg:max-h-[90dvh]"}>
             {productData?.images.map((image: any, index: number) => (
-              <CarouselItem key={image.id} className={'flex flex-col justify-center items-center w-full'}>
-                <div className="relative space-y-2  w-[70%] ">
+              <CarouselItem
+                key={image.id}
+                className={"flex w-full flex-col items-center justify-center"}
+              >
+                <div className="relative w-[70%] space-y-2">
                   <img
                     src={image.name}
                     alt={image.alt}
-                    className="h-auto !max-h-[70vh] lg:!max-h-[80dvh] w-[100%]"
+                    className="h-auto !max-h-[70vh] w-[100%] lg:!max-h-[80dvh]"
                   />
 
                   <Button

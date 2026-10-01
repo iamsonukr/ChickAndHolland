@@ -13,6 +13,8 @@ import { X } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CreateOrderForm } from "@/lib/formSchemas";
+import { IMAGE_FILE_ACCEPT, prepareImageFiles } from "@/lib/imageFiles";
+import { toast } from "sonner";
 
 interface FileUploadFieldProps {
   form: UseFormReturn<CreateOrderForm>;
@@ -21,7 +23,12 @@ interface FileUploadFieldProps {
   label?: string;
 }
 
-const FileUploadField = ({ form, index, name, label = "Custom Images" }: FileUploadFieldProps) => {
+const FileUploadField = ({
+  form,
+  index,
+  name,
+  label = "Custom Images",
+}: FileUploadFieldProps) => {
   const fieldPath = `styles[${index}].${name}` as any;
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -43,8 +50,18 @@ const FileUploadField = ({ form, index, name, label = "Custom Images" }: FileUpl
   }, [selectedFiles]);
 
   const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newFiles = Array.from(e.target.files ?? []);
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedImages = Array.from(e.target.files ?? []);
+      e.target.value = "";
+      if (selectedImages.length === 0) return;
+
+      let newFiles: File[];
+      try {
+        newFiles = await prepareImageFiles(selectedImages);
+      } catch {
+        toast.error("Could not process one or more images");
+        return;
+      }
       if (newFiles.length === 0) return;
 
       setSelectedFiles((prev) => {
@@ -53,9 +70,6 @@ const FileUploadField = ({ form, index, name, label = "Custom Images" }: FileUpl
         form.setValue(fieldPath, merged, { shouldDirty: true });
         return merged;
       });
-
-      // Reset input so the same file can be re-added if needed
-      e.target.value = "";
     },
     [fieldPath, form],
   );
@@ -84,13 +98,13 @@ const FileUploadField = ({ form, index, name, label = "Custom Images" }: FileUpl
                 type="file"
                 onChange={handleFileChange}
                 className="block w-full cursor-pointer rounded-lg border text-sm"
-                accept="image/*"
+                accept={IMAGE_FILE_ACCEPT}
                 multiple
                 aria-label="Upload custom images"
               />
 
               {selectedFiles.length > 0 && (
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                   {previews.map((preview, fileIndex) => {
                     const file = selectedFiles[fileIndex];
                     // Use a stable key that won't collide even with same file name
@@ -99,12 +113,15 @@ const FileUploadField = ({ form, index, name, label = "Custom Images" }: FileUpl
                       : `preview-${fileIndex}`;
 
                     return (
-                      <div key={fileKey} className="group relative cursor-pointer">
-                        <div className="relative aspect-square overflow-hidden rounded-lg border">
+                      <div
+                        key={fileKey}
+                        className="group relative cursor-pointer"
+                      >
+                        <div className="relative aspect-square overflow-hidden rounded-lg border bg-muted/30">
                           <img
                             src={preview}
                             alt={`Preview ${fileIndex + 1}`}
-                            className="h-full w-full object-contain"
+                            className="h-full w-full object-contain p-1"
                           />
                           <div className="absolute inset-0 bg-black/0 transition-all group-hover:bg-black/40">
                             <Button
