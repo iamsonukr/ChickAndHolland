@@ -52,6 +52,8 @@ import RetailerOrdersPayment from "../models/RetailerPaymentModal";
 import Country from "../models/Country";
 import { mail } from "../lib/Utils";
 import { generateOrderPdf } from "../pdf/generateOrderPdf";
+import { ensureRegularOrderPieces } from "../services/regularOrderPieces.service";
+import { expandOrderStylePieces as buildRegularOrderStylePieces } from "../lib/orderPieces";
 import { formatDateOnly, parseDateOnly } from "../lib/dateOnly";
 import { assertDeliverableEmailAddress } from "../lib/emailValidation";
 import { getBarcodeComment } from "../services/barcodeComment.service";
@@ -1362,6 +1364,28 @@ const buildRegularOrderPdfDetails = (
     return acc;
   }, []);
 
+export async function getRegularOrderPdfData(orderId: number) {
+  const order = await Order.findOne({
+    where: { id: orderId, status: 0 }, relations: ["customer", "styles"],
+  });
+  if (!order || order.publishStatus === OrderPublishStatus.Draft) {
+    throw new Error("A published order is required for PDF generation");
+  }
+  await ensureRegularOrderPieces(orderId);
+  order.styles = await Style.find({ where: { order: { id: order.id } } });
+  const [processed] = await processOrders([order]);
+  const resolved = await applyResolvedRegularOrderBeaders(processed);
+  const getColorName = await createColorNameResolver();
+  return {
+    id: order.id, orderSource: "regular", customerId: order.customer?.id,
+    manufacturingEmailAddress: order.manufacturingEmailAddress,
+    orderCancellationDate: formatDateOnly(order.orderCancellationDate),
+    orderReceivedDate: formatDateOnly(order.orderReceivedDate),
+    orderType: order.orderType, purchaseOrderNo: order.purchaeOrderNo,
+    details: buildRegularOrderPdfDetails(resolved, getColorName),
+  };
+}
+
 async function sendCreatedOrderPdfEmail(orderId: number) {
   console.log(`${ORDER_PDF_EMAIL_LOG_PREFIX} Preparing email`, { orderId });
 
@@ -1419,6 +1443,8 @@ async function sendCreatedOrderPdfEmail(orderId: number) {
         filename: uploadedAttachment.filename,
       });
     } else {
+      await ensureRegularOrderPieces(order.id);
+      order.styles = await Style.find({ where: { order: { id: order.id } } });
       const [processedOrderRaw] = await processOrders([order]);
       const processedOrder =
         await applyResolvedRegularOrderBeaders(processedOrderRaw);
@@ -1954,51 +1980,6 @@ function applyPricingToStyle(
     });
   }
 }
-
-const getPositivePieceCount = (quantity: unknown) => {
-  return parsePositiveOrderQuantity(quantity) ?? 0;
-};
-
-const buildRegularOrderStylePieces = (styleInput: any) => {
-  const customSizeRows = parseCustomSizesQuantity(
-    styleInput?.customSizesQuantity,
-  );
-
-  if (customSizeRows.length > 0) {
-    return customSizeRows.flatMap((sizeRow) => {
-      const pieceCount = getPositivePieceCount(sizeRow.quantity);
-      const size = getCustomSizeText(sizeRow) || styleInput?.size;
-
-      return Array.from({ length: pieceCount }, () => ({
-        ...styleInput,
-        size,
-        quantity: 1,
-        customSize: JSON.stringify([]),
-        customSizesQuantity: JSON.stringify([]),
-      }));
-    });
-  }
-
-  const quantity = getPositivePieceCount(styleInput?.quantity);
-
-  if (quantity <= 0) {
-    return [];
-  }
-
-  if (quantity === 1) {
-    return [
-      {
-        ...styleInput,
-        quantity,
-      },
-    ];
-  }
-
-  return Array.from({ length: quantity }, () => ({
-    ...styleInput,
-    quantity: 1,
-  }));
-};
 
 router.post(
   "/",
@@ -2562,6 +2543,12 @@ router.patch(
           where: { id: orderId },
           relations: ["customer", "customer.currency", "styles"],
         });
+        const previousPieceCounts = new Map((order.styles ?? []).map(style => {
+          const sizes = parseCustomSizesQuantity(style.customSizesQuantity);
+          return [style.id, sizes.length
+            ? sizes.reduce((sum, size) => sum + (parsePositiveOrderQuantity(size.quantity) ?? 0), 0)
+            : parsePositiveOrderQuantity(style.quantity) ?? 0] as [number, number];
+        }));
 
         const hasField = (fieldName: string) =>
           Object.prototype.hasOwnProperty.call(fields, fieldName);
@@ -2828,6 +2815,10 @@ router.patch(
           // If no images sent for this style, existing photoUrls are preserved
         }
 
+        if (order.publishStatus !== OrderPublishStatus.Draft) {
+          await ensureRegularOrderPieces(order.id, { previousPieceCounts });
+        }
+
         res.json({
           success: true,
           message:
@@ -2876,6 +2867,7 @@ router.patch(
       });
     }
 
+    await ensureRegularOrderPieces(order.id);
     order.publishStatus = OrderPublishStatus.Published;
     await order.save();
 
@@ -4220,6 +4212,19 @@ router.post(
   }),
 );
 
+router.post(
+  "/:id/normalize-pieces",
+  requireAdminUser(),
+  asyncHandler(async (req: Request, res: Response) => {
+    const orderId = parsePositiveInteger(req.params.id);
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: "Valid order id is required" });
+    }
+    const added = await ensureRegularOrderPieces(orderId);
+    res.json({ success: true, added });
+  }),
+);
+
 router.get(
   "/orderDetails",
   asyncHandler(async (req: Request, res: Response) => {
@@ -4805,8 +4810,10 @@ PublicStoreRoutes.get(
       order: { createdAt: "ASC" },
     });
 
-    // 🔥 Total completed qty
-    const completedQty = progress.reduce((sum, p) => sum + p.qty, 0);
+    // Quantity belongs to the current stage. Summing successive stages counts
+    // the same piece repeatedly, and legacy grouped logs can exceed one piece.
+    const latestProgress = progress[progress.length - 1];
+    const completedQty = Math.min(style.quantity, Math.max(0, Number(latestProgress?.qty) || 0));
 
     const remainingQty = style.quantity - completedQty;
     const beaderRows = await db.query(
@@ -5084,7 +5091,10 @@ PublicStoreRoutes.get(
         order: { createdAt: "ASC" },
       });
 
-      const completedQty = progress.reduce((sum, p) => sum + p.qty, 0);
+      const latestProgress = progress[progress.length - 1];
+      const completedQty = Math.min(
+        getStyleTotalQuantity(row), Math.max(0, Number(latestProgress?.qty) || 0),
+      );
 
       final.push({
         styleId: row.styleId,

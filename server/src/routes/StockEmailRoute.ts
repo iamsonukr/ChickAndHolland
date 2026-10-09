@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response, Router } from "express";
 import multer from "multer";
+import { requireAdminUser } from "../middleware/AdminAuth";
 import {
   sendStockEmail,
   sendStockExportEmail,
@@ -34,7 +35,7 @@ const stockExportAttachmentUpload = (
   });
 };
 
-router.post("/stock-email", sendStockEmail);
+router.post("/stock-email", requireAdminUser(), sendStockEmail);
 router.post("/stock-export-email", stockExportAttachmentUpload, sendStockExportEmail);
 
 export default router;

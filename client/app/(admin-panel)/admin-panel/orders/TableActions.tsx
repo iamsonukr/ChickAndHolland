@@ -69,8 +69,10 @@ const getUploadedDocumentPreviewUrl = (
 };
 
 const TableActions = ({ data }: { data: any }) => {
+  const { executeAsync: normalizePieces } = useHttp(`/orders/${data.id}/normalize-pieces`);
   const [open, setOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
+  const [preferGeneratedPdf, setPreferGeneratedPdf] = useState(false);
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -89,7 +91,7 @@ const TableActions = ({ data }: { data: any }) => {
     previewData?.ppt_path,
   );
   const uploadedDocumentSource = getUploadedDocumentSource(data?.orderSource);
-  const hasUploadedDocument = Boolean(uploadedDocumentUrl);
+  const hasUploadedDocument = Boolean(uploadedDocumentUrl) && !preferGeneratedPdf;
   const isUploadedPdf = uploadedDocumentExt === "pdf";
   const uploadedDocumentPreviewUrl =
     hasUploadedDocument && previewData?.id
@@ -150,14 +152,31 @@ const TableActions = ({ data }: { data: any }) => {
 
   /** ********** STORE / ONLINE ORDERS ********** **/
   const fetchData = async () => {
+    setPreviewData(null);
+    setPreferGeneratedPdf(false);
     try {
       const colours = await getProductColours({});
       const res = await fetch(
         API_URL + `/orders/orderDetails?orderId=${data.id}`,
       );
-      const resData = await res.json();
-
-      const order = resData.orders[0];
+      let resData = await res.json();
+      if (!res.ok || !resData.orders?.[0]) throw new Error(resData.message || "Failed to load order");
+      let order = resData.orders[0];
+      // Repair old grouped records before rendering; never duplicate one QR.
+      if (order.styles.some((style: any) => {
+        let sizes = style.customSizesQuantity;
+        if (typeof sizes === "string") {
+          try { sizes = JSON.parse(sizes); } catch { sizes = []; }
+        }
+        return Number(style.quantity) > 1 || (Array.isArray(sizes) && sizes.length > 0);
+      })) {
+        await normalizePieces();
+        const refreshed = await fetch(API_URL + `/orders/orderDetails?orderId=${data.id}`);
+        resData = await refreshed.json();
+        if (!refreshed.ok || !resData.orders?.[0]) throw new Error("Failed to reload repaired order");
+        order = resData.orders[0];
+        setPreferGeneratedPdf(true);
+      }
       const colors = colours.productColours;
 
       const getColorName = (hex?: string | null) =>
@@ -276,6 +295,7 @@ const TableActions = ({ data }: { data: any }) => {
 
       const formatted = {
         id: order.id, // 🔥 add this
+        orderSource: "regular",
 
         customerId: order.customer.id,
         manufacturingEmailAddress: order.manufacturingEmailAddress,
@@ -291,7 +311,7 @@ const TableActions = ({ data }: { data: any }) => {
       setOrderDetails(resData);
       await fetchPPT(formatted.id);
     } catch (err) {
-      toast.error("Failed to load order");
+      toast.error(err instanceof Error ? err.message : "Failed to load order");
     }
   };
 
@@ -480,10 +500,14 @@ const TableActions = ({ data }: { data: any }) => {
   /** ********** SEND EMAIL ********** **/
   const sendMail = async () => {
     if (!previewData) return;
-    const res = await Stock({ orderData: previewData });
-    res?.success
-      ? toast.success("Email sent successfully")
-      : toast.error("Failed to send email");
+    try {
+      const res = await Stock({ orderData: { ...previewData, preferGeneratedPdf } });
+      res?.success
+        ? toast.success("Email sent successfully")
+        : toast.error(res?.message || "Failed to send email");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send email");
+    }
   };
 
   return (
@@ -591,6 +615,15 @@ const TableActions = ({ data }: { data: any }) => {
                     >
                       {uploadedDocumentName}
                     </a>
+                    {previewData.orderSource === "regular" && (
+                      <Button
+                        variant="secondary"
+                        className="mt-3 w-full"
+                        onClick={() => setPreferGeneratedPdf(current => !current)}
+                      >
+                        {preferGeneratedPdf ? "View uploaded document" : "Generate PDF from current order"}
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

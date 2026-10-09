@@ -218,6 +218,7 @@ const Preview = ({
   const [data, setData] = useState<any>(null);
   const [previewError, setPreviewError] = useState("");
   const [open, setOpen] = useState(false);
+  const { executeAsync: normalizePieces } = useHttp(`/orders/${order.id}/normalize-pieces`);
 
   const { executeAsync: stockMail, loading: stockLoading } = useHttp(
     "/stock-email",
@@ -226,14 +227,7 @@ const Preview = ({
     false,
   );
 
-  const { executeAsync: freshMail, loading: freshLoading } = useHttp(
-    "/fresh-email",
-    "POST",
-    true,
-    false,
-  );
-
-  const loading = stockLoading || freshLoading;
+  const loading = stockLoading;
 
   const productColorSAS = async (productId: number) => {
     const res = await getProductColorsCheck(productId);
@@ -298,10 +292,19 @@ const Preview = ({
       );
     }
 
-    const regularOrder = responseJson.orders?.[0];
+    let regularOrder = responseJson.orders?.[0];
 
     if (!regularOrder) {
       throw new Error("Admin order details response did not include an order");
+    }
+    const needsRepair = regularOrder.styles?.some((style: any) =>
+      Number(style.quantity) > 1 || normalizeArray(style.customSizesQuantity).length > 0);
+    if (needsRepair) {
+      await normalizePieces();
+      const refreshed = await fetch(detailUrl, { cache: "no-store" });
+      const result = await refreshed.json();
+      if (!refreshed.ok || !result.orders?.[0]) throw new Error("Failed to reload repaired order");
+      regularOrder = result.orders[0];
     }
 
     const details = buildRegularOrderDetails(regularOrder, colors);
@@ -319,6 +322,8 @@ const Preview = ({
 
     setData({
       id: regularOrder.id,
+      orderSource: "regular",
+      preferGeneratedPdf: Boolean(needsRepair),
       customerId: regularOrder.customer?.id,
       manufacturingEmailAddress:
         regularOrder.manufacturingEmailAddress || order.email,
@@ -493,10 +498,7 @@ const Preview = ({
 
   const sendMail = async () => {
     try {
-      const res =
-        data.orderType === "Fresh"
-          ? await freshMail({ orderData: data })
-          : await stockMail({ orderData: data });
+      const res = await stockMail({ orderData: data });
 
       if (res?.success) {
         toast.success("Email sent successfully");
@@ -518,7 +520,7 @@ const Preview = ({
   const uploadedDocumentPreviewUrl =
     getUploadedDocumentPreviewUrl(data?.id, uploadedDocumentSource) ||
     uploadedDocumentUrl;
-  const hasUploadedDocument = Boolean(uploadedDocumentUrl);
+  const hasUploadedDocument = Boolean(uploadedDocumentUrl) && !data?.preferGeneratedPdf;
   const isUploadedPdf = uploadedDocumentExt === "pdf";
   const uploadedDocumentDownloadUrl =
     isUploadedPdf && uploadedDocumentPreviewUrl
@@ -556,6 +558,16 @@ const Preview = ({
             <Button className="mt-4 w-full" onClick={sendMail} disabled={loading}>
               {loading ? "Sending..." : "Send Mail"}
             </Button>
+            {data.orderSource === "regular" && data.ppt_path && (
+              <Button
+                className="mt-3 w-full"
+                onClick={() => setData((current: any) => ({
+                  ...current, preferGeneratedPdf: !current.preferGeneratedPdf,
+                }))}
+              >
+                {data.preferGeneratedPdf ? "View uploaded document" : "Generate PDF from current order"}
+              </Button>
+            )}
 
             {(!hasUploadedDocument || !isUploadedPdf) && (
               <div className="flex justify-end py-3">

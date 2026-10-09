@@ -6,6 +6,8 @@ import fetch from "node-fetch";
 import path from "path";
 import { generateOrderPdf } from "../pdf/generateOrderPdf";
 import { formatDateOnlyDisplay } from "../lib/dateOnly";
+import { getRegularOrderPdfData } from "./OrderController";
+import { assertPdfPieceDetails } from "../lib/orderPdfValidation";
 
 const buildUploadedDocumentUrl = (req: Request, rawUrl: string) => {
   if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
@@ -167,7 +169,7 @@ Chic & Holland`;
 
 export const sendStockEmail = async (req: Request, res: Response) => {
   try {
-    const { orderData } = req.body;
+    let { orderData } = req.body;
 
     if (!orderData) {
       return res.status(400).json({
@@ -176,12 +178,12 @@ export const sendStockEmail = async (req: Request, res: Response) => {
       });
     }
 
-    const uploadedFileUrlCandidate =
+    const uploadedFileUrlCandidate = orderData.preferGeneratedPdf ? null : (
       orderData.ppt_path ||
       orderData.uploadedOrderFileUrl ||
       orderData.uploadedOrderFilePath ||
       orderData.uploadedDocumentUrl ||
-      null;
+      null);
 
     if (uploadedFileUrlCandidate) {
       try {
@@ -246,6 +248,21 @@ export const sendStockEmail = async (req: Request, res: Response) => {
           message: mailErr.message || "Failed to send uploaded attachment",
         });
       }
+    }
+
+    // Refresh regular orders from saved pieces instead of trusting stale PDF data.
+    if (orderData.orderSource === "regular" ||
+        orderData.id && ["Store", "Online"].includes(orderData.orderType)) {
+      const id = Number(orderData.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ success: false, message: "Valid order id is required" });
+      }
+      orderData = await getRegularOrderPdfData(id);
+    }
+    try {
+      assertPdfPieceDetails(orderData.details);
+    } catch (error: any) {
+      return res.status(400).json({ success: false, message: error.message });
     }
 
     const ppt = new PPTXGenJS();
