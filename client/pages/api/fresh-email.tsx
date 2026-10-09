@@ -16,6 +16,7 @@ import { getCompactStyleNoBannerFontSize } from "@/lib/pdfTextSizing";
 import Mail from "nodemailer/lib/mailer";
 import RetailerPdf from "@/app/(admin-panel)/admin-panel/request/RetailerPdf";
 import path from "path";
+import { assertPdfPieceDetails } from "@/lib/orderPdfValidation";
 
 type Response = {
   success: boolean;
@@ -67,12 +68,12 @@ export default async function handler(
   try {
     const { orderData } = req.body;
 
-    const uploadedFileUrlCandidate =
+    const uploadedFileUrlCandidate = orderData?.preferGeneratedPdf ? null : (
       orderData?.ppt_path ||
       orderData?.uploadedOrderFileUrl ||
       orderData?.uploadedOrderFilePath ||
       orderData?.uploadedDocumentUrl ||
-      null;
+      null);
 
     if (uploadedFileUrlCandidate) {
       const uploadedFileResponse = await fetch(uploadedFileUrlCandidate);
@@ -125,6 +126,11 @@ export default async function handler(
       });
     }
 
+    try {
+      assertPdfPieceDetails(orderData?.details);
+    } catch (error: any) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     const pdf = await renderToBuffer(<RetailerPdf orderData={orderData} />);
 
     const htmlContent = `

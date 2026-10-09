@@ -394,8 +394,7 @@ const GroupedOrderPdf = ({
                                   style={styles.variantBarcode}
                                 />
                                 <Text style={styles.variantCodeText}>
-                                  {normalizedBarcode?.split("-")[0]}
-                                  {"\n"}-{normalizedBarcode?.split("-")[1]}
+                                  {normalizedBarcode}
                                 </Text>
                               </>
                             ) : (
