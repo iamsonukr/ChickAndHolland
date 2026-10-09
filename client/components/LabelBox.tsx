@@ -8,6 +8,7 @@ import {
 } from "@react-pdf/renderer";
 import { buildPdf2dBarcodeUrl } from "@/lib/barcodes";
 import { formatEuSizeSummary, PDF_DISPLAY_SIZE_UNIT } from "@/lib/sizeConversion";
+import { getStatusLabelColorValue } from "@/lib/statusLabelColor";
 
 /* ======================================================
    MESH COLOR FORMATTER
@@ -36,7 +37,7 @@ const formatMeshColor = (meshColor?: string): string[] => {
    PDF LABEL
 ====================================================== */
 export default function LabelPdf({ item }: { item: any }) {
-  const colorLines = formatMeshColor(item.meshColor || item.color);
+  const colorLines = formatMeshColor(getStatusLabelColorValue(item));
   const sizeText = `${PDF_DISPLAY_SIZE_UNIT} ${formatEuSizeSummary([item], { alwaysShowCount: true })}`;
   const beader = String(item.beader ?? "").trim();
 
