@@ -110,9 +110,9 @@ export default function StatusLabelBox1({
   const purchaseOrderFontSize = getResponsiveStatusLabelFontSize(
     purchaseOrderNo,
     {
-      availableWidth: 165,
+      availableWidth: 154,
       maxFontSize: 14,
-      minFontSize: 8,
+      minFontSize: 12,
     },
   );
 
@@ -171,8 +171,8 @@ export default function StatusLabelBox1({
 
         {/* PURCHASE ORDER */}
         <div className="mb-4">
-          <div className="grid grid-cols-[1fr_auto] gap-2">
-            <div>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="min-w-0">
               <div className="mb-2 text-center text-xs font-semibold text-gray-500">
                 PURCHASE ORDER
               </div>
@@ -181,8 +181,9 @@ export default function StatusLabelBox1({
                   className="font-bold text-gray-900"
                   style={{
                     fontSize: `${purchaseOrderFontSize}px`,
-                    lineHeight: 1.1,
-                    whiteSpace: "nowrap",
+                    lineHeight: 1.3,
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {purchaseOrderNo}
