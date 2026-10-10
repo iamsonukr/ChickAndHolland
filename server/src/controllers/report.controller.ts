@@ -4,6 +4,7 @@ import asyncHandler from "../middleware/AsyncHandler";
 import StyleProgress from "../models/StyleProgress";
 import db from "../db";
 import { getBarcodeComment } from "../services/barcodeComment.service";
+import { formatDateOnly } from "../lib/dateOnly";
 
 const router = Router();
 let productsBeaderColumnAvailable: boolean | null = null;
@@ -52,6 +53,8 @@ router.get(
         ros.size_country  AS size_country,
         ros.quantity      AS quantity,
         ro.purchaeOrderNo AS purchaseOrderNo,
+        ro.orderReceivedDate AS orderReceivedDate,
+        ro.orderCancellationDate AS orderCancellationDate,
         ${productsBeaderSelect},
         matchedFavourite.mesh_color AS meshColorRaw,
         CONCAT(
@@ -127,6 +130,8 @@ router.get(
         quantity: row.quantity ?? 1,
         color: row.color,
         purchaseOrderNo: row.purchaseOrderNo,
+        orderReceivedDate: formatDateOnly(row.orderReceivedDate),
+        orderCancellationDate: formatDateOnly(row.orderCancellationDate),
         beader: row.beader ?? "",
         meshColor: row.meshColor,   // ✅ ADD THIS
         meshColorRaw: row.meshColorRaw,
@@ -165,6 +170,8 @@ router.get(
 
   s.size_country AS size_country,
   ro.purchaeOrderNo AS purchaseOrderNo,
+  ro.orderReceivedDate AS orderReceivedDate,
+  ro.orderCancellationDate AS orderCancellationDate,
   ${productsBeaderSelect},
   s.mesh_color AS meshColorRaw,
 
@@ -230,6 +237,8 @@ ORDER BY sos.id ASC;
         quantity: row.quantity ?? 1,
         color: row.color,
         purchaseOrderNo: row.purchaseOrderNo,
+        orderReceivedDate: formatDateOnly(row.orderReceivedDate),
+        orderCancellationDate: formatDateOnly(row.orderCancellationDate),
         beader: row.beader ?? "",
         meshColor: row.meshColor, // ✅ USE THIS ONLY
         meshColorRaw: row.meshColorRaw,

@@ -776,6 +776,8 @@ export default function OrderStatusPage({
       "PO Number": raw.purchaseOrderNo ?? raw.purchaeOrderNo ?? "",
       Beader: raw.beader ?? "",
       "Product Status": getCurrentStageLabel(progress),
+      "Order Received Date": raw.orderReceivedDate,
+      "Order Cancellation Date": raw.orderCancellationDate,
     };
   });
 

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { API_URL } from "@/lib/constants";
 import { getCookie } from "@/lib/utils";
 import { useItems } from "./Delete";
+import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 if (typeof window !== "undefined") {
   (window as any).JSZip = JSZip;
@@ -51,6 +52,8 @@ const ORDER_EXPORT_COLUMNS = [
   "PO Number",
   "Beader",
   "Product Status",
+  "Order Received Date",
+  "Order Cancellation Date",
 ];
 
 const ORDER_EXPORT_PRINT_MARGINS = {
@@ -64,6 +67,10 @@ const ORDER_EXPORT_PRINT_MARGINS = {
 
 const getExportCellValue = (row: any, column: string) => {
   const value = row?.[column];
+
+  if (column === "Order Received Date" || column === "Order Cancellation Date") {
+    return formatDateOnlyDisplay(value, "DD-MM-YYYY");
+  }
 
   if (column === "Beader") {
     const beader = String(value ?? "").trim();
