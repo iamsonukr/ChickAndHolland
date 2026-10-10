@@ -3470,6 +3470,8 @@ router.get(
             Beader: row.beader ?? "",
             "PO Number": row.purchaseOrderNo,
             "Product Status": productStatus,
+            "Order Received Date": formatDateOnly(row.orderReceivedDate),
+            "Order Cancellation Date": formatDateOnly(row.orderCancellationDate),
           },
         };
       })
@@ -5056,6 +5058,8 @@ PublicStoreRoutes.get(
         TRIM(COALESCE(NULLIF(TRIM(s.beader), ''), ob.beader, p.beader)) AS beader,
 
         o.purchaeOrderNo,
+        o.orderReceivedDate,
+        o.orderCancellationDate,
 
         -- ✅ SAME FIX AS OTHER REPORTS
         CONCAT(
@@ -5111,6 +5115,8 @@ PublicStoreRoutes.get(
         meshColorRaw: row.meshColorRaw,
         beader: row.beader ?? "",
         purchaseOrderNo: row.purchaeOrderNo,
+        orderReceivedDate: formatDateOnly(row.orderReceivedDate),
+        orderCancellationDate: formatDateOnly(row.orderCancellationDate),
 
         totalQty: getStyleTotalQuantity(row),
         completedQty,
