@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import StageCountDropdown from "@/components/custom/admin-panel/StageCountDropdown";
 import { ORDER_STAGE_FLOW } from "@/lib/stageFlow";
@@ -49,6 +49,7 @@ export default function StageFilter({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const summedStageCount = ORDER_STAGE_FLOW.reduce(
     (total, option) => total + (stageCounts?.[option] ?? 0),
     0,
@@ -78,8 +79,14 @@ export default function StageFilter({
       stage: nextStage,
       beader,
     });
+    const params = new URLSearchParams(search);
+    for (const key of ["dateFrom", "dateTo"]) {
+      const value = searchParams?.get(key);
+      if (value) params.set(key, value);
+    }
+    const nextSearch = params.toString();
     const nextPath = pathname ?? "/admin-panel/orders";
-    router.push(search ? `${nextPath}?${search}` : nextPath);
+    router.push(nextSearch ? `${nextPath}?${nextSearch}` : nextPath);
   };
 
   return (

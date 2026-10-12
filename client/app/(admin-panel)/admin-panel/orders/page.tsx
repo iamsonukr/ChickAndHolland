@@ -35,6 +35,7 @@ import StageFilter from "./StageFilter";
 import ExportOrdersButton from "./ExportOrdersButton";
 import { ORDER_STAGE_DATE_FIELD_MAP } from "@/lib/stageFlow";
 import BeaderFilter from "./BeaderFilter";
+import DateRangeFilter from "./DateRangeFilter";
 import {
   buildOrderAddressDisplay,
   getCustomerPersonName,
@@ -71,12 +72,16 @@ const buildOrdersFilterHref = ({
   stage,
   due,
   beader,
+  dateFrom,
+  dateTo,
 }: {
   query: string;
   orderType: string;
   stage?: string;
   due?: string;
   beader?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }) => {
   const params = new URLSearchParams();
 
@@ -85,6 +90,8 @@ const buildOrdersFilterHref = ({
   if (stage) params.set("stage", stage);
   if (due) params.set("due", due);
   if (beader) params.set("beader", beader);
+  if (dateFrom) params.set("dateFrom", dateFrom);
+  if (dateTo) params.set("dateTo", dateTo);
 
   const search = params.toString();
   return search ? `?${search}` : "?";
@@ -100,6 +107,8 @@ const OrdersPage = async (props: {
   const dueFilter = searchParams["due"] ?? "";
   const stage = searchParams["stage"] ?? "";
   const beader = searchParams["beader"] ?? "";
+  const dateFrom = searchParams["dateFrom"] ?? "";
+  const dateTo = searchParams["dateTo"] ?? "";
 
   const [
     orders,
@@ -116,6 +125,8 @@ const OrdersPage = async (props: {
       orderType: orderType === "All" ? "" : orderType,
       stage,
       beader,
+      dateFrom,
+      dateTo,
     }),
     getCustomers({}),
     getProductCategories({}),
@@ -125,6 +136,8 @@ const OrdersPage = async (props: {
       query,
       orderType: orderType === "All" ? "" : orderType,
       beader,
+      dateFrom,
+      dateTo,
     }),
     getOrderBeaders(),
   ]);
@@ -246,6 +259,8 @@ const OrdersPage = async (props: {
                 stage={stage}
                 due={dueFilter}
                 beader={beader}
+                dateFrom={dateFrom}
+                dateTo={dateTo}
               />
               <CreateOrder
                 customers={customers.customers}
@@ -291,6 +306,8 @@ const OrdersPage = async (props: {
                     stage,
                     due: "lt14",
                     beader,
+                    dateFrom,
+                    dateTo,
                   })}
                   className={cn(
                     filterButtonClassName,
@@ -312,6 +329,8 @@ const OrdersPage = async (props: {
                     stage,
                     due: "lt28",
                     beader,
+                    dateFrom,
+                    dateTo,
                   })}
                   className={cn(
                     filterButtonClassName,
@@ -335,6 +354,8 @@ const OrdersPage = async (props: {
                     stage,
                     due: "shipped",
                     beader,
+                    dateFrom,
+                    dateTo,
                   })}
                   className={cn(
                     filterButtonClassName,
@@ -357,6 +378,8 @@ const OrdersPage = async (props: {
                     orderType,
                     stage,
                     beader,
+                    dateFrom,
+                    dateTo,
                   })}
                   className={cn(
                     filterButtonClassName,
@@ -367,6 +390,8 @@ const OrdersPage = async (props: {
                 </a>
               </div>
             </div>
+
+            <DateRangeFilter />
 
             {/* Table */}
             <div className="w-full rounded-lg border border-border">

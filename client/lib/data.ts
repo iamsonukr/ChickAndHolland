@@ -389,6 +389,8 @@ export const getOrders = async ({
   stage,
   publishStatus,
   beader,
+  dateFrom,
+  dateTo,
   deletedOnly,
 }: {
   page?: number;
@@ -398,6 +400,8 @@ export const getOrders = async ({
   stage?: string;
   publishStatus?: "published" | "draft";
   beader?: string;
+  dateFrom?: string;
+  dateTo?: string;
   deletedOnly?: boolean;
 }) => {
   const headers = {
@@ -411,6 +415,8 @@ export const getOrders = async ({
   if (stage) params.set("stage", stage);
   if (publishStatus) params.set("publishStatus", publishStatus);
   if (beader) params.set("beader", beader);
+  if (dateFrom) params.set("dateFrom", dateFrom);
+  if (dateTo) params.set("dateTo", dateTo);
   if (deletedOnly) params.set("deletedOnly", "true");
 
   const response = await fetch(
@@ -429,11 +435,15 @@ export const getOrderStageCounts = async ({
   orderType,
   publishStatus,
   beader,
+  dateFrom,
+  dateTo,
 }: {
   query?: string;
   orderType?: string;
   publishStatus?: "published" | "draft";
   beader?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
@@ -443,6 +453,8 @@ export const getOrderStageCounts = async ({
   if (orderType) params.set("orderType", orderType);
   if (publishStatus) params.set("publishStatus", publishStatus);
   if (beader) params.set("beader", beader);
+  if (dateFrom) params.set("dateFrom", dateFrom);
+  if (dateTo) params.set("dateTo", dateTo);
 
   try {
     const response = await fetch(
