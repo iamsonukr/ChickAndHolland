@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, createContext, useContext } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  createContext,
+  useContext,
+} from "react";
 import { Button } from "@/components/ui/button";
 import useHttp from "@/lib/hooks/usePost";
 import { useRouter } from "next/navigation";
@@ -30,8 +37,63 @@ const ItemsContext = createContext<{
   setItems: () => {},
 });
 
-export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
-  const [items, setItems] = useState<SelectedOrderItem[]>([]);
+export const ItemsProvider = ({
+  children,
+  storageKey,
+}: {
+  children: React.ReactNode;
+  storageKey: string;
+}) => {
+  const [items, updateItems] = useState<SelectedOrderItem[]>([]);
+  const itemsRef = useRef<SelectedOrderItem[]>([]);
+  const restoredRef = useRef(false);
+
+  const restoreSelection = useCallback(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    try {
+      const saved: unknown = JSON.parse(
+        sessionStorage.getItem(storageKey) ?? "[]",
+      );
+      if (Array.isArray(saved)) {
+        itemsRef.current = saved.filter(
+          (item): item is SelectedOrderItem =>
+            item !== null &&
+            typeof item === "object" &&
+            typeof item.id === "number" &&
+            typeof item.orderType === "string" &&
+            (item.orderSource === undefined ||
+              typeof item.orderSource === "string"),
+        );
+      }
+    } catch {
+      // Keep in-memory selection usable if browser storage is unavailable.
+    }
+    updateItems(itemsRef.current);
+  }, [storageKey]);
+
+  useEffect(restoreSelection, [restoreSelection]);
+
+  const setItems = useCallback<
+    React.Dispatch<React.SetStateAction<SelectedOrderItem[]>>
+  >(
+    (action) => {
+      restoreSelection();
+      const next =
+        typeof action === "function" ? action(itemsRef.current) : action;
+      itemsRef.current = next;
+      // Persist at the click, before navigation can unmount this provider.
+      try {
+        if (next.length)
+          sessionStorage.setItem(storageKey, JSON.stringify(next));
+        else sessionStorage.removeItem(storageKey);
+      } catch {
+        // React state still works when browser storage is unavailable.
+      }
+      updateItems(next);
+    },
+    [restoreSelection, storageKey],
+  );
 
   return (
     <ItemsContext.Provider value={{ items, setItems }}>
