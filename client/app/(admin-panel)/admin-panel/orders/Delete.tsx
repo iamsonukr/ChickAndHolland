@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { Button } from "@/components/ui/button";
 import useHttp from "@/lib/hooks/usePost";
 import { useRouter } from "next/navigation";
@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { toast } from "sonner"; 
+import { toast } from "sonner";
 
 export type SelectedOrderItem = {
   id: number;
@@ -57,72 +57,59 @@ const Delete = ({
   bulk?: SelectedOrderItem[];
 }) => {
   const { items, setItems } = useItems();
-  const [isChecked, setIsChecked] = useState(false);
+  const checkboxRef = useRef<HTMLInputElement>(null);
+  const matches = (item: SelectedOrderItem, candidate: SelectedOrderItem) =>
+    item.id === candidate.id &&
+    item.orderType === candidate.orderType &&
+    item.orderSource === candidate.orderSource;
+  const pageItems = bulk ?? [];
+  const isSelected = (candidate: SelectedOrderItem) =>
+    items.some((item) => matches(item, candidate));
+  const isChecked =
+    type === "bulk"
+      ? pageItems.length > 0 && pageItems.every(isSelected)
+      : id !== undefined &&
+        !!orderType &&
+        isSelected({ id, orderType, orderSource });
+  const isIndeterminate =
+    type === "bulk" && !isChecked && pageItems.some(isSelected);
 
   useEffect(() => {
-    if (type === "single" && id && orderType) {
-      const isSelected = items.some(
-        (item) =>
-          item.id === id &&
-          item.orderType === orderType &&
-          item.orderSource === orderSource,
-      );
-      setIsChecked(isSelected);
+    if (checkboxRef.current) {
+      checkboxRef.current.indeterminate = isIndeterminate;
     }
-  }, [items, id, orderSource, orderType, type]);
+  }, [isIndeterminate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      if (type === "single" && id && orderType) {
-        setItems((prev) => {
-          if (
-            prev.some(
-              (item) =>
-                item.id === id &&
-                item.orderType === orderType &&
-                item.orderSource === orderSource,
-            )
-          ) {
-            return prev;
-          }
+    const checked = e.target.checked;
+    const candidates =
+      type === "bulk"
+        ? pageItems
+        : id !== undefined && orderType
+          ? [{ id, orderType, orderSource }]
+          : [];
 
-          return [...prev, { id, orderType, orderSource }];
-        });
-      } else if (type === "bulk" && bulk) {
-        setItems(bulk);
-      }
-    } else {
-      if (type === "single" && id) {
-        // Remove single item
-        setItems((prev) =>
-          prev.filter(
-            (item) =>
-              !(
-                item.id === id &&
-                item.orderType === orderType &&
-                item.orderSource === orderSource
-              ),
+    setItems((previous) =>
+      checked
+        ? [
+            ...previous,
+            ...candidates.filter(
+              (candidate) => !previous.some((item) => matches(item, candidate)),
+            ),
+          ]
+        : previous.filter(
+            (item) => !candidates.some((candidate) => matches(item, candidate)),
           ),
-        );
-      } else if (type === "bulk") {
-        // Clear all items
-        setItems([]);
-
-        // Uncheck all checkboxes
-        const checkboxes = document.querySelectorAll("#check");
-        checkboxes.forEach((el) => {
-          (el as HTMLInputElement).checked = false;
-        });
-      }
-    }
-
-    setIsChecked(e.target.checked);
+    );
   };
 
   return (
     <input
+      ref={checkboxRef}
       type="checkbox"
-      id="check"
+      aria-label={
+        type === "bulk" ? "Select all orders on this page" : "Select order"
+      }
       checked={isChecked}
       onChange={handleChange}
     />
@@ -147,10 +134,6 @@ export const DeleteButton = () => {
     if (res) {
       toast.success(res.msg);
       setItems([]);
-      const checkboxes = document.querySelectorAll("#check");
-      checkboxes.forEach((el) => {
-        (el as HTMLInputElement).checked = false;
-      });
 
       router.refresh();
     } else {
@@ -203,4 +186,14 @@ export const DeleteButton = () => {
       )}
     </>
   );
+};
+
+export const ClearSelectionButton = () => {
+  const { items, setItems } = useItems();
+
+  return items.length > 0 ? (
+    <Button variant="outline" onClick={() => setItems([])}>
+      Clear Selection ({items.length})
+    </Button>
+  ) : null;
 };
