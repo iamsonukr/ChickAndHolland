@@ -24,7 +24,7 @@ import UpdateRetailerTrackingId from "./UpdateRetailerTrackingId";
 import AddressCard from "./AddressCard";
 import { cookies } from "next/headers";
 import { API_URL } from "@/lib/constants";
-import Delete, { DeleteButton, ItemsProvider } from "./Delete";
+import Delete, { DeleteButton, ClearSelectionButton } from "./Delete";
 import TableScrollWrapper from "@/components/TableScrollWrapper";
 import OrderDetailsSheet from "./OrderDetails";
 import AdjustSequenceButton from "./AdjustSequenceButton";
@@ -191,11 +191,6 @@ const OrdersPage = async (props: {
   const latestOrderPurchaseOrderNo =
     Number(arr_?.[arr_?.length - 1]) || orders?.totalCount;
 
-  const bulkData = orders?.orders?.map((i: any) => ({
-    id: i.id,
-    orderType: i.orderType,
-    orderSource: i.orderSource,
-  }));
   const filteredOrders =
     orders?.orders?.filter((order: any) => {
       const hasDueDate = !!order?.orderCancellationDate;
@@ -226,14 +221,20 @@ const OrdersPage = async (props: {
       return true;
     }) ?? [];
 
+  const bulkData = filteredOrders.map((order: any) => ({
+    id: order.id,
+    orderType: order.orderType,
+    orderSource: order.orderSource,
+  }));
+
   return (
     <ContentLayout title="All Orders">
-      <ItemsProvider>
         <div className="flex flex-col gap-4">
           {/* Page Header */}
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <h1 className="text-lg font-semibold md:text-xl">All Orders</h1>
             <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
+              <ClearSelectionButton />
               <DeleteButton />
               <AdjustSequenceButton />
               <Link href="/admin-panel/orders/qr-scan">
@@ -637,7 +638,6 @@ const OrdersPage = async (props: {
             )}
           </div>
         </div>
-      </ItemsProvider>
     </ContentLayout>
   );
 };
