@@ -33,30 +33,32 @@ export default function DateRangeFilter() {
 
   return (
     <form
-      className="flex flex-wrap items-end gap-2"
+      className="grid w-full grid-cols-2 items-end gap-3 lg:w-fit lg:grid-cols-[auto_10rem_10rem_auto_auto]"
       onSubmit={(event) => {
         event.preventDefault();
         apply(from, to);
       }}
     >
-      <span className="self-center text-sm font-medium">
+      <span className="col-span-2 text-sm font-medium lg:col-span-1 lg:self-center">
         Order Received Date
       </span>
-      <label className="space-y-1 text-sm" htmlFor="orders-date-from">
+      <label className="flex min-w-0 flex-col gap-1 text-sm" htmlFor="orders-date-from">
         <span>From</span>
         <Input
           id="orders-date-from"
           type="date"
+          className="min-w-0 max-w-full"
           value={from}
           max={to || undefined}
           onChange={(event) => setFrom(event.target.value)}
         />
       </label>
-      <label className="space-y-1 text-sm" htmlFor="orders-date-to">
+      <label className="flex min-w-0 flex-col gap-1 text-sm" htmlFor="orders-date-to">
         <span>To</span>
         <Input
           id="orders-date-to"
           type="date"
+          className="min-w-0 max-w-full"
           value={to}
           min={from || undefined}
           onChange={(event) => setTo(event.target.value)}
