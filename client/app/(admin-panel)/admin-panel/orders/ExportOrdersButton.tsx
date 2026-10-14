@@ -22,6 +22,8 @@ type ExportOrdersButtonProps = {
   stage?: string;
   due?: string;
   beader?: string;
+  dateFrom?: string;
+  dateTo?: string;
   rows?: Record<string, unknown>[];
   fileName?: string;
   buttonLabel?: string;
@@ -68,7 +70,10 @@ const ORDER_EXPORT_PRINT_MARGINS = {
 const getExportCellValue = (row: any, column: string) => {
   const value = row?.[column];
 
-  if (column === "Order Received Date" || column === "Order Cancellation Date") {
+  if (
+    column === "Order Received Date" ||
+    column === "Order Cancellation Date"
+  ) {
     return formatDateOnlyDisplay(value, "DD-MM-YYYY");
   }
 
@@ -172,25 +177,28 @@ const buildExportStatusName = (
   ).toUpperCase();
 };
 
-const buildExportTitle = (filters: {
-  query?: string;
-  orderType?: string;
-  stage?: string;
-  due?: string;
-  beader?: string;
-}, currentStatus?: string) =>
-  `${buildExportStatusName(filters, currentStatus)}-${formatExportDate()}`;
+const buildExportTitle = (
+  filters: {
+    query?: string;
+    orderType?: string;
+    stage?: string;
+    due?: string;
+    beader?: string;
+  },
+  currentStatus?: string,
+) => `${buildExportStatusName(filters, currentStatus)}-${formatExportDate()}`;
 
-const buildExportFileName = (filters: {
-  query?: string;
-  orderType?: string;
-  stage?: string;
-  due?: string;
-  beader?: string;
-}, currentStatus?: string) =>
-  `${sanitizeDisplayFilePart(
-    buildExportTitle(filters, currentStatus),
-  )}.xlsx`;
+const buildExportFileName = (
+  filters: {
+    query?: string;
+    orderType?: string;
+    stage?: string;
+    due?: string;
+    beader?: string;
+  },
+  currentStatus?: string,
+) =>
+  `${sanitizeDisplayFilePart(buildExportTitle(filters, currentStatus))}.xlsx`;
 
 const buildWorksheet = (rows: any[], title: string) => {
   const normalizedRows = normalizeExportRows(rows);
@@ -262,15 +270,25 @@ const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range) =>
     };
   });
 
-const getRowHeight = (worksheet: XLSX.WorkSheet, range: XLSX.Range, row: number) => {
+const getRowHeight = (
+  worksheet: XLSX.WorkSheet,
+  range: XLSX.Range,
+  row: number,
+) => {
   let maxLineCount = 1;
 
   for (let column = range.s.c; column <= range.e.c; column += 1) {
     const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
-    maxLineCount = Math.max(maxLineCount, getCellDisplayMetrics(cell?.v).lineCount);
+    maxLineCount = Math.max(
+      maxLineCount,
+      getCellDisplayMetrics(cell?.v).lineCount,
+    );
   }
 
-  return Math.max(ORDER_EXPORT_DATA_ROW_HEIGHT, maxLineCount * ORDER_EXPORT_LINE_HEIGHT);
+  return Math.max(
+    ORDER_EXPORT_DATA_ROW_HEIGHT,
+    maxLineCount * ORDER_EXPORT_LINE_HEIGHT,
+  );
 };
 
 const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
@@ -379,9 +397,9 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
         ? 24
         : ORDER_EXPORT_BLANK_ROWS.has(row)
           ? 12
-        : row === ORDER_EXPORT_HEADER_ROW
-          ? 21
-          : getRowHeight(worksheet, range, row),
+          : row === ORDER_EXPORT_HEADER_ROW
+            ? 21
+            : getRowHeight(worksheet, range, row),
   }));
   worksheet["!freeze"] = { xSplit: 0, ySplit: ORDER_EXPORT_DATA_START_ROW };
   worksheet["!margins"] = ORDER_EXPORT_PRINT_MARGINS;
@@ -399,6 +417,8 @@ export default function ExportOrdersButton({
   stage,
   due,
   beader,
+  dateFrom,
+  dateTo,
   rows: providedRows,
   fileName,
   buttonLabel = "Export Orders",
@@ -408,8 +428,7 @@ export default function ExportOrdersButton({
 }: ExportOrdersButtonProps) {
   const [exporting, setExporting] = useState(false);
   const { items: selectedOrders } = useItems();
-  const shouldExportSelectedOrders =
-    !providedRows && selectedOrders.length > 0;
+  const shouldExportSelectedOrders = !providedRows && selectedOrders.length > 0;
 
   const handleExport = async () => {
     setExporting(true);
@@ -421,9 +440,8 @@ export default function ExportOrdersButton({
       if (stage) params.set("stage", stage);
       if (due) params.set("due", due);
       if (beader) params.set("beader", beader);
-      if (shouldExportSelectedOrders) {
-        params.set("selectedOrders", JSON.stringify(selectedOrders));
-      }
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
 
       let rows = providedRows;
 
@@ -431,14 +449,29 @@ export default function ExportOrdersButton({
         const response = await fetch(
           `${API_URL}/orders/export-products?${params.toString()}`,
           {
+            method: "POST",
+            body: JSON.stringify({
+              selectedOrders: shouldExportSelectedOrders
+                ? selectedOrders
+                : undefined,
+            }),
             headers: {
+              "Content-Type": "application/json",
               Authorization: `Bearer ${
                 getCookie("token") || localStorage.getItem("token") || ""
               }`,
             },
           },
         );
-        const json = await response.json();
+        const responseText = await response.text();
+        let json;
+        try {
+          json = JSON.parse(responseText);
+        } catch {
+          throw new Error(
+            `Unable to export orders (HTTP ${response.status}). Please try again.`,
+          );
+        }
 
         if (!response.ok || !json.success) {
           throw new Error(

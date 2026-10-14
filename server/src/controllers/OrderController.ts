@@ -1,4 +1,5 @@
 import { raw, Request, Response, Router } from "express";
+import { NextFunction } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
 import {
   requireAdminUser,
@@ -806,16 +807,35 @@ async function getAllStatusQuantity(baseOrders: any[]) {
   return regularQuantity + retailerQuantity;
 }
 
+function addReceivedDateFilter(
+  builder: any,
+  alias: string,
+  dateFrom?: string,
+  dateTo?: string,
+) {
+  if (dateFrom)
+    builder.andWhere(`${alias}.orderReceivedDate >= :dateFrom`, { dateFrom });
+  if (dateTo)
+    builder.andWhere(
+      `${alias}.orderReceivedDate < DATE_ADD(:dateTo, INTERVAL 1 DAY)`,
+      { dateTo },
+    );
+}
+
 async function getOrderStageCountSourceOrders({
   query,
   orderType,
   publishStatus,
   beader,
+  dateFrom,
+  dateTo,
 }: {
   query?: string;
   orderType?: string;
   publishStatus?: string;
   beader?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }) {
   const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
   const requestedPublishStatus =
@@ -875,6 +895,9 @@ async function getOrderStageCountSourceOrders({
       { likeQuery },
     );
   }
+
+  addReceivedDateFilter(regularOrdersQuery, "o", dateFrom, dateTo);
+  addReceivedDateFilter(retailerOrdersQuery, "ro", dateFrom, dateTo);
 
   let unionQuery: string;
 
@@ -3101,8 +3124,8 @@ async function processOrders(orders: any[]) {
 }
 
 const parseSelectedExportOrders = (value: unknown) => {
-  const rawValue = Array.isArray(value) ? value[0] : value;
-  if (typeof rawValue !== "string" || !rawValue.trim()) {
+  const rawValue = value;
+  if (rawValue === undefined || rawValue === null || rawValue === "") {
     return {
       hasSelection: false,
       regularIds: [] as number[],
@@ -3111,7 +3134,7 @@ const parseSelectedExportOrders = (value: unknown) => {
   }
 
   try {
-    const parsed = JSON.parse(rawValue);
+    const parsed = typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
     const selectedOrders = Array.isArray(parsed) ? parsed : [];
     const regularIds = new Set<number>();
     const retailerIds = new Set<number>();
@@ -3160,29 +3183,32 @@ const appendIdFilter = (
   params.push(...ids);
 };
 
-router.get(
-  "/export-products",
-  asyncHandler(async (req: Request, res: Response) => {
+router.route("/export-products").get(exportProducts).post(exportProducts);
+
+function exportProducts(req: Request, res: Response, next: NextFunction) {
+  return asyncHandler(async (req: Request, res: Response) => {
     const {
       query,
       orderType,
       stage,
       due,
       beader,
-      selectedOrders,
+      dateFrom,
+      dateTo,
     }: {
       query?: string;
       orderType?: string;
       stage?: string;
       due?: string;
       beader?: string;
-      selectedOrders?: string;
+      dateFrom?: string;
+      dateTo?: string;
     } = req.query;
 
     const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
     const beaderFilter = String(beader || "").trim();
     const hasBeaderFilter = Boolean(beaderFilter);
-    const selectedExportOrders = parseSelectedExportOrders(selectedOrders);
+    const selectedExportOrders = parseSelectedExportOrders(req.body?.selectedOrders ?? req.query.selectedOrders);
 
     if (
       selectedExportOrders.hasSelection &&
@@ -3202,6 +3228,11 @@ router.get(
     const regularParams: any[] = [];
     const retailerWhere = ["ro.status = 0"];
     const retailerParams: any[] = [];
+
+    for (const [where, params, alias] of [[regularWhere, regularParams, "o"], [retailerWhere, retailerParams, "ro"]] as const) {
+      if (dateFrom) { where.push(`${alias}.orderReceivedDate >= ?`); params.push(dateFrom); }
+      if (dateTo) { where.push(`${alias}.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY)`); params.push(dateTo); }
+    }
 
     if (likeQuery) {
       regularWhere.push(
@@ -3485,17 +3516,19 @@ router.get(
       success: true,
       data,
     });
-  }),
-);
+  })(req, res, next);
+}
 
 router.get(
   "/stage-counts",
   asyncHandler(async (req: Request, res: Response) => {
-    const { query, orderType, publishStatus, beader } = req.query as {
+    const { query, orderType, publishStatus, beader, dateFrom, dateTo } = req.query as {
       query?: string;
       orderType?: string;
       publishStatus?: string;
       beader?: string;
+      dateFrom?: string;
+      dateTo?: string;
     };
 
     const sourceOrders = await getOrderStageCountSourceOrders({
@@ -3503,6 +3536,8 @@ router.get(
       orderType,
       publishStatus,
       beader,
+      dateFrom,
+      dateTo,
     });
     const [stageCounts, allStatusCount] = await Promise.all([
       getProductStageCounts(sourceOrders),
@@ -3544,6 +3579,8 @@ router.get(
       stage,
       publishStatus,
       beader,
+      dateFrom,
+      dateTo,
       deletedOnly,
     }: {
       page?: string;
@@ -3553,6 +3590,8 @@ router.get(
       stage?: string;
       publishStatus?: string;
       beader?: string;
+      dateFrom?: string;
+      dateTo?: string;
       deletedOnly?: string;
     } = req.query;
 
@@ -3659,6 +3698,9 @@ router.get(
         { likeQuery },
       );
     }
+
+    addReceivedDateFilter(regularOrdersQuery, "o", dateFrom, dateTo);
+    addReceivedDateFilter(retailerOrdersQuery, "ro", dateFrom, dateTo);
 
     if (orderType) {
       if (!includeRetailerOrders) {

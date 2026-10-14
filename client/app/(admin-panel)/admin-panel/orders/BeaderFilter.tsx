@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import {
   Select,
@@ -54,6 +54,7 @@ export default function BeaderFilter({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const handleChange = (value: string) => {
     const nextBeader = value === ALL_BEADERS ? "" : value;
@@ -64,9 +65,15 @@ export default function BeaderFilter({
       stage,
       beader: nextBeader,
     });
+    const params = new URLSearchParams(search);
+    for (const key of ["dateFrom", "dateTo"]) {
+      const value = searchParams?.get(key);
+      if (value) params.set(key, value);
+    }
+    const nextSearch = params.toString();
     const nextPath = pathname ?? "/admin-panel/orders";
 
-    router.push(search ? `${nextPath}?${search}` : nextPath);
+    router.push(nextSearch ? `${nextPath}?${nextSearch}` : nextPath);
   };
 
   return (
