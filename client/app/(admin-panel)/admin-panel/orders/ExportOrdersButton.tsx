@@ -7,10 +7,20 @@ import * as XLSX from "xlsx-js-style";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { API_URL } from "@/lib/constants";
 import { getCookie } from "@/lib/utils";
 import { useItems } from "./Delete";
-import { formatDateOnlyDisplay } from "@/lib/dateOnly";
+import { formatDateOnly, formatDateOnlyDisplay } from "@/lib/dateOnly";
 
 if (typeof window !== "undefined") {
   (window as any).JSZip = JSZip;
@@ -47,6 +57,8 @@ const ORDER_EXPORT_DATA_ROW_HEIGHT = 24;
 const ORDER_EXPORT_LINE_HEIGHT = 18;
 
 const ORDER_EXPORT_COLUMNS = [
+  "Store Name",
+  "Customer Name",
   "Style No",
   "Size",
   "Quantity",
@@ -234,6 +246,15 @@ const buildWorksheet = (rows: any[], title: string) => {
       e: { r: ORDER_EXPORT_TITLE_ROW, c: ORDER_EXPORT_COLUMNS.length - 1 },
     },
   ];
+  worksheet["!autofilter"] = {
+    ref: XLSX.utils.encode_range({
+      s: { r: ORDER_EXPORT_HEADER_ROW, c: 0 },
+      e: {
+        r: ORDER_EXPORT_HEADER_ROW + normalizedRows.length,
+        c: ORDER_EXPORT_COLUMNS.length - 1,
+      },
+    }),
+  };
 
   return worksheet;
 };
@@ -427,10 +448,32 @@ export default function ExportOrdersButton({
   currentStatus,
 }: ExportOrdersButtonProps) {
   const [exporting, setExporting] = useState(false);
+  const [open, setOpen] = useState(false);
+  const emptyFilters = {
+    store: "",
+    customer: "",
+    po: "",
+    orderFrom: "",
+    orderTo: "",
+    cancellationFrom: "",
+    cancellationTo: "",
+  };
+  const [filters, setFilters] = useState(emptyFilters);
   const { items: selectedOrders } = useItems();
   const shouldExportSelectedOrders = !providedRows && selectedOrders.length > 0;
 
   const handleExport = async () => {
+    if (
+      (filters.orderFrom &&
+        filters.orderTo &&
+        filters.orderFrom > filters.orderTo) ||
+      (filters.cancellationFrom &&
+        filters.cancellationTo &&
+        filters.cancellationFrom > filters.cancellationTo)
+    ) {
+      toast.error("From date must be on or before the To date");
+      return;
+    }
     setExporting(true);
 
     try {
@@ -482,7 +525,31 @@ export default function ExportOrdersButton({
         rows = Array.isArray(json.data) ? json.data : [];
       }
 
-      const exportRows = Array.isArray(rows) ? rows : [];
+      const contains = (value: unknown, search: string) =>
+        String(value ?? "")
+          .toLowerCase()
+          .includes(search.trim().toLowerCase());
+      const inRange = (value: unknown, from: string, to: string) => {
+        if (!from && !to) return true;
+        const date = formatDateOnly(value);
+        return Boolean(date) && (!from || date >= from) && (!to || date <= to);
+      };
+      const exportRows = (Array.isArray(rows) ? rows : []).filter(
+        (row) =>
+          contains(row["Store Name"], filters.store) &&
+          contains(row["Customer Name"], filters.customer) &&
+          contains(row["PO Number"], filters.po) &&
+          inRange(
+            row["Order Received Date"],
+            filters.orderFrom,
+            filters.orderTo,
+          ) &&
+          inRange(
+            row["Order Cancellation Date"],
+            filters.cancellationFrom,
+            filters.cancellationTo,
+          ),
+      );
 
       if (!exportRows.length) {
         toast.error(emptyMessage);
@@ -513,6 +580,7 @@ export default function ExportOrdersButton({
         workbook,
         fileName ?? buildExportFileName(exportFilters, currentStatus),
       );
+      setOpen(false);
       toast.success(
         shouldExportSelectedOrders
           ? `Selected orders exported successfully`
@@ -526,19 +594,79 @@ export default function ExportOrdersButton({
   };
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      onClick={handleExport}
-      disabled={exporting}
-      className="gap-2"
-    >
-      <Download className="h-4 w-4" />
-      {exporting
-        ? "Exporting..."
-        : shouldExportSelectedOrders
-          ? `Export Selected (${selectedOrders.length})`
-          : buttonLabel}
-    </Button>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={exporting}
+          className="gap-2"
+        >
+          <Download className="h-4 w-4" />
+          {exporting
+            ? "Exporting..."
+            : shouldExportSelectedOrders
+              ? `Export Selected (${selectedOrders.length})`
+              : buttonLabel}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Export orders to Excel</DialogTitle>
+          <DialogDescription>
+            Filter by store, customer, PO number, or date range. Blank fields
+            include all matches. Current order filters and selection also apply.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="grid gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleExport();
+          }}
+        >
+          {(
+            [
+              ["store", "Store Name", "text"],
+              ["customer", "Customer Name", "text"],
+              ["po", "PO#", "text"],
+              ["orderFrom", "Order Date From", "date"],
+              ["orderTo", "Order Date To", "date"],
+              ["cancellationFrom", "Cancellation Date From", "date"],
+              ["cancellationTo", "Cancellation Date To", "date"],
+            ] as const
+          ).map(([key, label, type]) => (
+            <div key={key} className="grid gap-2">
+              <Label htmlFor={`export-${key}`}>{label}</Label>
+              <Input
+                id={`export-${key}`}
+                type={type}
+                value={filters[key]}
+                disabled={exporting}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    [key]: event.target.value,
+                  }))
+                }
+              />
+            </div>
+          ))}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={exporting}
+              onClick={() => setFilters(emptyFilters)}
+            >
+              Clear filters
+            </Button>
+            <Button type="submit" disabled={exporting}>
+              {exporting ? "Exporting..." : "Download Excel"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

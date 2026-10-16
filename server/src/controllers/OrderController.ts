@@ -3494,6 +3494,8 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
           productStatus,
           orderCancellationDate: row.orderCancellationDate,
           row: {
+            "Store Name": row.customerStoreName ?? "",
+            "Customer Name": row.customerName ?? "",
             "Style No": row.styleNo,
             Size: row.size ?? "",
             Quantity: quantity,
