@@ -39,6 +39,8 @@ const buildSearch = ({
 
 export default function BeaderFilter({
   beaders,
+  counts,
+  allCount,
   query,
   orderType,
   due,
@@ -46,6 +48,8 @@ export default function BeaderFilter({
   beader,
 }: {
   beaders: string[];
+  counts: Record<string, number>;
+  allCount?: number;
   query?: string;
   orderType?: string;
   due?: string;
@@ -78,14 +82,14 @@ export default function BeaderFilter({
 
   return (
     <Select value={beader || ALL_BEADERS} onValueChange={handleChange}>
-      <SelectTrigger className="w-[170px]">
+      <SelectTrigger className="w-[240px]">
         <SelectValue placeholder="Beader" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={ALL_BEADERS}>All Beaders</SelectItem>
+        <SelectItem value={ALL_BEADERS}>All Beaders{allCount !== undefined ? ` (${allCount} pcs)` : ""}</SelectItem>
         {beaders.map((option) => (
           <SelectItem key={option} value={option}>
-            {option}
+            {option} ({counts[option.toLowerCase()] ?? 0} pcs)
           </SelectItem>
         ))}
       </SelectContent>

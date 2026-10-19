@@ -139,7 +139,7 @@ const OrdersPage = async (props: {
       dateFrom,
       dateTo,
     }),
-    getOrderBeaders(),
+    getOrderBeaders({ query, orderType: orderType === "All" ? "" : orderType, stage, dateFrom, dateTo }),
   ]);
 
   const getStatusDate = (status: string, order: any) => {
@@ -291,7 +291,9 @@ const OrdersPage = async (props: {
                 }
               />
               <BeaderFilter
-                beaders={beaders}
+                beaders={beaders.beaders}
+                counts={beaders.counts}
+                allCount={beaders.allCount}
                 query={query}
                 orderType={orderType}
                 due={dueFilter}

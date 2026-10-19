@@ -864,7 +864,7 @@ async function getOrderStageCountSourceOrders({
 
   if (likeQuery) {
     regularOrdersQuery.andWhere(
-      "(LOWER(o.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
+      "(LOWER(o.purchaeOrderNo) LIKE :likeQuery OR LOWER(o.estimateNo) LIKE :likeQuery OR LOWER(o.invoiceNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
       { likeQuery },
     );
   }
@@ -891,7 +891,7 @@ async function getOrderStageCountSourceOrders({
 
   if (likeQuery) {
     retailerOrdersQuery.andWhere(
-      "(LOWER(ro.purchaeOrderNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
+      "(LOWER(ro.purchaeOrderNo) LIKE :likeQuery OR LOWER(ro.estimateNo) LIKE :likeQuery OR LOWER(ro.invoiceNo) LIKE :likeQuery OR LOWER(customer.storeName) LIKE :likeQuery OR LOWER(customer.name) LIKE :likeQuery)",
       { likeQuery },
     );
   }
@@ -3556,16 +3556,38 @@ router.get(
 
 router.get(
   "/beaders",
-  asyncHandler(async (_req: Request, res: Response) => {
-    const beaders = await Beader.find({
-      order: { name: "ASC" },
-    });
-
-    return res.json({
-      success: true,
-      beaders: beaders
-        .map((beader) => sanitizeText(beader.name))
-        .filter(Boolean),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { query, orderType, stage, dateFrom, dateTo } = req.query as Record<string, string>;
+    const [beaders, sourceOrders] = await Promise.all([
+      Beader.find({ order: { name: "ASC" } }),
+      getOrderStageCountSourceOrders({ query, orderType, dateFrom, dateTo }),
+    ]);
+    const orderIds = sourceOrders.filter(order => order.orderSource === "regular").map(order => Number(order.id));
+    const statusById = buildOrderStatusById(sourceOrders, "regular");
+    const counts = new Map<string, number>();
+    if (orderIds.length) {
+      const rows = await db.query(`
+        SELECT s.*, ${buildResolvedOrderStyleBeaderSql("s", "ob", "p")} AS resolvedBeader
+        FROM orderStyles s
+        LEFT JOIN \`${ORDER_BEADERS_TABLE}\` ob ON ob.styleId = s.id
+        LEFT JOIN products p ON p.productCode = s.styleNo
+        WHERE s.orderId IN (?)
+      `, [orderIds]);
+      const progress = buildStageMap(
+        await getLatestProgressRows("store_style_progress", "status", rows.map((row: any) => row.barcode)), "status",
+      );
+      rows.forEach((row: any) => {
+        const currentStage = getMostAdvancedKnownStage(progress.get(String(row.barcode)), statusById.get(Number(row.orderId)));
+        if (stage && currentStage !== getCanonicalStage(stage)) return;
+        const name = sanitizeText(row.resolvedBeader).toLowerCase();
+        if (name) counts.set(name, (counts.get(name) ?? 0) + getStyleTotalQuantity(row));
+      });
+    }
+    const allCount = stage
+      ? (await getProductStageCounts(sourceOrders))[getCanonicalStage(stage) ?? stage] ?? 0
+      : await getAllStatusQuantity(sourceOrders);
+    return res.json({ success: true, allCount, counts: Object.fromEntries(counts),
+      beaders: beaders.map(beader => sanitizeText(beader.name)).filter(Boolean),
     });
   }),
 );

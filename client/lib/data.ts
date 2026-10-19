@@ -476,38 +476,20 @@ export const getOrderStageCounts = async ({
   }
 };
 
-export const getOrderBeaders = async (): Promise<string[]> => {
-  const headers = {
-    Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
-  };
-
+export const getOrderBeaders = async (filters: {
+  query?: string; orderType?: string; stage?: string; dateFrom?: string; dateTo?: string;
+} = {}): Promise<{ beaders: string[]; counts: Record<string, number>; allCount?: number }> => {
+  const headers = { Authorization: `Bearer ${(await cookies()).get("token")?.value}` };
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, value); });
   try {
-    const response = await fetch(`${API_URL}/beaders`, {
-      headers,
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      return [];
-    }
-
+    const response = await fetch(`${API_URL}/orders/beaders?${params}`, { headers, cache: "no-store" });
+    if (!response.ok) return { beaders: [], counts: {} };
     const json = await response.json();
-    const beaders: any[] = Array.isArray(json?.beaders) ? json.beaders : [];
-    const names: string[] = Array.from(
-      new Set(
-        beaders
-          .map((beader: any) =>
-            typeof beader === "string" ? beader : String(beader?.name ?? ""),
-          )
-          .map((name: string) => name.trim())
-          .filter(Boolean),
-      ),
-    );
-
-    return names.sort((left, right) => left.localeCompare(right));
+    return { beaders: json.beaders ?? [], counts: json.counts ?? {}, allCount: json.allCount };
   } catch (error) {
     console.error("[getOrderBeaders] Failed to fetch beaders", error);
-    return [];
+    return { beaders: [], counts: {} };
   }
 };
 
