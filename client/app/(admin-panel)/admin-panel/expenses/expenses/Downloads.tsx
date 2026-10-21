@@ -33,7 +33,7 @@ const ExpensesDownloader = ({ expenses, name, date }) => {
       const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
       if (!cell) continue;
       cell.s = {
-        font: { bold: true, color: { rgb: "FFFFFF" } },
+        font: { sz: 16, bold: true, color: { rgb: "FFFFFF" } },
         fill: { fgColor: { rgb: "1F2937" } },
         alignment: { horizontal: "center", vertical: "center" },
         border: {
@@ -51,6 +51,7 @@ const ExpensesDownloader = ({ expenses, name, date }) => {
         const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
         if (!cell) continue;
         cell.s = {
+          font: { sz: 16 },
           fill: { fgColor: { rgb: R % 2 === 0 ? "F9FAFB" : "FFFFFF" } },
           alignment: { vertical: "center", horizontal: C >= 4 ? "center" : "left" },
           border: {

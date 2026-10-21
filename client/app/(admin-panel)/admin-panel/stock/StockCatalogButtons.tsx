@@ -238,7 +238,7 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
     if (!cell) continue;
 
     cell.s = {
-      font: { bold: true, color: { rgb: "FFFFFF" } },
+      font: { sz: 16, bold: true, color: { rgb: "FFFFFF" } },
       fill: { fgColor: { rgb: "1F2937" } },
       alignment: { horizontal: "center", vertical: "center" },
       border: {
@@ -256,6 +256,7 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
       if (!cell) continue;
 
       cell.s = {
+        font: { sz: 16 },
         fill: { fgColor: { rgb: row % 2 === 0 ? "F9FAFB" : "FFFFFF" } },
         alignment: { horizontal: "center", vertical: "center" },
         border: {

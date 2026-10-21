@@ -37,7 +37,7 @@ const downloadExcel = () => {
     if (!cell) continue;
 
     cell.s = {
-      font: { bold: true, color: { rgb: "FFFFFF" } },
+      font: { sz: 16, bold: true, color: { rgb: "FFFFFF" } },
       fill: { fgColor: { rgb: "1F2937" } }, // dark gray
       alignment: { horizontal: "center", vertical: "center" },
       border: {
@@ -56,6 +56,7 @@ const downloadExcel = () => {
       if (!cell) continue;
 
       cell.s = {
+        font: { sz: 16 },
         fill: {
           fgColor: {
             rgb: R % 2 === 0 ? "F9FAFB" : "FFFFFF", // zebra rows
