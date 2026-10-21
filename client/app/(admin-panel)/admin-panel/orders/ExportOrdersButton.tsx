@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download } from "lucide-react";
+import { Download, Filter } from "lucide-react";
 import JSZip from "jszip";
 import * as XLSX from "xlsx-js-style";
 import { toast } from "sonner";
@@ -46,7 +46,7 @@ const ORDER_EXPORT_DEFAULT_TITLE = "All Orders";
 const ORDER_EXPORT_TITLE_FILL = "F4CCCC";
 const ORDER_EXPORT_TITLE_FONT = "990000";
 const ORDER_EXPORT_HEADER_FILL = "1F4E78";
-const ORDER_EXPORT_FONT_SIZE = 14;
+const ORDER_EXPORT_FONT_SIZE = 16;
 const ORDER_EXPORT_BLANK_ROWS = new Set([0, 2]);
 const ORDER_EXPORT_TITLE_ROW = 1;
 const ORDER_EXPORT_HEADER_ROW = 3;
@@ -57,8 +57,6 @@ const ORDER_EXPORT_DATA_ROW_HEIGHT = 24;
 const ORDER_EXPORT_LINE_HEIGHT = 18;
 
 const ORDER_EXPORT_COLUMNS = [
-  "Store Name",
-  "Customer Name",
   "Style No",
   "Size",
   "Quantity",
@@ -68,6 +66,14 @@ const ORDER_EXPORT_COLUMNS = [
   "Product Status",
   "Order Received Date",
   "Order Cancellation Date",
+];
+
+const FILTERED_EXPORT_COLUMNS = [
+  "Store Name",
+  "Customer Name",
+  "Order Date",
+  "Cancellation Date",
+  "PO#",
 ];
 
 const ORDER_EXPORT_PRINT_MARGINS = {
@@ -80,11 +86,15 @@ const ORDER_EXPORT_PRINT_MARGINS = {
 };
 
 const getExportCellValue = (row: any, column: string) => {
-  const value = row?.[column];
+  const sourceColumn =
+    column === "Order Date" ? "Order Received Date" :
+    column === "Cancellation Date" ? "Order Cancellation Date" :
+    column === "PO#" ? "PO Number" : column;
+  const value = row?.[sourceColumn];
 
   if (
-    column === "Order Received Date" ||
-    column === "Order Cancellation Date"
+    sourceColumn === "Order Received Date" ||
+    sourceColumn === "Order Cancellation Date"
   ) {
     return formatDateOnlyDisplay(value, "DD-MM-YYYY");
   }
@@ -97,9 +107,9 @@ const getExportCellValue = (row: any, column: string) => {
   return value ?? "";
 };
 
-const normalizeExportRows = (rows: any[]) =>
+const normalizeExportRows = (rows: any[], columns = ORDER_EXPORT_COLUMNS) =>
   rows.map((row) =>
-    ORDER_EXPORT_COLUMNS.reduce<Record<string, unknown>>(
+    columns.reduce<Record<string, unknown>>(
       (exportRow, column) => {
         exportRow[column] = getExportCellValue(row, column);
         return exportRow;
@@ -212,16 +222,16 @@ const buildExportFileName = (
 ) =>
   `${sanitizeDisplayFilePart(buildExportTitle(filters, currentStatus))}.xlsx`;
 
-const buildWorksheet = (rows: any[], title: string) => {
-  const normalizedRows = normalizeExportRows(rows);
-  const titleRow = ORDER_EXPORT_COLUMNS.map((_, index) =>
+const buildWorksheet = (rows: any[], title: string, columns = ORDER_EXPORT_COLUMNS) => {
+  const normalizedRows = normalizeExportRows(rows, columns);
+  const titleRow = columns.map((_, index) =>
     index === 0 ? title : "",
   );
   const totalQuantity = normalizedRows.reduce((total, row) => {
     const quantity = Number(row.Quantity);
     return total + (Number.isFinite(quantity) ? quantity : 0);
   }, 0);
-  const totalRow = ORDER_EXPORT_COLUMNS.map((column) => {
+  const totalRow = columns.map((column) => {
     if (column === "Style No") return "Total";
     if (column === "Quantity") return totalQuantity;
     return "";
@@ -231,11 +241,11 @@ const buildWorksheet = (rows: any[], title: string) => {
       [],
       titleRow,
       [],
-      ORDER_EXPORT_COLUMNS,
+      columns,
       ...normalizedRows.map((row) =>
-        ORDER_EXPORT_COLUMNS.map((column) => row[column] ?? ""),
+        columns.map((column) => row[column] ?? ""),
       ),
-      totalRow,
+      ...(columns.includes("Quantity") ? [totalRow] : []),
     ],
     { sheetStubs: true },
   );
@@ -243,7 +253,7 @@ const buildWorksheet = (rows: any[], title: string) => {
   worksheet["!merges"] = [
     {
       s: { r: ORDER_EXPORT_TITLE_ROW, c: 0 },
-      e: { r: ORDER_EXPORT_TITLE_ROW, c: ORDER_EXPORT_COLUMNS.length - 1 },
+      e: { r: ORDER_EXPORT_TITLE_ROW, c: columns.length - 1 },
     },
   ];
   worksheet["!autofilter"] = {
@@ -251,7 +261,7 @@ const buildWorksheet = (rows: any[], title: string) => {
       s: { r: ORDER_EXPORT_HEADER_ROW, c: 0 },
       e: {
         r: ORDER_EXPORT_HEADER_ROW + normalizedRows.length,
-        c: ORDER_EXPORT_COLUMNS.length - 1,
+        c: columns.length - 1,
       },
     }),
   };
@@ -274,8 +284,8 @@ const getPaddedColumnWidth = (contentLength: number) =>
   Math.ceil(contentLength * ORDER_EXPORT_WIDTH_SCALE) +
   ORDER_EXPORT_COLUMN_PADDING;
 
-const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range) =>
-  ORDER_EXPORT_COLUMNS.map((columnName, column) => {
+const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range, columns = ORDER_EXPORT_COLUMNS) =>
+  columns.map((columnName, column) => {
     let longestValue = columnName.length;
 
     for (let row = ORDER_EXPORT_DATA_START_ROW; row <= range.e.r; row += 1) {
@@ -312,7 +322,7 @@ const getRowHeight = (
   );
 };
 
-const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
+const styleWorksheet = (worksheet: XLSX.WorkSheet, columns = ORDER_EXPORT_COLUMNS) => {
   const ref = worksheet["!ref"];
   if (!ref) return;
 
@@ -391,7 +401,7 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
         continue;
       }
 
-      const isTotalRow = row === range.e.r;
+      const isTotalRow = columns.includes("Quantity") && row === range.e.r;
 
       cell.s = {
         font: { sz: ORDER_EXPORT_FONT_SIZE, bold: isTotalRow },
@@ -410,7 +420,7 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
     }
   }
 
-  const columnWidths = getColumnWidths(worksheet, range);
+  const columnWidths = getColumnWidths(worksheet, range, columns);
   worksheet["!cols"] = columnWidths;
   worksheet["!rows"] = Array.from({ length: range.e.r + 1 }, (_, row) => ({
     hpt:
@@ -419,7 +429,7 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet) => {
         : ORDER_EXPORT_BLANK_ROWS.has(row)
           ? 12
           : row === ORDER_EXPORT_HEADER_ROW
-            ? 21
+            ? 26
             : getRowHeight(worksheet, range, row),
   }));
   worksheet["!freeze"] = { xSplit: 0, ySplit: ORDER_EXPORT_DATA_START_ROW };
@@ -462,14 +472,15 @@ export default function ExportOrdersButton({
   const { items: selectedOrders } = useItems();
   const shouldExportSelectedOrders = !providedRows && selectedOrders.length > 0;
 
-  const handleExport = async () => {
+  const handleExport = async (useFilters = false) => {
+    const activeFilters = useFilters ? filters : emptyFilters;
     if (
-      (filters.orderFrom &&
-        filters.orderTo &&
-        filters.orderFrom > filters.orderTo) ||
-      (filters.cancellationFrom &&
-        filters.cancellationTo &&
-        filters.cancellationFrom > filters.cancellationTo)
+      (activeFilters.orderFrom &&
+        activeFilters.orderTo &&
+        activeFilters.orderFrom > activeFilters.orderTo) ||
+      (activeFilters.cancellationFrom &&
+        activeFilters.cancellationTo &&
+        activeFilters.cancellationFrom > activeFilters.cancellationTo)
     ) {
       toast.error("From date must be on or before the To date");
       return;
@@ -536,18 +547,18 @@ export default function ExportOrdersButton({
       };
       const exportRows = (Array.isArray(rows) ? rows : []).filter(
         (row) =>
-          contains(row["Store Name"], filters.store) &&
-          contains(row["Customer Name"], filters.customer) &&
-          contains(row["PO Number"], filters.po) &&
+          contains(row["Store Name"], activeFilters.store) &&
+          contains(row["Customer Name"], activeFilters.customer) &&
+          contains(row["PO Number"], activeFilters.po) &&
           inRange(
             row["Order Received Date"],
-            filters.orderFrom,
-            filters.orderTo,
+            activeFilters.orderFrom,
+            activeFilters.orderTo,
           ) &&
           inRange(
             row["Order Cancellation Date"],
-            filters.cancellationFrom,
-            filters.cancellationTo,
+            activeFilters.cancellationFrom,
+            activeFilters.cancellationTo,
           ),
       );
 
@@ -563,11 +574,13 @@ export default function ExportOrdersButton({
         due,
         beader,
       };
+      const columns = useFilters ? FILTERED_EXPORT_COLUMNS : ORDER_EXPORT_COLUMNS;
       const worksheet = buildWorksheet(
         exportRows,
         buildExportTitle(exportFilters, currentStatus),
+        columns,
       );
-      styleWorksheet(worksheet);
+      styleWorksheet(worksheet, columns);
 
       const workbook = XLSX.utils.book_new();
       const exportTitle = buildExportTitle(exportFilters, currentStatus);
@@ -594,13 +607,13 @@ export default function ExportOrdersButton({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <div className="flex flex-wrap gap-2">
         <Button
           type="button"
           variant="outline"
           disabled={exporting}
           className="gap-2"
+          onClick={() => void handleExport()}
         >
           <Download className="h-4 w-4" />
           {exporting
@@ -609,7 +622,13 @@ export default function ExportOrdersButton({
               ? `Export Selected (${selectedOrders.length})`
               : buttonLabel}
         </Button>
-      </DialogTrigger>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button type="button" variant="outline" disabled={exporting} className="gap-2">
+            <Filter className="h-4 w-4" />
+            Filter & Export Excel
+          </Button>
+        </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Export orders to Excel</DialogTitle>
@@ -622,7 +641,7 @@ export default function ExportOrdersButton({
           className="grid gap-4"
           onSubmit={(event) => {
             event.preventDefault();
-            void handleExport();
+            void handleExport(true);
           }}
         >
           {(
@@ -667,6 +686,7 @@ export default function ExportOrdersButton({
           </div>
         </form>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </div>
   );
 }
