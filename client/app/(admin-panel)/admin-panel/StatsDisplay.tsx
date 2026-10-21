@@ -152,9 +152,9 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-extrabold text-green-900">
-              {safeData.total?.total_quantity || 0}
+              {safeData.total?.total_quantity ?? "Unavailable"}
             </div>
-            <p className="mt-1 text-xs text-green-600">Units Sold</p>
+            <p className="mt-1 text-xs text-green-600">All Orders / All Status</p>
           </CardContent>
         </Card>
 

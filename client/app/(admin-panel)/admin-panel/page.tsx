@@ -35,7 +35,7 @@
 // export default Dashboard;
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import { DateRangeForm } from "./DateRangeForm";
-import { getDashboardData } from "@/lib/data";
+import { getDashboardData, getOrderStageCounts } from "@/lib/data";
 import DashboardCharts from "@/app/(admin-panel)/admin-panel/DashboardCharts";
 import DashboardClient from "./DashboardClient";
 
@@ -54,7 +54,17 @@ const Dashboard = async ({ searchParams }: any) => {
   const startDate = params?.startDate || formatDateParam(startOfYear);
   const endDate = params?.endDate || formatDateParam(today);
 
-  const data = await getDashboardData(startDate, endDate);
+  const [data, orderStageCounts] = await Promise.all([
+    getDashboardData(startDate, endDate),
+    getOrderStageCounts({}),
+  ]);
+  const dashboardData = {
+    ...data,
+    total: {
+      ...data.total,
+      total_quantity: orderStageCounts?.allStatusCount ?? null,
+    },
+  };
 
   return (
     <ContentLayout title="Dashboard">
@@ -67,7 +77,7 @@ const Dashboard = async ({ searchParams }: any) => {
         />
 
         {/* Send data to Client Component */}
-        <DashboardClient data={data} />
+        <DashboardClient data={dashboardData} />
       </div>
     </ContentLayout>
   );
