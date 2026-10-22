@@ -70,8 +70,8 @@ const ORDER_EXPORT_COLUMNS = [
 
 const FILTERED_EXPORT_COLUMNS = [
   "Store Name",
-  "Order Status",
   "PO#",
+  "Order Status",
   "Order Date",
   "Cancellation Date",
 ];
