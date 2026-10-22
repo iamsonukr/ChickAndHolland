@@ -70,11 +70,10 @@ const ORDER_EXPORT_COLUMNS = [
 
 const FILTERED_EXPORT_COLUMNS = [
   "Store Name",
-  "Customer Name",
+  "Order Status",
   "PO#",
   "Order Date",
   "Cancellation Date",
-  
 ];
 
 const ORDER_EXPORT_PRINT_MARGINS = {
@@ -91,7 +90,9 @@ const getExportCellValue = (row: any, column: string) => {
     column === "Order Date" ? "Order Received Date" :
     column === "Cancellation Date" ? "Order Cancellation Date" :
     column === "PO#" ? "PO Number" : column;
-  const value = row?.[sourceColumn];
+  const value = column === "Order Status"
+    ? row?.["Order Status"] ?? row?.["Product Status"]
+    : row?.[sourceColumn];
 
   if (
     sourceColumn === "Order Received Date" ||
