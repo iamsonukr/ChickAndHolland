@@ -72,6 +72,7 @@ const FILTERED_EXPORT_COLUMNS = [
   "Store Name",
   "PO#",
   "Order Status",
+  "Total Quantity",
   "Order Date",
   "Cancellation Date",
 ];
@@ -498,6 +499,7 @@ export default function ExportOrdersButton({
       if (beader) params.set("beader", beader);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
+      if (useFilters) params.set("summary", "true");
 
       let rows = providedRows;
 

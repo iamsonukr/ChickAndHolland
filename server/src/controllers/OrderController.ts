@@ -3297,6 +3297,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
                 'STORE' AS qrType,
                 o.id AS orderId,
                 o.purchaeOrderNo AS purchaseOrderNo,
+                o.orderStatus AS parentOrderStatus,
                 o.orderType AS orderType,
                 o.orderReceivedDate AS orderReceivedDate,
                 o.orderCancellationDate AS orderCancellationDate,
@@ -3316,6 +3317,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
                 s.size AS size,
                 s.sizeCountry AS size_country,
                 s.quantity AS quantity,
+                s.customSizesQuantity AS customSizesQuantity,
                 s.colorType AS colorType,
                 s.mesh_color AS meshColorRaw,
                 s.beading_color AS beadingColor,
@@ -3345,6 +3347,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
                 'RETAILER' AS qrType,
                 ro.id AS orderId,
                 ro.purchaeOrderNo AS purchaseOrderNo,
+                ro.orderStatus AS parentOrderStatus,
                 'Fresh' AS orderType,
                 ro.orderReceivedDate AS orderReceivedDate,
                 ro.orderCancellationDate AS orderCancellationDate,
@@ -3408,6 +3411,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
                 ro.id AS orderId,
                 ro.purchaeOrderNo AS purchaseOrderNo,
                 'Stock' AS orderType,
+                ro.orderStatus AS parentOrderStatus,
                 ro.orderReceivedDate AS orderReceivedDate,
                 ro.orderCancellationDate AS orderCancellationDate,
                 ro.shippingStatus AS shippingStatus,
@@ -3478,6 +3482,47 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
           sharedRetailerBarcodes,
         ).then((rows) => buildStageMap(rows, "stage")),
       ]);
+
+    // Summary exports use order identity, since separate orders can share a PO.
+    if (req.query.summary === "true") {
+      const orders = new Map<string, any[]>();
+      for (const row of productRows) {
+        const key = `${row.orderSource}:${row.orderId}`;
+        const styles = orders.get(key) ?? [];
+        // Joins to colours/favourites may return the same style more than once.
+        if (!styles.some((style) => style.styleId === row.styleId)) styles.push(row);
+        orders.set(key, styles);
+      }
+      const data = Array.from(orders.values()).flatMap((styles) => {
+        const order = styles[0];
+        const progress = order.orderSource === "regular"
+          ? regularProgressByBarcode : retailerProgressByBarcode;
+        const orderStatus = getDisplayedOrderStage(
+          styles.map((style) => String(style.barcode || "")).filter(Boolean),
+          progress,
+          order.parentOrderStatus,
+        );
+        if (stage && !styles.some((style) =>
+          (progress.get(String(style.barcode || "")) ?? DEFAULT_ORDER_STAGE) === stage,
+        )) return [];
+        if (!matchesDueFilter(due, orderStatus, order.orderCancellationDate)) return [];
+        return [{
+          "Order ID": order.orderId,
+          "Store Name": order.customerStoreName ?? "",
+          "Customer Name": order.customerName ?? "",
+          "PO Number": order.purchaseOrderNo,
+          "Order Status": orderStatus,
+          "Total Quantity": styles.reduce((sum, style) => sum + (
+            order.orderSource === "regular"
+              ? getStyleTotalQuantity(style)
+              : Number(style.quantity ?? 1) || 1
+          ), 0),
+          "Order Received Date": formatDateOnly(order.orderReceivedDate),
+          "Order Cancellation Date": formatDateOnly(order.orderCancellationDate),
+        }];
+      });
+      return res.json({ success: true, data });
+    }
 
     const data = productRows
       .map((row) => {
