@@ -28,7 +28,24 @@ router.get(
       },
       relations: ["subCategories"],
     });
-    res.json(categories);
+    res.json(
+      categories
+        .filter(
+          (category) =>
+            !["CUSTOM", "RETAILER COLLECTION"].includes(
+              category.name.trim().toUpperCase()
+            )
+        )
+        .map((category) => ({
+          ...category,
+          subCategories: category.subCategories.filter(
+            (subCategory) =>
+              !["CUSTOM", "CUSTOM CATEGORY"].includes(
+                subCategory.name.trim().toUpperCase()
+              )
+          ),
+        }))
+    );
   })
 );
 

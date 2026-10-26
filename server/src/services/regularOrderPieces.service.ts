@@ -58,11 +58,6 @@ export async function ensureRegularOrderPieces(
               "INSERT INTO store_style_progress (barcode, status, qty, createdAt) VALUES (?, ?, 1, ?)",
               [entity.barcode, inheritedStage, latestProgress?.createdAt || style.createdAt || new Date()],
             );
-            await manager.query(
-              `INSERT INTO barcode_comments (barcode, orderType, comment) VALUES (?, 'STORE', ?)
-               ON DUPLICATE KEY UPDATE comment = VALUES(comment)`,
-              [entity.barcode, `QR repair: inherited ${inheritedStage} from grouped barcode ${style.barcode}. This is a migration baseline, not a new scan.`],
-            );
           }
           added++;
         }

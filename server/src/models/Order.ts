@@ -55,6 +55,9 @@ export default class Order extends BaseModel {
   @Column("varchar", { length: 255 })
   orderType: string;
 
+  @Column("varchar", { length: 225, nullable: true })
+  exhibitionLocation: string | null;
+
   @Column("text", { nullable: true })
   ppt_path: string;
 

@@ -829,6 +829,7 @@ async function getOrderStageCountSourceOrders({
   beader,
   dateFrom,
   dateTo,
+  exhibitionLocation,
 }: {
   query?: string;
   orderType?: string;
@@ -836,6 +837,7 @@ async function getOrderStageCountSourceOrders({
   beader?: string;
   dateFrom?: string;
   dateTo?: string;
+  exhibitionLocation?: string;
 }) {
   const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
   const requestedPublishStatus =
@@ -861,6 +863,13 @@ async function getOrderStageCountSourceOrders({
       publishedStatus: OrderPublishStatus.Published,
       publishStatus: requestedPublishStatus,
     });
+
+  if (exhibitionLocation) {
+    regularOrdersQuery.andWhere(
+      "LOWER(o.exhibitionLocation) LIKE LOWER(:exhibitionLocation)",
+      { exhibitionLocation: `%${sanitizeText(exhibitionLocation)}%` },
+    );
+  }
 
   if (likeQuery) {
     regularOrdersQuery.andWhere(
@@ -888,6 +897,8 @@ async function getOrderStageCountSourceOrders({
     .leftJoin("ro.retailer", "retailer")
     .leftJoin("retailer.customer", "customer")
     .where("ro.status = 0");
+
+  if (exhibitionLocation) retailerOrdersQuery.andWhere("1 = 0");
 
   if (likeQuery) {
     retailerOrdersQuery.andWhere(
@@ -2143,6 +2154,7 @@ router.post(
           sanitizeText(manufacturingEmailAddress) || "rubyinc@hotmail.com";
         order.orderType = (sanitizeText(orderType) ||
           OrderType.Store) as OrderType;
+        order.exhibitionLocation = sanitizeText(fields["exhibitionLocation"]) || null;
         order.orderReceivedDate = orderReceivedDate || new Date();
         order.orderCancellationDate = (orderCancellationDate ?? null) as any;
         order.address = address;
@@ -2651,6 +2663,9 @@ router.patch(
         }
         if (fields["orderType"]) {
           order.orderType = fields["orderType"] as OrderType;
+        }
+        if (hasField("exhibitionLocation")) {
+          order.exhibitionLocation = sanitizeText(fields["exhibitionLocation"]) || null;
         }
         if (fields["orderReceivedDate"]) {
           const date = parseDateOnly(fields["orderReceivedDate"]);
@@ -3299,6 +3314,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
                 o.purchaeOrderNo AS purchaseOrderNo,
                 o.orderStatus AS parentOrderStatus,
                 o.orderType AS orderType,
+                o.exhibitionLocation AS exhibitionLocation,
                 o.orderReceivedDate AS orderReceivedDate,
                 o.orderCancellationDate AS orderCancellationDate,
                 o.shippingStatus AS shippingStatus,
@@ -3511,6 +3527,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
           "Store Name": order.customerStoreName ?? "",
           "Customer Name": order.customerName ?? "",
           "PO Number": order.purchaseOrderNo,
+          "Exhibition Location": order.exhibitionLocation ?? "",
           "Order Status": orderStatus,
           "Total Quantity": styles.reduce((sum, style) => sum + (
             order.orderSource === "regular"
@@ -3547,6 +3564,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
             Color: qrBoxColor,
             Beader: row.beader ?? "",
             "PO Number": row.purchaseOrderNo,
+            "Exhibition Location": row.exhibitionLocation ?? "",
             "Product Status": productStatus,
             "Order Received Date": formatDateOnly(row.orderReceivedDate),
             "Order Cancellation Date": formatDateOnly(row.orderCancellationDate),
@@ -3569,13 +3587,14 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
 router.get(
   "/stage-counts",
   asyncHandler(async (req: Request, res: Response) => {
-    const { query, orderType, publishStatus, beader, dateFrom, dateTo } = req.query as {
+    const { query, orderType, publishStatus, beader, dateFrom, dateTo, exhibitionLocation } = req.query as {
       query?: string;
       orderType?: string;
       publishStatus?: string;
       beader?: string;
       dateFrom?: string;
       dateTo?: string;
+      exhibitionLocation?: string;
     };
 
     const sourceOrders = await getOrderStageCountSourceOrders({
@@ -3585,6 +3604,7 @@ router.get(
       beader,
       dateFrom,
       dateTo,
+      exhibitionLocation,
     });
     const [stageCounts, allStatusCount] = await Promise.all([
       getProductStageCounts(sourceOrders),
@@ -3650,6 +3670,7 @@ router.get(
       beader,
       dateFrom,
       dateTo,
+      exhibitionLocation,
       deletedOnly,
     }: {
       page?: string;
@@ -3661,6 +3682,7 @@ router.get(
       beader?: string;
       dateFrom?: string;
       dateTo?: string;
+      exhibitionLocation?: string;
       deletedOnly?: string;
     } = req.query;
 
@@ -3687,6 +3709,7 @@ router.get(
         "o.purchaeOrderNo as purchaeOrderNo",
         "o.manufacturingEmailAddress as manufacturingEmailAddress",
         "o.orderType as orderType",
+        "o.exhibitionLocation as exhibitionLocation",
         "o.orderReceivedDate as orderReceivedDate",
         "o.orderCancellationDate as orderCancellationDate",
         "o.address as address",
@@ -3739,6 +3762,7 @@ router.get(
         "ro.purchaeOrderNo as purchaeOrderNo",
         "ro.manufacturingEmailAddress as manufacturingEmailAddress",
         "CASE WHEN ro.is_stock_order = 1 THEN 'Stock' ELSE 'Fresh' END as orderType",
+        "NULL as exhibitionLocation",
         "ro.orderReceivedDate as orderReceivedDate",
         "ro.orderCancellationDate as orderCancellationDate",
         "ro.address as address",
@@ -3760,6 +3784,14 @@ router.get(
       .leftJoin("ro.retailer", "retailer") // Join the Retailer table
       .leftJoin("retailer.customer", "customer") // Join the Customer table to filter by name
       .where("ro.status = :deletedStatus", { deletedStatus });
+
+    if (exhibitionLocation) {
+      regularOrdersQuery.andWhere(
+        "LOWER(o.exhibitionLocation) LIKE LOWER(:exhibitionLocation)",
+        { exhibitionLocation: `%${sanitizeText(exhibitionLocation)}%` },
+      );
+      retailerOrdersQuery.andWhere("1 = 0");
+    }
 
     if (likeQuery) {
       retailerOrdersQuery.andWhere(
@@ -4102,6 +4134,7 @@ router.get(
         purchaeOrderNo: baseOrder.purchaeOrderNo,
         manufacturingEmailAddress: baseOrder.manufacturingEmailAddress,
         orderType: baseOrder.orderType,
+        exhibitionLocation: baseOrder.exhibitionLocation ?? null,
         orderReceivedDate: formatDateOnly(baseOrder.orderReceivedDate),
         orderCancellationDate: formatDateOnly(baseOrder.orderCancellationDate),
         address: resolvedAddress,

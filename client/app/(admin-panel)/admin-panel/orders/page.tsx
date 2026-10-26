@@ -36,6 +36,7 @@ import ExportOrdersButton from "./ExportOrdersButton";
 import { ORDER_STAGE_DATE_FIELD_MAP } from "@/lib/stageFlow";
 import BeaderFilter from "./BeaderFilter";
 import DateRangeFilter from "./DateRangeFilter";
+import ExhibitionFilter from "./ExhibitionFilter";
 import {
   buildOrderAddressDisplay,
   getCustomerPersonName,
@@ -74,6 +75,7 @@ const buildOrdersFilterHref = ({
   beader,
   dateFrom,
   dateTo,
+  exhibitionLocation,
 }: {
   query: string;
   orderType: string;
@@ -82,6 +84,7 @@ const buildOrdersFilterHref = ({
   beader?: string;
   dateFrom?: string;
   dateTo?: string;
+  exhibitionLocation?: string;
 }) => {
   const params = new URLSearchParams();
 
@@ -92,6 +95,7 @@ const buildOrdersFilterHref = ({
   if (beader) params.set("beader", beader);
   if (dateFrom) params.set("dateFrom", dateFrom);
   if (dateTo) params.set("dateTo", dateTo);
+  if (exhibitionLocation) params.set("exhibitionLocation", exhibitionLocation);
 
   const search = params.toString();
   return search ? `?${search}` : "?";
@@ -109,6 +113,7 @@ const OrdersPage = async (props: {
   const beader = searchParams["beader"] ?? "";
   const dateFrom = searchParams["dateFrom"] ?? "";
   const dateTo = searchParams["dateTo"] ?? "";
+  const exhibitionLocation = searchParams["exhibitionLocation"] ?? "";
 
   const [
     orders,
@@ -127,6 +132,7 @@ const OrdersPage = async (props: {
       beader,
       dateFrom,
       dateTo,
+      exhibitionLocation,
     }),
     getCustomers({}),
     getProductCategories({}),
@@ -138,6 +144,7 @@ const OrdersPage = async (props: {
       beader,
       dateFrom,
       dateTo,
+      exhibitionLocation,
     }),
     getOrderBeaders({ query, orderType: orderType === "All" ? "" : orderType, stage, dateFrom, dateTo }),
   ]);
@@ -261,6 +268,7 @@ const OrdersPage = async (props: {
                 beader={beader}
                 dateFrom={dateFrom}
                 dateTo={dateTo}
+                exhibitionLocation={exhibitionLocation}
               />
               <CreateOrder
                 customers={customers.customers}
@@ -394,6 +402,7 @@ const OrdersPage = async (props: {
             </div>
 
             <DateRangeFilter />
+            <ExhibitionFilter />
 
             {/* Table */}
             <div className="w-full rounded-lg border border-border">
@@ -423,6 +432,9 @@ const OrdersPage = async (props: {
                       </th>
                       <th className={cn(tableHeadClassName, "w-[140px]")}>
                         Order Type
+                      </th>
+                      <th className={cn(tableHeadClassName, "w-[180px]")}>
+                        Exhibition
                       </th>
                       <th className={cn(tableHeadClassName, "w-[130px]")}>
                         Order Date
@@ -532,6 +544,10 @@ const OrdersPage = async (props: {
                                 : order.orderType}
                             </td>
 
+                            <td className={tableCellClassName}>
+                              {order.exhibitionLocation || "-"}
+                            </td>
+
                             {/* Order Date */}
                             <td className={tableCellClassName}>
                               {formatDateOnlyDisplay(order.orderReceivedDate)}
@@ -636,7 +652,7 @@ const OrdersPage = async (props: {
                     ) : (
                       <tr>
                         <td
-                          colSpan={showContact ? 14 : 12}
+                          colSpan={showContact ? 15 : 13}
                           className="border border-border py-10 text-center text-base text-muted-foreground"
                         >
                           <div className="flex flex-col items-center gap-1">

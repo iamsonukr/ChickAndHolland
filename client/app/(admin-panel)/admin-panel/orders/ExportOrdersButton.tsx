@@ -34,6 +34,7 @@ type ExportOrdersButtonProps = {
   beader?: string;
   dateFrom?: string;
   dateTo?: string;
+  exhibitionLocation?: string;
   rows?: Record<string, unknown>[];
   fileName?: string;
   buttonLabel?: string;
@@ -66,6 +67,7 @@ const ORDER_EXPORT_COLUMNS = [
   "Product Status",
   "Order Received Date",
   "Order Cancellation Date",
+  "Exhibition Location",
 ];
 
 const FILTERED_EXPORT_COLUMNS = [
@@ -74,6 +76,7 @@ const FILTERED_EXPORT_COLUMNS = [
   "Order Status",
   "Order Date",
   "Cancellation Date",
+  "Exhibition Location",
   "Total Quantity",
 ];
 
@@ -453,6 +456,7 @@ export default function ExportOrdersButton({
   beader,
   dateFrom,
   dateTo,
+  exhibitionLocation,
   rows: providedRows,
   fileName,
   buttonLabel = "Export Orders",
@@ -499,6 +503,7 @@ export default function ExportOrdersButton({
       if (beader) params.set("beader", beader);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
+      if (exhibitionLocation) params.set("exhibitionLocation", exhibitionLocation);
       if (useFilters) params.set("summary", "true");
 
       let rows = providedRows;
