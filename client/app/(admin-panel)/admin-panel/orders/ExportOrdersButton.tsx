@@ -67,6 +67,7 @@ const ORDER_EXPORT_COLUMNS = [
   "Product Status",
   "Order Received Date",
   "Order Cancellation Date",
+  "Exhibition Location",
 ];
 
 const FILTERED_EXPORT_COLUMNS = [
@@ -75,6 +76,7 @@ const FILTERED_EXPORT_COLUMNS = [
   "Order Status",
   "Order Date",
   "Cancellation Date",
+  "Exhibition Location",
   "Total Quantity",
 ];
 

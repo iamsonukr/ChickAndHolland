@@ -3314,6 +3314,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
                 o.purchaeOrderNo AS purchaseOrderNo,
                 o.orderStatus AS parentOrderStatus,
                 o.orderType AS orderType,
+                o.exhibitionLocation AS exhibitionLocation,
                 o.orderReceivedDate AS orderReceivedDate,
                 o.orderCancellationDate AS orderCancellationDate,
                 o.shippingStatus AS shippingStatus,
@@ -3526,6 +3527,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
           "Store Name": order.customerStoreName ?? "",
           "Customer Name": order.customerName ?? "",
           "PO Number": order.purchaseOrderNo,
+          "Exhibition Location": order.exhibitionLocation ?? "",
           "Order Status": orderStatus,
           "Total Quantity": styles.reduce((sum, style) => sum + (
             order.orderSource === "regular"
@@ -3562,6 +3564,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
             Color: qrBoxColor,
             Beader: row.beader ?? "",
             "PO Number": row.purchaseOrderNo,
+            "Exhibition Location": row.exhibitionLocation ?? "",
             "Product Status": productStatus,
             "Order Received Date": formatDateOnly(row.orderReceivedDate),
             "Order Cancellation Date": formatDateOnly(row.orderCancellationDate),
