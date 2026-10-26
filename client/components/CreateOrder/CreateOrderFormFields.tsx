@@ -253,6 +253,20 @@ export function CreateOrderFormFields({
 
         <FormField
           control={form.control}
+          name="exhibitionLocation"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Exhibition Location</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. Atlanta" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="manufacturingEmailAddress"
           render={({ field }) => (
             <FormItem>

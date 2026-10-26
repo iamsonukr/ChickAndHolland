@@ -220,6 +220,7 @@ export function buildSharedFormData(data: CreateOrderForm): FormData {
   fd.append("phoneNumber", data.phoneNumber ?? "");
   fd.append("estimate", data.estimate ?? "");
   fd.append("invoice", data.invoice ?? "");
+  fd.append("exhibitionLocation", data.exhibitionLocation ?? "");
   fd.append("customerId", data.customerId?.[0]?.value ?? "");
   return fd;
 }
@@ -802,6 +803,7 @@ export function useCreateOrder({
         phoneNumber: editOrder?.phoneNumber ?? orderCustomer?.phoneNumber ?? "",
         estimate: editOrder?.estimateNo ?? "",
         invoice: editOrder?.invoiceNo ?? "",
+        exhibitionLocation: editOrder?.exhibitionLocation ?? "",
         customerId: customerOption,
         styles: editOrder?.styles?.length
           ? editOrder.styles.map(mapStyleToFormValue)
@@ -819,6 +821,7 @@ export function useCreateOrder({
       phoneNumber: "",
       estimate: generateEstimateNo(),
       invoice: generateInvoiceNo(),
+      exhibitionLocation: "",
       customerId: [],
       styles: [buildEmptyStyle()],
     };
@@ -1257,6 +1260,9 @@ export function useCreateOrder({
         fd.append("phoneNumber", data.phoneNumber ?? "");
       if (dirtyFields.estimate) fd.append("estimate", data.estimate ?? "");
       if (dirtyFields.invoice) fd.append("invoice", data.invoice ?? "");
+      if (dirtyFields.exhibitionLocation) {
+        fd.append("exhibitionLocation", data.exhibitionLocation ?? "");
+      }
       if (dirtyFields.customerId) {
         fd.append("customerId", data.customerId?.[0]?.value ?? "");
       }

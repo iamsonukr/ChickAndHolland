@@ -391,6 +391,7 @@ export const getOrders = async ({
   beader,
   dateFrom,
   dateTo,
+  exhibitionLocation,
   deletedOnly,
 }: {
   page?: number;
@@ -402,6 +403,7 @@ export const getOrders = async ({
   beader?: string;
   dateFrom?: string;
   dateTo?: string;
+  exhibitionLocation?: string;
   deletedOnly?: boolean;
 }) => {
   const headers = {
@@ -417,6 +419,7 @@ export const getOrders = async ({
   if (beader) params.set("beader", beader);
   if (dateFrom) params.set("dateFrom", dateFrom);
   if (dateTo) params.set("dateTo", dateTo);
+  if (exhibitionLocation) params.set("exhibitionLocation", exhibitionLocation);
   if (deletedOnly) params.set("deletedOnly", "true");
 
   const response = await fetch(
@@ -437,6 +440,7 @@ export const getOrderStageCounts = async ({
   beader,
   dateFrom,
   dateTo,
+  exhibitionLocation,
 }: {
   query?: string;
   orderType?: string;
@@ -444,6 +448,7 @@ export const getOrderStageCounts = async ({
   beader?: string;
   dateFrom?: string;
   dateTo?: string;
+  exhibitionLocation?: string;
 }) => {
   const headers = {
     Authorization: `Bearer ${(await cookies()).get("token")?.value}`,
@@ -455,6 +460,7 @@ export const getOrderStageCounts = async ({
   if (beader) params.set("beader", beader);
   if (dateFrom) params.set("dateFrom", dateFrom);
   if (dateTo) params.set("dateTo", dateTo);
+  if (exhibitionLocation) params.set("exhibitionLocation", exhibitionLocation);
 
   try {
     const response = await fetch(

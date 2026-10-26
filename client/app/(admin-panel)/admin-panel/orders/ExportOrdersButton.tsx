@@ -34,6 +34,7 @@ type ExportOrdersButtonProps = {
   beader?: string;
   dateFrom?: string;
   dateTo?: string;
+  exhibitionLocation?: string;
   rows?: Record<string, unknown>[];
   fileName?: string;
   buttonLabel?: string;
@@ -453,6 +454,7 @@ export default function ExportOrdersButton({
   beader,
   dateFrom,
   dateTo,
+  exhibitionLocation,
   rows: providedRows,
   fileName,
   buttonLabel = "Export Orders",
@@ -499,6 +501,7 @@ export default function ExportOrdersButton({
       if (beader) params.set("beader", beader);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
+      if (exhibitionLocation) params.set("exhibitionLocation", exhibitionLocation);
       if (useFilters) params.set("summary", "true");
 
       let rows = providedRows;

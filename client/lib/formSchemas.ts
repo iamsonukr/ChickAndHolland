@@ -586,6 +586,7 @@ export const createOrderFormSchema = z.object({
   phoneNumber: z.string().optional(),
   estimate: z.string().optional(),
   invoice: z.string().optional(),
+  exhibitionLocation: z.string().optional(),
 
   customerId: z
     .object({
