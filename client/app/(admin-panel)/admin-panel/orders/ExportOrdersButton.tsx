@@ -72,9 +72,9 @@ const FILTERED_EXPORT_COLUMNS = [
   "Store Name",
   "PO#",
   "Order Status",
-  "Total Quantity",
   "Order Date",
   "Cancellation Date",
+  "Total Quantity",
 ];
 
 const ORDER_EXPORT_PRINT_MARGINS = {
