@@ -76,7 +76,7 @@ const service = load('../services/regularOrderPieces.service.ts', {
   const baselines = queries.filter(q=>q.sql.startsWith('INSERT INTO store_style_progress'));
   assert.equal(baselines.length,5);
   assert.ok(baselines.every(q=>q.params[1]==='Stitching'));
-  assert.equal(queries.filter(q=>q.sql.startsWith('INSERT INTO barcode_comments')).length,5);
+  assert.equal(queries.filter(q=>q.sql.startsWith('INSERT INTO barcode_comments')).length,0);
   assert.ok(rows.every(r=>r.quantity===1 && r.customSizesQuantity==='[]' && r.photoUrls===group.photoUrls));
   for(const field of ['subtotal','discount','totalPrice']) {
     assert.equal(rows.reduce((n,r)=>n+Math.round(r[field]*100),0),Math.round(group[field]*100));

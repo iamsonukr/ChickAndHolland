@@ -16,7 +16,7 @@ import {
 } from "../lib/Validations";
 import { CLIENT_OBJ_NAMES, TABLE_NAMES } from "../constants";
 import Category from "../models/Category";
-import { In, Like } from "typeorm";
+import { In, Like, Not } from "typeorm";
 import Product from "../models/Product";
 import ProductCurrencyPricing from "../models/ProductCurrencyPricing";
 import db from "../db";
@@ -175,6 +175,7 @@ router.get(
 
     if (!page) {
       const subCategories = await SubCategory.find({
+        where: { category: { name: Not(In(["CUSTOM", "RETAILER COLLECTION"])) } },
         relations: ["category"],
       });
       const totalCount = await SubCategory.count({});
@@ -191,6 +192,7 @@ router.get(
       const whereConditions = [
         {
           name: Like(likeQuery),
+          category: { name: Not(In(["CUSTOM", "RETAILER COLLECTION"])) },
         },
         {
           category: {

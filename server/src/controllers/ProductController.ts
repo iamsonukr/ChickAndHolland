@@ -238,7 +238,7 @@ router.get(
     // If not in cache, perform the database query
     const productsBeaderSelect = await buildProductsBeaderSelect();
     const data = await Product.query(
-      `SELECT productCode, id, mesh_color, lining, lining_color, beading_color, ${productsBeaderSelect} FROM ${TABLE_NAMES.PRODUCTS} WHERE productCode LIKE ? AND deletedAt IS NULL`,
+      `SELECT p.productCode, p.id, p.mesh_color, p.lining, p.lining_color, p.beading_color, ${productsBeaderSelect} FROM ${TABLE_NAMES.PRODUCTS} p LEFT JOIN ${TABLE_NAMES.CATEGORIES} category ON category.id = p.categoryId WHERE p.productCode LIKE ? AND p.deletedAt IS NULL AND (category.id IS NULL OR UPPER(TRIM(category.name)) NOT IN ('CUSTOM', 'RETAILER COLLECTION'))`,
       [`%${query}%`]
     );
 
@@ -302,6 +302,12 @@ router.get(
         LEFT JOIN ${TABLE_NAMES.PRODUCT_CURRENCY_PRICING} pcp ON p.id = pcp.productId AND pcp.currencyId = ?
         LEFT JOIN ${TABLE_NAMES.CURRENCIES} c ON pcp.currencyId = c.id
         WHERE p.deletedAt IS NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM ${TABLE_NAMES.CATEGORIES} hiddenCategory
+            WHERE hiddenCategory.id = p.categoryId
+              AND UPPER(TRIM(hiddenCategory.name)) IN ('CUSTOM', 'RETAILER COLLECTION')
+          )
       `
       : `
         SELECT 
@@ -316,6 +322,12 @@ router.get(
           (SELECT name FROM ${TABLE_NAMES.PRODUCT_IMAGES} WHERE productId = p.id LIMIT 1,1) as imageName1
         FROM ${TABLE_NAMES.PRODUCTS} p
         WHERE p.deletedAt IS NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM ${TABLE_NAMES.CATEGORIES} hiddenCategory
+            WHERE hiddenCategory.id = p.categoryId
+              AND UPPER(TRIM(hiddenCategory.name)) IN ('CUSTOM', 'RETAILER COLLECTION')
+          )
       `;
 
     const baseParams = currencyId ? [currencyId] : [];
@@ -343,11 +355,23 @@ router.get(
         FROM ${TABLE_NAMES.PRODUCTS} p
         LEFT JOIN ${TABLE_NAMES.PRODUCT_CURRENCY_PRICING} pcp ON p.id = pcp.productId AND pcp.currencyId = ?
         WHERE p.deletedAt IS NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM ${TABLE_NAMES.CATEGORIES} hiddenCategory
+            WHERE hiddenCategory.id = p.categoryId
+              AND UPPER(TRIM(hiddenCategory.name)) IN ('CUSTOM', 'RETAILER COLLECTION')
+          )
       `
       : `
         SELECT COUNT(*) as total
         FROM ${TABLE_NAMES.PRODUCTS} p
         WHERE p.deletedAt IS NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM ${TABLE_NAMES.CATEGORIES} hiddenCategory
+            WHERE hiddenCategory.id = p.categoryId
+              AND UPPER(TRIM(hiddenCategory.name)) IN ('CUSTOM', 'RETAILER COLLECTION')
+          )
       `;
 
     const [countResult, products] = await Promise.all([
@@ -526,6 +550,7 @@ router.get(
 
     // ─── WHERE clause ──────────────────────────────────────────────────────
     const where: Record<string, any> = {};
+    where.category = { name: Not(In(["CUSTOM", "RETAILER COLLECTION"])) };
     if (categoryId)    where.categoryId    = parseInt(categoryId,    10);
     if (subCategoryId) where.subCategoryId = parseInt(subCategoryId, 10);
 
@@ -2433,6 +2458,7 @@ router.get(
     const product = await Product.findOne({
       where: {
         productCode: code,
+        category: { name: Not(In(["CUSTOM", "RETAILER COLLECTION"])) },
       },
       relations: ["images", "currencyPricing", "currencyPricing.currency"],
     });
@@ -2656,6 +2682,11 @@ router.get(
         LEFT JOIN ${TABLE_NAMES.PRODUCT_CURRENCY_PRICING} pcp ON p.id = pcp.productId AND pcp.currencyId = ?
         LEFT JOIN ${TABLE_NAMES.CURRENCIES} c ON pcp.currencyId = c.id
         WHERE p.id = ?
+          AND NOT EXISTS (
+            SELECT 1 FROM ${TABLE_NAMES.CATEGORIES} hiddenCategory
+            WHERE hiddenCategory.id = p.categoryId
+              AND UPPER(TRIM(hiddenCategory.name)) IN ('CUSTOM', 'RETAILER COLLECTION')
+          )
       `,
         [currencyId, id]
       );
@@ -2672,7 +2703,10 @@ router.get(
       // Get the product with relations for additional data
       product = await Product.findOne({
         relations: ["images", "subCategory"],
-        where: { id },
+        where: {
+          id,
+          category: { name: Not(In(["CUSTOM", "RETAILER COLLECTION"])) },
+        },
       });
 
       if (!product?.subCategory) {
@@ -2721,7 +2755,10 @@ router.get(
           "hasReturnPolicy",
           "images",
         ],
-        where: { id },
+        where: {
+          id,
+          category: { name: Not(In(["CUSTOM", "RETAILER COLLECTION"])) },
+        },
       });
 
       if (!product?.subCategory) {
