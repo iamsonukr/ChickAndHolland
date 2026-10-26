@@ -74,12 +74,7 @@ export interface EditProductFormProps {
 // ---------------------------------------------------------------------------
 
 export const fetchColours = async (): Promise<Colour[]> => {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/product-colours`,
-    { credentials: "include", cache: "no-store" },
-  );
-  if (!res.ok) throw new Error(`Colours fetch failed: ${res.statusText}`);
-  const json = await res.json();
+  const json = await getProductColours({});
   return json?.productColours ?? [];
 };
 
@@ -98,6 +93,7 @@ import {
 } from "@/lib/formSchemas";
 import useHttp from "@/lib/hooks/usePost";
 import { fetchBeaders } from "@/lib/beaders";
+import { getProductColours } from "@/lib/data";
 
 export function useEditProductSheet(data: ProductData, currencies: Currency[]) {
   const [open, setOpen] = useState(false);
