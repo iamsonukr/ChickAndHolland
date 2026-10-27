@@ -43,6 +43,19 @@ const COL_WIDTHS = {
 const formatMoney = (item: any, value: any) =>
   `${item.currencySymbol || "\u20ac"} ${parseFloat(value || 0).toFixed(0)}`;
 
+const RETAILER_IN_PROCESS_STAGES = [
+  "Pattern",
+  "Khaka",
+  "Issue Beading",
+  "Beading",
+  "Zarkan",
+  "Stitching",
+  "Repair",
+];
+
+const getRetailerOrderStatus = (status?: string | null) =>
+  RETAILER_IN_PROCESS_STAGES.includes(status ?? "") ? "IN PROCESS" : status;
+
 const Page = async (props: { searchParams: Promise<Record<string, string>> }) => {
   const searchParams = await props.searchParams;
   const retailerId = (await cookies()).get("retailerId")?.value;
@@ -114,9 +127,7 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                     <TableCell className="font-medium">{item.order_id}</TableCell>
                     <TableCell>{item.type === "Fresh" ? fresh : item.type}</TableCell>
                     <TableCell>
-                      {["Pattern", "Khaka", "Issue Beading", "Beading", "Zarkan", "Stitching", "Repair"].includes(item.orderStatus)
-                        ? "In Process"
-                        : item.orderStatus}
+                      {getRetailerOrderStatus(item.orderStatus)}
                     </TableCell>
                     <TableCell className="whitespace-normal">
                       <TrackingIdText trackingId={item.trackingNo} />
@@ -186,7 +197,7 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                     <TableCell>{dayjs(item.createdAt).format("DD-MM-YYYY")}</TableCell>
                     <TableCell className="font-medium">{item.order_id}</TableCell>
                     <TableCell>{item.orderType === "Store" ? "Store Web Order" : item.orderType}</TableCell>
-                    <TableCell>{item.orderStatus}</TableCell>
+                    <TableCell>{getRetailerOrderStatus(item.orderStatus)}</TableCell>
                     <TableCell className="whitespace-normal">
                       <TrackingIdText trackingId={item.trackingNo} />
                     </TableCell>
