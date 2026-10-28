@@ -8,6 +8,20 @@ type Queryable = {
   query: (query: string, parameters?: any[]) => Promise<any>;
 };
 
+async function findAvailableSampleNumber(queryable: Queryable, start: number) {
+  let nextNumber = start;
+
+  // Include deleted products: their unique product codes cannot be reused.
+  while (true) {
+    const products = await queryable.query(
+      "SELECT id FROM products WHERE productCode = ? LIMIT 1",
+      [formatSampleOrderStyleNo(nextNumber)],
+    );
+    if (!products.length) return nextNumber;
+    nextNumber++;
+  }
+}
+
 function normalizePrefix(prefix: string) {
   return prefix.trim().replace(/\s+/g, " ");
 }
@@ -75,7 +89,10 @@ export async function peekSequenceNumber(
     [sequenceName],
   );
 
-  return Math.max(Number(rows?.[0]?.nextNumber) || 1, 1);
+  const nextNumber = Math.max(Number(rows?.[0]?.nextNumber) || 1, 1);
+  return sequenceName === SAMPLE_ORDER_SEQUENCE_NAME
+    ? findAvailableSampleNumber(db, nextNumber)
+    : nextNumber;
 }
 
 export async function peekGlobalNextPoNumber() {
@@ -100,7 +117,10 @@ async function reserveSequenceNumber(
       [sequenceName],
     );
 
-    const currentNext = Math.max(Number(rows?.[0]?.nextNumber) || 1, 1);
+    const storedNext = Math.max(Number(rows?.[0]?.nextNumber) || 1, 1);
+    const currentNext = sequenceName === SAMPLE_ORDER_SEQUENCE_NAME
+      ? await findAvailableSampleNumber(queryRunner, storedNext)
+      : storedNext;
 
     await queryRunner.query(
       "UPDATE order_sequence SET nextNumber = ?, updatedAt = CURRENT_TIMESTAMP(6) WHERE id = ?",
@@ -194,13 +214,10 @@ export async function generateNextSampleOrderStyleNo() {
 }
 
 export async function setSampleOrderSequence(target: number) {
-  const nextNumber = await setSequenceNumber(
+  await setSequenceNumber(
     SAMPLE_ORDER_SEQUENCE_NAME,
     Math.max(target, SAMPLE_ORDER_INITIAL_NEXT_NUMBER),
   );
 
-  return {
-    nextNumber,
-    styleNo: formatSampleOrderStyleNo(nextNumber),
-  };
+  return peekNextSampleOrderStyleNo();
 }
