@@ -259,10 +259,14 @@ export const getProductDetails = async (id: number, currencyId?: number) => {
 
 export const getProductDetailsByProductCode = async (productCode: string) => {
   const response = await fetch(
-    `${API_URL}/products/product-code/${productCode}`,
+    `${API_URL}/products/product-code/${encodeURIComponent(productCode)}`,
   );
 
-  return response.json();
+  const product = await response.json();
+  if (!response.ok || !product?.id || product.success === false) {
+    throw new Error(product?.message || "Failed to load product details");
+  }
+  return product;
 };
 
 // export const getCustomers = async ({
@@ -1164,13 +1168,17 @@ export const searchStyleNumbers = async (query: string) => {
   };
 
   const response = await fetch(
-    `${API_URL}/products/searchStyleNo?query=${query}`,
+    `${API_URL}/products/searchStyleNo?query=${encodeURIComponent(query)}`,
     {
       headers,
     },
   );
 
-  return response.json();
+  const result = await response.json();
+  if (!response.ok || result.success === false || !Array.isArray(result.products)) {
+    throw new Error(result?.message || "Failed to search products");
+  }
+  return result;
 };
 
 export const getDashboardData = async (startDate: string, endDate: string) => {

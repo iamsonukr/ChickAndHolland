@@ -187,9 +187,19 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
   const canShowReadyToDelivery =
     orderData.orderStatus === "Ready To Delivery";
 
+  const isPaidStockOrder =
+    orderData.orderType === "Stock" &&
+    (orderData.balancePayment !== undefined ||
+      (orderData.purchaseAmount != null && orderData.paidAmount != null)) &&
+    Number(
+      orderData.balancePayment ??
+        Number(orderData.purchaseAmount || 0) - Number(orderData.paidAmount || 0),
+    ) <= 0;
+
   const canShowShipped =
     orderData.orderStatus === "Ready To Delivery" ||
-    orderData.orderStatus === "Shipped";
+    orderData.orderStatus === "Shipped" ||
+    (orderData.orderStatus === "Balance Pending" && isPaidStockOrder);
 
   /* ================= FINAL STATUS ARRAY (🔥 MAIN LOGIC) ================= */
 

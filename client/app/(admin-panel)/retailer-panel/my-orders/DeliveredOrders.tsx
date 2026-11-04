@@ -11,6 +11,7 @@ import Details from "./Details";
 import { fresh } from "@/lib/utils";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 import TrackingIdText from "../../admin-panel/orders/TrackingIdText";
+import Preview from "../../admin-panel/order-list/Preview";
 
 // Match these exactly with your main page for perfect alignment across tabs
 const COL_WIDTHS = {
@@ -21,12 +22,13 @@ const COL_WIDTHS = {
   tracking: "w-[260px]",
   amount: "w-[100px]",
   actions: "w-[120px]",
+  preview: "w-[120px]",
 };
 
 const DeliveredOrders = ({ data, id }: { data: any[]; id: number }) => {
   return (
     <div className="border rounded-md">
-      <Table className="table-fixed w-full">
+      <Table className="table-fixed w-full min-w-[1350px]">
         <TableHeader className="bg-muted/50">
           <TableRow>
             <TableHead className={`${COL_WIDTHS.date} text-center`}>Date</TableHead>
@@ -38,6 +40,7 @@ const DeliveredOrders = ({ data, id }: { data: any[]; id: number }) => {
             <TableHead className={`${COL_WIDTHS.amount} text-center`}>Paid</TableHead>
             <TableHead className={`${COL_WIDTHS.amount} text-center`}>Balance</TableHead>
             <TableHead className={`${COL_WIDTHS.actions} text-center`}>Details</TableHead>
+            <TableHead className={`${COL_WIDTHS.preview} text-center`}>Preview</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -91,11 +94,19 @@ const DeliveredOrders = ({ data, id }: { data: any[]; id: number }) => {
                     orderId={item.order_id}
                   />
                 </TableCell>
+                <TableCell>
+                  <Preview
+                    id={item.stockOrderId || item.favouriteOrderId}
+                    type={item.type}
+                    order={item}
+                    showShippingDate={false}
+                  />
+                </TableCell>
               </TableRow>
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={9} className="h-24 text-center">
+              <TableCell colSpan={10} className="h-24 text-center">
                 No delivered orders found.
               </TableCell>
             </TableRow>

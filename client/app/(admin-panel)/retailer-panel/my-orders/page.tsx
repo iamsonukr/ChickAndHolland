@@ -34,6 +34,7 @@ const COL_WIDTHS = {
   date: "w-[110px]",
   orderId: "w-[130px]",
   type: "w-[150px]",
+  exhibition: "w-[180px]",
   status: "w-[130px]",
   tracking: "w-[260px]",
   amount: "w-[100px]",
@@ -181,6 +182,7 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                   <TableHead className={`${COL_WIDTHS.date} text-center`}>Date</TableHead>
                   <TableHead className={`${COL_WIDTHS.orderId} text-center`}>Order Id</TableHead>
                   <TableHead className={`${COL_WIDTHS.type} text-center`}>Order Type</TableHead>
+                  <TableHead className={`${COL_WIDTHS.exhibition} text-center`}>Exhibition</TableHead>
                   <TableHead className={`${COL_WIDTHS.status} text-center`}>Status</TableHead>
                   <TableHead className={`${COL_WIDTHS.tracking} text-center`}>Tracking ID</TableHead>
                   <TableHead className={`${COL_WIDTHS.date} text-center`}>Order Date</TableHead>
@@ -197,6 +199,7 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                     <TableCell>{dayjs(item.createdAt).format("DD-MM-YYYY")}</TableCell>
                     <TableCell className="font-medium">{item.order_id}</TableCell>
                     <TableCell>{item.orderType === "Store" ? "Store Web Order" : item.orderType}</TableCell>
+                    <TableCell>{item.exhibitionLocation || "-"}</TableCell>
                     <TableCell>{getRetailerOrderStatus(item.orderStatus)}</TableCell>
                     <TableCell className="whitespace-normal">
                       <TrackingIdText trackingId={item.trackingNo} />
@@ -235,10 +238,12 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
 
         {/* --- DELIVERED ORDERS TAB --- */}
         <TabsContent value="delivered">
-          <DeliveredOrders
-            data={deliverOrders.retailerOrders}
-            id={Number(retailerId)}
-          />
+          <TableScrollWrapper>
+            <DeliveredOrders
+              data={deliverOrders.retailerOrders}
+              id={Number(retailerId)}
+            />
+          </TableScrollWrapper>
           <div className="mt-4">
             <CustomPagination
               currentPage={currentPage}
@@ -249,10 +254,12 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
 
         {/* --- REJECTED ORDERS TAB --- */}
         <TabsContent value="rejected">
-          <RejectedOrders 
-            data={myOrders.orders} 
-            retailerId={Number(retailerId)} 
-          />
+          <TableScrollWrapper>
+            <RejectedOrders
+              data={myOrders.orders}
+              retailerId={Number(retailerId)}
+            />
+          </TableScrollWrapper>
         </TabsContent>
       </Tabs>
     </ContentLayout>

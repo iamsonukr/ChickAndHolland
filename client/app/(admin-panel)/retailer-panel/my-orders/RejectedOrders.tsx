@@ -10,6 +10,7 @@ import {
 import ActionButtons from "../pending-orders/ActionButtons";
 import { fresh } from "@/lib/utils";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
+import Preview from "../../admin-panel/order-list/Preview";
 
 /**
  * Shared column widths for the Rejected view.
@@ -22,6 +23,7 @@ const COL_WIDTHS = {
   quantity: "w-[120px]",
   amount: "w-[160px]",
   actions: "w-[180px]",
+  preview: "w-[140px]",
 };
 
 const RejectedOrders = ({
@@ -32,8 +34,8 @@ const RejectedOrders = ({
   retailerId: number;
 }) => {
   return (
-    <div className="border rounded-md overflow-hidden">
-      <Table className="table-fixed w-full">
+    <div className="border rounded-md">
+      <Table className="table-fixed w-full min-w-[1040px]">
         <TableHeader className="bg-muted/50">
           <TableRow>
             <TableHead className={`${COL_WIDTHS.date} text-center`}>Date</TableHead>
@@ -41,6 +43,7 @@ const RejectedOrders = ({
             <TableHead className={`${COL_WIDTHS.quantity} text-center`}>Quantity</TableHead>
             <TableHead className={`${COL_WIDTHS.amount} text-center`}>Total Amount</TableHead>
             <TableHead className={`${COL_WIDTHS.actions} text-center`}>Details</TableHead>
+            <TableHead className={`${COL_WIDTHS.preview} text-center`}>Preview</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -81,11 +84,20 @@ const RejectedOrders = ({
                     />
                   </div>
                 </TableCell>
+                <TableCell>
+                  <Preview
+                    id={item.id}
+                    type={item.order_type === "Stock" ? "Stock" : "Fresh"}
+                    order={item}
+                    retailerApprovalStatus={3}
+                    showShippingDate={false}
+                  />
+                </TableCell>
               </TableRow>
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+              <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                 No rejected orders found.
               </TableCell>
             </TableRow>

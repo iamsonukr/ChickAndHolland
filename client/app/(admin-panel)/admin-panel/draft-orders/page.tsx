@@ -75,7 +75,7 @@ const DraftOrdersPage = async (props: {
           <CustomSearchBar query={query} />
 
           <TableScrollWrapper>
-            <table className="w-full min-w-[1200px] border-collapse text-sm">
+            <table className="w-full min-w-[1380px] border-collapse text-sm">
               <thead className="bg-muted/50">
                 <tr className="whitespace-nowrap [&>th]:align-middle">
                   <th className={cn(tableHeadClassName, "w-12")}>
@@ -85,6 +85,9 @@ const DraftOrdersPage = async (props: {
                   <th className={cn(tableHeadClassName, "w-[150px]")}>PO#</th>
                   <th className={cn(tableHeadClassName, "w-[140px]")}>
                     Order Type
+                  </th>
+                  <th className={cn(tableHeadClassName, "w-[180px]")}>
+                    Exhibition
                   </th>
                   <th className={cn(tableHeadClassName, "w-[130px]")}>
                     Order Date
@@ -141,6 +144,9 @@ const DraftOrdersPage = async (props: {
                         {order.orderType === "Fresh" ? fresh : order.orderType}
                       </td>
                       <td className={tableCellClassName}>
+                        {order.exhibitionLocation || "-"}
+                      </td>
+                      <td className={tableCellClassName}>
                         {formatDateOnlyDisplay(order.orderReceivedDate)}
                       </td>
                       <td className={tableCellClassName}>
@@ -179,7 +185,7 @@ const DraftOrdersPage = async (props: {
                 ) : (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="border border-border py-10 text-center text-base text-muted-foreground"
                     >
                       <div className="flex flex-col items-center gap-1">

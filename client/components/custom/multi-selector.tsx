@@ -215,6 +215,7 @@ const MultipleSelector = React.forwardRef<
     const [open, setOpen] = React.useState(false);
     const [onScrollbar, setOnScrollbar] = React.useState(false);
     const [isLoading, setIsLoading] = React.useState(false);
+    const [searchFailed, setSearchFailed] = React.useState(false);
     const dropdownRef = React.useRef<HTMLDivElement>(null); // Added this
 
     const [selected, setSelected] = React.useState<Option[]>(value || []);
@@ -336,27 +337,35 @@ const MultipleSelector = React.forwardRef<
 
     useEffect(() => {
       /** async search */
-
-      const doSearch = async () => {
-        setIsLoading(true);
-        const res = await onSearch?.(debouncedSearchTerm);
-        setOptions(transToGroupOption(res || [], groupBy));
-        setIsLoading(false);
-      };
+      let cancelled = false;
 
       const exec = async () => {
         if (!onSearch || !open) return;
-
-        if (triggerSearchOnFocus) {
-          await doSearch();
+        setSearchFailed(false);
+        if (!triggerSearchOnFocus && !debouncedSearchTerm) {
+          setOptions({});
+          setIsLoading(false);
+          return;
         }
-
-        if (debouncedSearchTerm) {
-          await doSearch();
+        setIsLoading(true);
+        try {
+          const res = await onSearch(debouncedSearchTerm);
+          if (!cancelled) setOptions(transToGroupOption(res || [], groupBy));
+        } catch (error) {
+          if (!cancelled) {
+            setOptions({});
+            setSearchFailed(true);
+            console.error("Failed to search options", error);
+          }
+        } finally {
+          if (!cancelled) setIsLoading(false);
         }
       };
 
       void exec();
+      return () => {
+        cancelled = true;
+      };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [debouncedSearchTerm, groupBy, open, triggerSearchOnFocus]);
 
@@ -602,6 +611,10 @@ const MultipleSelector = React.forwardRef<
             >
               {isLoading ? (
                 <>{loadingIndicator}</>
+              ) : searchFailed ? (
+                <p role="alert" className="px-3 py-2 text-sm text-destructive">
+                  Search failed. Please type again to retry.
+                </p>
               ) : (
                 <>
                   {EmptyItem()}

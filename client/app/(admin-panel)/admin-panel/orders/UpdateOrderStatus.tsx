@@ -153,7 +153,9 @@ const onOpenChange = (val: boolean) => {
 
 
       if (!response.success) {
-        return toast.error("Failed to update order status");
+        return toast.error(
+          response.message || "Failed to update order status",
+        );
       }
 
       toast.success(response.message || "Order status updated successfully");

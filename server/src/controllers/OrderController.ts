@@ -407,6 +407,17 @@ function getMostAdvancedKnownStage(
     : canonicalProgress;
 }
 
+function getEffectiveParentOrderStage(orderType?: string, parentStage?: string | null) {
+  const canonicalParent = getCanonicalStage(parentStage);
+  if (
+    String(orderType || "").trim().toLowerCase() === "stock" &&
+    canonicalParent === OrderStatus.Pattern
+  ) {
+    return OrderStatus.Balance_Pending;
+  }
+  return parentStage;
+}
+
 function getDisplayedOrderStage(
   barcodes: string[],
   progressByBarcode: Map<string, string>,
@@ -446,7 +457,10 @@ const buildOrderStatusById = (
       if (!id) return;
       statusById.set(
         id,
-        getCanonicalStage(order.orderStatus) ?? DEFAULT_ORDER_STAGE,
+        getEffectiveParentOrderStage(
+          order.orderType,
+          getCanonicalStage(order.orderStatus) ?? DEFAULT_ORDER_STAGE,
+        ) as string,
       );
     });
 
@@ -2154,6 +2168,10 @@ router.post(
           sanitizeText(manufacturingEmailAddress) || "rubyinc@hotmail.com";
         order.orderType = (sanitizeText(orderType) ||
           OrderType.Store) as OrderType;
+        if (!isDraft && order.orderType === "Stock") {
+          order.orderStatus = OrderStatus.Balance_Pending;
+          order.balance_pending = orderReceivedDate || new Date();
+        }
         order.exhibitionLocation = sanitizeText(fields["exhibitionLocation"]) || null;
         order.orderReceivedDate = orderReceivedDate || new Date();
         order.orderCancellationDate = (orderCancellationDate ?? null) as any;
@@ -3516,7 +3534,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
         const orderStatus = getDisplayedOrderStage(
           styles.map((style) => String(style.barcode || "")).filter(Boolean),
           progress,
-          order.parentOrderStatus,
+          getEffectiveParentOrderStage(order.orderType, order.parentOrderStatus),
         );
         if (stage && !styles.some((style) =>
           (progress.get(String(style.barcode || "")) ?? DEFAULT_ORDER_STAGE) === stage,
@@ -4104,12 +4122,18 @@ router.get(
                   .map((style: any) => String(style.barcode))
                   .filter(Boolean),
               regularProgressByBarcode,
-              baseOrder.orderStatus,
+              getEffectiveParentOrderStage(
+                baseOrder.orderType,
+                baseOrder.orderStatus,
+              ),
             )
           : getDisplayedOrderStage(
               retailerBarcodesByOrderId.get(Number(baseOrder.id)) ?? [],
               retailerProgressByBarcode,
-              baseOrder.orderStatus,
+              getEffectiveParentOrderStage(
+                baseOrder.orderType,
+                baseOrder.orderStatus,
+              ),
             );
 
       const recoveredStageDates =
@@ -4723,15 +4747,19 @@ router.put(
       });
     }
 
-    // 2️⃣ BLOCK SHIP IF BALANCE PENDING
+    // Stock orders can ship from Balance Pending after the full balance is paid.
     if (
       status === OrderStatus.Shipped &&
-      order.orderStatus === OrderStatus.Balance_Pending
+      (order.orderType === "Stock" ||
+        order.orderStatus === OrderStatus.Balance_Pending)
     ) {
-      return res.json({
-        success: false,
-        message: "Balance pending. Cannot ship order.",
-      });
+      const paymentSummary = await getRegularOrderPaymentSummary(order);
+      if (paymentSummary.balance > 0) {
+        return res.json({
+          success: false,
+          message: "Payment pending. Cannot mark this order as shipped.",
+        });
+      }
     }
 
     // 3️⃣ 🔥 SINGLE SOURCE OF TRUTH (ADMIN ACTION)

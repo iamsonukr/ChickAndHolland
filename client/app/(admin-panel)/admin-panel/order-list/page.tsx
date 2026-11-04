@@ -154,12 +154,13 @@ const page = async (props: {
         <TabsContent value="adminOrders">
           <div className="mt-0">
             <TableScrollWrapper>
-              <Table className="w-full min-w-[1220px] table-auto border md:table-fixed">
+              <Table className="w-full min-w-[1400px] table-auto border md:table-fixed">
                 <TableHeader className="bg-muted/50">
                   <TableRow className="whitespace-nowrap md:whitespace-normal">
                     <TableHead className="text-center">Date</TableHead>
                     <TableHead className="text-center">Order Id</TableHead>
                     <TableHead className="text-center">Order Type</TableHead>
+                    <TableHead className="text-center">Exhibition</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-center">Total Quantity</TableHead>
                     <TableHead className="w-[260px] text-center">Tracking ID</TableHead>
@@ -179,6 +180,7 @@ const page = async (props: {
                       <TableCell>{formatDateTime(new Date(item.createdAt))}</TableCell>
                       <TableCell className="font-medium">{item.order_id}</TableCell>
                       <TableCell>{item.orderType === "Store" ? "Store Web Order" : item.orderType}</TableCell>
+                      <TableCell>{item.exhibitionLocation || "-"}</TableCell>
                       <TableCell>{item.orderStatus}</TableCell>
                       <TableCell>{item.totalQuantity ?? item.total_quantity ?? 0}</TableCell>
                       <TableCell className="w-[260px] whitespace-normal">
