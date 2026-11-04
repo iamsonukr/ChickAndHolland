@@ -238,7 +238,7 @@ router.get(
     // If not in cache, perform the database query
     const productsBeaderSelect = await buildProductsBeaderSelect();
     const data = await Product.query(
-      `SELECT p.productCode, p.id, p.mesh_color, p.lining, p.lining_color, p.beading_color, ${productsBeaderSelect} FROM ${TABLE_NAMES.PRODUCTS} p LEFT JOIN ${TABLE_NAMES.CATEGORIES} category ON category.id = p.categoryId WHERE p.productCode LIKE ? AND p.deletedAt IS NULL AND (category.id IS NULL OR UPPER(TRIM(category.name)) NOT IN ('CUSTOM', 'RETAILER COLLECTION'))`,
+      `SELECT p.productCode, p.id, p.mesh_color, p.lining, p.lining_color, p.beading_color, ${productsBeaderSelect} FROM ${TABLE_NAMES.PRODUCTS} p LEFT JOIN ${TABLE_NAMES.CATEGORIES} category ON category.id = p.categoryId WHERE p.productCode LIKE ? AND p.deletedAt IS NULL AND (category.id IS NULL OR UPPER(TRIM(category.name)) <> 'RETAILER COLLECTION')`,
       [`%${query}%`]
     );
 
