@@ -54,7 +54,7 @@ const RETAILER_IN_PROCESS_STAGES = [
 ];
 
 const getRetailerOrderStatus = (status?: string | null) =>
-  RETAILER_IN_PROCESS_STAGES.includes(status ?? "") ? "IN PROCESS" : status;
+  RETAILER_IN_PROCESS_STAGES.includes(status ?? "") ? "IN Process" : status;
 
 const Page = async (props: { searchParams: Promise<Record<string, string>> }) => {
   const searchParams = await props.searchParams;
