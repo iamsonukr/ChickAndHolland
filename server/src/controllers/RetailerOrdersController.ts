@@ -1505,8 +1505,11 @@ router.post(
 
     stock_retailer.is_approved = 1;
 
-    // Reduce stock quantity
+    // Reduce stock quantity. A fully allocated stock row is hidden from the
+    // inventory list; cancelling this order restores both its quantity and
+    // visibility (see adjustStockInventoryForDeletedRetailerOrders).
     stock.quantity = stock.quantity - requestedQty;
+    stock.isDeleted = stock.quantity === 0;
 
     await order.save();
 
