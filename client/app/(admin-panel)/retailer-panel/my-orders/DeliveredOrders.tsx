@@ -18,6 +18,7 @@ const COL_WIDTHS = {
   date: "w-[110px]",
   orderId: "w-[130px]",
   type: "w-[150px]",
+  exhibition: "w-[180px]",
   status: "w-[130px]",
   tracking: "w-[260px]",
   amount: "w-[100px]",
@@ -34,6 +35,7 @@ const DeliveredOrders = ({ data, id }: { data: any[]; id: number }) => {
             <TableHead className={`${COL_WIDTHS.date} text-center`}>Date</TableHead>
             <TableHead className={`${COL_WIDTHS.orderId} text-center`}>Order Id</TableHead>
             <TableHead className={`${COL_WIDTHS.type} text-center`}>Order Type</TableHead>
+            <TableHead className={`${COL_WIDTHS.exhibition} text-center`}>Exhibition</TableHead>
             <TableHead className={`${COL_WIDTHS.status} text-center`}>Status</TableHead>
             <TableHead className={`${COL_WIDTHS.tracking} text-center`}>Tracking ID</TableHead>
             <TableHead className={`${COL_WIDTHS.date} text-center`}>Order Date</TableHead>
@@ -59,6 +61,7 @@ const DeliveredOrders = ({ data, id }: { data: any[]; id: number }) => {
                 <TableCell>
                   {item.type === "Fresh" ? fresh : item.type}
                 </TableCell>
+                <TableCell>{item.exhibitionLocation || "-"}</TableCell>
                 
                 <TableCell>
                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -106,7 +109,7 @@ const DeliveredOrders = ({ data, id }: { data: any[]; id: number }) => {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={10} className="h-24 text-center">
+              <TableCell colSpan={11} className="h-24 text-center">
                 No delivered orders found.
               </TableCell>
             </TableRow>

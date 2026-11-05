@@ -779,6 +779,7 @@ export const createFreshOrderFormSchema = z.object({
           lining: z.string(),
           liningColor: z.string().optional(),
           barcodes: z.array(z.string()).optional(),
+          requestType: z.string().optional(),
         })
         .refine(
           (data) => {

@@ -2415,23 +2415,23 @@ router.patch(
       });
     }
 
-    if (retailerIds.length) {
-      await adjustStockInventoryForDeletedRetailerOrders(
-        retailerIds,
-        "reserve",
-      );
-    }
+    await db.transaction(async (manager) => {
+      if (retailerIds.length) {
+        await adjustStockInventoryForDeletedRetailerOrders(
+          retailerIds,
+          "reserve",
+          manager,
+        );
+      }
 
-    if (regularIds.length) {
-      await Order.update({ id: In([...new Set(regularIds)]) }, { status: 0 });
-    }
-
-    if (retailerIds.length) {
-      await RetailerOrder.update(
-        { id: In([...new Set(retailerIds)]) },
-        { status: 0 },
-      );
-    }
+      if (regularIds.length) {
+        await manager.update(
+          Order,
+          { id: In([...new Set(regularIds)]) },
+          { status: 0 },
+        );
+      }
+    });
 
     return res.json({
       success: true,

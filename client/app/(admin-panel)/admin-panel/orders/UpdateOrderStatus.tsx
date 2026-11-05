@@ -41,7 +41,7 @@ import {
   ORDER_STAGE_DATE_FIELD_MAP,
 } from "@/lib/stageFlow";
 
-import { getOrderTableStatus, ORDER_TABLE_STAGES } from "./orderTableStatus";
+import { getOrderTableStatus, getOrderTableStages } from "./orderTableStatus";
 
 interface StatusDateTypes {
   pattern: string | null;
@@ -98,7 +98,7 @@ const UpdateOrderStatus = ({ orderData }: { orderData: any }) => {
   const form = useForm<UpdateOrderStatusForm>({
     resolver: zodResolver(updateOrderStatusFormSchema),
     defaultValues: {
-      status: getOrderTableStatus(orderData.orderStatus),
+      status: getOrderTableStatus(orderData.orderStatus, orderData),
     },
   });
 
@@ -138,7 +138,7 @@ const fetchStoreProgress = async () => {
 const onOpenChange = (val: boolean) => {
   setOpen(val);
   if (val) {
-      form.reset({ status: getOrderTableStatus(orderData.orderStatus) });
+      form.reset({ status: getOrderTableStatus(orderData.orderStatus, orderData) });
     fetchOrderDates();     // existing
     fetchStoreProgress(); // 🔥 NEW
   }
@@ -165,7 +165,7 @@ const onOpenChange = (val: boolean) => {
       toast.error("Error updating status");
     }
   };
-const orderStatusArray = ORDER_TABLE_STAGES.map((statusLabel) => {
+const orderStatusArray = getOrderTableStages(orderData).map((statusLabel) => {
   const dbField = statusFieldMap[statusLabel];
 
   const date =
@@ -187,7 +187,7 @@ const orderStatusArray = ORDER_TABLE_STAGES.map((statusLabel) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <div className="cursor-pointer underline">
-          {getOrderTableStatus(orderData.orderStatus)}
+          {getOrderTableStatus(orderData.orderStatus, orderData)}
         </div>
       </DialogTrigger>
 

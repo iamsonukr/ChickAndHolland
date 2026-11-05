@@ -453,9 +453,18 @@ export default function PdfPreview({
   showActions = true,
   autoExternalFallback = true,
   extraActions,
-  searchQuery = "",
-  searchRequestKey = 0,
+  searchQuery: externalSearchQuery = "",
+  searchRequestKey: externalSearchRequestKey = 0,
 }: PdfPreviewProps) {
+  const [searchInput, setSearchInput] = useState("");
+  const [submittedSearch, setSubmittedSearch] = useState("");
+  const [localSearchRequestKey, setLocalSearchRequestKey] = useState(0);
+  const searchQuery =
+    localSearchRequestKey > 0 ? submittedSearch : externalSearchQuery;
+  const searchRequestKey =
+    localSearchRequestKey > 0
+      ? localSearchRequestKey
+      : externalSearchRequestKey;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fallbackAttemptedRef = useRef(false);
   const renderedPagesRef = useRef(new Set<number>());
@@ -739,53 +748,25 @@ export default function PdfPreview({
             continue;
           }
 
-          let matchedTextItem = false;
-
-          textItems.forEach((item: any, itemIndex) => {
-            const itemText = normalizePdfSearchQuery(item.str);
-            let matchIndex = itemText.indexOf(normalizedSearchQuery);
-
-            while (matchIndex >= 0) {
+          // Search the complete page so phrases spanning text items are counted too.
+          let matchStart = pageMatchStart;
+          while (matchStart >= 0) {
+            const segment = textSegments.find((item) => item.end > matchStart);
+            if (segment) {
               const match = getTextItemSearchMatch({
-                item,
-                itemIndex,
-                matchIndex,
+                item: segment.item,
+                itemIndex: segment.itemIndex,
+                matchIndex: Math.max(matchStart - segment.start, 0),
                 pageNumber,
                 query: normalizedSearchQuery,
                 viewport,
               });
-
-              if (match) {
-                nextMatches.push(match);
-                matchedTextItem = true;
-              }
-
-              matchIndex = itemText.indexOf(
-                normalizedSearchQuery,
-                matchIndex + normalizedSearchQuery.length,
-              );
+              if (match) nextMatches.push(match);
             }
-          });
-
-          if (!matchedTextItem) {
-            const firstMatchingSegment =
-              textSegments.find((segment) => segment.end >= pageMatchStart) ??
-              textSegments[0];
-            const fallbackMatch = firstMatchingSegment
-              ? getTextItemSearchMatch({
-                  item: firstMatchingSegment.item,
-                  itemIndex: firstMatchingSegment.itemIndex,
-                  matchIndex: Math.max(
-                    pageMatchStart - firstMatchingSegment.start,
-                    0,
-                  ),
-                  pageNumber,
-                  query: normalizedSearchQuery,
-                  viewport,
-                })
-              : null;
-
-            if (fallbackMatch) nextMatches.push(fallbackMatch);
+            matchStart = pageText.indexOf(
+              normalizedSearchQuery,
+              matchStart + normalizedSearchQuery.length,
+            );
           }
 
           page.cleanup();
@@ -899,7 +880,12 @@ export default function PdfPreview({
   const canNavigateSearchMatches = searchMatches.length > 1;
 
   return (
-    <div className={cn("overflow-hidden rounded border bg-gray-50", className)}>
+    <div
+      className={cn(
+        "w-full min-w-0 overflow-hidden rounded border bg-gray-50",
+        className,
+      )}
+    >
       {showActions && (
         <div className="flex flex-col gap-2 border-b bg-white px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -936,6 +922,45 @@ export default function PdfPreview({
         </div>
       )}
 
+      <div
+        role="search"
+        aria-label="Search PDF"
+        className="flex min-w-0 flex-col gap-2 border-b bg-white p-3 sm:flex-row"
+      >
+        <input
+          type="search"
+          aria-label="Search inside PDF"
+          placeholder="Search inside PDF..."
+          value={searchInput}
+          onChange={(event) => {
+            setSearchInput(event.target.value);
+            if (!event.target.value.trim()) {
+              setSubmittedSearch("");
+              setLocalSearchRequestKey((key) => key + 1);
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              setSubmittedSearch(searchInput.trim());
+              setLocalSearchRequestKey((key) => key + 1);
+            }
+          }}
+          className="min-h-11 w-full min-w-0 rounded-md border px-3 py-2 text-base text-foreground sm:flex-1"
+        />
+        <button
+          type="button"
+          disabled={status !== "ready" || !searchInput.trim()}
+          onClick={() => {
+            setSubmittedSearch(searchInput.trim());
+            setLocalSearchRequestKey((key) => key + 1);
+          }}
+          className="min-h-11 shrink-0 rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        >
+          Search PDF
+        </button>
+      </div>
+
       <div className="relative">
         {shouldShowSearchOverlay && (
           <div className="pointer-events-none absolute right-3 top-3 z-20">
@@ -943,21 +968,27 @@ export default function PdfPreview({
               <button
                 type="button"
                 title="Previous match"
+                aria-label="Previous match"
                 onClick={goToPreviousSearchMatch}
                 disabled={!canNavigateSearchMatches}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-45"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <ChevronUp className="h-4 w-4" />
               </button>
-              <span className="min-w-[72px] text-center">
+              <span
+                role="status"
+                aria-live="polite"
+                className="min-w-[72px] text-center"
+              >
                 {searchOverlayLabel}
               </span>
               <button
                 type="button"
                 title="Next match"
+                aria-label="Next match"
                 onClick={goToNextSearchMatch}
                 disabled={!canNavigateSearchMatches}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-45"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <ChevronDown className="h-4 w-4" />
               </button>

@@ -576,7 +576,7 @@ const OrdersPage = async (props: {
                                 </div>
                                 <p className="text-xs opacity-70">
                                   {getStatusDate(
-                                    getOrderTableStatus(order.orderStatus),
+                                    getOrderTableStatus(order.orderStatus, order),
                                     order,
                                   )}
                                 </p>

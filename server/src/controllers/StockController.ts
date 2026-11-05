@@ -1059,6 +1059,8 @@ router.delete(
       });
 
       stock.isDeleted = true;
+      // Distinguish manual removal from stock hidden because quantity reached zero.
+      stock.deletedAt = new Date();
       await stockRepository.save(stock);
 
       res.json({

@@ -177,7 +177,7 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
                     {orderTypeValue == "Fresh" ? fresh : orderTypeValue}
                   </TableCell>
                   <TableCell className="min-w-[180px]">
-                    {isRegularAdminOrder ? item.exhibitionLocation || "-" : "-"}
+                    {item.exhibitionLocation || "-"}
                   </TableCell>
                   <TableCell className="min-w-[130px]">{item.orderStatus}</TableCell>
                   <TableCell className="min-w-[130px]">

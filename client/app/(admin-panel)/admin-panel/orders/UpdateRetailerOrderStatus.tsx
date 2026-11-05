@@ -36,9 +36,10 @@ import { API_URL } from "@/lib/constants";
 import dayjs from "dayjs";
 import {
   ORDER_STAGE_DATE_FIELD_MAP,
+  ORDER_STAGE_FLOW,
 } from "@/lib/stageFlow";
 
-import { getOrderTableStatus, ORDER_TABLE_STAGES } from "./orderTableStatus";
+import { getOrderTableStatus, getOrderTableStages, isInventoryStockOrder } from "./orderTableStatus";
 
 /* ================= SCHEMA ================= */
 
@@ -112,7 +113,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
   const form = useForm<z.infer<typeof updateFormSchema>>({
     resolver: zodResolver(updateFormSchema),
     defaultValues: {
-      status: getOrderTableStatus(orderData.orderStatus),
+      status: getOrderTableStatus(orderData.orderStatus, orderData),
     },
   });
 
@@ -157,7 +158,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
   const onOpenChange = (val: boolean) => {
     setOpen(val);
     if (val) {
-      form.reset({ status: getOrderTableStatus(orderData.orderStatus) });
+      form.reset({ status: getOrderTableStatus(orderData.orderStatus, orderData) });
       fetchOrderDates();
       fetchRetailerProgress();
     }
@@ -184,11 +185,12 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
 
   /* ================= VISIBILITY RULES ================= */
 
-  const canShowReadyToDelivery =
-    orderData.orderStatus === "Ready To Delivery";
+  const currentStageIndex = ORDER_STAGE_FLOW.findIndex(
+    (stage) => stage === String(orderData.orderStatus ?? "").trim(),
+  );
 
   const isPaidStockOrder =
-    orderData.orderType === "Stock" &&
+    isInventoryStockOrder(orderData) &&
     (orderData.balancePayment !== undefined ||
       (orderData.purchaseAmount != null && orderData.paidAmount != null)) &&
     Number(
@@ -196,24 +198,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
         Number(orderData.purchaseAmount || 0) - Number(orderData.paidAmount || 0),
     ) <= 0;
 
-  const canShowShipped =
-    orderData.orderStatus === "Ready To Delivery" ||
-    orderData.orderStatus === "Shipped" ||
-    (orderData.orderStatus === "Balance Pending" && isPaidStockOrder);
-
-  /* ================= FINAL STATUS ARRAY (🔥 MAIN LOGIC) ================= */
-
-  const orderStatusArray = ORDER_TABLE_STAGES
-    .filter((label) => {
-      if (
-        label.toLowerCase() === "ready to delivery" &&
-        !canShowReadyToDelivery
-      ) return false;
-
-      if (label === "Shipped" && !canShowShipped) return false;
-
-      return true;
-    })
+  const orderStatusArray = getOrderTableStages(orderData)
     .map((label) => {
       const dbField = statusToDateField[label];
 
@@ -231,6 +216,10 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
         value: label,
         label,
         date,
+        disabled:
+          currentStageIndex < 0 ||
+          ORDER_STAGE_FLOW.indexOf(label) <= currentStageIndex ||
+          (isInventoryStockOrder(orderData) && label === "Shipped" && !isPaidStockOrder),
       };
     });
 
@@ -240,7 +229,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <div className="flex w-full cursor-pointer justify-between">
-          {getOrderTableStatus(orderData.orderStatus)}
+          {getOrderTableStatus(orderData.orderStatus, orderData)}
         </div>
       </DialogTrigger>
 
@@ -273,6 +262,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
                         <SelectItem
                           key={status.value}
                           value={status.value}
+                          disabled={status.disabled}
                         >
                           <div className="flex w-[350px] justify-between">
                             <span>{status.label}</span>

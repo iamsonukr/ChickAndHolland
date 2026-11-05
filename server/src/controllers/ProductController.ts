@@ -2458,12 +2458,15 @@ router.get(
     const product = await Product.findOne({
       where: {
         productCode: code,
-        category: { name: Not(In(["CUSTOM", "RETAILER COLLECTION"])) },
       },
-      relations: ["images", "currencyPricing", "currencyPricing.currency"],
+      relations: ["category", "images", "currencyPricing", "currencyPricing.currency"],
     });
 
-    if (!product) {
+    // Match style search: CUSTOM styles can be ordered; retailer collection stays hidden.
+    if (
+      !product ||
+      product.category?.name?.trim().toUpperCase() === "RETAILER COLLECTION"
+    ) {
       return res.status(404).json({
         success: false,
         message: "Product not found",

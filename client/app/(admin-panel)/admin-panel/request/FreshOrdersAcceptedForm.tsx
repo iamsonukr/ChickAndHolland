@@ -1,7 +1,5 @@
 "use client";
 
-
-
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -64,7 +62,8 @@ import {
   getRetailerAdminFreshOrderDetails,
 } from "@/lib/data";
 import OrderCustomerPdf from "@/app/(admin-panel)/admin-panel/orders/OrderCustomerPdf";
-import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import PdfPreview from "@/components/pdf/PdfPreview";
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
 import FreshOrderPdf from "./FreshOrderPdf";
@@ -100,7 +99,11 @@ const getTrailingPoNumber = (poNumber?: string | null) => {
 };
 
 const getCustomerStoreName = (data: any) =>
-  data?.customerStoreName || data?.customer_store_name || data?.storeName || data?.customer_name || "";
+  data?.customerStoreName ||
+  data?.customer_store_name ||
+  data?.storeName ||
+  data?.customer_name ||
+  "";
 
 const hasDirtyFields = (dirtyFields: any): boolean => {
   if (!dirtyFields || typeof dirtyFields !== "object") return false;
@@ -113,7 +116,9 @@ const DEFAULT_MANUFACTURING_EMAIL = "rubyinc@hotmail.com";
 const DEFAULT_REQUEST_COLOUR = "SAS";
 
 const isSampleOrderRequest = (value: unknown) =>
-  String(value ?? "").toLowerCase().includes("sample");
+  String(value ?? "")
+    .toLowerCase()
+    .includes("sample");
 
 const stripCustomSizePrefix = (value: unknown) =>
   String(value ?? "")
@@ -127,14 +132,20 @@ const getSampleOrderComment = (value: unknown) => {
 };
 
 const getDisplayComments = (value: unknown, requestType?: unknown) => {
-  if (isSampleOrderRequest(requestType) || /^sample order\b/i.test(String(value ?? "").trim())) {
+  if (
+    isSampleOrderRequest(requestType) ||
+    /^sample order\b/i.test(String(value ?? "").trim())
+  ) {
     return getSampleOrderComment(value);
   }
 
   return String(value ?? "").trim();
 };
 
-const normalizeRequestText = (value: unknown, fallback = DEFAULT_REQUEST_COLOUR) => {
+const normalizeRequestText = (
+  value: unknown,
+  fallback = DEFAULT_REQUEST_COLOUR,
+) => {
   const text = String(value ?? "").trim();
   return text || fallback;
 };
@@ -169,9 +180,13 @@ const normalizeFreshRequestStyle = (style: any) => {
   };
 };
 
-const normalizeFreshRequestForm = (data: CreateFreshOrderForm): CreateFreshOrderForm => ({
+const normalizeFreshRequestForm = (
+  data: CreateFreshOrderForm,
+): CreateFreshOrderForm => ({
   ...data,
-  styles: data.styles.map(normalizeFreshRequestStyle) as CreateFreshOrderForm["styles"],
+  styles: data.styles.map(
+    normalizeFreshRequestStyle,
+  ) as CreateFreshOrderForm["styles"],
 });
 
 const getFirstFormErrorMessage = (errors: any): string | undefined => {
@@ -241,8 +256,11 @@ const FreshOrdersAcceptedForm = ({
   const [previewData, setPreviewData] = useState<any>(null);
   const [total_state, setTotalState] = useState(0);
   const [uploadedFile, setUploadedFileRaw] = useState<File | null>(null);
-  const [uploadedFileType, setUploadedFileType] = useState<UploadedFileType>(null);
-  const [uploadedFileObjectUrl, setUploadedFileObjectUrl] = useState<string | null>(null);
+  const [uploadedFileType, setUploadedFileType] =
+    useState<UploadedFileType>(null);
+  const [uploadedFileObjectUrl, setUploadedFileObjectUrl] = useState<
+    string | null
+  >(null);
 
   const setUploadedFile = useCallback((file: File | null) => {
     setUploadedFileObjectUrl((currentUrl) => {
@@ -253,16 +271,17 @@ const FreshOrdersAcceptedForm = ({
       return file ? URL.createObjectURL(file) : null;
     });
     setUploadedFileRaw(file);
-    setUploadedFileType(file ? (file.name.endsWith(".pdf") ? "pdf" : "ppt") : null);
+    setUploadedFileType(
+      file ? (file.name.endsWith(".pdf") ? "pdf" : "ppt") : null,
+    );
   }, []);
 
-  const clearUploadedFile = useCallback(() => setUploadedFile(null), [setUploadedFile]);
-
-  const { executeAsync: mailex } = useHttp(
-    "/stock-email",
-    "POST",
-    true
+  const clearUploadedFile = useCallback(
+    () => setUploadedFile(null),
+    [setUploadedFile],
   );
+
+  const { executeAsync: mailex } = useHttp("/stock-email", "POST", true);
 
   const { loading, error, executeAsync } = useHttp(
     "/retailer-orders/admin/accepted/favorites-order",
@@ -341,7 +360,6 @@ const FreshOrdersAcceptedForm = ({
       form.setValue("orderId", id);
       console.log("ORDER ID →", form.getValues("orderId"));
 
-
       const colours = await getProductColours({});
       let colors = colours.productColours;
 
@@ -358,15 +376,13 @@ const FreshOrdersAcceptedForm = ({
       let newPO = data[0].purchaseOrderNo || editOrder?.purchaeOrderNo || "";
       if (!isEditMode) {
         const latestPO = await getLatestRetailerOrder();
-        const nextSequence = getTrailingPoNumber(latestPO?.purchaeOrderNo) + 1 || 1;
+        const nextSequence =
+          getTrailingPoNumber(latestPO?.purchaeOrderNo) + 1 || 1;
         newPO = `PO#${customerPrefix} ${nextSequence}`;
       }
 
       // 3️⃣ Set PO in form
       form.setValue("purchaseOrderNo", newPO);
-
-
-
 
       const invoice = `IN_${uuidv4().replace(/-/g, "").substring(0, 6)}`;
       const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 6)}`;
@@ -396,15 +412,21 @@ const FreshOrdersAcceptedForm = ({
         }
       }
       form.setValue("address", data[0].address || editOrder?.address || "");
-      form.setValue("phoneNumber", data[0].phoneNumber || editOrder?.customer?.phoneNumber || "");
-
+      form.setValue(
+        "phoneNumber",
+        data[0].phoneNumber || editOrder?.customer?.phoneNumber || "",
+      );
 
       const arrayData = data.map((it: any) => ({
-        styleNo: it.productCode ?? it.styleNo ?? "", customColor: it.color,
+        styleNo: it.productCode ?? it.styleNo ?? "",
+        customColor: it.color,
         size: formatOriginalSizeDisplay(it),
         quantity: it.quantity,
         requestType: it.requestType || resolvedRequestType,
-        comments: getDisplayComments(it.comments, it.requestType || resolvedRequestType),
+        comments: getDisplayComments(
+          it.comments,
+          it.requestType || resolvedRequestType,
+        ),
         amount: Number(it.price),
         fav_id: it.fav_id,
         customization_p: Number(it.customization_price || 0),
@@ -415,7 +437,9 @@ const FreshOrdersAcceptedForm = ({
         liningColor: resolveRequestColourName(
           it.lining_color,
           colors,
-          normalizeRequestText(it.lining) === "No Lining" ? "No Color" : DEFAULT_REQUEST_COLOUR,
+          normalizeRequestText(it.lining) === "No Lining"
+            ? "No Color"
+            : DEFAULT_REQUEST_COLOUR,
         ),
       }));
 
@@ -423,7 +447,7 @@ const FreshOrdersAcceptedForm = ({
 
       let total = data.reduce(
         (sum: any, item: any) => sum + Number(item.total_amount),
-        0
+        0,
       );
 
       form.setValue("product_amount", total);
@@ -439,8 +463,14 @@ const FreshOrdersAcceptedForm = ({
         "advance",
         Number(data[0].paidAmount ?? editOrder?.paidAmount ?? 0),
       );
-      form.setValue("estimate", data[0].estimateNo || editOrder?.estimateNo || estimate);
-      form.setValue("invoice", data[0].invoiceNo || editOrder?.invoiceNo || invoice);
+      form.setValue(
+        "estimate",
+        data[0].estimateNo || editOrder?.estimateNo || estimate,
+      );
+      form.setValue(
+        "invoice",
+        data[0].invoiceNo || editOrder?.invoiceNo || invoice,
+      );
       setTotalState(total);
 
       if (data.length > 0 && data[0].currencySymbol) {
@@ -457,7 +487,6 @@ const FreshOrdersAcceptedForm = ({
       console.log(error);
     }
   };
-
 
   const getFavouriteRowId = (current: any, index: number) =>
     String(current?.fav_id ?? details[index]?.fav_id ?? "");
@@ -524,7 +553,10 @@ const FreshOrdersAcceptedForm = ({
         const sizeCountry = match ? match[1] : "";
         const displaySize = cleanSize.split("(")[0].trim();
         const normalizedDisplaySize = stripCustomSizePrefix(displaySize);
-        const totalPieces = Math.max(getPieceCount(current.quantity), rowBarcodes.length);
+        const totalPieces = Math.max(
+          getPieceCount(current.quantity),
+          rowBarcodes.length,
+        );
 
         if (totalPieces <= 0) {
           return [];
@@ -535,17 +567,17 @@ const FreshOrdersAcceptedForm = ({
 
         const meshColorDisplay =
           current.meshColor ===
-            colors.find(
-              (colour: any) => colour.hexcode == standardColors.mesh_color,
-            )?.name
+          colors.find(
+            (colour: any) => colour.hexcode == standardColors.mesh_color,
+          )?.name
             ? `SAS( ${current.meshColor} )`
             : current.meshColor;
 
         const beadingColorDisplay =
           current.beadingColor ===
-            colors.find(
-              (colour: any) => colour.hexcode == standardColors.beading_color,
-            )?.name
+          colors.find(
+            (colour: any) => colour.hexcode == standardColors.beading_color,
+          )?.name
             ? `SAS( ${current.beadingColor} )`
             : current.beadingColor;
 
@@ -556,9 +588,9 @@ const FreshOrdersAcceptedForm = ({
 
         const liningColorDisplay =
           current.liningColor ==
-            colors.find(
-              (colour: any) => colour.hexcode == standardColors.lining_color,
-            )?.name
+          colors.find(
+            (colour: any) => colour.hexcode == standardColors.lining_color,
+          )?.name
             ? formatSasValue(current.liningColor)
             : current.liningColor;
 
@@ -611,7 +643,9 @@ const FreshOrdersAcceptedForm = ({
       purchaseOrderNo: normalizedData.purchaseOrderNo,
       hasId: normalizedData.styles.map((i: any) => i.colorType).join(","),
       manufacturingEmailAddress: normalizedData.manufacturingEmailAddress,
-      orderCancellationDate: formatDateOnly(normalizedData.orderCancellationDate),
+      orderCancellationDate: formatDateOnly(
+        normalizedData.orderCancellationDate,
+      ),
       orderReceivedDate: formatDateOnly(normalizedData.orderReceivedDate),
       Size: normalizedData.styles.map((i: any) => i.size).join(","),
       size_country: details.map((i) => i.size_country).join(","),
@@ -626,7 +660,8 @@ const FreshOrdersAcceptedForm = ({
       phoneNumber: normalizedData.phoneNumber,
       requestType:
         finalData?.requestType ||
-        normalizedData.styles.find((style: any) => style.requestType)?.requestType ||
+        normalizedData.styles.find((style: any) => style.requestType)
+          ?.requestType ||
         requestType ||
         "Fresh",
     };
@@ -641,8 +676,16 @@ const FreshOrdersAcceptedForm = ({
 
       try {
         const response = await executeUpdateAsync(
-          { orderType: "Fresh", orderData: dataSend, changedFields: dirtyFields },
-          { headers: editPassword ? { "X-Edit-Password": editPassword } : undefined },
+          {
+            orderType: "Fresh",
+            orderData: dataSend,
+            changedFields: dirtyFields,
+          },
+          {
+            headers: editPassword
+              ? { "X-Edit-Password": editPassword }
+              : undefined,
+          },
         );
 
         if (!response.success) {
@@ -669,7 +712,8 @@ const FreshOrdersAcceptedForm = ({
 
           if (!uploadResponse.ok || !uploadJson.success) {
             throw new Error(
-              uploadJson?.message || "Order updated but the uploaded document failed to save.",
+              uploadJson?.message ||
+                "Order updated but the uploaded document failed to save.",
             );
           }
         }
@@ -682,7 +726,8 @@ const FreshOrdersAcceptedForm = ({
         router.refresh();
       } catch (err: any) {
         toast.error("Failed to update order", {
-          description: err?.message ?? updateError?.message ?? "Something went wrong",
+          description:
+            err?.message ?? updateError?.message ?? "Something went wrong",
         });
       }
 
@@ -702,7 +747,9 @@ const FreshOrdersAcceptedForm = ({
         }
 
         if (!response.orderId) {
-          throw new Error("Order was created but no order ID was returned for the uploaded document.");
+          throw new Error(
+            "Order was created but no order ID was returned for the uploaded document.",
+          );
         }
 
         const formData = new FormData();
@@ -719,7 +766,8 @@ const FreshOrdersAcceptedForm = ({
 
         if (!uploadResponse.ok || !uploadJson.success) {
           throw new Error(
-            uploadJson?.message || "Order was created but the uploaded document failed to save.",
+            uploadJson?.message ||
+              "Order was created but the uploaded document failed to save.",
           );
         }
 
@@ -749,7 +797,8 @@ const FreshOrdersAcceptedForm = ({
       });
 
       if (response.success) {
-        const purchaseOrderNo = response.purchaseOrderNo || data.purchaseOrderNo;
+        const purchaseOrderNo =
+          response.purchaseOrderNo || data.purchaseOrderNo;
         const barcodeGroups = buildFreshBarcodeGroups(
           Array.isArray(response.createdStyles) ? response.createdStyles : [],
         );
@@ -762,7 +811,9 @@ const FreshOrdersAcceptedForm = ({
         const preData = {
           customerId: normalizedData.customerId,
           manufacturingEmailAddress: normalizedData.manufacturingEmailAddress,
-          orderCancellationDate: formatDateOnly(normalizedData.orderCancellationDate),
+          orderCancellationDate: formatDateOnly(
+            normalizedData.orderCancellationDate,
+          ),
           orderReceivedDate: formatDateOnly(normalizedData.orderReceivedDate),
           orderType: isSampleOrderRequest(dataSend.requestType)
             ? "Sample Order"
@@ -799,7 +850,6 @@ const FreshOrdersAcceptedForm = ({
     return value && value !== "SAS" ? `SAS(${value})` : "SAS";
   };
 
-
   const onPreviewSubmit = async (data: CreateFreshOrderForm) => {
     try {
       const normalizedData = normalizeFreshRequestForm(data);
@@ -816,14 +866,17 @@ const FreshOrdersAcceptedForm = ({
         formBarcodeGroups,
       );
       const previewRequestType =
-        normalizedData.styles.find((style: any) => style.requestType)?.requestType ||
+        normalizedData.styles.find((style: any) => style.requestType)
+          ?.requestType ||
         requestType ||
         "Fresh";
 
       setPreviewData({
         customerId: normalizedData.customerId,
         manufacturingEmailAddress: normalizedData.manufacturingEmailAddress,
-        orderCancellationDate: formatDateOnly(normalizedData.orderCancellationDate),
+        orderCancellationDate: formatDateOnly(
+          normalizedData.orderCancellationDate,
+        ),
         orderReceivedDate: formatDateOnly(normalizedData.orderReceivedDate),
         orderType: isSampleOrderRequest(previewRequestType)
           ? "Sample Order"
@@ -839,7 +892,6 @@ const FreshOrdersAcceptedForm = ({
       toast.error("Failed to generate preview");
     }
   };
-
 
   const onErrors = (errors: any) => {
     toast.error(isEditMode ? "Failed to update order" : "Failed to add order", {
@@ -902,11 +954,15 @@ const FreshOrdersAcceptedForm = ({
     <div>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button onClick={fetchData}>{triggerLabel ?? (isEditMode ? "Edit" : "Accept")}</Button>
+          <Button onClick={fetchData}>
+            {triggerLabel ?? (isEditMode ? "Edit" : "Accept")}
+          </Button>
         </SheetTrigger>
         <SheetContent className="min-w-[100%] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{isEditMode ? "Edit Retail Order" : "Add New Order"}</SheetTitle>
+            <SheetTitle>
+              {isEditMode ? "Edit Retail Order" : "Add New Order"}
+            </SheetTitle>
             <SheetDescription>
               {isEditMode
                 ? "Update the fields that need to change"
@@ -936,11 +992,8 @@ const FreshOrdersAcceptedForm = ({
               <FormField
                 control={form.control}
                 name="orderId"
-                render={({ field }) => (
-                  <input type="hidden" {...field} />
-                )}
+                render={({ field }) => <input type="hidden" {...field} />}
               />
-
 
               <FormField
                 control={form.control}
@@ -949,10 +1002,7 @@ const FreshOrdersAcceptedForm = ({
                   <FormItem>
                     <FormLabel>Purchase Order No</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="PO#RITIK 21"
-                        {...field}
-                      />
+                      <Input placeholder="PO#RITIK 21" {...field} />
                     </FormControl>
 
                     <FormMessage />
@@ -1197,7 +1247,6 @@ const FreshOrdersAcceptedForm = ({
                 )}
               />
 
-
               <div className="!mt-4 space-y-2 md:col-span-3">
                 <div className="flex items-center justify-between">
                   <Label>Styles</Label>
@@ -1271,10 +1320,7 @@ const FreshOrdersAcceptedForm = ({
                                   </div>
                                 </FormLabel>
                                 <FormControl>
-                                  <Input
-                                    placeholder="PO#VICTORIA"
-                                    {...field}
-                                  />
+                                  <Input placeholder="PO#VICTORIA" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1292,10 +1338,7 @@ const FreshOrdersAcceptedForm = ({
                                   </div>
                                 </FormLabel>
                                 <FormControl>
-                                  <Input
-                                    placeholder="PO#VICTORIA"
-                                    {...field}
-                                  />
+                                  <Input placeholder="PO#VICTORIA" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1313,10 +1356,7 @@ const FreshOrdersAcceptedForm = ({
                                   </div>
                                 </FormLabel>
                                 <FormControl>
-                                  <Input
-                                    placeholder="PO#VICTORIA"
-                                    {...field}
-                                  />
+                                  <Input placeholder="PO#VICTORIA" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1333,10 +1373,7 @@ const FreshOrdersAcceptedForm = ({
                                   </div>
                                 </FormLabel>
                                 <FormControl>
-                                  <Input
-                                    placeholder="PO#VICTORIA"
-                                    {...field}
-                                  />
+                                  <Input placeholder="PO#VICTORIA" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1354,10 +1391,7 @@ const FreshOrdersAcceptedForm = ({
                                   </div>
                                 </FormLabel>
                                 <FormControl>
-                                  <Input
-                                    placeholder="PO#VICTORIA"
-                                    {...field}
-                                  />
+                                  <Input placeholder="PO#VICTORIA" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1372,10 +1406,7 @@ const FreshOrdersAcceptedForm = ({
                                 <FormLabel>Size</FormLabel>
 
                                 <FormControl>
-                                  <Input
-                                    placeholder="Size"
-                                    {...field}
-                                  />
+                                  <Input placeholder="Size" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1479,8 +1510,8 @@ const FreshOrdersAcceptedForm = ({
                   <div>
                     <Label>Upload order document</Label>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Optional — replaces the auto-generated PDF / PPT in the preview and on
-                      submit.
+                      Optional — replaces the auto-generated PDF / PPT in the
+                      preview and on submit.
                     </p>
                   </div>
                 </div>
@@ -1514,7 +1545,6 @@ const FreshOrdersAcceptedForm = ({
                       ? "Update Order"
                       : "Create Order"}
                 </Button>
-
               </div>
             </form>
           </Form>
@@ -1541,10 +1571,10 @@ const FreshOrdersAcceptedForm = ({
 
                 {/* PDF — render inline */}
                 {uploadedFileType === "pdf" && uploadedFileObjectUrl && (
-                  <iframe
-                    src={uploadedFileObjectUrl}
-                    className="h-[75vh] w-full rounded border-0"
-                    title="Uploaded PDF preview"
+                  <PdfPreview
+                    url={uploadedFileObjectUrl}
+                    fileName={uploadedFile?.name || "uploaded-document.pdf"}
+                    heightClassName="h-[75vh]"
                   />
                 )}
 
@@ -1553,7 +1583,9 @@ const FreshOrdersAcceptedForm = ({
                   <div className="flex h-[75vh] flex-col items-center justify-center gap-3 rounded border border-dashed bg-muted/30 text-center">
                     <Presentation className="h-10 w-10 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">{uploadedFile?.name}</p>
+                      <p className="text-sm font-medium">
+                        {uploadedFile?.name}
+                      </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         PowerPoint files cannot be previewed in the browser.
                         <br />
@@ -1575,15 +1607,16 @@ const FreshOrdersAcceptedForm = ({
                 </h2>
 
                 {form.watch().styles.map((style: any, idx: number) => (
-                  <div key={idx} className="border p-4 rounded-md mb-4 bg-gray-50">
-
+                  <div
+                    key={idx}
+                    className="border p-4 rounded-md mb-4 bg-gray-50"
+                  >
                     <h3 className="font-semibold text-pink-600 mb-2">
                       Style #{idx + 1} — {style.styleNo}
                     </h3>
 
                     {/* 🔹 2 Column Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-
                       {/* Color */}
                       <div>
                         <label className="text-black text-sm">Color</label>
@@ -1591,10 +1624,14 @@ const FreshOrdersAcceptedForm = ({
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.customColor}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.customColor`, e.target.value, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
+                            form.setValue(
+                              `styles.${idx}.customColor`,
+                              e.target.value,
+                              {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              },
+                            );
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1607,10 +1644,14 @@ const FreshOrdersAcceptedForm = ({
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.size}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.size`, e.target.value, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
+                            form.setValue(
+                              `styles.${idx}.size`,
+                              e.target.value,
+                              {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              },
+                            );
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1623,10 +1664,14 @@ const FreshOrdersAcceptedForm = ({
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.meshColor}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.meshColor`, e.target.value, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
+                            form.setValue(
+                              `styles.${idx}.meshColor`,
+                              e.target.value,
+                              {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              },
+                            );
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1634,15 +1679,21 @@ const FreshOrdersAcceptedForm = ({
 
                       {/* Beading Color */}
                       <div>
-                        <label className="text-black text-sm">Beading Color</label>
+                        <label className="text-black text-sm">
+                          Beading Color
+                        </label>
                         <input
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.beadingColor}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.beadingColor`, e.target.value, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
+                            form.setValue(
+                              `styles.${idx}.beadingColor`,
+                              e.target.value,
+                              {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              },
+                            );
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1655,10 +1706,14 @@ const FreshOrdersAcceptedForm = ({
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.lining}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.lining`, e.target.value, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
+                            form.setValue(
+                              `styles.${idx}.lining`,
+                              e.target.value,
+                              {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              },
+                            );
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1666,15 +1721,21 @@ const FreshOrdersAcceptedForm = ({
 
                       {/* Lining Color */}
                       <div>
-                        <label className="text-black text-sm">Lining Color</label>
+                        <label className="text-black text-sm">
+                          Lining Color
+                        </label>
                         <input
                           className="border w-full p-2 rounded text-black bg-white"
                           value={style.liningColor}
                           onChange={(e) => {
-                            form.setValue(`styles.${idx}.liningColor`, e.target.value, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            });
+                            form.setValue(
+                              `styles.${idx}.liningColor`,
+                              e.target.value,
+                              {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              },
+                            );
                             onPreviewSubmit(form.getValues());
                           }}
                         />
@@ -1688,10 +1749,14 @@ const FreshOrdersAcceptedForm = ({
                         className="border w-full p-2 rounded text-black bg-white"
                         value={style.comments}
                         onChange={(e) => {
-                          form.setValue(`styles.${idx}.comments`, e.target.value, {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          });
+                          form.setValue(
+                            `styles.${idx}.comments`,
+                            e.target.value,
+                            {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            },
+                          );
                           onPreviewSubmit(form.getValues());
                         }}
                       />
@@ -1707,26 +1772,30 @@ const FreshOrdersAcceptedForm = ({
                         className="border w-full p-2 rounded text-black bg-white"
                         value={style.quantity}
                         onChange={(e) => {
-                          form.setValue(`styles.${idx}.quantity`, e.target.value, {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          });
+                          form.setValue(
+                            `styles.${idx}.quantity`,
+                            e.target.value,
+                            {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            },
+                          );
                           formChange();
                           onPreviewSubmit(form.getValues());
                         }}
                       />
                     </div>
                   </div>
-
                 ))}
-
               </div>
 
               {/* 🔹 Download Button */}
               <div className="flex flex-wrap justify-end gap-3 py-3">
                 <PDFDownloadLink
                   document={
-                    isSampleOrderRequest(previewData.requestType || previewData.orderType) ? (
+                    isSampleOrderRequest(
+                      previewData.requestType || previewData.orderType,
+                    ) ? (
                       <SampleOrderPdf orderData={previewData} />
                     ) : (
                       <RetailerPdf orderData={previewData} />
@@ -1748,16 +1817,22 @@ const FreshOrdersAcceptedForm = ({
               </div>
 
               {/* 🔹 Live Preview */}
-              <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
-                {isSampleOrderRequest(previewData.requestType || previewData.orderType) ? (
-                  <SampleOrderPdf orderData={previewData} />
-                ) : (
-                  <FreshOrderPdf orderData={previewData} />
-                )}
-              </PDFViewer>
+              <PdfPreview
+                className="mt-2"
+                heightClassName="h-[75vh]"
+                fileName={`${previewData.purchaseOrderNo || "order-document"}.pdf`}
+                sourceDocument={
+                  isSampleOrderRequest(
+                    previewData.requestType || previewData.orderType,
+                  ) ? (
+                    <SampleOrderPdf orderData={previewData} />
+                  ) : (
+                    <FreshOrderPdf orderData={previewData} />
+                  )
+                }
+              />
             </>
           )}
-
         </SheetContent>
       </Sheet>
     </div>
