@@ -163,6 +163,27 @@ export async function adjustStockInventoryForDeletedRetailerOrders(
         );
       }
     }
+<<<<<<< HEAD
+=======
+
+    if (mode === "release") {
+      // A cancelled stock order returns its pieces to inventory. This also
+      // makes a row hidden because it reached zero available quantity visible
+      // again.
+      await db.query(
+        "UPDATE stock SET quantity = quantity + ?, isDeleted = false WHERE id = ?",
+        [quantity, stockId],
+      );
+    } else {
+      // Restoring a deleted order reserves its pieces again. Hide the row only
+      // when no quantity remains; stock with a balance stays available.
+      await db.query(
+        "UPDATE stock SET quantity = quantity - ?, isDeleted = CASE WHEN quantity - ? <= 0 THEN true ELSE false END WHERE id = ?",
+        [quantity, quantity, stockId],
+      );
+    }
+    adjustedQuantity += quantity;
+>>>>>>> dde19bd7a9429f48c6bcf74c52df41fb7282d67a
   }
 
     let adjustedOrders = 0;
