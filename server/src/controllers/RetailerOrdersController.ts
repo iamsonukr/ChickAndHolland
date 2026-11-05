@@ -541,6 +541,7 @@ router.post(
     }
 
     const favOrders = new RetailerFavouritesOrders();
+    favOrders.exhibitionLocation = String(req.body.exhibitionLocation ?? "").trim().slice(0, 225) || null;
 
     const retailer = await Retailer.findOne({
       where: {
@@ -652,6 +653,7 @@ router.post(
     }
 
     const stock_orders = new RetailerStockOrders();
+    stock_orders.exhibitionLocation = String(req.body.exhibitionLocation ?? "").trim().slice(0, 225) || null;
     stock_orders.admin_us_size = convertToUSSize(
       stock.size,
       stock.size_country
@@ -1473,6 +1475,7 @@ router.post(
     // ------------------------
     const order = new RetailerOrder();
 
+    order.exhibitionLocation = stock_retailer.exhibitionLocation;
     order.address = data.address;
     order.phoneNumber = data.phoneNumber || retailer.customer.phoneNumber;
 
@@ -1762,6 +1765,7 @@ router.post(
       order.purchaeOrderNo = purchaseOrderNo;
       order.retailer = retailer;
       order.favourite_order = favOrders;
+      order.exhibitionLocation = favOrders.exhibitionLocation;
 
       order.address = orderData.address;
       order.manufacturingEmailAddress = orderData.manufacturingEmailAddress;
@@ -1956,12 +1960,14 @@ router.get(
       SELECT 
       DATE_FORMAT(ro.createdAt, '%Y-%m-%d') AS formatted_date,
         ro.purchaeOrderNo as order_id,
+        ro.exhibitionLocation,
         ro.id,
         ro.trackingNo,
         CASE 
           WHEN ro.is_stock_order = 1 THEN 'Stock' 
           ELSE 'Fresh' 
         END AS type,
+       ro.exhibitionLocation,
        COALESCE(ro.stockOrderId , ro.favouriteOrderId) as childId,
          payments.orderId as payment_id,
         ro.purchaseAmount AS total,
@@ -2324,6 +2330,7 @@ router.get(
       SELECT 
         DATE_FORMAT(ro.createdAt, '%Y-%m-%d') AS formatted_date,
         ro.purchaeOrderNo as order_id,
+        ro.exhibitionLocation,
         CASE 
           WHEN ro.is_stock_order = 1 THEN 'Stock' 
           ELSE 'Fresh' 

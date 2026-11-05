@@ -429,6 +429,7 @@ router.post(
     let liningColor = "";
     let quantity = "";
     let comments = "";
+    let exhibitionLocation = "";
     let uploadedPrimaryImage: Promise<FileData> | null = null;
     const uploadedSecondaryImages: Promise<FileData>[] = [];
 
@@ -472,6 +473,9 @@ router.post(
           break;
         case "quantity":
           quantity = value;
+          break;
+        case "exhibitionLocation":
+          exhibitionLocation = value;
           break;
         case "comments":
           comments = value;
@@ -700,6 +704,7 @@ router.post(
           const requestOrder = new RetailerFavouritesOrders();
           requestOrder.favourite_ids = String(cartItem.id);
           requestOrder.retailer = retailer;
+          requestOrder.exhibitionLocation = sanitizeText(exhibitionLocation).slice(0, 225) || null;
           await queryRunner.manager.save(requestOrder);
 
           await queryRunner.commitTransaction();

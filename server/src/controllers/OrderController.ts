@@ -912,7 +912,7 @@ async function getOrderStageCountSourceOrders({
     .leftJoin("retailer.customer", "customer")
     .where("ro.status = 0");
 
-  if (exhibitionLocation) retailerOrdersQuery.andWhere("1 = 0");
+  if (exhibitionLocation) retailerOrdersQuery.andWhere("LOWER(ro.exhibitionLocation) LIKE LOWER(:exhibitionLocation)", { exhibitionLocation: `%${sanitizeText(exhibitionLocation)}%` });
 
   if (likeQuery) {
     retailerOrdersQuery.andWhere(
@@ -3381,6 +3381,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
                 'RETAILER' AS qrType,
                 ro.id AS orderId,
                 ro.purchaeOrderNo AS purchaseOrderNo,
+                ro.exhibitionLocation AS exhibitionLocation,
                 ro.orderStatus AS parentOrderStatus,
                 'Fresh' AS orderType,
                 ro.orderReceivedDate AS orderReceivedDate,
@@ -3444,6 +3445,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
                 'STOCK' AS qrType,
                 ro.id AS orderId,
                 ro.purchaeOrderNo AS purchaseOrderNo,
+                ro.exhibitionLocation AS exhibitionLocation,
                 'Stock' AS orderType,
                 ro.orderStatus AS parentOrderStatus,
                 ro.orderReceivedDate AS orderReceivedDate,
@@ -3780,7 +3782,7 @@ router.get(
         "ro.purchaeOrderNo as purchaeOrderNo",
         "ro.manufacturingEmailAddress as manufacturingEmailAddress",
         "CASE WHEN ro.is_stock_order = 1 THEN 'Stock' ELSE 'Fresh' END as orderType",
-        "NULL as exhibitionLocation",
+        "ro.exhibitionLocation as exhibitionLocation",
         "ro.orderReceivedDate as orderReceivedDate",
         "ro.orderCancellationDate as orderCancellationDate",
         "ro.address as address",
@@ -3808,7 +3810,7 @@ router.get(
         "LOWER(o.exhibitionLocation) LIKE LOWER(:exhibitionLocation)",
         { exhibitionLocation: `%${sanitizeText(exhibitionLocation)}%` },
       );
-      retailerOrdersQuery.andWhere("1 = 0");
+      retailerOrdersQuery.andWhere("LOWER(ro.exhibitionLocation) LIKE LOWER(:exhibitionLocation)", { exhibitionLocation: `%${sanitizeText(exhibitionLocation)}%` });
     }
 
     if (likeQuery) {

@@ -34,7 +34,7 @@ const RejectedOrders = ({
   retailerId: number;
 }) => {
   return (
-    <div className="border rounded-md">
+    <div className="max-w-full overflow-x-auto rounded-md border">
       <Table className="table-fixed w-full min-w-[1040px]">
         <TableHeader className="bg-muted/50">
           <TableRow>
@@ -43,7 +43,7 @@ const RejectedOrders = ({
             <TableHead className={`${COL_WIDTHS.quantity} text-center`}>Quantity</TableHead>
             <TableHead className={`${COL_WIDTHS.amount} text-center`}>Total Amount</TableHead>
             <TableHead className={`${COL_WIDTHS.actions} text-center`}>Details</TableHead>
-            <TableHead className={`${COL_WIDTHS.preview} text-center`}>Preview</TableHead>
+            <TableHead className={`${COL_WIDTHS.preview} sticky right-0 z-10 bg-background text-center`}>Preview</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -84,7 +84,7 @@ const RejectedOrders = ({
                     />
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="sticky right-0 z-10 bg-background">
                   <Preview
                     id={item.id}
                     type={item.order_type === "Stock" ? "Stock" : "Fresh"}

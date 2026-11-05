@@ -14,6 +14,9 @@ import Retailer from "./Retailer";
 
 @Entity(TABLE_NAMES.RETAILERFAVOURITESORDERS)
 export default class RetailerFavouritesOrders extends BaseModel {
+  @Column("varchar", { length: 225, nullable: true })
+  exhibitionLocation: string | null;
+
 @OneToOne(() => RetailerOrder, order => order.favourite_order)
 order: RetailerOrder;
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
@@ -34,6 +36,7 @@ const ActionButtons = ({
     "POST",
   );
   const router = useRouter();
+  const [exhibitionLocation, setExhibitionLocation] = useState("");
 
   const handleRemoveCartItem = async (product: any, id: number) => {
     try {
@@ -63,6 +66,7 @@ const ActionButtons = ({
 
     try {
       const response = await addFav({
+        exhibitionLocation,
         favourateData: {
           id: productDetails.id,
           quantity: productDetails.quantity,
@@ -83,6 +87,15 @@ const ActionButtons = ({
 
   return (
     <div className="grid grid-cols-1 gap-2">
+      <label className="text-sm">
+        Exhibition Location
+        <Input
+          value={exhibitionLocation}
+          onChange={(e) => setExhibitionLocation(e.target.value)}
+          maxLength={225}
+          placeholder="Enter exhibition location"
+        />
+      </label>
       <Button onClick={onSubmitFun} disabled={placingOrder}>
         <ShoppingBag className={"mr-2"} />
         {placingOrder ? "Placing..." : "Place Order"}

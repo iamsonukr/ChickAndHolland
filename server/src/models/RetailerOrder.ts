@@ -177,6 +177,9 @@ import RetailerStockOrders from "./RetailerStockOrders";
 
 @Entity("retailer_orders")
 export class RetailerOrder extends BaseModel {
+  @Column("varchar", { length: 225, nullable: true })
+  exhibitionLocation: string | null;
+
 
   @ManyToOne(() => Retailer, (retailer) => retailer.orders, {
     cascade: true,
