@@ -1,7 +1,7 @@
 import { Request, Response, Router } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
 import Stock from "../models/Stock";
-import { Brackets, FindOptionsWhere, In, Like, Not, IsNull } from "typeorm";
+import { Brackets, FindOptionsWhere, In, Like, Not, IsNull, MoreThan } from "typeorm";
 import Product from "../models/Product";
 import db from "../db";
 import ProductImage from "../models/ProductImage";
@@ -293,6 +293,7 @@ router.get(
           })
         )
         .andWhere("stock.isDeleted = false")
+        .andWhere("stock.quantity > 0")
       )
         .orderBy("stock.createdAt", "DESC")
         .addOrderBy("productImages.isMain", "DESC")
@@ -313,6 +314,7 @@ router.get(
           })
         )
         .andWhere("stock.isDeleted = false")
+        .andWhere("stock.quantity > 0")
       );
 
     if (!page) {
@@ -362,6 +364,7 @@ router.get(
       .createQueryBuilder("stock")
       .select("DISTINCT stock.sourceLocation", "sourceLocation")
       .where("stock.isDeleted = false")
+      .andWhere("stock.quantity > 0")
       .andWhere("stock.sourceLocation IS NOT NULL")
       .andWhere("TRIM(stock.sourceLocation) <> ''")
       .orderBy("stock.sourceLocation", "ASC")
@@ -839,7 +842,7 @@ router.get(
     }
 
     const stocks = await Stock.find({
-      where: { styleNo: product.id.toString(), isDeleted: false },
+      where: { styleNo: product.id.toString(), isDeleted: false, quantity: MoreThan(0) },
       relations: ["currencyPricing", "currencyPricing.currency"],
     });
 

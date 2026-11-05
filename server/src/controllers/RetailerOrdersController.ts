@@ -1303,6 +1303,7 @@ router.get(
         -- 🔥 ACTUAL RETAILER ORDER ID
         ro.id AS retailerOrderId,
         MIN(ro.purchaeOrderNo) AS purchaseOrderNo,
+        MIN(COALESCE(ro.exhibitionLocation, rf.exhibitionLocation)) AS exhibitionLocation,
         MIN(ro.orderCancellationDate) AS orderCancellationDate,
         MIN(ro.invoiceNo) AS invoiceNo,
         MIN(ro.estimateNo) AS estimateNo,
@@ -1784,7 +1785,9 @@ router.post(
       order.purchaeOrderNo = purchaseOrderNo;
       order.retailer = retailer;
       order.favourite_order = favOrders;
-      order.exhibitionLocation = favOrders.exhibitionLocation;
+      order.exhibitionLocation = Object.prototype.hasOwnProperty.call(orderData, "exhibitionLocation")
+        ? sanitizeText(orderData.exhibitionLocation).slice(0, 225) || null
+        : favOrders.exhibitionLocation;
 
       order.address = orderData.address;
       order.manufacturingEmailAddress = orderData.manufacturingEmailAddress;
@@ -2871,6 +2874,10 @@ router.patch(
 
     if (hasDirtyPath(changedFields, "phoneNumber")) {
       order.phoneNumber = sanitizeText(payload.phoneNumber);
+    }
+
+    if (hasDirtyPath(changedFields, "exhibitionLocation")) {
+      order.exhibitionLocation = sanitizeText(payload.exhibitionLocation).slice(0, 225) || null;
     }
 
     if (hasDirtyPath(changedFields, "invoice")) {
