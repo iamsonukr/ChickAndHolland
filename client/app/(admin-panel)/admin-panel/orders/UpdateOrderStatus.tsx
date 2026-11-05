@@ -38,11 +38,10 @@ import { getOrderDates } from "@/lib/data";
 import dayjs from "dayjs";
 import { API_URL } from "@/lib/constants";
 import {
-  DEFAULT_ORDER_STAGE,
   ORDER_STAGE_DATE_FIELD_MAP,
-  ORDER_STAGE_FLOW,
-  normalizeStage,
 } from "@/lib/stageFlow";
+
+import { getOrderTableStatus, ORDER_TABLE_STAGES } from "./orderTableStatus";
 
 interface StatusDateTypes {
   pattern: string | null;
@@ -52,7 +51,7 @@ interface StatusDateTypes {
   zarkan: string | null;
   stitching: string | null;
   repair: string | null;
-  balance_pending: string | null;   // ✅ ADD THIS
+  balance_pending: string | null;  
   ready_to_delivery: string | null;
   shipped: string | null;
 }
@@ -99,7 +98,7 @@ const UpdateOrderStatus = ({ orderData }: { orderData: any }) => {
   const form = useForm<UpdateOrderStatusForm>({
     resolver: zodResolver(updateOrderStatusFormSchema),
     defaultValues: {
-      status: normalizeStage(orderData.orderStatus),
+      status: getOrderTableStatus(orderData.orderStatus),
     },
   });
 
@@ -139,6 +138,7 @@ const fetchStoreProgress = async () => {
 const onOpenChange = (val: boolean) => {
   setOpen(val);
   if (val) {
+      form.reset({ status: getOrderTableStatus(orderData.orderStatus) });
     fetchOrderDates();     // existing
     fetchStoreProgress(); // 🔥 NEW
   }
@@ -165,7 +165,7 @@ const onOpenChange = (val: boolean) => {
       toast.error("Error updating status");
     }
   };
-const orderStatusArray = ORDER_STAGE_FLOW.map((statusLabel) => {
+const orderStatusArray = ORDER_TABLE_STAGES.map((statusLabel) => {
   const dbField = statusFieldMap[statusLabel];
 
   const date =
@@ -187,7 +187,7 @@ const orderStatusArray = ORDER_STAGE_FLOW.map((statusLabel) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <div className="cursor-pointer underline">
-          {orderData.orderStatus || DEFAULT_ORDER_STAGE}
+          {getOrderTableStatus(orderData.orderStatus)}
         </div>
       </DialogTrigger>
 
@@ -233,7 +233,7 @@ const orderStatusArray = ORDER_STAGE_FLOW.map((statusLabel) => {
               )}
             />
 
-            <Button type="submit" loading={loading} className="mt-4 w-full">
+            <Button type="submit" loading={loading} disabled={!form.formState.isDirty} className="mt-4 w-full">
               Update
             </Button>
           </form>

@@ -35,11 +35,10 @@ import { getOrderStatusDatesDetails } from "@/lib/data";
 import { API_URL } from "@/lib/constants";
 import dayjs from "dayjs";
 import {
-  DEFAULT_ORDER_STAGE,
   ORDER_STAGE_DATE_FIELD_MAP,
-  ORDER_STAGE_FLOW,
-  normalizeStage,
 } from "@/lib/stageFlow";
+
+import { getOrderTableStatus, ORDER_TABLE_STAGES } from "./orderTableStatus";
 
 /* ================= SCHEMA ================= */
 
@@ -113,7 +112,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
   const form = useForm<z.infer<typeof updateFormSchema>>({
     resolver: zodResolver(updateFormSchema),
     defaultValues: {
-      status: normalizeStage(orderData.orderStatus),
+      status: getOrderTableStatus(orderData.orderStatus),
     },
   });
 
@@ -158,6 +157,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
   const onOpenChange = (val: boolean) => {
     setOpen(val);
     if (val) {
+      form.reset({ status: getOrderTableStatus(orderData.orderStatus) });
       fetchOrderDates();
       fetchRetailerProgress();
     }
@@ -203,7 +203,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
 
   /* ================= FINAL STATUS ARRAY (🔥 MAIN LOGIC) ================= */
 
-  const orderStatusArray = ORDER_STAGE_FLOW
+  const orderStatusArray = ORDER_TABLE_STAGES
     .filter((label) => {
       if (
         label.toLowerCase() === "ready to delivery" &&
@@ -240,7 +240,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <div className="flex w-full cursor-pointer justify-between">
-          {orderData.orderStatus || DEFAULT_ORDER_STAGE}
+          {getOrderTableStatus(orderData.orderStatus)}
         </div>
       </DialogTrigger>
 
@@ -292,7 +292,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
               )}
             />
 
-            <Button type="submit" loading={loading} className="mt-4 w-full">
+            <Button type="submit" loading={loading} disabled={!form.formState.isDirty} className="mt-4 w-full">
               Update
             </Button>
           </form>

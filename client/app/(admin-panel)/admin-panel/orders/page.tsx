@@ -44,6 +44,8 @@ import {
   getStoreName,
 } from "./orderAddressDisplay";
 
+import { getOrderTableStatus } from "./orderTableStatus";
+
 const statusToDbField: Record<string, string | null> = {
   ...ORDER_STAGE_DATE_FIELD_MAP,
 };
@@ -574,7 +576,7 @@ const OrdersPage = async (props: {
                                 </div>
                                 <p className="text-xs opacity-70">
                                   {getStatusDate(
-                                    order.orderStatus.toString(),
+                                    getOrderTableStatus(order.orderStatus),
                                     order,
                                   )}
                                 </p>
