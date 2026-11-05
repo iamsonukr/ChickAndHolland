@@ -124,6 +124,7 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
             <TableHead className="min-w-[180px] whitespace-nowrap">Name</TableHead>
             <TableHead className="min-w-[140px] whitespace-nowrap">Order Id</TableHead>
             <TableHead className="min-w-[130px] whitespace-nowrap">Order Type</TableHead>
+            <TableHead className="min-w-[180px] whitespace-nowrap">Exhibition</TableHead>
             <TableHead className="min-w-[130px] whitespace-nowrap">Status</TableHead>
             <TableHead className="min-w-[130px] whitespace-nowrap">Order Date</TableHead>
             <TableHead className="min-w-[110px] whitespace-nowrap">Paid</TableHead>
@@ -174,6 +175,9 @@ const AdminDeliveredOrders = ({ data }: { data: any[] }) => {
                   <TableCell className="min-w-[140px]">{item.order_id}</TableCell>
                   <TableCell className="min-w-[130px]">
                     {orderTypeValue == "Fresh" ? fresh : orderTypeValue}
+                  </TableCell>
+                  <TableCell className="min-w-[180px]">
+                    {isRegularAdminOrder ? item.exhibitionLocation || "-" : "-"}
                   </TableCell>
                   <TableCell className="min-w-[130px]">{item.orderStatus}</TableCell>
                   <TableCell className="min-w-[130px]">

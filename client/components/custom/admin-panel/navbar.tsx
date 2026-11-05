@@ -4,7 +4,7 @@ import ThemeToggle from "@/components/theme-toggle";
 import { UserNav } from "@/components/custom/admin-panel/userNav";
 import { SheetMenu } from "@/components/custom/admin-panel/sheetMenu";
 
-interface NavbarProps {
+interface NavbarProps { 
   title: string;
   userDetails: any;
 }

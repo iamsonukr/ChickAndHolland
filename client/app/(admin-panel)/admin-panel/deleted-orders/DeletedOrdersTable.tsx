@@ -165,7 +165,7 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
 
       <div className="w-full rounded-lg border border-border">
         <TableScrollWrapper>
-          <table className="w-full min-w-[1340px] border-collapse text-sm">
+          <table className="w-full min-w-[1520px] border-collapse text-sm">
             <thead className="bg-muted/50">
               <tr className="whitespace-nowrap [&>th]:align-middle">
                 <th className={cn(tableHeadClassName, "w-[70px]")}>
@@ -182,6 +182,9 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
                 <th className={cn(tableHeadClassName, "w-[150px]")}>PO#</th>
                 <th className={cn(tableHeadClassName, "w-[140px]")}>
                   Order Type
+                </th>
+                <th className={cn(tableHeadClassName, "w-[180px]")}>
+                  Exhibition
                 </th>
                 <th className={cn(tableHeadClassName, "w-[130px]")}>
                   Order Date
@@ -244,6 +247,9 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
                         {order.orderType === "Fresh" ? fresh : order.orderType}
                       </td>
                       <td className={tableCellClassName}>
+                        {order.exhibitionLocation || "-"}
+                      </td>
+                      <td className={tableCellClassName}>
                         {formatDateOnlyDisplay(order.orderReceivedDate)}
                       </td>
                       <td className={tableCellClassName}>
@@ -300,7 +306,7 @@ export default function DeletedOrdersTable({ orders }: { orders: any[] }) {
               ) : (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={12}
                     className="border border-border py-10 text-center text-base text-muted-foreground"
                   >
                     <div className="flex flex-col items-center gap-1">

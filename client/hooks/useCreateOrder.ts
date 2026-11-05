@@ -1199,6 +1199,12 @@ export function useCreateOrder({
     publishStatus?: "published" | "draft",
   ) => {
     const detailsMap = await ensureProductDetailsLoaded(data.styles);
+    if (data.styles.some((style) => !detailsMap.has(style.styleNo?.[0]?.value ?? ""))) {
+      toast.error(
+        "Unable to load a selected product. Please retry or select another style.",
+      );
+      return;
+    }
     const orderCustomer =
       customers.find(
         (customer) =>
@@ -1444,6 +1450,12 @@ export function useCreateOrder({
     const previewRequestId = previewRequestIdRef.current + 1;
     previewRequestIdRef.current = previewRequestId;
     const detailsMap = await ensureProductDetailsLoaded(data.styles);
+    if (data.styles.some((style) => !detailsMap.has(style.styleNo?.[0]?.value ?? ""))) {
+      toast.error(
+        "Unable to load a selected product. Please retry or select another style.",
+      );
+      return;
+    }
     const orderCustomer =
       customers.find(
         (customer) =>

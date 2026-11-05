@@ -208,12 +208,14 @@ const Preview = ({
   order,
   showShippingDate = true,
   orderSource = "retailer",
+  retailerApprovalStatus = 1,
 }: {
   id: number;
   type: string;
   order: any;
   showShippingDate?: boolean;
   orderSource?: PreviewOrderSource;
+  retailerApprovalStatus?: number;
 }) => {
   const [data, setData] = useState<any>(null);
   const [previewError, setPreviewError] = useState("");
@@ -371,7 +373,10 @@ const Preview = ({
 
       if (type === "Fresh") {
         logPreview("retailer-fresh:details-request", { id, orderId: order.id });
-        const fresh = await getRetailerAdminFreshOrderDetails(id, 1);
+        const fresh = await getRetailerAdminFreshOrderDetails(
+          id,
+          retailerApprovalStatus,
+        );
 
         const details = await Promise.all(
           fresh.data.map(async (item: any) => {
@@ -413,10 +418,12 @@ const Preview = ({
 
         setData({
           id: order.id,
-          purchaseOrderNo: order.order_id,
+          purchaseOrderNo:
+            order.order_id || order.purchaseOrderNo || order.purchaeOrderNo || id,
           manufacturingEmailAddress: order.email,
           orderCancellationDate: order.orderCancellationDate,
-          orderReceivedDate: order.orderReceivedDate,
+          orderReceivedDate:
+            order.orderReceivedDate || order.received_date || order.formatted_date,
           orderType: "Fresh",
           ppt_path: uploadedDocumentPath,
           details,
@@ -425,7 +432,10 @@ const Preview = ({
       }
 
       logPreview("retailer-stock:details-request", { id, orderId: order.id });
-      const stock = await getRetailerAdminStockOrderDetails(id, 1);
+      const stock = await getRetailerAdminStockOrderDetails(
+        id,
+        retailerApprovalStatus,
+      );
       const stockDetails = Array.isArray(stock.details) ? stock.details : [];
 
       if (!stockDetails.length) {
@@ -434,10 +444,12 @@ const Preview = ({
 
       setData({
         id: order.id,
-        purchaseOrderNo: order.order_id,
+        purchaseOrderNo:
+          order.order_id || order.purchaseOrderNo || order.purchaeOrderNo || id,
         manufacturingEmailAddress: order.email,
         orderCancellationDate: order.orderCancellationDate,
-        orderReceivedDate: order.received_date,
+        orderReceivedDate:
+          order.orderReceivedDate || order.received_date || order.formatted_date,
         orderType: "Stock",
         ppt_path: uploadedDocumentPath,
         details: await Promise.all(

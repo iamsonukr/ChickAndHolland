@@ -48,7 +48,11 @@ import {
   ORDER_STAGE_FLOW,
   getCanonicalStage,
 } from "../lib/stageFlow";
-import { adjustStockInventoryForDeletedRetailerOrders } from "../services/stockInventory.service";
+import {
+  adjustStockInventoryForDeletedRetailerOrders,
+  adjustStockQuantity,
+  releaseStockRequestReservations,
+} from "../services/stockInventory.service";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
@@ -537,6 +541,7 @@ router.post(
     }
 
     const favOrders = new RetailerFavouritesOrders();
+    favOrders.exhibitionLocation = String(req.body.exhibitionLocation ?? "").trim().slice(0, 225) || null;
 
     const retailer = await Retailer.findOne({
       where: {
@@ -639,7 +644,16 @@ router.post(
       });
     }
 
+    const reserved = await adjustStockQuantity(stock.id, -requestedQty);
+    if (!reserved) {
+      return res.status(400).json({
+        success: false,
+        message: "Entered quantity exceeds available stock",
+      });
+    }
+
     const stock_orders = new RetailerStockOrders();
+    stock_orders.exhibitionLocation = String(req.body.exhibitionLocation ?? "").trim().slice(0, 225) || null;
     stock_orders.admin_us_size = convertToUSSize(
       stock.size,
       stock.size_country
@@ -648,6 +662,7 @@ router.post(
 
     stock_orders.retailer = retailer;
     stock_orders.quantity = requestedQty;
+    stock_orders.reservedQuantity = requestedQty;
     stock_orders.stock = stock;
     stock_orders.mesh_color = stock.mesh_color;
     stock_orders.beading_color = stock.beading_color;
@@ -665,7 +680,12 @@ router.post(
       stock_orders.currencyId = retailerCurrency.id;
     }
 
-    await stock_orders.save();
+    try {
+      await stock_orders.save();
+    } catch (error) {
+      await adjustStockQuantity(stock.id, requestedQty);
+      throw error;
+    }
     res.json({
       success: true,
       message: "Add to orders",
@@ -1426,13 +1446,6 @@ router.post(
       return res.json({ success: false, msg: "Stock not found" });
     }
 
-    if (stock.quantity < requestedQty) {
-      return res.json({
-        success: false,
-        message: "No Stock Available",
-      });
-    }
-
     // ------------------------
     // 🔥 2. Find Retailer
     // ------------------------
@@ -1450,6 +1463,7 @@ router.post(
     // ------------------------
     const stock_retailer = await RetailerStockOrders.findOne({
       where: { id: data.id },
+      relations: ["stock"],
     });
 
     if (!stock_retailer) {
@@ -1461,6 +1475,7 @@ router.post(
     // ------------------------
     const order = new RetailerOrder();
 
+    order.exhibitionLocation = stock_retailer.exhibitionLocation;
     order.address = data.address;
     order.phoneNumber = data.phoneNumber || retailer.customer.phoneNumber;
 
@@ -1488,8 +1503,34 @@ router.post(
       });
     }
 
+    if (Number(stock_retailer.stock?.id) !== Number(stock.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Stock request does not match the selected inventory item",
+      });
+    }
+
+    const currentReservation = Number(stock_retailer.reservedQuantity || 0);
+    const reservationDelta = requestedQty - currentReservation;
+    if (reservationDelta !== 0) {
+      const adjusted = await adjustStockQuantity(
+        stock.id,
+        -reservationDelta,
+      );
+      if (!adjusted) {
+        return res.json({
+          success: false,
+          message: "No Stock Available",
+        });
+      }
+    }
+    stock_retailer.quantity = requestedQty;
+    stock_retailer.reservedQuantity = requestedQty;
+
     order.orderCancellationDate = orderCancellationDate;
     order.orderReceivedDate = orderReceivedDate;
+    order.orderStatus = OrderStatus.Balance_Pending;
+    order.balance_pending = orderReceivedDate;
 
     order.Stock_order = stock_retailer;
     order.retailer = retailer;
@@ -1505,12 +1546,15 @@ router.post(
 
     stock_retailer.is_approved = 1;
 
+<<<<<<< HEAD
+=======
     // Reduce stock quantity. A fully allocated stock row is hidden from the
     // inventory list; cancelling this order restores both its quantity and
     // visibility (see adjustStockInventoryForDeletedRetailerOrders).
     stock.quantity = stock.quantity - requestedQty;
     stock.isDeleted = stock.quantity === 0;
 
+>>>>>>> dde19bd7a9429f48c6bcf74c52df41fb7282d67a
     await order.save();
 
     // ------------------------
@@ -1555,7 +1599,6 @@ router.post(
     payment.order = order;
 
     await stock_retailer.save();
-    await stock.save();
     await payment.save();
 
     return res.json({
@@ -1722,6 +1765,7 @@ router.post(
       order.purchaeOrderNo = purchaseOrderNo;
       order.retailer = retailer;
       order.favourite_order = favOrders;
+      order.exhibitionLocation = favOrders.exhibitionLocation;
 
       order.address = orderData.address;
       order.manufacturingEmailAddress = orderData.manufacturingEmailAddress;
@@ -1849,7 +1893,8 @@ router.patch(
       },
     });
 
-    if (retailerStock) {
+    if (retailerStock && Number(retailerStock.is_approved) !== 1) {
+      await releaseStockRequestReservations([retailerStock.id]);
       retailerStock.rejected_comments = comment;
       retailerStock.is_approved = 3;
       await retailerStock.save();
@@ -1915,12 +1960,14 @@ router.get(
       SELECT 
       DATE_FORMAT(ro.createdAt, '%Y-%m-%d') AS formatted_date,
         ro.purchaeOrderNo as order_id,
+        ro.exhibitionLocation,
         ro.id,
         ro.trackingNo,
         CASE 
           WHEN ro.is_stock_order = 1 THEN 'Stock' 
           ELSE 'Fresh' 
         END AS type,
+       ro.exhibitionLocation,
        COALESCE(ro.stockOrderId , ro.favouriteOrderId) as childId,
          payments.orderId as payment_id,
         ro.purchaseAmount AS total,
@@ -2283,6 +2330,7 @@ router.get(
       SELECT 
         DATE_FORMAT(ro.createdAt, '%Y-%m-%d') AS formatted_date,
         ro.purchaeOrderNo as order_id,
+        ro.exhibitionLocation,
         CASE 
           WHEN ro.is_stock_order = 1 THEN 'Stock' 
           ELSE 'Fresh' 
@@ -2641,6 +2689,17 @@ router.post(
     }
 
     finalStatus = normalizedFinalStatus;
+
+    if (order.is_stock_order && finalStatus === OrderStatus.Shipped) {
+      const paymentSummary = await getRetailerPaymentSummary(order);
+      if (paymentSummary.balance > 0) {
+        return res.status(400).json({
+          success: false,
+          msg: "Payment pending. Cannot mark this stock order as shipped.",
+          data: paymentSummary,
+        });
+      }
+    }
 
     console.log("Converted finalStatus:", finalStatus);
 
@@ -3263,27 +3322,32 @@ router.patch(
   asyncHandler(async (req: Request, res: Response) => {
     const { bulk } = req.body;
 
-    let freshBulk: any = [];
-    let storeBulk: any = [];
+    const retailerBulk: any[] = [];
+    const regularBulk: any[] = [];
 
     bulk.forEach((i: any) => {
-      if (i.orderType == "Fresh" || i.orderType == "Stock") {
-        freshBulk = [...freshBulk, i];
+      const source = String(i.orderSource ?? "").toLowerCase();
+      const isRetailerOrder = source
+        ? source === "retailer"
+        : i.orderType === "Fresh" || i.orderType === "Stock";
+
+      if (isRetailerOrder) {
+        retailerBulk.push(i);
       } else {
-        storeBulk = [...storeBulk, i];
+        regularBulk.push(i);
       }
     });
 
-    if (freshBulk.length > 0) {
+    if (retailerBulk.length > 0) {
       await adjustStockInventoryForDeletedRetailerOrders(
-        freshBulk.map((item: any) => Number(item.id)),
+        retailerBulk.map((item: any) => Number(item.id)),
         "release",
       );
 
-      for (let index = 0; index < freshBulk.length; index++) {
+      for (let index = 0; index < retailerBulk.length; index++) {
         const stocks = await RetailerOrder.findOne({
           where: {
-            id: freshBulk[index].id,
+            id: retailerBulk[index].id,
           },
         });
         if (stocks) {
@@ -3293,11 +3357,11 @@ router.patch(
       }
     }
 
-    if (storeBulk.length > 0) {
-      for (let index = 0; index < storeBulk.length; index++) {
+    if (regularBulk.length > 0) {
+      for (let index = 0; index < regularBulk.length; index++) {
         const stocks = await Order.findOne({
           where: {
-            id: storeBulk[index].id,
+            id: regularBulk[index].id,
           },
         });
         if (stocks) {
@@ -3346,13 +3410,16 @@ router.patch(
     }
 
     if (storeBulk.length > 0) {
+      await releaseStockRequestReservations(
+        storeBulk.map((item: any) => Number(item.id)),
+      );
       for (let index = 0; index < storeBulk.length; index++) {
         const stocks = await RetailerStockOrders.findOne({
           where: {
             id: storeBulk[index].id,
           },
         });
-        if (stocks) {
+        if (stocks && Number(stocks.is_approved) !== 1) {
           stocks.isDeleted = true;
           await stocks.save();
         }
@@ -3698,7 +3765,12 @@ router.get(
       const retailerId = retailerIdRaw ? Number(retailerIdRaw) : null;
       const stage = typeof req.query.stage === "string" ? req.query.stage : "";
       const bucket = typeof req.query.bucket === "string" ? req.query.bucket : "";
-      const stageSql = stage ? " AND o.orderStatus = ?" : "";
+      const effectiveOrderStatusSql = `CASE
+        WHEN o.orderType = 'Stock' AND o.orderStatus = 'Pattern'
+          THEN '${OrderStatus.Balance_Pending}'
+        ELSE o.orderStatus
+      END`;
+      const stageSql = stage ? ` AND ${effectiveOrderStatusSql} = ?` : "";
       const bucketSql =
         bucket === "delivered"
           ? " AND o.orderStatus = ?"
@@ -3727,7 +3799,8 @@ router.get(
       'regular' AS orderSource,
       o.purchaeOrderNo AS order_id,
       o.orderType,
-      o.orderStatus,
+      o.exhibitionLocation AS exhibitionLocation,
+      ${effectiveOrderStatusSql} AS orderStatus,
       o.trackingNo,
       o.ppt_path,
       o.createdAt,
@@ -3784,7 +3857,8 @@ router.get(
       'regular' AS orderSource,
       o.purchaeOrderNo AS order_id,
       o.orderType,
-      o.orderStatus,
+      o.exhibitionLocation AS exhibitionLocation,
+      ${effectiveOrderStatusSql} AS orderStatus,
       o.trackingNo,
       o.ppt_path,
       o.createdAt,

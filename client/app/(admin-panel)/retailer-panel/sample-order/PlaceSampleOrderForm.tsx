@@ -91,6 +91,7 @@ const sampleOrderSchema = z
         const quantity = Number(value);
         return Number.isInteger(quantity) && quantity > 0;
       }, "Quantity must be greater than 0"),
+    exhibitionLocation: z.string().trim().max(225).optional(),
     comments: z.string().optional(),
     primaryImage: z
       .any()
@@ -186,6 +187,7 @@ const PlaceSampleOrderForm = ({
       lining: "No Lining",
       liningColor: "",
       quantity: "1",
+      exhibitionLocation: "",
       comments: "",
       primaryImage: undefined,
       secondaryImages: undefined,
@@ -360,6 +362,7 @@ const PlaceSampleOrderForm = ({
       addLining ? (values.liningColor ?? "") : "SAS",
     );
     formData.append("quantity", values.quantity);
+    formData.append("exhibitionLocation", values.exhibitionLocation ?? "");
     formData.append("comments", values.comments ?? "");
     formData.append("primaryImage", primaryImage);
     secondaryImages.forEach((image) =>
@@ -387,6 +390,7 @@ const PlaceSampleOrderForm = ({
         lining: "No Lining",
         liningColor: "",
         quantity: "1",
+        exhibitionLocation: "",
         comments: "",
         primaryImage: undefined,
         secondaryImages: undefined,
@@ -799,6 +803,23 @@ const PlaceSampleOrderForm = ({
                   )}
                 />
 
+                <FormField
+                  control={form.control}
+                  name="exhibitionLocation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Exhibition Location</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter exhibition location"
+                          maxLength={225}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="comments"

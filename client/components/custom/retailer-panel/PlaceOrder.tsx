@@ -43,6 +43,7 @@ const isPositiveWholeQuantity = (value: unknown) => {
 };
 
 export const placeOrderFormSchema = z.object({
+  exhibitionLocation: z.string().trim().max(225).optional(),
   quantity: z
     .string({
       required_error: "Quantity is required",
@@ -103,6 +104,7 @@ const PlaceOrder = ({
       }),
     ),
     defaultValues: {
+      exhibitionLocation: "",
       quantity: "",
       retailerId: "",
     },
@@ -153,10 +155,12 @@ const PlaceOrder = ({
     try {
       const response = await executeAsync(
         {
+          exhibitionLocation: getValues("exhibitionLocation") ?? "",
           currencyId:
-            selectedRetailer?.currencyId ?? (currencyId ? Number(currencyId) : null),
+            selectedRetailer?.currencyId ??
+            (currencyId ? Number(currencyId) : null),
         },
-        { url } // 👈 FINAL URL GOES HERE
+        { url }, // 👈 FINAL URL GOES HERE
       );
 
       if (response.success) {
@@ -231,6 +235,23 @@ const PlaceOrder = ({
                   )}
                 />
               )}
+              <FormField
+                control={form.control}
+                name="exhibitionLocation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Exhibition Location</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter exhibition location"
+                        maxLength={225}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={control}
                 name="quantity"

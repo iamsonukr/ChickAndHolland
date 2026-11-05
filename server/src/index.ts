@@ -97,6 +97,7 @@ import { ensureOrderBeadersTable } from "./utils/ensureOrderBeadersTable";
 import { ensureOrderPhoneNumberColumn } from "./utils/ensureOrderPhoneNumberColumn";
 import { ensureOrderInvoiceEstimateColumns } from "./utils/ensureOrderInvoiceEstimateColumns";
 import { ensureOrderExhibitionLocationColumn } from "./utils/ensureOrderExhibitionLocationColumn";
+import { ensureRetailerStockReservedQuantityColumn } from "./utils/ensureRetailerStockReservedQuantityColumn";
 import { ensureRepairStageSupport } from "./utils/ensureRepairStageSupport";
 
 const router = Router();
@@ -189,6 +190,7 @@ app.use("/uploads/ppt", express.static("uploads/ppt"));
     await ensureOrderPhoneNumberColumn();
     await ensureOrderInvoiceEstimateColumns();
     await ensureOrderExhibitionLocationColumn();
+    await ensureRetailerStockReservedQuantityColumn();
     await ensureRepairStageSupport();
     await ensureOrderPublishStatusColumn();
     await ensureOrderStylePricingColumns();

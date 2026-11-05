@@ -14,6 +14,9 @@ import Currency from "./Currency";
 
 @Entity(TABLE_NAMES.RETAILERSTOCKORDERS)
 export default class RetailerStockOrders extends BaseModel {
+  @Column("varchar", { length: 225, nullable: true })
+  exhibitionLocation: string | null;
+
 
   @ManyToOne(() => Stock, (stock) => stock)
   stock: Stock;
@@ -23,6 +26,9 @@ export default class RetailerStockOrders extends BaseModel {
 
   @Column("int", { nullable: false })
   quantity: number;
+
+  @Column("int", { nullable: false, default: 0 })
+  reservedQuantity: number;
 
   @Column({ type: "varchar", length: 10, nullable: true })
   admin_us_size!: string;
