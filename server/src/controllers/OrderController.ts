@@ -4749,17 +4749,16 @@ router.put(
       });
     }
 
-    // Stock orders can ship from Balance Pending after the full balance is paid.
+    // Stock orders require full payment before delivery readiness or shipping.
     if (
-      status === OrderStatus.Shipped &&
-      (order.orderType === "Stock" ||
-        order.orderStatus === OrderStatus.Balance_Pending)
+      ((status === OrderStatus.Ready_To_Delivery || status === OrderStatus.Shipped) && order.orderType === "Stock") ||
+      (status === OrderStatus.Shipped && order.orderStatus === OrderStatus.Balance_Pending)
     ) {
       const paymentSummary = await getRegularOrderPaymentSummary(order);
       if (paymentSummary.balance > 0) {
         return res.json({
           success: false,
-          message: "Payment pending. Cannot mark this order as shipped.",
+          message: `Payment pending. Complete payment before moving this order to ${status}.`,
         });
       }
     }

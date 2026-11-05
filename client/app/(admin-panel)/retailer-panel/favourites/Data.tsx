@@ -1,5 +1,4 @@
 "use client";
-import { Input } from "@/components/ui/input";
 import ProductCard from "@/components/custom/ProductCard";
 import { useEffect, useState } from "react";
 import ActionButtons from "./ActionButtons";
@@ -26,7 +25,6 @@ const Data = ({
   retailerId: any;
 }) => {
   const router = useRouter();
-  const [exhibitionLocation, setExhibitionLocation] = useState("");
 
   const [bulkOrder, setBulkOrder] = useState<any[]>([]);
   const [isBulkUpload, setIsBulkUpload] = useState(false);
@@ -78,7 +76,6 @@ const Data = ({
 
     try {
       const response = await addFav({
-        exhibitionLocation,
         favourateData: bulkOrder,
       });
       if (response.success) {
@@ -129,17 +126,6 @@ const Data = ({
 
   return (
     <div>
-      {isBulkUpload && (
-        <label className="block max-w-sm text-sm">
-          Exhibition Location
-          <Input
-            value={exhibitionLocation}
-            onChange={(e) => setExhibitionLocation(e.target.value)}
-            maxLength={225}
-            placeholder="Enter exhibition location"
-          />
-        </label>
-      )}
       {favourites.favourites?.length > 0 ? (
         <>
           <div className="my-4 flex items-center justify-between">

@@ -2711,12 +2711,12 @@ router.post(
 
     finalStatus = normalizedFinalStatus;
 
-    if (order.is_stock_order && finalStatus === OrderStatus.Shipped) {
+    if (order.is_stock_order && (finalStatus === OrderStatus.Ready_To_Delivery || finalStatus === OrderStatus.Shipped)) {
       const paymentSummary = await getRetailerPaymentSummary(order);
       if (paymentSummary.balance > 0) {
         return res.status(400).json({
           success: false,
-          msg: "Payment pending. Cannot mark this stock order as shipped.",
+          msg: `Payment pending. Complete payment before moving this stock order to ${finalStatus}.`,
           data: paymentSummary,
         });
       }
@@ -3513,6 +3513,17 @@ router.put(
       (req as any).scannerIdentity?.scannerRoleName,
       workflow,
     ) as OrderStatus | null;
+
+    if (order.is_stock_order && (targetStatus === OrderStatus.Ready_To_Delivery || targetStatus === OrderStatus.Shipped)) {
+      const paymentSummary = await getRetailerPaymentSummary(order);
+      if (paymentSummary.balance > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Payment pending. Complete payment before delivery or shipping.",
+          data: paymentSummary,
+        });
+      }
+    }
 
     const currentIndex = workflow.indexOf(order.orderStatus);
     const now = new Date();
