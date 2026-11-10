@@ -702,6 +702,7 @@ export const createOrderFormSchema = z.object({
 export type CreateOrderForm = z.infer<typeof createOrderFormSchema>;
 
 export const createFreshOrderFormSchema = z.object({
+  exhibitionLocation: z.string().trim().max(225).optional(),
   purchaseOrderNo: z
     .string()
     .min(1, {

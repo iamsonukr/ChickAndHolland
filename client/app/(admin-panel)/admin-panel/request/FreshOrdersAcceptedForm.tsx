@@ -302,6 +302,7 @@ const FreshOrdersAcceptedForm = ({
     resolver: zodResolver(createFreshOrderFormSchema),
     defaultValues: {
       // purchaseOrderNo: `CH#${String.fromCharCode(65 + (ordersTotalCount % 26))}${ordersTotalCount + 1}`,
+      exhibitionLocation: "",
       orderId: id,
       purchaseOrderNo: "",
       manufacturingEmailAddress: "",
@@ -383,6 +384,7 @@ const FreshOrdersAcceptedForm = ({
 
       // 3️⃣ Set PO in form
       form.setValue("purchaseOrderNo", newPO);
+      form.setValue("exhibitionLocation", data[0].exhibitionLocation ?? editOrder?.exhibitionLocation ?? "");
 
       const invoice = `IN_${uuidv4().replace(/-/g, "").substring(0, 6)}`;
       const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 6)}`;
@@ -641,6 +643,7 @@ const FreshOrdersAcceptedForm = ({
       retailerId: finalData.retailerId,
       address: normalizedData.address,
       purchaseOrderNo: normalizedData.purchaseOrderNo,
+      exhibitionLocation: normalizedData.exhibitionLocation ?? "",
       hasId: normalizedData.styles.map((i: any) => i.colorType).join(","),
       manufacturingEmailAddress: normalizedData.manufacturingEmailAddress,
       orderCancellationDate: formatDateOnly(
@@ -883,6 +886,7 @@ const FreshOrdersAcceptedForm = ({
           : "Fresh",
         requestType: previewRequestType,
         purchaseOrderNo: normalizedData.purchaseOrderNo,
+      exhibitionLocation: normalizedData.exhibitionLocation ?? "",
         details: finalStyles,
         total: total_state,
       });
@@ -1032,6 +1036,20 @@ const FreshOrdersAcceptedForm = ({
                     <FormLabel>Invoice No</FormLabel>
                     <FormControl>
                       <Input placeholder="PO#VICTORIA" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="exhibitionLocation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Exhibition Location</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter exhibition location" maxLength={225} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

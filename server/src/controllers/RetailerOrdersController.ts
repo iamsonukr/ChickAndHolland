@@ -1303,6 +1303,7 @@ router.get(
         -- 🔥 ACTUAL RETAILER ORDER ID
         ro.id AS retailerOrderId,
         MIN(ro.purchaeOrderNo) AS purchaseOrderNo,
+        MIN(COALESCE(ro.exhibitionLocation, rf.exhibitionLocation)) AS exhibitionLocation,
         MIN(ro.orderCancellationDate) AS orderCancellationDate,
         MIN(ro.invoiceNo) AS invoiceNo,
         MIN(ro.estimateNo) AS estimateNo,
@@ -1784,7 +1785,9 @@ router.post(
       order.purchaeOrderNo = purchaseOrderNo;
       order.retailer = retailer;
       order.favourite_order = favOrders;
-      order.exhibitionLocation = favOrders.exhibitionLocation;
+      order.exhibitionLocation = Object.prototype.hasOwnProperty.call(orderData, "exhibitionLocation")
+        ? sanitizeText(orderData.exhibitionLocation).slice(0, 225) || null
+        : favOrders.exhibitionLocation;
 
       order.address = orderData.address;
       order.manufacturingEmailAddress = orderData.manufacturingEmailAddress;
@@ -2708,12 +2711,12 @@ router.post(
 
     finalStatus = normalizedFinalStatus;
 
-    if (order.is_stock_order && finalStatus === OrderStatus.Shipped) {
+    if (order.is_stock_order && (finalStatus === OrderStatus.Ready_To_Delivery || finalStatus === OrderStatus.Shipped)) {
       const paymentSummary = await getRetailerPaymentSummary(order);
       if (paymentSummary.balance > 0) {
         return res.status(400).json({
           success: false,
-          msg: "Payment pending. Cannot mark this stock order as shipped.",
+          msg: `Payment pending. Complete payment before moving this stock order to ${finalStatus}.`,
           data: paymentSummary,
         });
       }
@@ -2871,6 +2874,10 @@ router.patch(
 
     if (hasDirtyPath(changedFields, "phoneNumber")) {
       order.phoneNumber = sanitizeText(payload.phoneNumber);
+    }
+
+    if (hasDirtyPath(changedFields, "exhibitionLocation")) {
+      order.exhibitionLocation = sanitizeText(payload.exhibitionLocation).slice(0, 225) || null;
     }
 
     if (hasDirtyPath(changedFields, "invoice")) {
@@ -3506,6 +3513,17 @@ router.put(
       (req as any).scannerIdentity?.scannerRoleName,
       workflow,
     ) as OrderStatus | null;
+
+    if (order.is_stock_order && (targetStatus === OrderStatus.Ready_To_Delivery || targetStatus === OrderStatus.Shipped)) {
+      const paymentSummary = await getRetailerPaymentSummary(order);
+      if (paymentSummary.balance > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Payment pending. Complete payment before delivery or shipping.",
+          data: paymentSummary,
+        });
+      }
+    }
 
     const currentIndex = workflow.indexOf(order.orderStatus);
     const now = new Date();

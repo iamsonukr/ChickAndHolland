@@ -219,7 +219,7 @@ const UpdateRetailerOrderStatus = ({ orderData }: { orderData: any }) => {
         disabled:
           currentStageIndex < 0 ||
           ORDER_STAGE_FLOW.indexOf(label) <= currentStageIndex ||
-          (isInventoryStockOrder(orderData) && label === "Shipped" && !isPaidStockOrder),
+          (isInventoryStockOrder(orderData) && (label === "Ready To Delivery" || label === "Shipped") && !isPaidStockOrder),
       };
     });
 
