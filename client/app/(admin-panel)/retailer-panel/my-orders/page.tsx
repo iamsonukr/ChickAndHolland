@@ -109,6 +109,7 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                   <TableHead className={`${COL_WIDTHS.date} text-center`}>Date</TableHead>
                   <TableHead className={`${COL_WIDTHS.orderId} text-center`}>Order Id</TableHead>
                   <TableHead className={`${COL_WIDTHS.type} text-center`}>Order Type</TableHead>
+                  <TableHead className={`${COL_WIDTHS.exhibition} text-center`}>Exhibition</TableHead>
                   <TableHead className={`${COL_WIDTHS.status} text-center`}>Status</TableHead>
                   <TableHead className={`${COL_WIDTHS.tracking} text-center`}>Tracking ID</TableHead>
                   <TableHead className={`${COL_WIDTHS.date} text-center`}>Order Date</TableHead>
@@ -127,6 +128,7 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
                     </TableCell>
                     <TableCell className="font-medium">{item.order_id}</TableCell>
                     <TableCell>{item.type === "Fresh" ? fresh : item.type}</TableCell>
+                    <TableCell>{item.exhibitionLocation || "-"}</TableCell>
                     <TableCell>
                       {getRetailerOrderStatus(item.orderStatus)}
                     </TableCell>
@@ -170,6 +172,7 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
               <CustomPagination
                 currentPage={currentPage}
                 totalLength={acceptedOrders?.totalCount}
+                itemsPerPage={10}
               />
             </div>
           </TabsContent>
@@ -248,6 +251,7 @@ const Page = async (props: { searchParams: Promise<Record<string, string>> }) =>
             <CustomPagination
               currentPage={currentPage}
               totalLength={deliverOrders?.totalCount}
+              itemsPerPage={10}
             />
           </div>
         </TabsContent>

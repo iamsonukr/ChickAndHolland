@@ -155,7 +155,9 @@ const PlaceOrder = ({
     try {
       const response = await executeAsync(
         {
-          exhibitionLocation: getValues("exhibitionLocation") ?? "",
+          ...(mode === "admin"
+            ? { exhibitionLocation: getValues("exhibitionLocation") ?? "" }
+            : {}),
           currencyId:
             selectedRetailer?.currencyId ??
             (currencyId ? Number(currencyId) : null),
@@ -235,23 +237,25 @@ const PlaceOrder = ({
                   )}
                 />
               )}
-              <FormField
-                control={form.control}
-                name="exhibitionLocation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Exhibition Location</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter exhibition location"
-                        maxLength={225}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {mode === "admin" && (
+                <FormField
+                  control={form.control}
+                  name="exhibitionLocation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Exhibition Location</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter exhibition location"
+                          maxLength={225}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <FormField
                 control={control}
                 name="quantity"

@@ -27,26 +27,40 @@ async function adjustStockQuantityWithManager(
   delta: number,
 ) {
   const quantity = Math.abs(Math.trunc(Number(delta)));
-  if (!Number.isFinite(quantity) || quantity <= 0) return delta === 0;
+  if (!Number.isFinite(quantity)) return false;
+
+  const nextQuantity =
+    delta < 0 ? `quantity - ${quantity}` : `quantity + ${quantity}`;
 
   const update = manager
     .getRepository(Stock)
     .createQueryBuilder()
     .update(Stock)
     .set({
-      quantity: () =>
-        delta < 0 ? `quantity - ${quantity}` : `quantity + ${quantity}`,
+      // MySQL evaluates assignments left to right. Calculate visibility before
+      // assigning quantity so the delta is applied exactly once in both values.
+      isDeleted: () =>
+        `CASE WHEN deletedAt IS NOT NULL OR (isDeleted = true AND quantity > 0) THEN true WHEN ${nextQuantity} <= 0 THEN true ELSE false END`,
+      quantity: () => nextQuantity,
     })
     .where("id = :stockId", { stockId });
 
+  if (delta <= 0) {
+    update.andWhere("deletedAt IS NULL");
+    update.andWhere("(isDeleted = false OR quantity = 0)");
+  }
   if (delta < 0) update.andWhere("quantity >= :quantity", { quantity });
 
   const result = await update.execute();
   return Number(result.affected || 0) > 0;
 }
 
-export async function adjustStockQuantity(stockId: number, delta: number) {
-  return adjustStockQuantityWithManager(db.manager, stockId, delta);
+export async function adjustStockQuantity(
+  stockId: number,
+  delta: number,
+  manager: EntityManager = db.manager,
+) {
+  return adjustStockQuantityWithManager(manager, stockId, delta);
 }
 
 /** Release inventory held by a pending retailer stock request. */
@@ -90,7 +104,9 @@ export async function releaseStockRequestReservations(requestIds: number[]) {
         quantity,
       );
       if (!released) {
-        throw new Error(`Could not release ${quantity} units for stock request ${request.id}`);
+        throw new Error(
+          `Could not release ${quantity} units for stock request ${request.id}`,
+        );
       }
 
       await manager.query(
@@ -108,12 +124,17 @@ export async function releaseStockRequestReservations(requestIds: number[]) {
 export async function adjustStockInventoryForDeletedRetailerOrders(
   orderIds: number[],
   mode: StockInventoryMode,
+  transactionManager?: EntityManager,
 ) {
   const ids = uniquePositiveIds(orderIds);
   if (!ids.length) return { adjustedOrders: 0, adjustedQuantity: 0 };
 
   const expectedStatus = mode === "release" ? 0 : 1;
-  return db.transaction(async (manager) => {
+  const transition = async (manager: EntityManager) => {
+    await manager.query(
+      "SELECT id FROM retailer_orders WHERE id IN (?) ORDER BY id FOR UPDATE",
+      [ids],
+    );
     const rows = (await manager.query(
       `
     SELECT
@@ -136,55 +157,34 @@ export async function adjustStockInventoryForDeletedRetailerOrders(
       [ids, expectedStatus],
     )) as StockOrderInventoryRow[];
 
-  if (mode === "reserve") {
-    const requiredByStockId = new Map<number, number>();
-    const availableByStockId = new Map<number, number>();
+    if (mode === "reserve") {
+      const requiredByStockId = new Map<number, number>();
+      const availableByStockId = new Map<number, number>();
 
-    rows.forEach((row) => {
-      const stockId = Number(row.stockId);
-      const isShipped =
-        row.orderStatus === OrderStatus.Shipped ||
-        row.shippingStatus === ShippingStatus.Shipped;
-      if (Number(row.reservedQuantity || 0) > 0) return;
-      const quantity = Math.trunc(Number(row.orderedQuantity || 0));
-      if (!stockId || isShipped || quantity <= 0) return;
-      requiredByStockId.set(
-        stockId,
-        (requiredByStockId.get(stockId) ?? 0) + quantity,
-      );
-      availableByStockId.set(stockId, Number(row.stockQuantity || 0));
-    });
-
-    for (const [stockId, required] of requiredByStockId.entries()) {
-      const available = availableByStockId.get(stockId) ?? 0;
-      if (available < required) {
-        throw new Error(
-          `Not enough stock available to restore order. Available: ${available}, required: ${required}`,
+      rows.forEach((row) => {
+        const stockId = Number(row.stockId);
+        const isShipped =
+          row.orderStatus === OrderStatus.Shipped ||
+          row.shippingStatus === ShippingStatus.Shipped;
+        if (Number(row.reservedQuantity || 0) > 0) return;
+        const quantity = Math.trunc(Number(row.orderedQuantity || 0));
+        if (!stockId || isShipped || quantity <= 0) return;
+        requiredByStockId.set(
+          stockId,
+          (requiredByStockId.get(stockId) ?? 0) + quantity,
         );
+        availableByStockId.set(stockId, Number(row.stockQuantity || 0));
+      });
+
+      for (const [stockId, required] of requiredByStockId.entries()) {
+        const available = availableByStockId.get(stockId) ?? 0;
+        if (available < required) {
+          throw new Error(
+            `Not enough stock available to restore order. Available: ${available}, required: ${required}`,
+          );
+        }
       }
     }
-<<<<<<< HEAD
-=======
-
-    if (mode === "release") {
-      // A cancelled stock order returns its pieces to inventory. This also
-      // makes a row hidden because it reached zero available quantity visible
-      // again.
-      await db.query(
-        "UPDATE stock SET quantity = quantity + ?, isDeleted = false WHERE id = ?",
-        [quantity, stockId],
-      );
-    } else {
-      // Restoring a deleted order reserves its pieces again. Hide the row only
-      // when no quantity remains; stock with a balance stays available.
-      await db.query(
-        "UPDATE stock SET quantity = quantity - ?, isDeleted = CASE WHEN quantity - ? <= 0 THEN true ELSE false END WHERE id = ?",
-        [quantity, quantity, stockId],
-      );
-    }
-    adjustedQuantity += quantity;
->>>>>>> dde19bd7a9429f48c6bcf74c52df41fb7282d67a
-  }
 
     let adjustedOrders = 0;
     let adjustedQuantity = 0;
@@ -196,18 +196,13 @@ export async function adjustStockInventoryForDeletedRetailerOrders(
         row.shippingStatus === ShippingStatus.Shipped;
       if (!stockId || isShipped) continue;
 
-      const currentReservation = Math.trunc(
-        Number(row.reservedQuantity || 0),
-      );
+      const currentReservation = Math.trunc(Number(row.reservedQuantity || 0));
       if (mode === "release" && currentReservation <= 0) continue;
       if (mode === "reserve" && currentReservation > 0) continue;
 
       const quantity = Math.trunc(
-        Number(
-          mode === "release"
-            ? currentReservation
-            : row.orderedQuantity,
-        ) || 0,
+        Number(mode === "release" ? currentReservation : row.orderedQuantity) ||
+          0,
       );
       if (quantity <= 0) continue;
 
@@ -218,7 +213,9 @@ export async function adjustStockInventoryForDeletedRetailerOrders(
       );
       if (!adjusted) {
         if (mode === "reserve")
-          throw new Error("Inventory changed while restoring the order. Retry the restore.");
+          throw new Error(
+            "Inventory changed while restoring the order. Retry the restore.",
+          );
         throw new Error(`Could not release inventory for order ${row.orderId}`);
       }
 
@@ -230,6 +227,14 @@ export async function adjustStockInventoryForDeletedRetailerOrders(
       adjustedQuantity += quantity;
     }
 
+    // Commit the order status with its reservation, including non-stock orders.
+    await manager.query(
+      "UPDATE retailer_orders SET status = ? WHERE id IN (?) AND status = ?",
+      [mode === "release" ? 1 : 0, ids, expectedStatus],
+    );
     return { adjustedOrders, adjustedQuantity };
-  });
+  };
+  return transactionManager
+    ? transition(transactionManager)
+    : db.transaction(transition);
 }

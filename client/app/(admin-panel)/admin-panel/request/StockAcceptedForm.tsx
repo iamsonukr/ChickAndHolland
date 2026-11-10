@@ -62,7 +62,8 @@ import {
 } from "@/components/ui/collapsible";
 import MultipleSelector, { Option } from "@/components/custom/multi-selector";
 import OrderCustomerPdf from "@/app/(admin-panel)/admin-panel/orders/OrderCustomerPdf";
-import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import PdfPreview from "@/components/pdf/PdfPreview";
 import Link from "next/link";
 import RetailerPdf from "./RetailerPdf";
 import { UploadOrderFile } from "@/components/CreateOrder/UploadOrderFile";
@@ -93,12 +94,17 @@ const hasDirtyFields = (dirtyFields: any): boolean => {
 const DEFAULT_MANUFACTURING_EMAIL = "rubyinc@hotmail.com";
 const DEFAULT_REQUEST_COLOUR = "SAS";
 
-const normalizeRequestText = (value: unknown, fallback = DEFAULT_REQUEST_COLOUR) => {
+const normalizeRequestText = (
+  value: unknown,
+  fallback = DEFAULT_REQUEST_COLOUR,
+) => {
   const text = String(value ?? "").trim();
   return text || fallback;
 };
 
-const normalizeStockRequestForm = (data: CreateStockOrderForm): CreateStockOrderForm => {
+const normalizeStockRequestForm = (
+  data: CreateStockOrderForm,
+): CreateStockOrderForm => {
   const lining = normalizeRequestText(data.lining);
 
   return {
@@ -129,9 +135,10 @@ const normalizeAcceptedStockDetails = (details: any[] = []) => {
   const first = details[0];
   if (!first) return null;
 
-  const quantity = details.length > 1
-    ? details.reduce((sum, row) => sum + Number(row?.quantity || 0), 0)
-    : Number(first.quantity || 0);
+  const quantity =
+    details.length > 1
+      ? details.reduce((sum, row) => sum + Number(row?.quantity || 0), 0)
+      : Number(first.quantity || 0);
 
   return {
     ...first,
@@ -167,27 +174,32 @@ const StockAcceptedForm = ({
     name: string;
   } | null>(null);
   const [uploadedFile, setUploadedFileRaw] = useState<File | null>(null);
-  const [uploadedFileType, setUploadedFileType] = useState<UploadedFileType>(null);
-  const [uploadedFileObjectUrl, setUploadedFileObjectUrl] = useState<string | null>(null);
+  const [uploadedFileType, setUploadedFileType] =
+    useState<UploadedFileType>(null);
+  const [uploadedFileObjectUrl, setUploadedFileObjectUrl] = useState<
+    string | null
+  >(null);
 
-  const setUploadedFile = useCallback((file: File | null) => {
-    if (uploadedFileObjectUrl) {
-      URL.revokeObjectURL(uploadedFileObjectUrl);
-    }
-    setUploadedFileObjectUrl(file ? URL.createObjectURL(file) : null);
-    setUploadedFileRaw(file);
-    setUploadedFileType(file ? (file.name.endsWith(".pdf") ? "pdf" : "ppt") : null);
-  }, [uploadedFileObjectUrl]);
-
-  const clearUploadedFile = useCallback(() => setUploadedFile(null), [setUploadedFile]);
-
-  const { executeAsync: mailex } = useHttp(
-    "/stock-email",
-    "POST",
-    true
+  const setUploadedFile = useCallback(
+    (file: File | null) => {
+      if (uploadedFileObjectUrl) {
+        URL.revokeObjectURL(uploadedFileObjectUrl);
+      }
+      setUploadedFileObjectUrl(file ? URL.createObjectURL(file) : null);
+      setUploadedFileRaw(file);
+      setUploadedFileType(
+        file ? (file.name.endsWith(".pdf") ? "pdf" : "ppt") : null,
+      );
+    },
+    [uploadedFileObjectUrl],
   );
 
+  const clearUploadedFile = useCallback(
+    () => setUploadedFile(null),
+    [setUploadedFile],
+  );
 
+  const { executeAsync: mailex } = useHttp("/stock-email", "POST", true);
 
   const { loading, error, executeAsync } = useHttp(
     "/retailer-orders/admin/accepted/stock-order",
@@ -200,10 +212,6 @@ const StockAcceptedForm = ({
     `/retailer-orders/admin/edit-order/${retailerOrderId ?? ""}`,
     "PATCH",
   );
-
-
-
-
 
   const [colours, setColours] = useState([] as any);
   const router = useRouter();
@@ -246,7 +254,8 @@ const StockAcceptedForm = ({
     if (!colourText || colourText === DEFAULT_REQUEST_COLOUR) return fallback;
 
     return (
-      availableColours.find((colour: any) => colour.hexcode === colourText)?.name ||
+      availableColours.find((colour: any) => colour.hexcode === colourText)
+        ?.name ||
       colourText ||
       fallback
     );
@@ -270,7 +279,7 @@ const StockAcceptedForm = ({
   const form = useForm<CreateStockOrderForm>({
     resolver: zodResolver(createStockOrderFormSchema),
     defaultValues: {
-      orderId: id,   // ⭐ MOST IMPORTANT
+      orderId: id, // ⭐ MOST IMPORTANT
 
       purchaseOrderNo: "",
       manufacturingEmailAddress: "",
@@ -291,16 +300,20 @@ const StockAcceptedForm = ({
       liningColor: DEFAULT_REQUEST_COLOUR,
       meshColor: DEFAULT_REQUEST_COLOUR,
       total_amount: 0,
-      product_amount: 0
+      product_amount: 0,
     },
   });
 
   const hydrateForm = async (customerDetails: any, availableColours: any[]) => {
     const invoice = `INVOICE_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
     const estimate = `EB_${uuidv4().replace(/-/g, "").substring(0, 4)}`;
-    const shippingAmount = Number(customerDetails?.shippingAmount ?? editOrder?.shippingAmount ?? 0);
+    const shippingAmount = Number(
+      customerDetails?.shippingAmount ?? editOrder?.shippingAmount ?? 0,
+    );
     const totalAmount = Math.round(
-      Number(customerDetails?.purchaseAmount ?? customerDetails?.total_price ?? 0),
+      Number(
+        customerDetails?.purchaseAmount ?? customerDetails?.total_price ?? 0,
+      ),
     );
     const productAmount = isEditMode
       ? Math.max(totalAmount - shippingAmount, 0)
@@ -309,29 +322,40 @@ const StockAcceptedForm = ({
       ? `${customerDetails?.size ?? ""} (${customerDetails.size_country})`
       : `${customerDetails?.size ?? ""}`;
     const customerStoreName = getCustomerStoreName(customerDetails);
-    const purchaseOrderNo =
-      isEditMode
-        ? customerDetails?.purchaseOrderNo || editOrder?.purchaeOrderNo || ""
-        : await buildPrefilledPoNumber(customerStoreName);
+    const purchaseOrderNo = isEditMode
+      ? customerDetails?.purchaseOrderNo || editOrder?.purchaeOrderNo || ""
+      : await buildPrefilledPoNumber(customerStoreName);
 
     form.reset({
       orderId: id,
       purchaseOrderNo,
-      manufacturingEmailAddress:
-        isEditMode
-          ? customerDetails?.manufacturingEmailAddress ||
-              editOrder?.manufacturingEmailAddress ||
-              DEFAULT_MANUFACTURING_EMAIL
-          : DEFAULT_MANUFACTURING_EMAIL,
-      estimate: customerDetails?.estimateNo || editOrder?.estimateNo || estimate,
+      manufacturingEmailAddress: isEditMode
+        ? customerDetails?.manufacturingEmailAddress ||
+          editOrder?.manufacturingEmailAddress ||
+          DEFAULT_MANUFACTURING_EMAIL
+        : DEFAULT_MANUFACTURING_EMAIL,
+      estimate:
+        customerDetails?.estimateNo || editOrder?.estimateNo || estimate,
       invoice: customerDetails?.invoiceNo || editOrder?.invoiceNo || invoice,
-      orderReceivedDate: (customerDetails?.orderReceivedDate || customerDetails?.received)
-        ? parseDateOnly(customerDetails.orderReceivedDate || customerDetails.received)
-        : undefined,
-      orderCancellationDate: (customerDetails?.orderCancellationDate || editOrder?.orderCancellationDate)
-        ? parseDateOnly(customerDetails.orderCancellationDate || editOrder?.orderCancellationDate)
-        : undefined,
-      address: customerDetails?.address || editOrder?.address || customerDetails?.storeAddress || "",
+      orderReceivedDate:
+        customerDetails?.orderReceivedDate || customerDetails?.received
+          ? parseDateOnly(
+              customerDetails.orderReceivedDate || customerDetails.received,
+            )
+          : undefined,
+      orderCancellationDate:
+        customerDetails?.orderCancellationDate ||
+        editOrder?.orderCancellationDate
+          ? parseDateOnly(
+              customerDetails.orderCancellationDate ||
+                editOrder?.orderCancellationDate,
+            )
+          : undefined,
+      address:
+        customerDetails?.address ||
+        editOrder?.address ||
+        customerDetails?.storeAddress ||
+        "",
       phoneNumber:
         customerDetails?.phoneNumber ||
         editOrder?.phoneNumber ||
@@ -342,7 +366,9 @@ const StockAcceptedForm = ({
       styleNo: customerDetails?.productCode || "",
       size: sizeLabel.trim(),
       quantity: String(customerDetails?.quantity ?? 0),
-      advance: String(customerDetails?.paidAmount ?? editOrder?.paidAmount ?? 0),
+      advance: String(
+        customerDetails?.paidAmount ?? editOrder?.paidAmount ?? 0,
+      ),
       shipping: shippingAmount,
       beadingColor: resolveColourName(
         customerDetails?.beading_color,
@@ -463,7 +489,8 @@ const StockAcceptedForm = ({
 
       if (!detailsRes.success || !customerDetails) {
         throw new Error(
-          detailsRes.message || "Stock order details were not found for this purchase.",
+          detailsRes.message ||
+            "Stock order details were not found for this purchase.",
         );
       }
 
@@ -484,7 +511,8 @@ const StockAcceptedForm = ({
       console.error("Failed to load stock order details", error);
       toast.error("Could not load stock order", {
         description:
-          error?.message || "The purchase details could not be loaded on this environment.",
+          error?.message ||
+          "The purchase details could not be loaded on this environment.",
       });
       setOpen(false);
     } finally {
@@ -535,13 +563,13 @@ const StockAcceptedForm = ({
 
     if (!response.ok || !responseJson.success) {
       throw new Error(
-        responseJson?.message || "Order was created but the uploaded document failed to save.",
+        responseJson?.message ||
+          "Order was created but the uploaded document failed to save.",
       );
     }
 
     return responseJson;
   };
-
 
   const onSubmit = async (data: CreateStockOrderForm) => {
     try {
@@ -558,7 +586,11 @@ const StockAcceptedForm = ({
 
         const response = await executeUpdateAsync(
           { orderType: "Stock", data: preData, changedFields: dirtyFields },
-          { headers: editPassword ? { "X-Edit-Password": editPassword } : undefined },
+          {
+            headers: editPassword
+              ? { "X-Edit-Password": editPassword }
+              : undefined,
+          },
         );
 
         if (!response.success) {
@@ -585,7 +617,8 @@ const StockAcceptedForm = ({
 
           if (!uploadResponse.ok || !uploadJson.success) {
             throw new Error(
-              uploadJson?.message || "Order updated but the uploaded document failed to save.",
+              uploadJson?.message ||
+                "Order updated but the uploaded document failed to save.",
             );
           }
         }
@@ -608,7 +641,9 @@ const StockAcceptedForm = ({
         }
 
         if (!response.orderId) {
-          throw new Error("Order was created but no order ID was returned for the uploaded document.");
+          throw new Error(
+            "Order was created but no order ID was returned for the uploaded document.",
+          );
         }
 
         await uploadAcceptedOrderDocument(
@@ -755,7 +790,6 @@ const StockAcceptedForm = ({
       setOpen(false);
       onSuccess?.();
       router.refresh();
-
     } catch (err: any) {
       const message = err?.message ?? "Something went wrong";
       toast.error(
@@ -770,9 +804,6 @@ const StockAcceptedForm = ({
       );
     }
   };
-
-
-
 
   const productColorSAS = async (id: number) => {
     const res = await fetchJson<{ status: boolean; data: any }>(
@@ -810,10 +841,6 @@ const StockAcceptedForm = ({
         "Make sure all fields are filled correctly",
     });
   };
-
-
-
-
 
   useEffect(() => {
     /*
@@ -865,7 +892,6 @@ const StockAcceptedForm = ({
     }
   }, [open, clearUploadedFile]);
 
-
   const formChange = () => {
     setTimeout(() => {
       const shipping = Number(form.getValues("shipping")) || 0;
@@ -896,16 +922,19 @@ const StockAcceptedForm = ({
     }
   };
 
-
   return (
     <div>
       <Sheet open={open} onOpenChange={setOpen}>
         <Button onClick={fetchData} disabled={prefillLoading}>
-          {prefillLoading ? "Loading..." : triggerLabel ?? (isEditMode ? "Edit" : "Accept")}
+          {prefillLoading
+            ? "Loading..."
+            : (triggerLabel ?? (isEditMode ? "Edit" : "Accept"))}
         </Button>
         <SheetContent className="min-w-[100%] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{isEditMode ? "Edit Stock Order" : "Stock order"}</SheetTitle>
+            <SheetTitle>
+              {isEditMode ? "Edit Stock Order" : "Stock order"}
+            </SheetTitle>
             <SheetDescription>
               {isEditMode
                 ? "Update the fields that need to change"
@@ -924,7 +953,12 @@ const StockAcceptedForm = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer</FormLabel>
-                    <Input className="cursor-not-allowed bg-gray-200" placeholder="Customer Name" {...field} readOnly />
+                    <Input
+                      className="cursor-not-allowed bg-gray-200"
+                      placeholder="Customer Name"
+                      {...field}
+                      readOnly
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -955,7 +989,11 @@ const StockAcceptedForm = ({
                   <FormItem>
                     <FormLabel>Estimate No</FormLabel>
                     <FormControl>
-                      <Input placeholder="PO#VICTORIA" {...field} value={field.value ?? ""} />
+                      <Input
+                        placeholder="PO#VICTORIA"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -969,7 +1007,11 @@ const StockAcceptedForm = ({
                   <FormItem>
                     <FormLabel>Invoice No</FormLabel>
                     <FormControl>
-                      <Input placeholder="PO#VICTORIA" {...field} value={field.value ?? ""} />
+                      <Input
+                        placeholder="PO#VICTORIA"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1293,8 +1335,8 @@ const StockAcceptedForm = ({
                   <div>
                     <Label>Upload order document</Label>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Optional — replaces the auto-generated PDF / PPT in the preview and on
-                      submit.
+                      Optional — replaces the auto-generated PDF / PPT in the
+                      preview and on submit.
                     </p>
                   </div>
                 </div>
@@ -1317,14 +1359,21 @@ const StockAcceptedForm = ({
                     Preview Order{" "}
                   </Button>
                 )}
-                <Button type="submit" className="flex-1" disabled={loading || updateLoading}>
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={loading || updateLoading}
+                >
                   {loading || updateLoading
                     ? "Loading..."
                     : isEditMode
                       ? "Update Order"
-                      : "Accept Order"} (
-                  {currencyInfo?.symbol || "€"}{" "}
-                  {Math.round(customers?.total_price || customers?.purchaseAmount || 0)})
+                      : "Accept Order"}{" "}
+                  ({currencyInfo?.symbol || "€"}{" "}
+                  {Math.round(
+                    customers?.total_price || customers?.purchaseAmount || 0,
+                  )}
+                  )
                 </Button>
               </div>
             </form>
@@ -1352,10 +1401,10 @@ const StockAcceptedForm = ({
 
                 {/* PDF — render inline */}
                 {uploadedFileType === "pdf" && uploadedFileObjectUrl && (
-                  <iframe
-                    src={uploadedFileObjectUrl}
-                    className="h-[75vh] w-full rounded border-0"
-                    title="Uploaded PDF preview"
+                  <PdfPreview
+                    url={uploadedFileObjectUrl}
+                    fileName={uploadedFile?.name || "uploaded-document.pdf"}
+                    heightClassName="h-[75vh]"
                   />
                 )}
 
@@ -1364,7 +1413,9 @@ const StockAcceptedForm = ({
                   <div className="flex h-[75vh] flex-col items-center justify-center gap-3 rounded border border-dashed bg-muted/30 text-center">
                     <Presentation className="h-10 w-10 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">{uploadedFile?.name}</p>
+                      <p className="text-sm font-medium">
+                        {uploadedFile?.name}
+                      </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         PowerPoint files cannot be previewed in the browser.
                         <br />
@@ -1380,130 +1431,132 @@ const StockAcceptedForm = ({
           {/* ── Preview panel — auto-generated PDF ── */}
           {previewData && (
             <>
-            <div className="bg-white p-4 border rounded-md mb-4">
-              <h2 className="text-lg font-bold mb-3 text-pink-600">
-                Edit Order Before Download
-              </h2>
+              <div className="bg-white p-4 border rounded-md mb-4">
+                <h2 className="text-lg font-bold mb-3 text-pink-600">
+                  Edit Order Before Download
+                </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Customer */}
+                  <div>
+                    <label className="text-black text-sm">Customer</label>
+                    <input
+                      className="border w-full p-2 rounded bg-white"
+                      value={form.watch("customerId")}
+                      onChange={(e) => {
+                        form.setValue("customerId", e.target.value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        onPreviewSubmit(form.getValues());
+                      }}
+                    />
+                  </div>
 
-                {/* Customer */}
-                <div>
-                  <label className="text-black text-sm">Customer</label>
-                  <input
-                    className="border w-full p-2 rounded bg-white"
-                    value={form.watch("customerId")}
-                    onChange={(e) => {
-                      form.setValue("customerId", e.target.value, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      onPreviewSubmit(form.getValues());
-                    }}
-                  />
-                </div>
+                  {/* PO No */}
+                  <div>
+                    <label className="text-black text-sm">PO Number</label>
+                    <input
+                      className="border w-full p-2 rounded bg-white"
+                      value={form.watch("purchaseOrderNo")}
+                      onChange={(e) => {
+                        form.setValue("purchaseOrderNo", e.target.value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        onPreviewSubmit(form.getValues());
+                      }}
+                    />
+                  </div>
 
-                {/* PO No */}
-                <div>
-                  <label className="text-black text-sm">PO Number</label>
-                  <input
-                    className="border w-full p-2 rounded bg-white"
-                    value={form.watch("purchaseOrderNo")}
-                    onChange={(e) => {
-                      form.setValue("purchaseOrderNo", e.target.value, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      onPreviewSubmit(form.getValues());
-                    }}
-                  />
-                </div>
+                  {/* Invoice No */}
+                  <div>
+                    <label className="text-black text-sm">Invoice</label>
+                    <input
+                      className="border w-full p-2 rounded bg-white"
+                      value={form.watch("invoice")}
+                      onChange={(e) => {
+                        form.setValue("invoice", e.target.value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        onPreviewSubmit(form.getValues());
+                      }}
+                    />
+                  </div>
 
-                {/* Invoice No */}
-                <div>
-                  <label className="text-black text-sm">Invoice</label>
-                  <input
-                    className="border w-full p-2 rounded bg-white"
-                    value={form.watch("invoice")}
-                    onChange={(e) => {
-                      form.setValue("invoice", e.target.value, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      onPreviewSubmit(form.getValues());
-                    }}
-                  />
-                </div>
+                  {/* Estimate */}
+                  <div>
+                    <label className="text-black text-sm">Estimate</label>
+                    <input
+                      className="border w-full p-2 rounded bg-white"
+                      value={form.watch("estimate")}
+                      onChange={(e) => {
+                        form.setValue("estimate", e.target.value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        onPreviewSubmit(form.getValues());
+                      }}
+                    />
+                  </div>
 
-                {/* Estimate */}
-                <div>
-                  <label className="text-black text-sm">Estimate</label>
-                  <input
-                    className="border w-full p-2 rounded bg-white"
-                    value={form.watch("estimate")}
-                    onChange={(e) => {
-                      form.setValue("estimate", e.target.value, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      onPreviewSubmit(form.getValues());
-                    }}
-                  />
-                </div>
+                  {/* Address */}
+                  <div className="md:col-span-2">
+                    <label className="text-black text-sm">Address</label>
+                    <textarea
+                      className="border w-full p-2 rounded bg-white"
+                      value={form.watch("address")}
+                      onChange={(e) => {
+                        form.setValue("address", e.target.value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        onPreviewSubmit(form.getValues());
+                      }}
+                    />
+                  </div>
 
-                {/* Address */}
-                <div className="md:col-span-2">
-                  <label className="text-black text-sm">Address</label>
-                  <textarea
-                    className="border w-full p-2 rounded bg-white"
-                    value={form.watch("address")}
-                    onChange={(e) => {
-                      form.setValue("address", e.target.value, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      onPreviewSubmit(form.getValues());
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label className="text-black text-sm">Phone Number</label>
-                  <input
-                    className="border w-full p-2 rounded bg-white"
-                    value={form.watch("phoneNumber") ?? ""}
-                    onChange={(e) => {
-                      form.setValue("phoneNumber", e.target.value, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      onPreviewSubmit(form.getValues());
-                    }}
-                  />
+                  <div>
+                    <label className="text-black text-sm">Phone Number</label>
+                    <input
+                      className="border w-full p-2 rounded bg-white"
+                      value={form.watch("phoneNumber") ?? ""}
+                      onChange={(e) => {
+                        form.setValue("phoneNumber", e.target.value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        onPreviewSubmit(form.getValues());
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex flex-wrap justify-end gap-3 py-3">
-              <PDFDownloadLink
-                document={<RetailerPdf orderData={previewData} />}
-                fileName={`${previewData?.purchaseOrderNo}.pdf`}
-              >
-                <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
-                  Download PDF
+              <div className="flex flex-wrap justify-end gap-3 py-3">
+                <PDFDownloadLink
+                  document={<RetailerPdf orderData={previewData} />}
+                  fileName={`${previewData?.purchaseOrderNo}.pdf`}
+                >
+                  <button className="rounded bg-blue-600 px-4 py-2 text-white shadow">
+                    Download PDF
+                  </button>
+                </PDFDownloadLink>
+                <button
+                  type="button"
+                  onClick={() => downloadOrderPPT(previewData)}
+                  className="rounded bg-green-600 px-4 py-2 text-white shadow hover:bg-green-700"
+                >
+                  Download PPT
                 </button>
-              </PDFDownloadLink>
-              <button
-                type="button"
-                onClick={() => downloadOrderPPT(previewData)}
-                className="rounded bg-green-600 px-4 py-2 text-white shadow hover:bg-green-700"
-              >
-                Download PPT
-              </button>
-            </div>
+              </div>
 
-            <PDFViewer className="mt-2 h-full w-full" showToolbar={false}>
-              <RetailerPdf orderData={previewData} />
-            </PDFViewer>
+              <PdfPreview
+                className="mt-2"
+                heightClassName="h-[75vh]"
+                fileName={`${previewData.purchaseOrderNo || "order-document"}.pdf`}
+                sourceDocument={<RetailerPdf orderData={previewData} />}
+              />
             </>
           )}
         </SheetContent>

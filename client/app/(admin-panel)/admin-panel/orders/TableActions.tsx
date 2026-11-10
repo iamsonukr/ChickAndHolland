@@ -69,15 +69,15 @@ const getUploadedDocumentPreviewUrl = (
 };
 
 const TableActions = ({ data }: { data: any }) => {
-  const { executeAsync: normalizePieces } = useHttp(`/orders/${data.id}/normalize-pieces`);
+  const { executeAsync: normalizePieces } = useHttp(
+    `/orders/${data.id}/normalize-pieces`,
+  );
   const [open, setOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [preferGeneratedPdf, setPreferGeneratedPdf] = useState(false);
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [searchText, setSearchText] = useState("");
-  const [pdfSearchRequestKey, setPdfSearchRequestKey] = useState(0);
 
   const { executeAsync: Stock, loading } = useHttp(
     "/stock-email",
@@ -91,7 +91,8 @@ const TableActions = ({ data }: { data: any }) => {
     previewData?.ppt_path,
   );
   const uploadedDocumentSource = getUploadedDocumentSource(data?.orderSource);
-  const hasUploadedDocument = Boolean(uploadedDocumentUrl) && !preferGeneratedPdf;
+  const hasUploadedDocument =
+    Boolean(uploadedDocumentUrl) && !preferGeneratedPdf;
   const isUploadedPdf = uploadedDocumentExt === "pdf";
   const uploadedDocumentPreviewUrl =
     hasUploadedDocument && previewData?.id
@@ -112,24 +113,6 @@ const TableActions = ({ data }: { data: any }) => {
       <FreshOrderPdf orderData={previewData} />
     );
   }, [data.orderSource, hasUploadedDocument, previewData]);
-  const isPdfSearchDisabled = hasUploadedDocument && !isUploadedPdf;
-
-  const handlePdfSearch = () => {
-    const query = searchText.trim();
-
-    if (!query) {
-      toast.error("Enter text to search");
-      return;
-    }
-
-    if (isPdfSearchDisabled) {
-      toast.error("Search is available only for PDF previews");
-      return;
-    }
-
-    setPdfSearchRequestKey((currentKey) => currentKey + 1);
-  };
-
   const fetchPPT = async (id: number) => {
     try {
       const res = await fetch(
@@ -160,20 +143,33 @@ const TableActions = ({ data }: { data: any }) => {
         API_URL + `/orders/orderDetails?orderId=${data.id}`,
       );
       let resData = await res.json();
-      if (!res.ok || !resData.orders?.[0]) throw new Error(resData.message || "Failed to load order");
+      if (!res.ok || !resData.orders?.[0])
+        throw new Error(resData.message || "Failed to load order");
       let order = resData.orders[0];
       // Repair old grouped records before rendering; never duplicate one QR.
-      if (order.styles.some((style: any) => {
-        let sizes = style.customSizesQuantity;
-        if (typeof sizes === "string") {
-          try { sizes = JSON.parse(sizes); } catch { sizes = []; }
-        }
-        return Number(style.quantity) > 1 || (Array.isArray(sizes) && sizes.length > 0);
-      })) {
+      if (
+        order.styles.some((style: any) => {
+          let sizes = style.customSizesQuantity;
+          if (typeof sizes === "string") {
+            try {
+              sizes = JSON.parse(sizes);
+            } catch {
+              sizes = [];
+            }
+          }
+          return (
+            Number(style.quantity) > 1 ||
+            (Array.isArray(sizes) && sizes.length > 0)
+          );
+        })
+      ) {
         await normalizePieces();
-        const refreshed = await fetch(API_URL + `/orders/orderDetails?orderId=${data.id}`);
+        const refreshed = await fetch(
+          API_URL + `/orders/orderDetails?orderId=${data.id}`,
+        );
         resData = await refreshed.json();
-        if (!refreshed.ok || !resData.orders?.[0]) throw new Error("Failed to reload repaired order");
+        if (!refreshed.ok || !resData.orders?.[0])
+          throw new Error("Failed to reload repaired order");
         order = resData.orders[0];
         setPreferGeneratedPdf(true);
       }
@@ -501,12 +497,16 @@ const TableActions = ({ data }: { data: any }) => {
   const sendMail = async () => {
     if (!previewData) return;
     try {
-      const res = await Stock({ orderData: { ...previewData, preferGeneratedPdf } });
+      const res = await Stock({
+        orderData: { ...previewData, preferGeneratedPdf },
+      });
       res?.success
         ? toast.success("Email sent successfully")
         : toast.error(res?.message || "Failed to send email");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to send email");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send email",
+      );
     }
   };
 
@@ -619,9 +619,13 @@ const TableActions = ({ data }: { data: any }) => {
                       <Button
                         variant="secondary"
                         className="mt-3 w-full"
-                        onClick={() => setPreferGeneratedPdf(current => !current)}
+                        onClick={() =>
+                          setPreferGeneratedPdf((current) => !current)
+                        }
                       >
-                        {preferGeneratedPdf ? "View uploaded document" : "Generate PDF from current order"}
+                        {preferGeneratedPdf
+                          ? "View uploaded document"
+                          : "Generate PDF from current order"}
                       </Button>
                     )}
                   </div>
@@ -634,33 +638,6 @@ const TableActions = ({ data }: { data: any }) => {
               >
                 Send Mail <Mail className="ml-2" />
               </Button>
-
-              {/* 🔍 PDF Search */}
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <input
-                  type="text"
-                  placeholder={
-                    isPdfSearchDisabled
-                      ? "PDF search is available only for PDF files"
-                      : "Search inside PDF..."
-                  }
-                  value={searchText}
-                  disabled={isPdfSearchDisabled}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handlePdfSearch();
-                  }}
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                />
-
-                <Button
-                  type="button"
-                  onClick={handlePdfSearch}
-                  disabled={isPdfSearchDisabled}
-                >
-                  Search PDF
-                </Button>
-              </div>
 
               {hasUploadedDocument && !isUploadedPdf && (
                 <div className="flex justify-end gap-3 py-3">
@@ -684,8 +661,6 @@ const TableActions = ({ data }: { data: any }) => {
                     fileName={uploadedDocumentName}
                     className="mt-4"
                     heightClassName="h-[90vh]"
-                    searchQuery={searchText}
-                    searchRequestKey={pdfSearchRequestKey}
                   />
                 ) : (
                   <div className="mt-4 flex h-[50vh] flex-col items-center justify-center gap-3 rounded border border-dashed bg-muted/30 text-center">
@@ -709,8 +684,6 @@ const TableActions = ({ data }: { data: any }) => {
                   fileName={`${previewData.purchaseOrderNo}.pdf`}
                   className="mt-4"
                   heightClassName="h-[90vh]"
-                  searchQuery={searchText}
-                  searchRequestKey={pdfSearchRequestKey}
                   extraActions={
                     <Button
                       type="button"

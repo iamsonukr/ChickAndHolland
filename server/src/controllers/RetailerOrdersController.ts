@@ -625,6 +625,7 @@ router.post(
     const stock = await Stock.findOne({
       where: {
         id: Number(stockId),
+        isDeleted: false,
       },
       relations: ["currencyPricing", "currencyPricing.currency"],
     });
@@ -1435,184 +1436,202 @@ router.post(
       return sendQuantityValidationError(res);
     }
 
-    // ------------------------
-    // 🔥 1. Find stock
-    // ------------------------
-    const stock = await Stock.findOne({
-      where: { id: data.stock_id },
-    });
-
-    if (!stock) {
-      return res.json({ success: false, msg: "Stock not found" });
-    }
-
-    // ------------------------
-    // 🔥 2. Find Retailer
-    // ------------------------
-    const retailer = await Retailer.findOne({
-      where: { id: data.retailerId },
-      relations: ["customer"],
-    });
-
-    if (!retailer) {
-      return res.json({ success: false, msg: "Retailer not found" });
-    }
-
-    // ------------------------
-    // 🔥 3. Find RetailerStockOrders (child)
-    // ------------------------
-    const stock_retailer = await RetailerStockOrders.findOne({
-      where: { id: data.id },
-      relations: ["stock"],
-    });
-
-    if (!stock_retailer) {
-      return res.json({ success: false, msg: "Stock order not found" });
-    }
-
-    // ------------------------
-    // 🔥 4. CREATE MAIN ORDER (parent)
-    // ------------------------
-    const order = new RetailerOrder();
-
-    order.exhibitionLocation = stock_retailer.exhibitionLocation;
-    order.address = data.address;
-    order.phoneNumber = data.phoneNumber || retailer.customer.phoneNumber;
-
-    // Resolve submitted PO, falling back to the global sequence.
-    const purchaseOrderNo = await resolveSubmittedOrGeneratedPurchaseOrderNo(
-      data.purchaseOrderNo,
-      getCustomerStoreName(retailer.customer),
-    );
-
-    order.purchaeOrderNo = purchaseOrderNo;
-    order.hasId = data.color;
-    order.purchaseAmount = data.total_amount;
-    order.is_stock_order = true;
-
-    order.manufacturingEmailAddress =
-      data.email || retailer.customer.email;
-
-    const orderCancellationDate = parseIncomingDate(data.orderCancellationDate);
-    const orderReceivedDate = parseIncomingDate(data.received_date);
-
-    if (!orderCancellationDate || !orderReceivedDate) {
-      return res.status(400).json({
-        success: false,
-        message: "Valid order received and shipping dates are required",
+    const result = await db.transaction(async (manager) => {
+      const stock_retailer = await manager.findOne(RetailerStockOrders, {
+        where: { id: data.id },
+        lock: { mode: "pessimistic_write" },
       });
-    }
 
-    if (Number(stock_retailer.stock?.id) !== Number(stock.id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Stock request does not match the selected inventory item",
+      if (!stock_retailer) {
+        return {
+          status: 200,
+          body: { success: false, msg: "Stock order not found" },
+        };
+      }
+
+      if (
+        Number(stock_retailer.is_approved) !== 0 ||
+        stock_retailer.isDeleted
+      ) {
+        return {
+          status: 409,
+          body: {
+            success: false,
+            message: "Stock request is no longer pending",
+          },
+        };
+      }
+      const stock = await manager.findOne(Stock, {
+        where: { id: data.stock_id },
+        lock: { mode: "pessimistic_write" },
       });
-    }
 
-    const currentReservation = Number(stock_retailer.reservedQuantity || 0);
-    const reservationDelta = requestedQty - currentReservation;
-    if (reservationDelta !== 0) {
+      if (!stock) {
+        return {
+          status: 200,
+          body: { success: false, msg: "Stock not found" },
+        };
+      }
+      if (stock.deletedAt || (stock.isDeleted && Number(stock.quantity) > 0)) {
+        return {
+          status: 409,
+          body: { success: false, message: "Stock was manually deleted" },
+        };
+      }
+      const retailer = await manager.findOne(Retailer, {
+        where: { id: data.retailerId },
+        relations: ["customer"],
+      });
+
+      if (!retailer) {
+        return {
+          status: 200,
+          body: { success: false, msg: "Retailer not found" },
+        };
+      }
+      const order = new RetailerOrder();
+
+      order.exhibitionLocation = stock_retailer.exhibitionLocation;
+      order.address = data.address;
+      order.phoneNumber = data.phoneNumber || retailer.customer.phoneNumber;
+
+      // Resolve submitted PO, falling back to the global sequence.
+      const purchaseOrderNo = await resolveSubmittedOrGeneratedPurchaseOrderNo(
+        data.purchaseOrderNo,
+        getCustomerStoreName(retailer.customer),
+      );
+
+      order.purchaeOrderNo = purchaseOrderNo;
+      order.hasId = data.color;
+      order.purchaseAmount = data.total_amount;
+      order.is_stock_order = true;
+
+      order.manufacturingEmailAddress = data.email || retailer.customer.email;
+
+      const orderCancellationDate = parseIncomingDate(
+        data.orderCancellationDate,
+      );
+      const orderReceivedDate = parseIncomingDate(data.received_date);
+
+      if (!orderCancellationDate || !orderReceivedDate) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            message: "Valid order received and shipping dates are required",
+          },
+        };
+      }
+
+      const requestStock = await manager
+        .createQueryBuilder(RetailerStockOrders, "request")
+        .select("request.stockId", "stockId")
+        .where("request.id = :id", { id: stock_retailer.id })
+        .getRawOne();
+      if (Number(requestStock?.stockId) !== Number(stock.id)) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            message: "Stock request does not match the selected inventory item",
+          },
+        };
+      }
+
+      const currentReservation = Number(stock_retailer.reservedQuantity || 0);
+      const reservationDelta = requestedQty - currentReservation;
+      // Also synchronize visibility when the request already reserved every piece.
       const adjusted = await adjustStockQuantity(
         stock.id,
         -reservationDelta,
+        manager,
       );
       if (!adjusted) {
-        return res.json({
-          success: false,
-          message: "No Stock Available",
+        return {
+          status: 200,
+          body: {
+            success: false,
+            message: "No Stock Available",
+          },
+        };
+      }
+      stock_retailer.quantity = requestedQty;
+      stock_retailer.reservedQuantity = requestedQty;
+
+      order.orderCancellationDate = orderCancellationDate;
+      order.orderReceivedDate = orderReceivedDate;
+      order.orderStatus = OrderStatus.Balance_Pending;
+      order.balance_pending = orderReceivedDate;
+
+      order.Stock_order = stock_retailer;
+      order.retailer = retailer;
+
+      order.Size = data.size;
+      order.StyleNo = data.styleNo;
+      order.size_country = data.size_country;
+      order.quantity = String(requestedQty);
+
+      order.invoiceNo = data.invoice;
+      order.estimateNo = data.estimate;
+      order.shippingAmount = data.shipping;
+
+      stock_retailer.is_approved = 1;
+
+      await manager.save(order);
+      const createdStyles: Array<{
+        styleNo: string;
+        size: string;
+        size_country: string;
+        quantity: number;
+        barcode: string;
+      }> = [];
+      const pieceCount = requestedQty;
+
+      for (let pieceIndex = 0; pieceIndex < pieceCount; pieceIndex++) {
+        const stockStyle = new StockOrderStyles();
+        stockStyle.retailerOrder = order;
+        stockStyle.styleNo = data.styleNo;
+        stockStyle.size = data.size;
+        stockStyle.size_country = data.size_country;
+        stockStyle.quantity = 1; // one row = one physical piece
+
+        await manager.save(stockStyle); // generate ID first
+
+        stockStyle.barcode = `${order.purchaeOrderNo}-${stockStyle.id}`;
+        await manager.save(stockStyle);
+
+        createdStyles.push({
+          styleNo: stockStyle.styleNo,
+          size: stockStyle.size,
+          size_country: stockStyle.size_country,
+          quantity: stockStyle.quantity,
+          barcode: stockStyle.barcode,
         });
       }
-    }
-    stock_retailer.quantity = requestedQty;
-    stock_retailer.reservedQuantity = requestedQty;
+      const payment = new RetailerOrdersPayment();
+      payment.amount = Number(data.advance) || 0;
+      payment.order = order;
 
-    order.orderCancellationDate = orderCancellationDate;
-    order.orderReceivedDate = orderReceivedDate;
-    order.orderStatus = OrderStatus.Balance_Pending;
-    order.balance_pending = orderReceivedDate;
+      await manager.save(stock_retailer);
+      await manager.save(payment);
 
-    order.Stock_order = stock_retailer;
-    order.retailer = retailer;
-
-    order.Size = data.size;
-    order.StyleNo = data.styleNo;
-    order.size_country = data.size_country;
-    order.quantity = String(requestedQty);
-
-    order.invoiceNo = data.invoice;
-    order.estimateNo = data.estimate;
-    order.shippingAmount = data.shipping;
-
-    stock_retailer.is_approved = 1;
-
-<<<<<<< HEAD
-=======
-    // Reduce stock quantity. A fully allocated stock row is hidden from the
-    // inventory list; cancelling this order restores both its quantity and
-    // visibility (see adjustStockInventoryForDeletedRetailerOrders).
-    stock.quantity = stock.quantity - requestedQty;
-    stock.isDeleted = stock.quantity === 0;
-
->>>>>>> dde19bd7a9429f48c6bcf74c52df41fb7282d67a
-    await order.save();
-
-    // ------------------------
-    // 🔥 5. INSERT STOCK STYLE + GENERATE BARCODE
-    // ------------------------
-    const createdStyles: Array<{
-      styleNo: string;
-      size: string;
-      size_country: string;
-      quantity: number;
-      barcode: string;
-    }> = [];
-    const pieceCount = requestedQty;
-
-    for (let pieceIndex = 0; pieceIndex < pieceCount; pieceIndex++) {
-      const stockStyle = new StockOrderStyles();
-      stockStyle.retailerOrder = order;
-      stockStyle.styleNo = data.styleNo;
-      stockStyle.size = data.size;
-      stockStyle.size_country = data.size_country;
-      stockStyle.quantity = 1; // one row = one physical piece
-
-      await stockStyle.save(); // generate ID first
-
-      stockStyle.barcode = `${order.purchaeOrderNo}-${stockStyle.id}`;
-      await stockStyle.save();
-
-      createdStyles.push({
-        styleNo: stockStyle.styleNo,
-        size: stockStyle.size,
-        size_country: stockStyle.size_country,
-        quantity: stockStyle.quantity,
-        barcode: stockStyle.barcode,
-      });
-    }
-
-    // ------------------------
-    // 🔥 6. Payment Entry
-    // ------------------------
-    const payment = new RetailerOrdersPayment();
-    payment.amount = Number(data.advance) || 0;
-    payment.order = order;
-
-    await stock_retailer.save();
-    await payment.save();
-
-    return res.json({
-      success: true,
-      msg: "Stock Order Accepted Successfully",
-      message: "Stock Order Accepted Successfully",
-      orderId: order.id,
-      purchaseOrderNo: order.purchaeOrderNo,
-      po_number: order.purchaeOrderNo,
-      barcode: createdStyles[0]?.barcode ?? null,
-      barcodes: createdStyles.map((style) => style.barcode),
-      createdStyles,
+      return {
+        status: 200,
+        body: {
+          success: true,
+          msg: "Stock Order Accepted Successfully",
+          message: "Stock Order Accepted Successfully",
+          orderId: order.id,
+          purchaseOrderNo: order.purchaeOrderNo,
+          po_number: order.purchaeOrderNo,
+          barcode: createdStyles[0]?.barcode ?? null,
+          barcodes: createdStyles.map((style) => style.barcode),
+          createdStyles,
+        },
+      };
     });
-  })
+    return res.status(result.status).json(result.body);
+  }),
 );
 
 // Adjust global PO sequence (admin tool)
@@ -1967,7 +1986,6 @@ router.get(
           WHEN ro.is_stock_order = 1 THEN 'Stock' 
           ELSE 'Fresh' 
         END AS type,
-       ro.exhibitionLocation,
        COALESCE(ro.stockOrderId , ro.favouriteOrderId) as childId,
          payments.orderId as payment_id,
         ro.purchaseAmount AS total,
@@ -3284,8 +3302,6 @@ router.patch(
 
     if (stock) {
       await adjustStockInventoryForDeletedRetailerOrders([stock.id], "release");
-      stock.status = 1;
-      await stock.save();
     }
 
     res.json({
@@ -3343,18 +3359,6 @@ router.patch(
         retailerBulk.map((item: any) => Number(item.id)),
         "release",
       );
-
-      for (let index = 0; index < retailerBulk.length; index++) {
-        const stocks = await RetailerOrder.findOne({
-          where: {
-            id: retailerBulk[index].id,
-          },
-        });
-        if (stocks) {
-          stocks.status = 1;
-          await stocks.save();
-        }
-      }
     }
 
     if (regularBulk.length > 0) {
