@@ -13,7 +13,7 @@ export const isInventoryStockOrder = (order: OrderStatusContext): boolean =>
   (order.orderSource === "retailer" && order.orderType === "Stock");
 
 export const ORDER_TABLE_STAGES = ORDER_STAGE_FLOW.slice(
-  ORDER_STAGE_FLOW.indexOf("Balance Pending"),
+  ORDER_STAGE_FLOW.indexOf("Repair"),
 );
 
 export const getOrderTableStages = (order: OrderStatusContext) =>
@@ -25,6 +25,8 @@ export const getOrderTableStatus = (
 ): string => {
   const stage = String(status ?? "").trim();
   if (!isInventoryStockOrder(order)) return stage || DEFAULT_ORDER_STAGE;
+  // Repair is an active production stage, including for stock sent for repair.
+  if (stage === "Repair") return stage;
   const index = ORDER_STAGE_FLOW.findIndex((item) => item === stage);
   return !stage || (index >= 0 && index <= ORDER_STAGE_FLOW.indexOf("Balance Pending"))
     ? "Balance Pending"
