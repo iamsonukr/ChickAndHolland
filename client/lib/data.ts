@@ -391,6 +391,7 @@ export const getOrders = async ({
   query,
   orderType,
   stage,
+  due,
   publishStatus,
   beader,
   dateFrom,
@@ -403,6 +404,7 @@ export const getOrders = async ({
   query?: string;
   orderType?: string;
   stage?: string;
+  due?: string;
   publishStatus?: "published" | "draft";
   beader?: string;
   dateFrom?: string;
@@ -419,6 +421,7 @@ export const getOrders = async ({
   if (query) params.set("query", query);
   if (orderType) params.set("orderType", orderType);
   if (stage) params.set("stage", stage);
+  if (due) params.set("due", due);
   if (publishStatus) params.set("publishStatus", publishStatus);
   if (beader) params.set("beader", beader);
   if (dateFrom) params.set("dateFrom", dateFrom);
@@ -487,7 +490,7 @@ export const getOrderStageCounts = async ({
 };
 
 export const getOrderBeaders = async (filters: {
-  query?: string; orderType?: string; stage?: string; dateFrom?: string; dateTo?: string;
+  query?: string; orderType?: string; stage?: string; dateFrom?: string; dateTo?: string; exhibitionLocation?: string;
 } = {}): Promise<{ beaders: string[]; counts: Record<string, number>; allCount?: number }> => {
   const headers = { Authorization: `Bearer ${(await cookies()).get("token")?.value}` };
   const params = new URLSearchParams();

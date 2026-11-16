@@ -26,16 +26,13 @@ export async function ensureRegularOrderPieces(
       const needsRepair = pieces.length > 1 || parseCustomSizesQuantity(style.customSizesQuantity).length > 0;
       if (!needsRepair) continue;
       const pricing = buildPiecePricing(style, pieces);
-      // A legacy barcode represented the entire grouped row. Carry its latest
-      // recorded stage to the replacement pieces, with a migration audit note.
+      // Only the original barcode owns the recorded scans. New barcodes
+      // start unscanned, including pieces split from legacy grouped rows.
       const [latestProgress] = await manager.query(
         "SELECT status, createdAt FROM store_style_progress WHERE barcode = ? ORDER BY id DESC LIMIT 1",
         [style.barcode],
       );
       const inheritedStage = latestProgress?.status || style.currentStatus || null;
-      const existingPieceCount = options.previousPieceCounts
-        ? options.previousPieceCounts.get(style.id) ?? 0
-        : pieces.length;
       const [beaderRow] = await manager.query(
         `SELECT beader FROM \`${ORDER_BEADERS_TABLE}\` WHERE styleId = ?`, [style.id],
       );
@@ -45,7 +42,7 @@ export async function ensureRegularOrderPieces(
         const entity = manager.create(Style, {
           ...fields, order, quantity: 1,
           ...pricing[index],
-          currentStatus: index < existingPieceCount ? inheritedStage : null,
+          currentStatus: index === 0 ? inheritedStage : null,
           barcode: index === 0 ? style.barcode : `pending-${randomUUID()}`,
           ...(index === 0 ? { id: style.id, createdAt: style.createdAt } : {}),
         } as Style);
@@ -53,12 +50,6 @@ export async function ensureRegularOrderPieces(
         if (index > 0) {
           entity.barcode = `${order.purchaeOrderNo}-${entity.styleNo}-${entity.id}`;
           await manager.save(entity);
-          if (inheritedStage && index < existingPieceCount) {
-            await manager.query(
-              "INSERT INTO store_style_progress (barcode, status, qty, createdAt) VALUES (?, ?, 1, ?)",
-              [entity.barcode, inheritedStage, latestProgress?.createdAt || style.createdAt || new Date()],
-            );
-          }
           added++;
         }
         if (beaderRow?.beader) {

@@ -224,6 +224,11 @@ const AddCustomerForm = ({
             />
 
             <AutocompleteCustom
+              value={form.watch("address") || ""}
+              onValueChange={(value) => {
+                form.setValue("address", value, { shouldDirty: true });
+                form.setValue("coordinates", { latitude: "", longitude: "" });
+              }}
               onPlaceSelect={onChange}
               placeholder={"Select Address of the Customer"}
               label={"Address of the Customer"}

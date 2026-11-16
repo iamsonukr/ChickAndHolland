@@ -18,7 +18,7 @@ const OrderTypeFilter = () => {
   return (
     <>
       <Select
-        defaultValue={searchParams.get("orderType") || "All"}
+        value={searchParams.get("orderType") || "All"}
         onValueChange={(value) => {
           const params = new URLSearchParams(searchParams.toString());
           params.delete("cPage");

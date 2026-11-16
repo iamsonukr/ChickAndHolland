@@ -72,10 +72,10 @@ const service = load('../services/regularOrderPieces.service.ts', {
   assert.equal(rows.length, 6);
   assert.equal(new Set(rows.map(r=>r.barcode)).size, 6);
   assert.equal(rows[0].barcode, 'original');
-  assert.ok(rows.every(r=>r.currentStatus==='Stitching'));
+  assert.equal(rows[0].currentStatus,'Stitching');
+  assert.ok(rows.slice(1).every(r=>r.currentStatus===null));
   const baselines = queries.filter(q=>q.sql.startsWith('INSERT INTO store_style_progress'));
-  assert.equal(baselines.length,5);
-  assert.ok(baselines.every(q=>q.params[1]==='Stitching'));
+  assert.equal(baselines.length,0);
   assert.equal(queries.filter(q=>q.sql.startsWith('INSERT INTO barcode_comments')).length,0);
   assert.ok(rows.every(r=>r.quantity===1 && r.customSizesQuantity==='[]' && r.photoUrls===group.photoUrls));
   for(const field of ['subtotal','discount','totalPrice']) {
@@ -129,5 +129,5 @@ const service = load('../services/regularOrderPieces.service.ts', {
   assert.equal(rows[0].currentStatus,'Stitching');
   assert.ok(rows.slice(1).every(r=>r.currentStatus===null));
   assert.equal(queries.filter(q=>q.sql.startsWith('INSERT INTO store_style_progress')).length,0);
-  console.log('Order piece regression checks passed (stage inheritance, size pricing, rounding, stale/duplicate QR rejection, full labels, idempotency, pagination 4+2).');
+  console.log('Order piece regression checks passed (unscanned new pieces, original scan retention, size pricing, rounding, stale/duplicate QR rejection, full labels, idempotency, pagination 4+2).');
 })().catch(e=>{console.error(e);process.exitCode=1;});

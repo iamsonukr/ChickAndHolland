@@ -131,6 +131,7 @@ const OrdersPage = async (props: {
       query,
       orderType: orderType === "All" ? "" : orderType,
       stage,
+      due: dueFilter,
       beader,
       dateFrom,
       dateTo,
@@ -148,7 +149,7 @@ const OrdersPage = async (props: {
       dateTo,
       exhibitionLocation,
     }),
-    getOrderBeaders({ query, orderType: orderType === "All" ? "" : orderType, stage, dateFrom, dateTo }),
+    getOrderBeaders({ query, orderType: orderType === "All" ? "" : orderType, stage, dateFrom, dateTo, exhibitionLocation }),
   ]);
 
   const getStatusDate = (status: string, order: any) => {
@@ -213,35 +214,7 @@ const OrdersPage = async (props: {
   const latestOrderPurchaseOrderNo =
     Number(arr_?.[arr_?.length - 1]) || orders?.totalCount;
 
-  const filteredOrders =
-    orders?.orders?.filter((order: any) => {
-      const hasDueDate = !!order?.orderCancellationDate;
-      const difference = hasDueDate
-        ? dayjs(formatDateOnly(order.orderCancellationDate)).diff(
-            dayjs().startOf("day"),
-            "days",
-          )
-        : Infinity;
-
-      if (dueFilter === "lt14") {
-        return order.orderStatus !== "Shipped" && hasDueDate && difference < 14;
-      }
-
-      if (dueFilter === "lt28") {
-        return (
-          order.orderStatus !== "Shipped" &&
-          hasDueDate &&
-          difference >= 14 &&
-          difference < 28
-        );
-      }
-
-      if (dueFilter === "shipped") {
-        return order.orderStatus === "Shipped";
-      }
-
-      return true;
-    }) ?? [];
+  const filteredOrders = orders?.orders ?? [];
 
   const bulkData = filteredOrders.map((order: any) => ({
     id: order.id,
@@ -320,6 +293,7 @@ const OrdersPage = async (props: {
                     beader,
                     dateFrom,
                     dateTo,
+                    exhibitionLocation,
                   })}
                   className={cn(
                     filterButtonClassName,
@@ -343,6 +317,7 @@ const OrdersPage = async (props: {
                     beader,
                     dateFrom,
                     dateTo,
+                    exhibitionLocation,
                   })}
                   className={cn(
                     filterButtonClassName,
@@ -368,6 +343,7 @@ const OrdersPage = async (props: {
                     beader,
                     dateFrom,
                     dateTo,
+                    exhibitionLocation,
                   })}
                   className={cn(
                     filterButtonClassName,
@@ -392,6 +368,7 @@ const OrdersPage = async (props: {
                     beader,
                     dateFrom,
                     dateTo,
+                    exhibitionLocation,
                   })}
                   className={cn(
                     filterButtonClassName,

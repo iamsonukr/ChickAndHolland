@@ -9,6 +9,8 @@ import {
   FileWarning,
   Loader2,
   RotateCw,
+  Search,
+  X,
 } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,6 +22,7 @@ import type {
 } from "pdfjs-dist/types/src/display/api";
 
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 
 type PdfJsModule = typeof import("pdfjs-dist");
 
@@ -437,6 +440,7 @@ interface PdfPreviewProps {
   showActions?: boolean;
   autoExternalFallback?: boolean;
   extraActions?: ReactNode;
+  initiallyShowSearch?: boolean;
   searchQuery?: string;
   searchRequestKey?: number;
 }
@@ -453,9 +457,12 @@ export default function PdfPreview({
   showActions = true,
   autoExternalFallback = true,
   extraActions,
+  initiallyShowSearch = false,
   searchQuery: externalSearchQuery = "",
   searchRequestKey: externalSearchRequestKey = 0,
 }: PdfPreviewProps) {
+  const [searchOpen, setSearchOpen] = useState(initiallyShowSearch);
+  const searchToggleRef = useRef<HTMLButtonElement>(null);
   const [searchInput, setSearchInput] = useState("");
   const [submittedSearch, setSubmittedSearch] = useState("");
   const [localSearchRequestKey, setLocalSearchRequestKey] = useState(0);
@@ -922,12 +929,25 @@ export default function PdfPreview({
         </div>
       )}
 
-      <div
+      <div className="flex justify-end border-b bg-white px-3 py-2">
+        <button
+          ref={searchToggleRef}
+          type="button"
+          aria-label={searchOpen ? "Close PDF search" : "Search PDF"}
+          aria-expanded={searchOpen}
+          onClick={() => setSearchOpen((open) => !open)}
+          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded border hover:bg-gray-50"
+        >
+          {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+        </button>
+      </div>
+      {searchOpen && <div
         role="search"
         aria-label="Search PDF"
         className="flex min-w-0 flex-col gap-2 border-b bg-white p-3 sm:flex-row"
       >
         <input
+          autoFocus
           type="search"
           aria-label="Search inside PDF"
           placeholder="Search inside PDF..."
@@ -940,6 +960,12 @@ export default function PdfPreview({
             }
           }}
           onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              setSearchOpen(false);
+              searchToggleRef.current?.focus();
+            }
             if (event.key === "Enter") {
               event.preventDefault();
               setSubmittedSearch(searchInput.trim());
@@ -959,7 +985,7 @@ export default function PdfPreview({
         >
           Search PDF
         </button>
-      </div>
+      </div>}
 
       <div className="relative">
         {shouldShowSearchOverlay && (
@@ -1051,5 +1077,25 @@ export default function PdfPreview({
         </div>
       </div>
     </div>
+  );
+}
+
+export function PdfSearchButton({ sourceDocument, fileName, className }: { sourceDocument: ReactElement; fileName: string; className?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button type="button" aria-label="Search PDF" className={cn("inline-flex min-h-9 items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm", className)}>
+          <Search className="h-4 w-4" /> Search PDF
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>Search PDF</DialogTitle>
+          <DialogDescription>{fileName}</DialogDescription>
+        </DialogHeader>
+        {open && <PdfPreview sourceDocument={sourceDocument} fileName={fileName} initiallyShowSearch heightClassName="h-[70vh]" />}
+      </DialogContent>
+    </Dialog>
   );
 }

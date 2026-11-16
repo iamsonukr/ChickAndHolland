@@ -170,7 +170,7 @@ export const updateShippingStatusFormSchema = z.object({
 export type ShippingStatusForm = z.infer<typeof updateShippingStatusFormSchema>;
 
 
-export const addCustomerFormSchema = z
+const createCustomerFormSchema = (editing = false) => z
   .object({
   name: z.string().min(1, {
     message: "Name is required",
@@ -184,23 +184,23 @@ export const addCustomerFormSchema = z
 
   website: z.string().optional(),
 
-  phoneNumber: z.string().min(1, {
+  phoneNumber: z.string().min(editing ? 0 : 1, {
     message: "Phone Number is required",
   }),
 
-  contactPerson: z.string().min(1, {
+  contactPerson: z.string().min(editing ? 0 : 1, {
     message: "Contact Person is required",
   }),
 
-  email: z.string().email({
+  email: z.union([editing ? z.literal("") : z.never(), z.string().email({
     message: "Invalid Email Address",
   }).refine((value) => !isDisposableEmailDomain(value), {
     message:
       "Please use a business or personal email address. Temporary email services are not allowed.",
-  }),
+  })]),
 
   // ✅ PROXIMITY → STRING hi rakha (kyunki input string deta hai)
-  proximity: z.string().min(1, {
+  proximity: z.string().min(editing ? 0 : 1, {
     message: "Proximity is required",
   }),
 
@@ -216,11 +216,11 @@ export const addCustomerFormSchema = z
     })
     .optional(),
 
-  city_name: z.string().min(1, {
+  city_name: z.string().min(editing ? 0 : 1, {
     message: "City/Town is required",
   }),
 
-  country_id: z.string().min(1, {
+  country_id: z.string().min(editing ? 0 : 1, {
     message: "Country is required",
   }),
 
@@ -276,6 +276,9 @@ export const addCustomerFormSchema = z
       });
     }
   });
+
+export const addCustomerFormSchema = createCustomerFormSchema();
+export const editCustomerFormSchema = createCustomerFormSchema(true);
 
 export type AddCustomerForm = z.infer<typeof addCustomerFormSchema>;
 

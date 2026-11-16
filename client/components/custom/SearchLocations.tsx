@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 interface Props {
   onPlaceSelect: (place: google.maps.places.PlaceResult | null) => void;
   defaultValue?: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
   placeholder?: string;
   label?: string;
 }
@@ -14,6 +16,8 @@ interface Props {
 // and the "Places Service" for place details
 export const AutocompleteCustom = ({
   onPlaceSelect,
+  value,
+  onValueChange,
   defaultValue,
   placeholder,
   label,
@@ -82,9 +86,10 @@ export const AutocompleteCustom = ({
       const value = (event.target as HTMLInputElement)?.value;
 
       setInputValue(value);
-      fetchPredictions(value);
+      onValueChange?.(value);
+      void fetchPredictions(value).catch(() => setPredictionResults([]));
     },
-    [fetchPredictions],
+    [fetchPredictions, onValueChange],
   );
 
   const handleSuggestionClick = useCallback(
@@ -121,7 +126,7 @@ export const AutocompleteCustom = ({
     <div className="space-y-2">
       <Label>{label ?? "Search for a place"}</Label>
       <Input
-        value={inputValue}
+        value={value ?? inputValue}
         onInput={(event: FormEvent<HTMLInputElement>) => {
           onInputChange(event);
         }}

@@ -24,7 +24,7 @@ import StageCountDropdown from "@/components/custom/admin-panel/StageCountDropdo
 import { normalizeBarcodeValue } from "@/lib/barcodes";
 import GoBackButton from "@/components/GoBackButton";
 import { formatEuSizeText } from "@/lib/sizeConversion";
-import { PdfDownloadButton } from "@/components/pdf/PdfPreview";
+import { PdfDownloadButton, PdfSearchButton } from "@/components/pdf/PdfPreview";
 import { downloadStatusLabelPPT } from "@/lib/utils/exportStatusLabelPPT";
 import { pdf } from "@react-pdf/renderer";
 import useHttp from "@/lib/hooks/usePost";
@@ -544,6 +544,11 @@ function ItemCard({
             <LabelComponent item={raw} orderType={type} />
           </div>
           <div className="grid grid-cols-2 gap-1.5">
+            <PdfSearchButton
+              sourceDocument={<LabelPdf item={raw} />}
+              fileName={`${raw.styleNo}-label.pdf`}
+              className="col-span-2 w-full"
+            />
             <PdfDownloadButton
               sourceDocument={<LabelPdf item={raw} />}
               fileName={`${raw.styleNo}-label.pdf`}
@@ -880,6 +885,10 @@ export default function OrderStatusPage({
                   className="w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:w-72 md:w-80"
                 />
 
+                <PdfSearchButton
+                  sourceDocument={<LabelSheetPdf items={statusFiltered.map(({ raw }) => raw)} />}
+                  fileName="status-labels.pdf"
+                />
                 <StageCountDropdown
                   options={beaderOptions}
                   value={selectedBeader}

@@ -61,14 +61,16 @@ const TableActions = ({
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction asChild>
                 <Button
-                  onClick={async () => {
+                  onClick={async (event) => {
+                    event.preventDefault();
                     try {
                       await executeAsync();
+                      setOpen(false);
                       toast("Deleted Customer Successfully");
                       router.refresh();
                     } catch (err) {
                       toast.error(
-                        "Something went wrong, please try again later",
+                        err instanceof Error ? err.message : "Failed to delete customer",
                         {
                           className: "bg-destructive",
                         },

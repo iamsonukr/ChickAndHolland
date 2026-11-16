@@ -35,7 +35,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   AddCustomerForm as AddCustomerFormType,
-  addCustomerFormSchema,
+  editCustomerFormSchema,
 } from "@/lib/formSchemas";
 import useHttp from "@/lib/hooks/usePost";
 import { AutocompleteCustom } from "@/components/custom/SearchLocations";
@@ -53,7 +53,7 @@ const EditCustomerForm = ({
   const [open, setOpen] = useState(false);
 
   const form = useForm<AddCustomerFormType>({
-    resolver: zodResolver(addCustomerFormSchema),
+    resolver: zodResolver(editCustomerFormSchema),
     defaultValues: {
       name: "",
       storeName: "",
@@ -93,24 +93,24 @@ const EditCustomerForm = ({
   /** Load previous data into form (Edit Mode) */
   useEffect(() => {
     form.reset({
-      name: previousData.name,
-      storeName: previousData.storeName,
+      name: previousData.name ?? "",
+      storeName: previousData.storeName || previousData.customerStoreName || previousData.name || "",
       showOnStoreLocator:
         previousData.showOnStoreLocator ??
         previousData.client?.showOnStoreLocator ??
         true,
-      proximity: previousData?.client?.proximity?.toString() || "",
-      address: previousData?.client?.address || "",
+      proximity: previousData?.client?.proximity?.toString() || "1",
+      address: previousData?.client?.address || previousData?.storeAddress || "",
       postalCode: previousData?.postalCode || "",
       coordinates: {
-        latitude: previousData?.client?.latitude || "",
-        longitude: previousData?.client?.longitude || "",
+        latitude: previousData?.client?.latitude?.toString() || "",
+        longitude: previousData?.client?.longitude?.toString() || "",
       },
       city_name: previousData?.client?.city_name || "",
-      website: previousData.website,
-      contactPerson: previousData.contactPerson,
-      email: previousData.email,
-      phoneNumber: previousData.phoneNumber,
+      website: previousData.website ?? "",
+      contactPerson: previousData.contactPerson ?? "",
+      email: previousData.email ?? "",
+      phoneNumber: previousData.phoneNumber ?? "",
       sameAsBillingAddress: previousData?.sameAsBillingAddress ?? true,
       shippingAddress: previousData?.shippingAddress || "",
       shippingCityName: previousData?.shippingCityName || "",
@@ -131,7 +131,7 @@ const EditCustomerForm = ({
         previousData?.currencyId?.toString() ||
         "",
     });
-  }, [form, previousData]);
+  }, [form, previousData, open]);
 
   /** Google Autocomplete */
   const onChange = async (place: google.maps.places.PlaceResult | null) => {
@@ -197,7 +197,9 @@ const EditCustomerForm = ({
         <Form {...form}>
           <form
             className="mt-8 space-y-2"
-            onSubmit={form.handleSubmit(onSubmit)}
+            onSubmit={form.handleSubmit(onSubmit, () => {
+              toast.error("Check the highlighted customer fields");
+            })}
           >
             {/* NAME */}
             <FormField
@@ -258,7 +260,11 @@ const EditCustomerForm = ({
               onPlaceSelect={onChange}
               placeholder="Select Address of the Customer"
               label="Address of the Customer"
-              defaultValue={previousData?.client?.address}
+              value={form.watch("address") || ""}
+              onValueChange={(value) => {
+                form.setValue("address", value, { shouldDirty: true });
+                form.setValue("coordinates", { latitude: "", longitude: "" });
+              }}
             />
 
             {/* CITY */}

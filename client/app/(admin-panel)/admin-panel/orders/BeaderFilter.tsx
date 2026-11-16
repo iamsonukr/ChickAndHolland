@@ -70,7 +70,7 @@ export default function BeaderFilter({
       beader: nextBeader,
     });
     const params = new URLSearchParams(search);
-    for (const key of ["dateFrom", "dateTo"]) {
+    for (const key of ["dateFrom", "dateTo", "exhibitionLocation"]) {
       const value = searchParams?.get(key);
       if (value) params.set(key, value);
     }

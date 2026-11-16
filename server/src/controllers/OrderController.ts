@@ -3228,6 +3228,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
       beader,
       dateFrom,
       dateTo,
+      exhibitionLocation,
     }: {
       query?: string;
       orderType?: string;
@@ -3236,6 +3237,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
       beader?: string;
       dateFrom?: string;
       dateTo?: string;
+      exhibitionLocation?: string;
     } = req.query;
 
     const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
@@ -3263,20 +3265,21 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
     const retailerParams: any[] = [];
 
     for (const [where, params, alias] of [[regularWhere, regularParams, "o"], [retailerWhere, retailerParams, "ro"]] as const) {
+      if (exhibitionLocation) { where.push(`LOWER(${alias}.exhibitionLocation) LIKE LOWER(?)`); params.push(`%${sanitizeText(exhibitionLocation)}%`); }
       if (dateFrom) { where.push(`${alias}.orderReceivedDate >= ?`); params.push(dateFrom); }
       if (dateTo) { where.push(`${alias}.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY)`); params.push(dateTo); }
     }
 
     if (likeQuery) {
       regularWhere.push(
-        "(LOWER(o.purchaeOrderNo) LIKE ? OR LOWER(c.storeName) LIKE ? OR LOWER(c.name) LIKE ?)",
+        "(LOWER(o.purchaeOrderNo) LIKE ? OR LOWER(o.estimateNo) LIKE ? OR LOWER(o.invoiceNo) LIKE ? OR LOWER(c.storeName) LIKE ? OR LOWER(c.name) LIKE ?)",
       );
-      regularParams.push(likeQuery, likeQuery, likeQuery);
+      regularParams.push(likeQuery, likeQuery, likeQuery, likeQuery, likeQuery);
 
       retailerWhere.push(
-        "(LOWER(ro.purchaeOrderNo) LIKE ? OR LOWER(c.storeName) LIKE ? OR LOWER(c.name) LIKE ?)",
+        "(LOWER(ro.purchaeOrderNo) LIKE ? OR LOWER(ro.estimateNo) LIKE ? OR LOWER(ro.invoiceNo) LIKE ? OR LOWER(c.storeName) LIKE ? OR LOWER(c.name) LIKE ?)",
       );
-      retailerParams.push(likeQuery, likeQuery, likeQuery);
+      retailerParams.push(likeQuery, likeQuery, likeQuery, likeQuery, likeQuery);
     }
 
     const includeRegular = selectedExportOrders.hasSelection
@@ -3642,10 +3645,10 @@ router.get(
 router.get(
   "/beaders",
   asyncHandler(async (req: Request, res: Response) => {
-    const { query, orderType, stage, dateFrom, dateTo } = req.query as Record<string, string>;
+    const { query, orderType, stage, dateFrom, dateTo, exhibitionLocation } = req.query as Record<string, string>;
     const [beaders, sourceOrders] = await Promise.all([
       Beader.find({ order: { name: "ASC" } }),
-      getOrderStageCountSourceOrders({ query, orderType, dateFrom, dateTo }),
+      getOrderStageCountSourceOrders({ query, orderType, dateFrom, dateTo, exhibitionLocation }),
     ]);
     const orderIds = sourceOrders.filter(order => order.orderSource === "regular").map(order => Number(order.id));
     const statusById = buildOrderStatusById(sourceOrders, "regular");
@@ -3686,6 +3689,7 @@ router.get(
       query,
       orderType,
       stage,
+      due,
       publishStatus,
       beader,
       dateFrom,
@@ -3698,6 +3702,7 @@ router.get(
       query?: string;
       orderType?: string;
       stage?: string;
+      due?: string;
       publishStatus?: string;
       beader?: string;
       dateFrom?: string;
@@ -3853,7 +3858,7 @@ router.get(
       .from(`(${unionQuery})`, "combined_orders")
       .orderBy("createdAt", "DESC");
 
-    if (!stage) {
+    if (!stage && !due) {
       finalQuery.limit(pageSize).offset(skip);
     }
 
@@ -4231,16 +4236,17 @@ router.get(
       return result;
     });
 
-    const stageFilteredOrders = stage
-      ? formattedOrders.filter((order) => order.orderStatus === stage)
-      : formattedOrders;
-    const paginatedOrders = stage
+    const stageFilteredOrders = formattedOrders.filter((order) =>
+      (!stage || order.orderStatus === stage) &&
+      matchesDueFilter(due, order.orderStatus, order.orderCancellationDate),
+    );
+    const paginatedOrders = stage || due
       ? stageFilteredOrders.slice(skip, skip + pageSize)
       : stageFilteredOrders;
 
     res.json({
       orders: paginatedOrders,
-      totalCount: stage
+      totalCount: stage || due
         ? stageFilteredOrders.length
         : parseInt(countResult?.count || "0"),
       stageCounts,

@@ -5,8 +5,7 @@ import { Like } from "typeorm";
 import Retailer from "../models/Retailer";
 import Clients from "../models/ClientsModel";
 import Currency from "../models/Currency";
-import { RetailerOrder } from "../models/RetailerOrder";
-import Favourites from "../models/Favourites";
+import db from "../db";
 
 const router = Router();
 
@@ -229,10 +228,11 @@ router.post(
       showOnStoreLocator: customer.showOnStoreLocator,
     });
 
-    customer.client = newClient;
-
-    await newClient.save();
-    await customer.save();
+    await db.transaction(async manager => {
+      await manager.save(Customer, customer);
+      newClient.customer = customer;
+      await manager.save(Clients, newClient);
+    });
 
     res.json({
       success: true,
@@ -266,167 +266,68 @@ router.get(
 router.put(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const customerStoreName = req.body.customerStoreName || req.body.storeName || req.body.name;
-    const customer = await Customer.findOne({
-      where: {
-        id: Number(req.params.id),
-        isDeleted: false,
-      },
-      relations: ["client", "retailer"],
-    });
-
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: "Customer not found",
+    const result = await db.transaction(async manager => {
+      const customer = await manager.findOne(Customer, {
+        where: { id: Number(req.params.id), isDeleted: false },
+        relations: ["client"],
       });
-    }
-
-    // Update customer fields
-    customer.name = req.body.name;
-    customer.storeName = customerStoreName;
-    customer.storeAddress = req.body.address;
-    customer.showOnStoreLocator = parseStoreLocatorVisibility(
-      req.body.showOnStoreLocator,
-      customer.showOnStoreLocator ?? customer.client?.showOnStoreLocator ?? true,
-    );
-    customer.postalCode = req.body.postalCode || null;
-    customer.website = req.body.website;
-    customer.phoneNumber = req.body.phoneNumber;
-    customer.contactPerson = req.body.contactPerson;
-    customer.email = req.body.email;
-    assignShippingDetails(customer, req.body);
-
-    // Update country assignment
-    if (req.body.country_id) {
-      customer.countryId = req.body.country_id;
-    } else {
-      customer.countryId = null; // Clear country if not provided
-    }
-
-    // Handle currency updates with validation for existing orders and favourites
-    if (req.body.currency_id && req.body.currency_id != customer.currencyId) {
-      if (customer.retailer) {
-        const existingOrders = await RetailerOrder.count({
-          where: { retailer: { id: customer.retailer.id } },
-        });
-
-        // if (existingOrders > 0) {
-        //   return res.status(400).json({
-        //     success: false,
-        //     message:
-        //       "Cannot change currency for customer with existing orders. This would make pricing inconsistent.",
-        //   });
-        // }
-
-        // Check if customer has items in their favourites (cart)
-        const existingFavourites = await Favourites.count({
-          where: { retailer: { id: customer.retailer.id } },
-        });
-
-        // if (existingFavourites > 0) {
-        //   return res.status(400).json({
-        //     success: false,
-        //     message:
-        //       "Cannot change currency for customer with items in cart. Please remove all cart items before changing currency.",
-        //   });
-        // }
+      if (!customer) return { status: 404, message: "Customer not found" };
+      if (req.body.currency_id && req.body.currency_id != customer.currencyId) {
+        const currency = await manager.findOne(Currency, { where: { id: req.body.currency_id } });
+        if (!currency) return { status: 400, message: "Invalid currency selected" };
+        customer.currencyId = req.body.currency_id;
       }
+      const customerStoreName = req.body.customerStoreName || req.body.storeName || req.body.name;
+      customer.name = req.body.name;
+      customer.storeName = customerStoreName;
+      customer.storeAddress = req.body.address ?? customer.storeAddress ?? "";
+      customer.showOnStoreLocator = parseStoreLocatorVisibility(
+        req.body.showOnStoreLocator,
+        customer.showOnStoreLocator ?? customer.client?.showOnStoreLocator ?? true,
+      );
+      customer.postalCode = req.body.postalCode || null;
+      customer.website = req.body.website ?? "";
+      customer.phoneNumber = req.body.phoneNumber ?? "";
+      customer.contactPerson = req.body.contactPerson ?? "";
+      customer.email = req.body.email ?? "";
+      assignShippingDetails(customer, req.body);
+      customer.countryId = req.body.country_id || null;
 
-      // Validate currency exists
-      const currency = await Currency.findOne({
-        where: { id: req.body.currency_id },
-      });
-      if (!currency) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid currency selected",
-        });
-      }
-
-      customer.currencyId = req.body.currency_id;
-    }
-
-    let clientError = null;
-
-    // ✅ ALWAYS handle client (manual + quickbooks)
-    try {
-      let client = customer.client
-        ? await Clients.findOne({ where: { id: customer.client.id } })
-        : null;
-
-      if (!client) {
-        client = Clients.create({});
-      }
-
+      const client = customer.client ?? manager.create(Clients, {});
       client.name = customerStoreName;
-      client.address = req.body.address || client.address || "";
-      client.proximity = req.body.proximity || client.proximity || 1;
-      client.latitude =
-        req.body.coordinates?.latitude || client.latitude || "0";
-      client.longitude =
-        req.body.coordinates?.longitude || client.longitude || "0";
-      client.city_name = req.body.city_name || client.city_name || "";
+      client.address = customer.storeAddress;
+      client.proximity = Number(req.body.proximity || client.proximity || 1);
+      client.latitude = Number(req.body.coordinates?.latitude ?? client.latitude ?? 0);
+      client.longitude = Number(req.body.coordinates?.longitude ?? client.longitude ?? 0);
+      client.city_name = req.body.city_name ?? client.city_name ?? "";
       client.showOnStoreLocator = customer.showOnStoreLocator;
-
-      await client.save();
-      customer.client = client;
-    } catch (error: any) {
-      clientError = {
-        message: "Failed to update/create client",
-        details: error.message,
-      };
-    }
-
-
-    await customer.save();
-
-    res.json({
-      success: true,
-      message: clientError
-        ? `Customer updated successfully, but client location update failed: ${clientError.message}`
-        : "Customer updated successfully",
-      clientError: clientError,
+      await manager.save(Customer, customer);
+      // Clients owns the foreign key; assigning customer.client alone cannot link a new location.
+      client.customer = customer;
+      await manager.save(Clients, client);
+      return { status: 200, message: "Customer updated successfully" };
     });
+    return res.status(result.status).json({ success: result.status === 200, message: result.message });
   })
 );
 
 router.delete(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const customer = await Customer.findOne({
-      where: {
-        id: Number(req.params.id),
-      },
-      relations: ["client", "retailer"],
-    });
-
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: "Customer not found",
+    const deleted = await db.transaction(async manager => {
+      const customer = await manager.findOne(Customer, {
+        where: { id: Number(req.params.id) },
+        relations: ["client", "retailer"],
       });
-    }
-
-    // Soft delete the customer
-    customer.isDeleted = true;
-    await customer.save();
-
-    // Soft delete the associated client if exists
-    if (customer.client) {
-      customer.client.isDeleted = true;
-      await customer.client.save();
-    }
-
-    // Soft delete the associated retailer if exists
-    if (customer.retailer) {
-      customer.retailer.isDeleted = true;
-      await customer.retailer.save();
-    }
-
-    res.json({
-      success: true,
-      message: "Customer deleted successfully",
+      if (!customer) return false;
+      await manager.update(Customer, customer.id, { isDeleted: true });
+      if (customer.client) await manager.update(Clients, customer.client.id, { isDeleted: true });
+      if (customer.retailer) await manager.update(Retailer, customer.retailer.id, { isDeleted: true });
+      return true;
+    });
+    return res.status(deleted ? 200 : 404).json({
+      success: deleted,
+      message: deleted ? "Customer deleted successfully" : "Customer not found",
     });
   })
 );

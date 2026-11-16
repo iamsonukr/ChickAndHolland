@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { Search } from "lucide-react";
@@ -14,6 +14,7 @@ const CustomSearchBar = ({
   placeholder?: string;
 }) => {
   const [searchQuery, setSearchQuery] = useState(query);
+  useEffect(() => setSearchQuery(query), [query]);
   const router = useRouter();
   const searchParams = useSearchParams();
 
