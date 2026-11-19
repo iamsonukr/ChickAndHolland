@@ -1,5 +1,7 @@
-import React, { FormEvent, useCallback, useEffect, useState } from "react";
-import { useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
+"use client";
+
+import React, { useEffect, useRef, useState } from "react";
+import { useMapsLibrary } from "@vis.gl/react-google-maps";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -12,140 +14,110 @@ interface Props {
   label?: string;
 }
 
-// This is a custom built autocomplete component using the "Autocomplete Service" for predictions
-// and the "Places Service" for place details
 export const AutocompleteCustom = ({
-  onPlaceSelect,
-  value,
-  onValueChange,
-  defaultValue,
-  placeholder,
-  label,
+  onPlaceSelect, value, onValueChange, defaultValue, placeholder, label,
 }: Props) => {
-  const map = useMap();
   const places = useMapsLibrary("places");
-
-  // https://developers.google.com/maps/documentation/javascript/reference/places-autocomplete-service#AutocompleteSessionToken
-  const [sessionToken, setSessionToken] =
-    useState<google.maps.places.AutocompleteSessionToken>();
-
-  // https://developers.google.com/maps/documentation/javascript/reference/places-autocomplete-service
-  const [autocompleteService, setAutocompleteService] =
-    useState<google.maps.places.AutocompleteService | null>(null);
-
-  // https://developers.google.com/maps/documentation/javascript/reference/places-service
-  const [placesService, setPlacesService] =
-    useState<google.maps.places.PlacesService | null>(null);
-
-  const [predictionResults, setPredictionResults] = useState<
-    Array<google.maps.places.AutocompletePrediction>
-  >([]);
-
-  const [inputValue, setInputValue] = useState<string>(defaultValue ?? "");
+  const sessionToken = useRef<google.maps.places.AutocompleteSessionToken>();
+  const requestId = useRef(0);
+  const [predictions, setPredictions] = useState<google.maps.places.PlacePrediction[]>([]);
+  const [inputValue, setInputValue] = useState(defaultValue ?? "");
+  const [error, setError] = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
   useEffect(() => {
-    if (!places) return;
-
-    try {
-      const newAutocompleteService = new places.AutocompleteService();
-      // Create a dummy div for PlacesService (required but not used)
-      const dummyElement = document.createElement("div");
-      const newPlacesService = new places.PlacesService(dummyElement);
-      const newSessionToken = new places.AutocompleteSessionToken();
-
-      setAutocompleteService(newAutocompleteService);
-      setPlacesService(newPlacesService);
-      setSessionToken(newSessionToken);
-    } catch (error) {
-      console.error("Error initializing services:", error);
+    const currentRequest = ++requestId.current;
+    if (!places || !searchInput.trim()) {
+      setPredictions([]);
+      return;
     }
-
-    return () => {
-      setAutocompleteService(null);
-      setPlacesService(null);
-    };
-  }, [places]);
-
-  const fetchPredictions = useCallback(
-    async (inputValue: string) => {
-      if (!autocompleteService || !inputValue) {
-        setPredictionResults([]);
-        return;
+    const timer = setTimeout(async () => {
+      try {
+        sessionToken.current ??= new places.AutocompleteSessionToken();
+        const { suggestions } = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+          input: searchInput,
+          sessionToken: sessionToken.current,
+        });
+        if (currentRequest !== requestId.current) return;
+        setPredictions(suggestions.flatMap(({ placePrediction }) => placePrediction ? [placePrediction] : []));
+        setError("");
+      } catch (error) {
+        if (currentRequest !== requestId.current) return;
+        console.error("Google address search failed:", error);
+        setPredictions([]);
+        setError("Google address search is unavailable. You can enter the address manually.");
       }
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      ++requestId.current;
+    };
+  }, [places, searchInput]);
 
-      const request = { input: inputValue, sessionToken };
-      const response = await autocompleteService.getPlacePredictions(request);
-
-      setPredictionResults(response.predictions);
-    },
-    [autocompleteService, sessionToken],
-  );
-
-  const onInputChange = useCallback(
-    (event: FormEvent<HTMLInputElement>) => {
-      const value = (event.target as HTMLInputElement)?.value;
-
-      setInputValue(value);
-      onValueChange?.(value);
-      void fetchPredictions(value).catch(() => setPredictionResults([]));
-    },
-    [fetchPredictions, onValueChange],
-  );
-
-  const handleSuggestionClick = useCallback(
-    (placeId: string) => {
-      if (!places) return;
-
-      const detailRequestOptions = {
-        placeId,
-        fields: ["geometry", "name", "formatted_address", "address_components"],
-        sessionToken,
-      };
-
-      const detailsRequestCallback = (
-        placeDetails: google.maps.places.PlaceResult | null,
-      ) => {
-        onPlaceSelect(placeDetails);
-        setPredictionResults([]);
-        setInputValue(placeDetails?.formatted_address ?? "");
-        setSessionToken(new places.AutocompleteSessionToken());
-      };
-
-      placesService?.getDetails(detailRequestOptions, detailsRequestCallback);
-    },
-    [onPlaceSelect, places, placesService, sessionToken],
-  );
-
-  // useEffect(() => {
-  //   if (defaultValue) {
-  //     setInputValue(defaultValue);
-  //   }
-  // }, [defaultValue]);
+  const selectPlace = async (prediction: google.maps.places.PlacePrediction) => {
+    const currentRequest = ++requestId.current;
+    setPredictions([]);
+    try {
+      const place = prediction.toPlace();
+      await place.fetchFields({ fields: ["location", "displayName", "formattedAddress", "addressComponents"] });
+      if (currentRequest !== requestId.current) return;
+      const address = place.formattedAddress ?? prediction.text.toString();
+      setInputValue(address);
+      onValueChange?.(address);
+      // Adapt new Places fields to the existing customer and locator form callbacks.
+      onPlaceSelect({
+        place_id: place.id,
+        name: place.displayName ?? undefined,
+        formatted_address: address,
+        geometry: place.location ? { location: place.location } : undefined,
+        address_components: place.addressComponents?.map((component) => ({
+          long_name: component.longText ?? "",
+          short_name: component.shortText ?? "",
+          types: component.types,
+        })),
+      });
+      setSearchInput("");
+      setError("");
+    } catch (error) {
+      if (currentRequest !== requestId.current) return;
+      console.error("Google address details failed:", error);
+      setError("Could not load this address. Please try again.");
+    } finally {
+      sessionToken.current = undefined;
+    }
+  };
 
   return (
     <div className="space-y-2">
       <Label>{label ?? "Search for a place"}</Label>
       <Input
         value={value ?? inputValue}
-        onInput={(event: FormEvent<HTMLInputElement>) => {
-          onInputChange(event);
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          ++requestId.current;
+          setPredictions([]);
+          setInputValue(nextValue);
+          onValueChange?.(nextValue);
+          setSearchInput(nextValue);
+          setError("");
         }}
         placeholder={placeholder ?? "Search for a place"}
       />
-
-      {predictionResults.length > 0 && (
+      {error && <p role="status" className="text-sm text-destructive">{error}</p>}
+      {predictions.length > 0 && (
         <ul className="custom-list w-full space-y-2 py-2">
-          {predictionResults.map(({ place_id, description }) => {
-            return (
-              <li
-                key={place_id}
-                className="custom-list-item cursor-pointer rounded-md bg-secondary p-2 hover:bg-primary-foreground"
-                onClick={() => handleSuggestionClick(place_id)}
+          {predictions.map((prediction) => (
+            <li key={prediction.placeId}>
+              <button
+                type="button"
+                className="custom-list-item w-full cursor-pointer rounded-md bg-secondary p-2 text-left hover:bg-primary-foreground"
+                onClick={() => void selectPlace(prediction)}
               >
-                {description}
-              </li>
-            );
-          })}
+                {prediction.text.toString()}
+              </button>
+            </li>
+          ))}
+          <li className="text-right text-xs text-muted-foreground">Powered by Google</li>
         </ul>
       )}
     </div>
