@@ -60,7 +60,8 @@ const CONFIG = {
   QB_REDIRECT_URI: process.env.QB_REDIRECT_URI || "",
   GOOGLE_MAPS_API_KEY:
     process.env.GOOGLE_MAPS_API_KEY ||
-    "AIzaSyCm6BCGEB30k2P5xAPys5KU1dfuJT9H6V4",
+    "AIzaSyAyQfFd5Ub6gpDjnWWM_58alyPiunn_4x8",
+    // "AIzaSyCm6BCGEB30k2P5xAPys5KU1dfuJT9H6V4",
   RECAPTCHA_SECRET_KEY: process.env.RECAPTCHA_SECRET_KEY || "",
   ENCRYPTION_KEY:
     process.env.ENCRYPTION_KEY ||

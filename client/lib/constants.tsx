@@ -26,7 +26,8 @@ export const parseJsonResponse = async <T = any>(
 
 export const GOOGLE_MAPS_API_KEY =
   process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ??
-  "AIzaSyCm6BCGEB30k2P5xAPys5KU1dfuJT9H6V4";
+  "AIzaSyAyQfFd5Ub6gpDjnWWM_58alyPiunn_4x8";
+  // "AIzaSyCm6BCGEB30k2P5xAPys5KU1dfuJT9H6V4";
 
 export const SMTP_URL =
   process.env.SMTP_URL ||
