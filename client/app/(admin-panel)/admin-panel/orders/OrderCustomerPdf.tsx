@@ -10,6 +10,7 @@ import { generateRandomColour } from "@/lib/utils";
 import { getCustomSizeEntries } from "@/lib/sizeConversion";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 import { getCompactStyleNoBannerFontSize } from "@/lib/pdfTextSizing";
+import { build2dBarcodeUrl } from "@/lib/barcodes";
 
 const parseMaybeArray = (value: unknown): any[] => {
   if (Array.isArray(value)) return value;
@@ -252,7 +253,7 @@ const OrderCustomerPdf = ({ orderData }: { orderData: any }) => {
                       </Text>
 
                       <Image
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${oData.barcode}`}
+                        src={build2dBarcodeUrl(oData.barcode, 130)}
                         style={{ width: 80, height: 80 }}
                       />
 

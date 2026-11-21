@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
+import { normalizeBarcodeValue } from "@/lib/barcodes";
 
 export const TWO_DIMENSIONAL_BARCODE_FORMATS = [
   BarcodeFormat.QR_CODE,
@@ -132,7 +133,7 @@ export const useQrCodeScanner = ({
           stream,
           videoRef.current,
           (result) => {
-            const text = result?.getText()?.trim();
+            const text = normalizeBarcodeValue(result?.getText());
             if (!text || lastScannedRef.current === text) {
               return;
             }

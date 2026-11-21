@@ -1,4 +1,5 @@
 import db from "../db";
+import { getUserBarcodeComment } from "../lib/barcodeComment";
 
 export type BarcodeCommentOrderType = "STORE" | "RETAILER" | "STOCK";
 
@@ -11,7 +12,7 @@ export const getBarcodeComment = async (
     [barcode, orderType],
   );
 
-  return String(rows?.[0]?.comment ?? "");
+  return getUserBarcodeComment(rows?.[0]?.comment);
 };
 
 export const saveBarcodeComment = async ({

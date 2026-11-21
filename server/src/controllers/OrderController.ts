@@ -58,6 +58,7 @@ import { expandOrderStylePieces as buildRegularOrderStylePieces } from "../lib/o
 import { formatDateOnly, parseDateOnly } from "../lib/dateOnly";
 import { assertDeliverableEmailAddress } from "../lib/emailValidation";
 import { getBarcodeComment } from "../services/barcodeComment.service";
+import { getUserBarcodeComment } from "../lib/barcodeComment";
 import { ensureBarcodeCommentsTable } from "../utils/ensureBarcodeCommentsTable";
 import { ORDER_BEADERS_TABLE } from "../utils/ensureOrderBeadersTable";
 import {
@@ -1004,7 +1005,7 @@ async function getBarcodeCommentMap(
   );
 
   rows.forEach((row: any) => {
-    map.set(String(row.barcode), String(row.comment ?? ""));
+    map.set(String(row.barcode), getUserBarcodeComment(row.comment));
   });
 
   return map;

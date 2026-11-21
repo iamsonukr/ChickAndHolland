@@ -1,5 +1,6 @@
 import { Request, Response, Router } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
+import { requireAdminUser } from "../middleware/AdminAuth";
 import Stock from "../models/Stock";
 import { Brackets, FindOptionsWhere, In, Like, Not, IsNull, MoreThan } from "typeorm";
 import Product from "../models/Product";
@@ -896,6 +897,38 @@ router.get(
     });
 
     res.json(stock);
+  })
+);
+
+router.put(
+  "/bulk-discount",
+  requireAdminUser(["/admin-panel/stock"]),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { ids, discount } = req.body ?? {};
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100 ||
+        !ids.every((id: unknown) => typeof id === "number" && Number.isSafeInteger(id) && id > 0) ||
+        typeof discount !== "number" || !Number.isInteger(discount) || discount < 0 || discount > 100) {
+      return res.status(400).json({ success: false, message: "Select up to 100 stock items and enter a whole discount percentage from 0 to 100" });
+    }
+    const stockIds: number[] = [...new Set<number>(ids)];
+    const updatedCount = await db.transaction(async manager => {
+      const stocks = await manager.getRepository(Stock).find({
+        where: { id: In(stockIds), isDeleted: false },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (stocks.length !== stockIds.length) return null;
+      await manager.getRepository(Stock).createQueryBuilder()
+        .update().set({ discount, discountedPrice: () => "ROUND(price * (100 - :discount) / 100)" })
+        .whereInIds(stockIds).setParameter("discount", discount).execute();
+      await manager.getRepository(StockCurrencyPricing).createQueryBuilder()
+        .update().set({ discountedPrice: () => "ROUND(price * (100 - :discount) / 100, 2)" })
+        .where({ stock: { id: In(stockIds) } }).setParameter("discount", discount).execute();
+      return stocks.length;
+    });
+    if (updatedCount === null) {
+      return res.status(404).json({ success: false, message: "Some selected stock items are no longer available. Refresh and select again." });
+    }
+    res.json({ success: true, updatedCount });
   })
 );
 

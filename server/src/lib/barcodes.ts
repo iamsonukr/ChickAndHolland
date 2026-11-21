@@ -1,7 +1,16 @@
 const INVALID_BARCODE_VALUES = new Set(["N/A", "NA", "NULL", "UNDEFINED"]);
 
 export const normalizeBarcodeValue = (barcode?: string | null) => {
-  const normalizedBarcode = String(barcode ?? "").trim();
+  let normalizedBarcode = String(barcode ?? "").trim();
+
+  try {
+    const url = new URL(normalizedBarcode);
+    if ((url.protocol === "https:" || url.protocol === "http:") && url.pathname.replace(/\/+$/, "") === "/qr") {
+      normalizedBarcode = (url.searchParams.get("code") ?? "").trim();
+    }
+  } catch {
+    // Existing printed labels contain the raw barcode.
+  }
 
   if (!normalizedBarcode) return "";
   if (INVALID_BARCODE_VALUES.has(normalizedBarcode.toUpperCase())) {
@@ -9,6 +18,14 @@ export const normalizeBarcodeValue = (barcode?: string | null) => {
   }
 
   return normalizedBarcode;
+};
+
+export const buildBarcodeScanUrl = (barcode?: string | null) => {
+  const code = normalizeBarcodeValue(barcode);
+  if (!code) return "";
+  const url = new URL("/qr", process.env.NEXT_PUBLIC_BASE_URL || process.env.CLIENT_URL || "https://chicandholland.com");
+  url.searchParams.set("code", code);
+  return url.toString();
 };
 
 export const build2dBarcodeUrl = (
@@ -21,7 +38,7 @@ export const build2dBarcodeUrl = (
 
   const params = new URLSearchParams({
     size: `${size}x${size}`,
-    data: normalizedBarcode,
+    data: buildBarcodeScanUrl(normalizedBarcode),
     margin: "0",
     format: "png",
   });

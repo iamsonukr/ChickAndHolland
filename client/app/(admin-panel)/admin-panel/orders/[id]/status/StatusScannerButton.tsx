@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, ScanLine, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { API_URL } from "@/lib/constants";
+import { normalizeBarcodeValue } from "@/lib/barcodes";
 import { useQrCodeScanner } from "@/lib/hooks/useQrCodeScanner";
 import { getScannerRequestHeaders } from "@/lib/scannerHeaders";
 import { cn } from "@/lib/utils";
@@ -238,7 +239,7 @@ export default function StatusScannerButton({
 
   // ── Main scan handler ────────────────────────────────────────────────────
   const processBarcode = async (rawCode: string | null | undefined) => {
-    const code = String(rawCode ?? "").trim();
+    const code = normalizeBarcodeValue(rawCode);
     if (!code || scanLockRef.current) return;
 
     setScanLock(true);
@@ -247,7 +248,7 @@ export default function StatusScannerButton({
     let unlockDelay = 1500;
 
     try {
-      if (expectedBarcode && code !== String(expectedBarcode).trim()) {
+      if (expectedBarcode && code !== normalizeBarcodeValue(expectedBarcode)) {
         showFailScreen("Scanned QR code does not match this item");
         unlockDelay = FAIL_SCREEN_MS + 100;
         return;

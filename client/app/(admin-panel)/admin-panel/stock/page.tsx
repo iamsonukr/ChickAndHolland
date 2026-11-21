@@ -24,6 +24,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import SizeSelector from "../../retailer-panel/inventory/SizeSelector";
 import StockSourceFilter from "./StockSourceFilter";
+import BulkStockDiscount, { StockDiscountCheckbox } from "./BulkStockDiscount";
 
 const ITEMS_PER_PAGE = 100;
 
@@ -136,6 +137,10 @@ const Stock = async (props: {
         </div>
 
         {/* GRID */}
+        <BulkStockDiscount
+          key={`${currentPage}-${query}-${selectedSource}-${currencyId}`}
+          ids={(stock.stock ?? []).filter((item: any) => item.product).map((item: any) => item.id)}
+        >
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2">
           {stock.stock?.map((item: any) => {
             if (!item.product) return null;
@@ -154,6 +159,7 @@ const Stock = async (props: {
                 className="flex flex-col rounded-md border shadow-sm hover:shadow-md p-2"
               >
                 {/* IMAGE */}
+                <StockDiscountCheckbox id={item.id} />
                 <div className="aspect-[3/6] w-[auto] overflow-hidden rounded-md">
                   <StyleNoImage details={item} />
                 </div>
@@ -277,6 +283,7 @@ const Stock = async (props: {
         </div>
 
         {/* PAGINATION */}
+        </BulkStockDiscount>
         <CustomPagination
           currentPage={currentPage}
           totalLength={stock?.totalCount}

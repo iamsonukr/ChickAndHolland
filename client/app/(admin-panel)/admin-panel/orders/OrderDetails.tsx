@@ -13,6 +13,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { QRCodeCanvas } from "qrcode.react";
+import { buildBarcodeScanUrl } from "@/lib/barcodes";
 import StatusCount from "./StatusCount";
 import { formatDateOnlyDisplay } from "@/lib/dateOnly";
 
@@ -208,7 +209,7 @@ const OrderDetailsSheet = ({
   <div className="mt-6 flex flex-col items-center gap-2">
     <h3 className="text-lg font-semibold">Scan to Update Status</h3>
     {/* value={`${process.env.NEXT_PUBLIC_BASE_URL}/admin-panel/orders/qr-scan?order=${orderDetails.id}`} */}
-    <QRCodeCanvas value={String(orderDetails.id)} size={180} />
+    <QRCodeCanvas value={buildBarcodeScanUrl(String(orderDetails.id))} size={180} />
 
     <p className="text-xs text-gray-500">
       Scan this QR in warehouse to move to next status

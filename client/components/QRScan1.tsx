@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { API_URL } from "@/lib/constants";
+import { normalizeBarcodeValue } from "@/lib/barcodes";
 import { useQrCodeScanner } from "@/lib/hooks/useQrCodeScanner";
 import { getScannerRequestHeaders } from "@/lib/scannerHeaders";
 import WebLabelBox from "@/components/WebLabelBox";
@@ -42,7 +43,7 @@ export default function QRScanPage() {
 
   // 🔥 MAIN BARCODE PROCESSOR
   const processBarcode = async (code: string) => {
-    const trimmedCode = String(code || "").trim();
+    const trimmedCode = normalizeBarcodeValue(code);
     if (!trimmedCode || scanLock) {
       return;
     }
