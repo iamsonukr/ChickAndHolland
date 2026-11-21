@@ -58,6 +58,7 @@ const ORDER_EXPORT_DATA_ROW_HEIGHT = 24;
 const ORDER_EXPORT_LINE_HEIGHT = 18;
 
 const ORDER_EXPORT_COLUMNS = [
+  "S.No.",
   "Style No",
   "Size",
   "Quantity",
@@ -71,6 +72,7 @@ const ORDER_EXPORT_COLUMNS = [
 ];
 
 const FILTERED_EXPORT_COLUMNS = [
+  "S.No.",
   "Store Name",
   "PO#",
   "Order Status",
@@ -114,10 +116,10 @@ const getExportCellValue = (row: any, column: string) => {
 };
 
 const normalizeExportRows = (rows: any[], columns = ORDER_EXPORT_COLUMNS) =>
-  rows.map((row) =>
+  rows.map((row, index) =>
     columns.reduce<Record<string, unknown>>(
       (exportRow, column) => {
-        exportRow[column] = getExportCellValue(row, column);
+        exportRow[column] = column === "S.No." ? index + 1 : getExportCellValue(row, column);
         return exportRow;
       },
       {},
@@ -303,7 +305,7 @@ const getColumnWidths = (worksheet: XLSX.WorkSheet, range: XLSX.Range, columns =
     }
 
     return {
-      wch: getPaddedColumnWidth(longestValue),
+      wch: columnName === "S.No." ? Math.max(10, Math.ceil(longestValue * ORDER_EXPORT_WIDTH_SCALE) + 3) : getPaddedColumnWidth(longestValue),
     };
   });
 
