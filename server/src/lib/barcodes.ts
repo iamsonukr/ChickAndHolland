@@ -5,8 +5,13 @@ export const normalizeBarcodeValue = (barcode?: string | null) => {
 
   try {
     const url = new URL(normalizedBarcode);
-    if ((url.protocol === "https:" || url.protocol === "http:") && url.pathname.replace(/\/+$/, "") === "/qr") {
-      normalizedBarcode = (url.searchParams.get("code") ?? "").trim();
+    if (url.protocol === "https:" || url.protocol === "http:") {
+      const pathname = url.pathname.replace(/\/+$/, "");
+      if (pathname === "/chic-default-qr.png") {
+        normalizedBarcode = (new URLSearchParams(url.hash.slice(1)).get("code") ?? url.searchParams.get("code") ?? "").trim();
+      } else if (pathname === "/qr") {
+        normalizedBarcode = (url.searchParams.get("code") ?? "").trim();
+      }
     }
   } catch {
     // Existing printed labels contain the raw barcode.
@@ -23,8 +28,9 @@ export const normalizeBarcodeValue = (barcode?: string | null) => {
 export const buildBarcodeScanUrl = (barcode?: string | null) => {
   const code = normalizeBarcodeValue(barcode);
   if (!code) return "";
-  const url = new URL("/qr", process.env.NEXT_PUBLIC_BASE_URL || process.env.CLIENT_URL || "https://chicandholland.com");
-  url.searchParams.set("code", code);
+  // Use the same public image destination as client-generated labels.
+  const url = new URL("https://chicandholland.com/chic-default-qr.png");
+  url.hash = new URLSearchParams({ code }).toString();
   return url.toString();
 };
 
