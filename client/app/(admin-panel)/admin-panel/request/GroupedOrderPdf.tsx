@@ -212,7 +212,7 @@ const GroupedOrderPdf = ({
   console.log("This is orderData in PDF", orderData);
 
   return (
-    <Document>
+    <Document title={orderData.purchaseOrderNo}>
       {groupedPages.map(
         ({ baseItem, groupItems, pageIndex, totalPages, variants }, index) => {
           const referenceImages = getReferenceImages(groupItems);

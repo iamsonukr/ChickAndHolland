@@ -830,12 +830,35 @@ export default function PdfPreview({
   }, [downloadHref, resolvedBlob, resolvedFileName]);
 
   const openPdfExternally = useCallback(() => {
+    if (sourceDocument && resolvedBlob && !openUrl) {
+      const name = resolvedFileName.replace(/[\\/:*?"<>|]/g, "-");
+      const files = new DataTransfer();
+      files.items.add(new File([resolvedBlob], name, { type: PDF_MIME_TYPE }));
+      const input = document.createElement("input");
+      input.type = "file";
+      input.name = "pdf";
+      input.files = files.files;
+
+      const form = document.createElement("form");
+      form.method = "post";
+      form.enctype = "multipart/form-data";
+      const urlName = name.replace(/[^A-Za-z0-9._~-]+/g, "-");
+      form.action = `/api/order-pdf/${urlName}`;
+      form.target = "_blank";
+      form.rel = "noopener";
+      form.append(input);
+      document.body.append(form);
+      form.submit();
+      form.remove();
+      return;
+    }
+
     const href = externalHref || downloadHref;
     if (!href) return;
 
     const opened = window.open(href, "_blank", "noopener,noreferrer");
     if (!opened) window.location.assign(href);
-  }, [downloadHref, externalHref]);
+  }, [downloadHref, externalHref, openUrl, resolvedBlob, resolvedFileName, sourceDocument]);
 
   useEffect(() => {
     if (!autoExternalFallback) return;
