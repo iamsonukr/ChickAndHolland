@@ -1,6 +1,8 @@
 export async function POST(request: Request) {
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) {
+  // Browsers report the public origin relationship even behind a reverse proxy.
+  const site = request.headers.get("sec-fetch-site");
+  if (site ? site !== "same-origin" : origin && origin !== new URL(request.url).origin) {
     return new Response(null, { status: 403 });
   }
 

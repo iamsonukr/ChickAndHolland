@@ -843,7 +843,7 @@ export default function PdfPreview({
       form.method = "post";
       form.enctype = "multipart/form-data";
       const urlName = name.replace(/[^A-Za-z0-9._~-]+/g, "-");
-      form.action = `/api/order-pdf/${urlName}`;
+      form.action = `/order-pdf/${urlName}`;
       form.target = "_blank";
       form.rel = "noopener";
       form.append(input);
