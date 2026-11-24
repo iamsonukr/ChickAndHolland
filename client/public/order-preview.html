@@ -1,17 +1,37 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Order PDF</title>
-<style>html, body, iframe { margin: 0; width: 100%; height: 100%; border: 0; display: block; }body { display: flex; flex-direction: column; } iframe { flex: 1; min-height: 0; } button { align-self: flex-end; margin: 6px 12px; padding: 6px 12px; }</style>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { display: flex; flex-direction: column; background: #f6f6f6; font: 16px system-ui, sans-serif; }
+  header, footer { display: flex; align-items: center; padding: 8px max(14px, env(safe-area-inset-right)) 8px max(14px, env(safe-area-inset-left)); }
+  header { justify-content: flex-start; padding-top: calc(env(safe-area-inset-top) + 26px); }
+  @media (max-width: 767px) {
+    header { padding-top: calc(env(safe-area-inset-top) + 42px); }
+  }
+  footer { justify-content: space-between; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  iframe { width: 100%; flex: 1; min-height: 0; border: 0; }
+  button, a { display: inline-grid; place-items: center; width: 46px; height: 46px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #171717; cursor: pointer; }
+  button:disabled, a:not([href]) { opacity: .4; cursor: default; }
+  :focus-visible { outline: 2px solid #276bd1; outline-offset: 1px; }
+  #close, #back, .actions { background: white; border: 1px solid #ddd; box-shadow: 0 1px 4px #0001; }
+  .actions { display: flex; border-radius: 28px; padding: 0 4px; }
+  svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+</style>
 <body>
-<div>
-  <a id="download" hidden>Download PDF</a>
-  <button id="share" type="button" hidden>Share PDF</button>
-</div>
+<header><button id="close" title="Close preview" aria-label="Close preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
 <p id="status" role="status">Opening PDF…</p>
 <iframe name="orderDocument" title="Order PDF"></iframe>
+<footer><button id="back" title="Back" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4-8 8 8 8"/></svg></button><div class="actions"><button id="share" title="Share PDF" aria-label="Share PDF" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V2m-4 4 4-4 4 4M7 9H5a1 1 0 0 0-1 1v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a1 1 0 0 0-1-1h-2"/></svg></button><a id="download" title="Download PDF" aria-label="Download PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg></a><button id="search" title="Search PDF" aria-label="Search PDF" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg></button></div></footer>
 <script>
+  document.getElementById("close").onclick = () => window.close();
+  document.getElementById("back").onclick = () => {
+    if (history.length > 1) history.back();
+    else window.close();
+  };
   async function openPreview() {
     const params = new URLSearchParams(location.hash.slice(1));
     const source = new URL(params.get("source"));
@@ -29,7 +49,7 @@
     const share = document.getElementById("share");
     const payload = { files: [file] };
     if (navigator.canShare?.(payload)) {
-      share.hidden = false;
+      share.disabled = false;
       share.onclick = async () => {
         try {
           await navigator.share(payload);
@@ -37,6 +57,9 @@
           if (error.name !== "AbortError") download.click();
         }
       };
+    }
+    else {
+      share.title = "File sharing is unavailable in this browser";
     }
     document.title = file.name;
     const displayName = file.name.split("#").map(part =>
@@ -47,6 +70,13 @@
     const frame = document.querySelector("iframe");
     const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const search = document.getElementById("search");
+    search.disabled = false;
+    search.onclick = () => {
+      const toggle = frame.contentDocument?.querySelector('[aria-label="Search PDF"], [aria-label="Close PDF search"]');
+      if (toggle) toggle.click();
+      else frame.src = "/order-pdf-viewer#" + new URLSearchParams({ source: url, name: file.name, search: "1" });
+    };
     if (mobile) {
       frame.src = "/order-pdf-viewer#" + new URLSearchParams({ source: url, name: file.name });
       document.getElementById("status").hidden = true;

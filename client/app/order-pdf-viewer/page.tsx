@@ -5,12 +5,14 @@ import PdfPreview from "@/components/pdf/PdfPreview";
 
 export default function OrderPdfViewer() {
   const [file, setFile] = useState<File | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
     async function load() {
       const params = new URLSearchParams(location.hash.slice(1));
+      setShowSearch(params.get("search") === "1");
       const source = new URL(params.get("source") || "");
       if (source.protocol !== "blob:" || source.origin !== location.origin) throw new Error();
       const response = await fetch(source, { signal: controller.signal });
@@ -25,6 +27,6 @@ export default function OrderPdfViewer() {
   }, []);
 
   if (!file) return <p role="status">{error ? "Reopen the PDF from the order preview." : "Opening PDF…"}</p>;
-  return <PdfPreview file={file} fileName={file.name} showActions={false}
-    autoExternalFallback={false} heightClassName="h-[calc(100dvh-3rem)]" />;
+  return <PdfPreview file={file} fileName={file.name} showActions={false} showSearchToggle={false} initiallyShowSearch={showSearch}
+    autoExternalFallback={false} heightClassName="h-dvh" />;
 }

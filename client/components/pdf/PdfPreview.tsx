@@ -438,6 +438,7 @@ interface PdfPreviewProps {
   className?: string;
   heightClassName?: string;
   showActions?: boolean;
+  showSearchToggle?: boolean;
   autoExternalFallback?: boolean;
   extraActions?: ReactNode;
   initiallyShowSearch?: boolean;
@@ -455,6 +456,7 @@ export default function PdfPreview({
   className,
   heightClassName = "h-[75vh]",
   showActions = true,
+  showSearchToggle = true,
   autoExternalFallback = true,
   extraActions,
   initiallyShowSearch = false,
@@ -951,7 +953,7 @@ export default function PdfPreview({
         </div>
       )}
 
-      <div className="flex justify-end border-b bg-white px-3 py-2">
+      <div className={showSearchToggle ? "flex justify-end border-b bg-white px-3 py-2" : "hidden"}>
         <button
           ref={searchToggleRef}
           type="button"
