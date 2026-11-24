@@ -832,20 +832,14 @@ export default function PdfPreview({
   const openPdfExternally = useCallback(() => {
     if (sourceDocument && resolvedBlob && !openUrl) {
       const name = resolvedFileName.replace(/[\\/:*?"<>|]/g, "-");
-      const preview = window.open("/order-preview.html", "_blank");
-      if (!preview) {
-        void shareOrDownloadBlob(resolvedBlob, name, false);
-        return;
-      }
-      const sendPdf = (event: MessageEvent) => {
-        if (event.origin !== location.origin || event.source !== preview ||
-            event.data !== "order-preview-ready") return;
-        window.removeEventListener("message", sendPdf);
-        window.clearTimeout(timeout);
-        preview.postMessage(new File([resolvedBlob], name, { type: PDF_MIME_TYPE }), location.origin);
-      };
-      window.addEventListener("message", sendPdf);
-      const timeout = window.setTimeout(() => window.removeEventListener("message", sendPdf), 60000);
+      const source = URL.createObjectURL(resolvedBlob);
+      const params = new URLSearchParams({ source, name });
+      const link = document.createElement("a");
+      link.href = "/order-preview.html#" + params;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(source), 60_000);
       return;
     }
 

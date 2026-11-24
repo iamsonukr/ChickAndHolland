@@ -5,62 +5,50 @@
 <title>Order PDF</title>
 <style>html, body, iframe { margin: 0; width: 100%; height: 100%; border: 0; display: block; }body { display: flex; flex-direction: column; } iframe { flex: 1; min-height: 0; } button { align-self: flex-end; margin: 6px 12px; padding: 6px 12px; }</style>
 <body>
-<button id="share" type="button" hidden>Share PDF</button>
-<iframe name="documentViewer" title="Order PDF"></iframe>
+<div>
+  <a id="download" hidden>Download PDF</a>
+  <button id="share" type="button" hidden>Share PDF</button>
+</div>
+<p id="status" role="status">Opening PDF…</p>
+<iframe title="Order PDF"></iframe>
 <script>
-  const sender = window.opener;
-  if (!sender) {
-    document.body.textContent = "Open the PDF from the order preview.";
-  } else {
-    window.addEventListener("message", function receive(event) {
-      if (event.source !== sender || event.origin !== location.origin || !(event.data instanceof File)) return;
-      window.removeEventListener("message", receive);
-      window.opener = null;
-      const file = event.data;
-      document.title = file.name;
-      const shareButton = document.getElementById("share");
-      const payload = { files: [file] };
-      const canShareFile = navigator.share && navigator.canShare?.(payload);
-      shareButton.textContent = canShareFile ? "Share PDF" : "Download PDF";
-      shareButton.hidden = false;
-      shareButton.onclick = async () => {
-        if (canShareFile) {
-          try {
-            await navigator.share(payload);
-            return;
-          } catch (error) {
-            if (error.name === "AbortError") return;
-          }
-        }
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(file);
-        link.download = file.name;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(link.href), 60000);
-      };
-      const displayName = file.name.split("#").map(part =>
-        encodeURIComponent(part.replace(/\s+/g, "-"))
-      ).join("#");
-      history.replaceState(null, "", "/order-pdf/" + displayName);
-      const files = new DataTransfer();
-      files.items.add(file);
-      const input = document.createElement("input");
-      input.type = "file";
-      input.name = "pdf";
-      input.files = files.files;
-      const form = document.createElement("form");
-      form.method = "post";
-      form.enctype = "multipart/form-data";
-      form.action = "/order-pdf/" + encodeURIComponent(file.name);
-      form.target = "documentViewer";
-      form.hidden = true;
-      form.append(input);
-      document.body.append(form);
-      form.submit();
-      form.remove();
+  async function openPreview() {
+    const params = new URLSearchParams(location.hash.slice(1));
+    const source = new URL(params.get("source"));
+    if (source.protocol !== "blob:" || source.origin !== location.origin) throw new Error();
+    const response = await fetch(source);
+    if (!response.ok) throw new Error();
+    const file = new File([await response.blob()], params.get("name") || "order.pdf", {
+      type: "application/pdf"
     });
-    sender.postMessage("order-preview-ready", location.origin);
+    const url = URL.createObjectURL(file);
+    const download = document.getElementById("download");
+    download.href = url;
+    download.download = file.name;
+    download.hidden = false;
+    const share = document.getElementById("share");
+    const payload = { files: [file] };
+    if (navigator.canShare?.(payload)) {
+      share.hidden = false;
+      share.onclick = async () => {
+        try {
+          await navigator.share(payload);
+        } catch (error) {
+          if (error.name !== "AbortError") download.click();
+        }
+      };
+    }
+    document.title = file.name;
+    const displayName = file.name.split("#").map(part =>
+      encodeURIComponent(part.replace(/\s+/g, "-"))
+    ).join("#");
+    history.replaceState(null, "", "/order-pdf/" + displayName);
+    document.querySelector("iframe").src = url;
+    document.getElementById("status").hidden = true;
   }
+  openPreview().catch(() => {
+    document.getElementById("status").textContent = "Open this PDF again from the order preview.";
+  });
 </script>
 </body>
 </html>
