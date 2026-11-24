@@ -112,6 +112,11 @@ const getExportCellValue = (row: any, column: string) => {
     return beader && beader.toLowerCase() !== "unknown" ? beader : "NA";
   }
 
+  if ((column === "Quantity" || column === "Total Quantity") &&
+      typeof value === "string" && value.trim() && Number.isFinite(Number(value))) {
+    return Number(value);
+  }
+
   return value ?? "";
 };
 
@@ -235,13 +240,16 @@ const buildWorksheet = (rows: any[], title: string, columns = ORDER_EXPORT_COLUM
   const titleRow = columns.map((_, index) =>
     index === 0 ? title : "",
   );
+  const isOrderSummary = columns.includes("Total Quantity");
+  const quantityColumn = isOrderSummary ? "Total Quantity" : "Quantity";
+  const totalLabelColumn = isOrderSummary ? "Exhibition Location" : "Style No";
   const totalQuantity = normalizedRows.reduce((total, row) => {
-    const quantity = Number(row.Quantity);
+    const quantity = Number(row[quantityColumn]);
     return total + (Number.isFinite(quantity) ? quantity : 0);
   }, 0);
   const totalRow = columns.map((column) => {
-    if (column === "Style No") return "Total";
-    if (column === "Quantity") return totalQuantity;
+    if (column === totalLabelColumn) return "Total";
+    if (column === quantityColumn) return totalQuantity;
     return "";
   });
   const worksheet = XLSX.utils.aoa_to_sheet(
@@ -253,10 +261,18 @@ const buildWorksheet = (rows: any[], title: string, columns = ORDER_EXPORT_COLUM
       ...normalizedRows.map((row) =>
         columns.map((column) => row[column] ?? ""),
       ),
-      ...(columns.includes("Quantity") ? [totalRow] : []),
+      totalRow,
     ],
     { sheetStubs: true },
   );
+
+  const quantityLetter = XLSX.utils.encode_col(columns.indexOf(quantityColumn));
+  const firstRow = ORDER_EXPORT_DATA_START_ROW + 1;
+  const lastRow = firstRow + normalizedRows.length - 1;
+  if (normalizedRows.length) {
+    worksheet[quantityLetter + (lastRow + 1)].f =
+      `SUBTOTAL(109,${quantityLetter}${firstRow}:${quantityLetter}${lastRow})`;
+  }
 
   worksheet["!merges"] = [
     {
@@ -409,7 +425,7 @@ const styleWorksheet = (worksheet: XLSX.WorkSheet, columns = ORDER_EXPORT_COLUMN
         continue;
       }
 
-      const isTotalRow = columns.includes("Quantity") && row === range.e.r;
+      const isTotalRow = row === range.e.r;
 
       cell.s = {
         font: { sz: ORDER_EXPORT_FONT_SIZE, bold: isTotalRow },
