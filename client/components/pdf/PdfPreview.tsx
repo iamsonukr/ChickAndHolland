@@ -130,7 +130,7 @@ async function shareOrDownloadBlob(
 
   if (preferShare && typeof File !== "undefined" && nav.share && nav.canShare) {
     const file = new File([blob], resolvedFileName, { type: PDF_MIME_TYPE });
-    const shareData = { files: [file], title: resolvedFileName };
+    const shareData = { files: [file] };
 
     if (nav.canShare(shareData)) {
       try {
@@ -832,24 +832,20 @@ export default function PdfPreview({
   const openPdfExternally = useCallback(() => {
     if (sourceDocument && resolvedBlob && !openUrl) {
       const name = resolvedFileName.replace(/[\\/:*?"<>|]/g, "-");
-      const files = new DataTransfer();
-      files.items.add(new File([resolvedBlob], name, { type: PDF_MIME_TYPE }));
-      const input = document.createElement("input");
-      input.type = "file";
-      input.name = "pdf";
-      input.files = files.files;
-
-      const form = document.createElement("form");
-      form.method = "post";
-      form.enctype = "multipart/form-data";
-      const urlName = name.replace(/[^A-Za-z0-9._~-]+/g, "-");
-      form.action = `/order-pdf/${urlName}`;
-      form.target = "_blank";
-      form.rel = "noopener";
-      form.append(input);
-      document.body.append(form);
-      form.submit();
-      form.remove();
+      const preview = window.open("/order-preview.html", "_blank");
+      if (!preview) {
+        void shareOrDownloadBlob(resolvedBlob, name, false);
+        return;
+      }
+      const sendPdf = (event: MessageEvent) => {
+        if (event.origin !== location.origin || event.source !== preview ||
+            event.data !== "order-preview-ready") return;
+        window.removeEventListener("message", sendPdf);
+        window.clearTimeout(timeout);
+        preview.postMessage(new File([resolvedBlob], name, { type: PDF_MIME_TYPE }), location.origin);
+      };
+      window.addEventListener("message", sendPdf);
+      const timeout = window.setTimeout(() => window.removeEventListener("message", sendPdf), 60000);
       return;
     }
 
@@ -947,6 +943,15 @@ export default function PdfPreview({
               <Download className="h-3.5 w-3.5" />
               Download PDF
             </button>
+            {sourceDocument && resolvedBlob && (
+              <button
+                type="button"
+                onClick={() => shareOrDownloadBlob(resolvedBlob, resolvedFileName, true)}
+                className="inline-flex min-h-[38px] items-center rounded border px-3 py-2 text-xs font-medium hover:bg-gray-50"
+              >
+                Share PDF
+              </button>
+            )}
             {extraActions}
           </div>
         </div>

@@ -13,11 +13,12 @@ export async function POST(request: Request) {
     return new Response("Expected a PDF document.", { status: 400 });
   }
 
+  const fallbackName = file.name.replace(/[^\x20-\x7E]|["\\/]/g, "_");
   const name = encodeURIComponent(file.name).replace(/'/g, "%27");
   return new Response(file, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename*=UTF-8''${name}`,
+      "Content-Disposition": `inline; filename="${fallbackName}"; filename*=UTF-8''${name}`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },
