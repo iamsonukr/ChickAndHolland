@@ -45,6 +45,13 @@
     history.replaceState(null, "", "/order-pdf/" + displayName);
     // Give the native viewer a named PDF response for its own Save button.
     const frame = document.querySelector("iframe");
+    const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (mobile) {
+      frame.src = "/order-pdf-viewer#" + new URLSearchParams({ source: url, name: file.name });
+      document.getElementById("status").hidden = true;
+      return;
+    }
     const form = document.createElement("form");
     form.method = "post";
     form.enctype = "multipart/form-data";
