@@ -2,6 +2,7 @@ import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import DueFilter from "./DueFilter";
+import ShareOrdersPdfButton from "./ShareOrdersPdfButton";
 import CreateOrder from "./CreateOrder";
 import {
   getCustomers,
@@ -208,6 +209,7 @@ const OrdersPage = async (props: {
             <h1 className="text-lg font-semibold md:text-xl">All Orders</h1>
             <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
               <ClearSelectionButton />
+              <ShareOrdersPdfButton />
               <DeleteButton />
               <AdjustSequenceButton />
               <Link href="/admin-panel/orders/qr-scan">
