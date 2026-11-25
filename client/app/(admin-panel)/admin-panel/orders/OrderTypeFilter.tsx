@@ -1,52 +1,15 @@
 "use client";
-
-import { useRouter, useSearchParams } from "next/navigation";
-
 import { OrderTypeKeys } from "@/lib/formSchemas";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-const OrderTypeFilter = () => {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
+import SingleOrderTypeFilter from "./SingleOrderTypeFilter";
+import MultiOrderFilter from "./MultiOrderFilter";
+export default function OrderTypeFilter({ multiple = false }: { multiple?: boolean }) {
+  if (!multiple) return <SingleOrderTypeFilter />;
   return (
-    <>
-      <Select
-        value={searchParams.get("orderType") || "All"}
-        onValueChange={(value) => {
-          const params = new URLSearchParams(searchParams.toString());
-          params.delete("cPage");
-
-          if (value === "All") {
-            params.delete("orderType");
-          } else {
-            params.set("orderType", value);
-          }
-
-          const search = params.toString();
-          router.push(search ? `?${search}` : "?", { scroll: false });
-        }}
-      >
-        <SelectTrigger className="w-[150px]">
-          <SelectValue placeholder="Order Type" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="All">All</SelectItem>
-          {OrderTypeKeys.map((key) => (
-          <SelectItem key={key} value={key}>
-            {key}
-          </SelectItem>
-        ))}
-        </SelectContent>
-      </Select>
-    </>
+    <MultiOrderFilter
+      filterKey="orderType"
+      label="Order types"
+      allLabel="All"
+      options={OrderTypeKeys.map((value) => ({ value, label: value }))}
+    />
   );
-};
-
-export default OrderTypeFilter;
+}

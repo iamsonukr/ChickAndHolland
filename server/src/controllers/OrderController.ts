@@ -1,3 +1,4 @@
+import { parseOrderFilter, matchesOrderFilter } from "../lib/orderFilters";
 import { raw, Request, Response, Router } from "express";
 import { NextFunction } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
@@ -161,9 +162,9 @@ async function addOrderStylesBeaderFilter(
   orderAlias: string,
   beader?: string,
 ) {
-  const beaderValue = String(beader || "").trim();
+  const beaderValues = parseOrderFilter(beader).map(value => value.toLowerCase());
 
-  if (!beaderValue) {
+  if (!beaderValues.length) {
     return false;
   }
 
@@ -180,10 +181,10 @@ async function addOrderStylesBeaderFilter(
           "styleBeaderFilter",
           "orderBeaderFilter",
           "productBeaderFilter",
-        )}) = LOWER(:beaderFilter)
+        )}) IN (:...beaderFilter)
     )`,
     {
-      beaderFilter: beaderValue,
+      beaderFilter: beaderValues,
     },
   );
 
@@ -927,29 +928,17 @@ async function getOrderStageCountSourceOrders({
 
   let unionQuery: string;
 
-  if (orderType) {
-    if (!includeRetailerOrders) {
-      regularOrdersQuery.andWhere("o.orderType = :orderType", { orderType });
-      unionQuery = regularOrdersQuery.getQuery();
-    } else if (hasBeaderFilter && ["Fresh", "Stock"].includes(orderType)) {
-      regularOrdersQuery.andWhere("1 = 0");
-      unionQuery = regularOrdersQuery.getQuery();
-    } else if (orderType === "Stock") {
-      retailerOrdersQuery.andWhere("ro.is_stock_order = 1");
-      unionQuery = retailerOrdersQuery.getQuery();
-    } else if (orderType === "Fresh") {
-      retailerOrdersQuery.andWhere("ro.is_stock_order = 0");
-      unionQuery = retailerOrdersQuery.getQuery();
-    } else {
-      regularOrdersQuery.andWhere("o.orderType = :orderType", { orderType });
-      unionQuery = regularOrdersQuery.getQuery();
-    }
-  } else {
-    unionQuery =
-      includeRetailerOrders && !hasBeaderFilter
-        ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})`
-        : regularOrdersQuery.getQuery();
-  }
+  const selectedTypes = parseOrderFilter(orderType);
+  const regularTypes = includeRetailerOrders ? selectedTypes.filter(type => !["Fresh", "Stock"].includes(type)) : selectedTypes;
+  const retailerTypes = selectedTypes.filter(type => ["Fresh", "Stock"].includes(type));
+  const useRegular = !selectedTypes.length || regularTypes.length > 0;
+  const useRetailer = includeRetailerOrders && !hasBeaderFilter && (!selectedTypes.length || retailerTypes.length > 0);
+  if (regularTypes.length) regularOrdersQuery.andWhere("o.orderType IN (:...selectedOrderTypes)", { selectedOrderTypes: regularTypes });
+  if (!useRegular) regularOrdersQuery.andWhere("1 = 0");
+  if (retailerTypes.length === 1) retailerOrdersQuery.andWhere("ro.is_stock_order = :selectedStockFlag", { selectedStockFlag: retailerTypes[0] === "Stock" ? 1 : 0 });
+  unionQuery = useRetailer
+    ? (useRegular ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})` : retailerOrdersQuery.getQuery())
+    : regularOrdersQuery.getQuery();
 
   const mergedParams = {
     ...regularOrdersQuery.getParameters(),
@@ -1026,8 +1015,12 @@ const matchesDueFilter = (
   dueFilter: string | undefined,
   orderStatus: string,
   orderCancellationDate: unknown,
-) => {
+): boolean => {
   if (!dueFilter) return true;
+  const selected = parseOrderFilter(dueFilter);
+  if (selected.length !== 1 || selected[0] !== dueFilter) {
+    return !selected.length || selected.some(value => matchesDueFilter(value, orderStatus, orderCancellationDate));
+  }
 
   const hasDueDate = !!orderCancellationDate;
   const difference = getDueDateDifference(orderCancellationDate);
@@ -3242,8 +3235,9 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
     } = req.query;
 
     const likeQuery = query ? `%${query.toLowerCase()}%` : undefined;
-    const beaderFilter = String(beader || "").trim();
-    const hasBeaderFilter = Boolean(beaderFilter);
+    const beaderFilters = parseOrderFilter(beader).map(value => value.toLowerCase());
+    const hasBeaderFilter = beaderFilters.length > 0;
+    const selectedTypes = parseOrderFilter(orderType);
     const selectedExportOrders = parseSelectedExportOrders(req.body?.selectedOrders ?? req.query.selectedOrders);
 
     if (
@@ -3285,23 +3279,23 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
 
     const includeRegular = selectedExportOrders.hasSelection
       ? selectedExportOrders.regularIds.length > 0
-      : !orderType || !["Fresh", "Stock"].includes(String(orderType));
+      : !selectedTypes.length || selectedTypes.some(type => !["Fresh", "Stock"].includes(type));
     const includeRetailer =
       !hasBeaderFilter &&
       (selectedExportOrders.hasSelection
         ? selectedExportOrders.retailerIds.length > 0
-        : !orderType || ["Fresh", "Stock"].includes(String(orderType)));
+        : !selectedTypes.length || selectedTypes.some(type => ["Fresh", "Stock"].includes(type)));
 
-    if (orderType && includeRegular) {
-      regularWhere.push("o.orderType = ?");
-      regularParams.push(orderType);
+    if (selectedTypes.length && includeRegular) {
+      regularWhere.push(`o.orderType IN (${selectedTypes.map(() => "?").join(",")})`);
+      regularParams.push(...selectedTypes);
     }
 
     if (hasBeaderFilter) {
       regularWhere.push(
-        `LOWER(${buildResolvedOrderStyleBeaderSql("s", "ob", "p")}) = LOWER(?)`,
+        `LOWER(${buildResolvedOrderStyleBeaderSql("s", "ob", "p")}) IN (${beaderFilters.map(() => "?").join(",")})`,
       );
-      regularParams.push(beaderFilter);
+      regularParams.push(...beaderFilters);
     }
 
     appendIdFilter(
@@ -3317,9 +3311,9 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
       selectedExportOrders.retailerIds,
     );
 
-    if (orderType === "Fresh") {
+    if (selectedTypes.includes("Fresh") && !selectedTypes.includes("Stock")) {
       retailerWhere.push("ro.is_stock_order = 0");
-    } else if (orderType === "Stock") {
+    } else if (selectedTypes.includes("Stock") && !selectedTypes.includes("Fresh")) {
       retailerWhere.push("ro.is_stock_order = 1");
     }
 
@@ -3377,7 +3371,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
             regularParams,
           )
         : [],
-      includeRetailer && orderType !== "Stock"
+      includeRetailer && (!selectedTypes.length || selectedTypes.includes("Fresh"))
         ? db.query(
             `
               SELECT
@@ -3441,7 +3435,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
             retailerParams,
           )
         : [],
-      includeRetailer && orderType !== "Fresh"
+      includeRetailer && (!selectedTypes.length || selectedTypes.includes("Stock"))
         ? db.query(
             `
               SELECT
@@ -3543,7 +3537,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
           getEffectiveParentOrderStage(order.orderType, order.parentOrderStatus),
         );
         if (stage && !styles.some((style) =>
-          (progress.get(String(style.barcode || "")) ?? DEFAULT_ORDER_STAGE) === stage,
+          matchesOrderFilter(stage, progress.get(String(style.barcode || "")) ?? DEFAULT_ORDER_STAGE),
         )) return [];
         if (!matchesDueFilter(due, orderStatus, order.orderCancellationDate)) return [];
         return [{
@@ -3596,7 +3590,7 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
         };
       })
       .filter(({ productStatus, orderCancellationDate }) => {
-        if (stage && productStatus !== stage) return false;
+        if (!matchesOrderFilter(stage, productStatus)) return false;
         return matchesDueFilter(due, productStatus, orderCancellationDate);
       })
       .map(({ row }) => row);
@@ -3667,13 +3661,14 @@ router.get(
       );
       rows.forEach((row: any) => {
         const currentStage = getMostAdvancedKnownStage(progress.get(String(row.barcode)), statusById.get(Number(row.orderId)));
-        if (stage && currentStage !== getCanonicalStage(stage)) return;
+        if (stage && !parseOrderFilter(stage).some(value => currentStage === getCanonicalStage(value))) return;
         const name = sanitizeText(row.resolvedBeader).toLowerCase();
         if (name) counts.set(name, (counts.get(name) ?? 0) + getStyleTotalQuantity(row));
       });
     }
+    const stageCounts = stage ? await getProductStageCounts(sourceOrders) : {};
     const allCount = stage
-      ? (await getProductStageCounts(sourceOrders))[getCanonicalStage(stage) ?? stage] ?? 0
+      ? parseOrderFilter(stage).reduce((sum, value) => sum + (stageCounts[getCanonicalStage(value) ?? value] ?? 0), 0)
       : await getAllStatusQuantity(sourceOrders);
     return res.json({ success: true, allCount, counts: Object.fromEntries(counts),
       beaders: beaders.map(beader => sanitizeText(beader.name)).filter(Boolean),
@@ -3829,29 +3824,17 @@ router.get(
     addReceivedDateFilter(regularOrdersQuery, "o", dateFrom, dateTo);
     addReceivedDateFilter(retailerOrdersQuery, "ro", dateFrom, dateTo);
 
-    if (orderType) {
-      if (!includeRetailerOrders) {
-        regularOrdersQuery.andWhere("o.orderType = :orderType", { orderType });
-        unionQuery = regularOrdersQuery.getQuery();
-      } else if (hasBeaderFilter && ["Fresh", "Stock"].includes(orderType)) {
-        regularOrdersQuery.andWhere("1 = 0");
-        unionQuery = regularOrdersQuery.getQuery();
-      } else if (orderType === "Stock") {
-        retailerOrdersQuery.andWhere("ro.is_stock_order = 1");
-        unionQuery = retailerOrdersQuery.getQuery();
-      } else if (orderType === "Fresh") {
-        retailerOrdersQuery.andWhere("ro.is_stock_order = 0");
-        unionQuery = retailerOrdersQuery.getQuery();
-      } else {
-        regularOrdersQuery.andWhere("o.orderType = :orderType", { orderType });
-        unionQuery = regularOrdersQuery.getQuery();
-      }
-    } else {
-      unionQuery =
-        includeRetailerOrders && !hasBeaderFilter
-          ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})`
-          : regularOrdersQuery.getQuery();
-    }
+    const selectedTypes = parseOrderFilter(orderType);
+    const regularTypes = includeRetailerOrders ? selectedTypes.filter(type => !["Fresh", "Stock"].includes(type)) : selectedTypes;
+    const retailerTypes = selectedTypes.filter(type => ["Fresh", "Stock"].includes(type));
+    const useRegular = !selectedTypes.length || regularTypes.length > 0;
+    const useRetailer = includeRetailerOrders && !hasBeaderFilter && (!selectedTypes.length || retailerTypes.length > 0);
+    if (regularTypes.length) regularOrdersQuery.andWhere("o.orderType IN (:...selectedOrderTypes)", { selectedOrderTypes: regularTypes });
+    if (!useRegular) regularOrdersQuery.andWhere("1 = 0");
+    if (retailerTypes.length === 1) retailerOrdersQuery.andWhere("ro.is_stock_order = :selectedStockFlag", { selectedStockFlag: retailerTypes[0] === "Stock" ? 1 : 0 });
+    unionQuery = useRetailer
+      ? (useRegular ? `(${regularOrdersQuery.getQuery()}) UNION ALL (${retailerOrdersQuery.getQuery()})` : retailerOrdersQuery.getQuery())
+      : regularOrdersQuery.getQuery();
 
     const finalQuery = db
       .createQueryBuilder()
@@ -4238,7 +4221,7 @@ router.get(
     });
 
     const stageFilteredOrders = formattedOrders.filter((order) =>
-      (!stage || order.orderStatus === stage) &&
+      matchesOrderFilter(stage, order.orderStatus) &&
       matchesDueFilter(due, order.orderStatus, order.orderCancellationDate),
     );
     const paginatedOrders = stage || due

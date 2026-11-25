@@ -1,5 +1,7 @@
 "use client";
 
+import { parseOrderFilter } from "@/lib/orderFilters";
+
 import { useState } from "react";
 import { Download, Filter } from "lucide-react";
 import JSZip from "jszip";
@@ -182,12 +184,12 @@ const buildExportFilterDisplayName = ({
   due?: string;
   beader?: string;
 }) => {
-  if (stage) return withPendingLabel(stage).toUpperCase();
+  if (stage) return parseOrderFilter(stage).map(withPendingLabel).join(", ").toUpperCase();
 
   const filterParts = [
-    orderType && orderType !== "All" ? orderType : "",
-    getDueDisplayLabel(due),
-    beader,
+    parseOrderFilter(orderType).join(", "),
+    parseOrderFilter(due).map(getDueDisplayLabel).join(", "),
+    parseOrderFilter(beader).join(", "),
     query,
   ].filter(Boolean);
 

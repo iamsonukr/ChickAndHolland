@@ -73,12 +73,18 @@ const OrdersPage = async (props: {
 }) => {
   const searchParams = await props.searchParams;
   const cookieStore = await cookies();
-  const savedBeader = cookieStore.get("orders-beader")?.value;
-  if (searchParams["beader"] === undefined && savedBeader) {
-    const params = new URLSearchParams(searchParams);
-    params.set("beader", savedBeader);
-    params.delete("cPage");
-    redirect(`/admin-panel/orders?${params.toString()}`);
+  const restoredParams = new URLSearchParams(searchParams);
+  let restored = false;
+  for (const key of ["orderType", "stage", "beader", "due"]) {
+    const saved = cookieStore.get(`orders-${key}`)?.value;
+    if (searchParams[key] === undefined && saved) {
+      restoredParams.set(key, saved);
+      restored = true;
+    }
+  }
+  if (restored) {
+    restoredParams.delete("cPage");
+    redirect(`/admin-panel/orders?${restoredParams.toString()}`);
   }
   const currentPage = searchParams["cPage"] ? Number(searchParams["cPage"]) : 1;
   const query = searchParams["q"] ?? "";
@@ -231,8 +237,9 @@ const OrdersPage = async (props: {
             {/* Search + Filter */}
             <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
               <CustomSearchBar query={query} />
-              <OrderTypeFilter />
+              <OrderTypeFilter multiple />
               <StageFilter
+                multiple
                 query={query}
                 orderType={orderType}
                 due={dueFilter}
