@@ -62,3 +62,25 @@ test('exports apply exhibition and estimate/invoice search to both order sources
   assert.deepEqual(values,['%Paris%','2026-11-01','2026-11-16',...Array(5).fill('%INV-123%')]);
  }
 });
+
+test('saved beader is restored on return while explicit selection or clearing wins', async () => {
+ const source = read('client/app/(admin-panel)/admin-panel/orders/page.tsx');
+ const start = source.indexOf('  const searchParams = await props.searchParams;');
+ const end = source.indexOf('  const currentPage', start);
+ const run = new Function('props', 'cookies', 'redirect', `return (async () => {${compile(source.slice(start, end))}})()`);
+ for (const [params, saved, expected] of [
+  [{due:'shipped', cPage:'3'}, 'A & B', 'A & B'],
+  [{beader:'SONU'}, 'A & B', null],
+  [{beader:''}, 'A & B', null],
+  [{}, '', null],
+ ]) {
+  let redirected;
+  await run({searchParams:Promise.resolve(params)}, async()=>({get:()=>({value:saved})}), url=>{redirected=url;});
+  if (expected) {
+   const url = new URL(redirected, 'https://example.test');
+   assert.equal(url.searchParams.get('beader'), expected);
+   assert.equal(url.searchParams.get('due'), 'shipped');
+   assert.equal(url.searchParams.has('cPage'), false);
+  } else assert.equal(redirected, undefined);
+ }
+});

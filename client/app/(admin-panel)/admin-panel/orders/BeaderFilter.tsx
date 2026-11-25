@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import {
@@ -60,8 +61,20 @@ export default function BeaderFilter({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const saveBeader = (value: string) => {
+    document.cookie = `orders-beader=${encodeURIComponent(value)}; Path=/; Max-Age=${value ? 31536000 : 0}; SameSite=Lax`;
+  };
+
+  useEffect(() => {
+    saveBeader(beader || "");
+  }, [beader]);
+
+  // Keep the selected option visible even when other filters give it no results.
+  const options = beader && !beaders.includes(beader) ? [beader, ...beaders] : beaders;
+
   const handleChange = (value: string) => {
     const nextBeader = value === ALL_BEADERS ? "" : value;
+    saveBeader(nextBeader);
     const search = buildSearch({
       query,
       orderType,
@@ -87,7 +100,7 @@ export default function BeaderFilter({
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={ALL_BEADERS}>All Beaders{allCount !== undefined ? ` (${allCount} pcs)` : ""}</SelectItem>
-        {beaders.map((option) => (
+        {options.map((option) => (
           <SelectItem key={option} value={option}>
             {option} ({counts[option.toLowerCase()] ?? 0} pcs)
           </SelectItem>

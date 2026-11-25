@@ -1,5 +1,7 @@
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import DueFilter from "./DueFilter";
 import CreateOrder from "./CreateOrder";
 import {
   getCustomers,
@@ -60,53 +62,24 @@ const getRowClassName = (difference: number, orderStatus: string) => {
   return "";
 };
 
-const filterButtonClassName =
-  "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted";
-
 const tableHeadClassName =
   "border border-border px-2 py-1.5 text-center text-[15px] font-semibold text-foreground align-middle";
 
 const tableCellClassName =
   "border border-border px-2 py-1.5 text-sm md:text-[15px] align-middle";
 
-const buildOrdersFilterHref = ({
-  query,
-  orderType,
-  stage,
-  due,
-  beader,
-  dateFrom,
-  dateTo,
-  exhibitionLocation,
-}: {
-  query: string;
-  orderType: string;
-  stage?: string;
-  due?: string;
-  beader?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  exhibitionLocation?: string;
-}) => {
-  const params = new URLSearchParams();
-
-  if (query) params.set("q", query);
-  if (orderType) params.set("orderType", orderType);
-  if (stage) params.set("stage", stage);
-  if (due) params.set("due", due);
-  if (beader) params.set("beader", beader);
-  if (dateFrom) params.set("dateFrom", dateFrom);
-  if (dateTo) params.set("dateTo", dateTo);
-  if (exhibitionLocation) params.set("exhibitionLocation", exhibitionLocation);
-
-  const search = params.toString();
-  return search ? `?${search}` : "?";
-};
-
 const OrdersPage = async (props: {
   searchParams: Promise<Record<string, string>>;
 }) => {
   const searchParams = await props.searchParams;
+  const cookieStore = await cookies();
+  const savedBeader = cookieStore.get("orders-beader")?.value;
+  if (searchParams["beader"] === undefined && savedBeader) {
+    const params = new URLSearchParams(searchParams);
+    params.set("beader", savedBeader);
+    params.delete("cPage");
+    redirect(`/admin-panel/orders?${params.toString()}`);
+  }
   const currentPage = searchParams["cPage"] ? Number(searchParams["cPage"]) : 1;
   const query = searchParams["q"] ?? "";
   const orderType = searchParams["orderType"] ?? "";
@@ -162,7 +135,6 @@ const OrdersPage = async (props: {
   const subCategories = productCollection?.subCategories ?? [];
   const currencies = currenciesResponse?.currencies ?? currenciesResponse ?? [];
   // determine whether to show address/phone based on current user's role
-  const cookieStore = await cookies();
   const userType = cookieStore.get("userType")?.value;
   const token = cookieStore.get("token")?.value;
   const userId = cookieStore.get("userId")?.value;
@@ -283,101 +255,7 @@ const OrdersPage = async (props: {
                 stage={stage}
                 beader={beader}
               />
-              <div className="flex flex-wrap items-center gap-2">
-                <a
-                  href={buildOrdersFilterHref({
-                    query,
-                    orderType,
-                    stage,
-                    due: "lt14",
-                    beader,
-                    dateFrom,
-                    dateTo,
-                    exhibitionLocation,
-                  })}
-                  className={cn(
-                    filterButtonClassName,
-                    dueFilter === "lt14" ? "border-red-300 bg-red-100" : "",
-                  )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="h-2.5 w-2.5 rounded-full bg-red-500"
-                    />
-                    <span>Due in 14 Days</span>
-                  </span>
-                </a>
-                <a
-                  href={buildOrdersFilterHref({
-                    query,
-                    orderType,
-                    stage,
-                    due: "lt28",
-                    beader,
-                    dateFrom,
-                    dateTo,
-                    exhibitionLocation,
-                  })}
-                  className={cn(
-                    filterButtonClassName,
-                    dueFilter === "lt28"
-                      ? "border-yellow-300 bg-yellow-100"
-                      : "",
-                  )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="h-2.5 w-2.5 rounded-full bg-yellow-400"
-                    />
-                    <span>Due in 28 Days</span>
-                  </span>
-                </a>
-                <a
-                  href={buildOrdersFilterHref({
-                    query,
-                    orderType,
-                    stage,
-                    due: "shipped",
-                    beader,
-                    dateFrom,
-                    dateTo,
-                    exhibitionLocation,
-                  })}
-                  className={cn(
-                    filterButtonClassName,
-                    dueFilter === "shipped"
-                      ? "border-green-300 bg-green-100"
-                      : "",
-                  )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="h-2.5 w-2.5 rounded-full bg-green-500"
-                    />
-                    <span>Shipped</span>
-                  </span>
-                </a>
-                <a
-                  href={buildOrdersFilterHref({
-                    query,
-                    orderType,
-                    stage,
-                    beader,
-                    dateFrom,
-                    dateTo,
-                    exhibitionLocation,
-                  })}
-                  className={cn(
-                    filterButtonClassName,
-                    !dueFilter ? "bg-muted" : "",
-                  )}
-                >
-                  All Orders
-                </a>
-              </div>
+              <DueFilter />
             </div>
 
             <DateRangeFilter />
