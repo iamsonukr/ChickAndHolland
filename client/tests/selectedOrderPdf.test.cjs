@@ -18,61 +18,72 @@ async function pdfBytes(pages) {
 }
 const orders = [{id:7,orderType:'Store',orderSource:'regular'},{id:7,orderType:'Fresh',orderSource:'retailer'}];
 
-test('generated PDFs for all selected orders are merged without requesting uploaded attachments', async () => {
- const docs = [await pdfBytes(2),await pdfBytes(1)];
+test('three orders produce three separate PO-named PDFs with every original page', async () => {
+ const docs = [await pdfBytes(2),await pdfBytes(1),await pdfBytes(3)];
+ const selected = [...orders,{id:8,orderType:'Stock',orderSource:'retailer'}];
+ const names = ['PO#AMAN 2692.pdf','PO#SUCCESS 2691.pdf','PO#SUCCESS 2690.pdf'];
  const requests = [];
- const {prepareSelectedOrderPdf} = load({fetch:()=>{throw new Error('Must generate, not load attachments');}});
- const file = await prepareSelectedOrderPdf(orders,'https://example.test/api','token',new AbortController().signal,
-  async(order,apiUrl,token)=>{requests.push({order,apiUrl,token});return docs[requests.length-1].buffer;});
- const merged = await PDFDocument.load(await file.arrayBuffer());
- assert.equal(merged.getPageCount(),3);
- assert.deepEqual(merged.getPages().map(page=>page.getWidth()),[300,301,300]);
- assert.equal(file.type,'application/pdf');
- assert.equal(file.name,'selected-orders-2.pdf');
- assert.deepEqual(requests.map(request=>request.order),orders);
+ const {prepareSelectedOrderPdfs} = load({fetch:()=>{throw new Error('Must generate, not load attachments');}});
+ const files = await prepareSelectedOrderPdfs(selected,'https://example.test/api','token',new AbortController().signal,
+  async(order,apiUrl,token)=>{requests.push({order,apiUrl,token});return new File([docs[requests.length-1]],names[requests.length-1],{type:'application/pdf'});});
+ assert.equal(files.length,3);
+ assert.deepEqual(files.map(file=>file.name),names);
+ for(let i=0;i<files.length;i++) {
+  const pdf = await PDFDocument.load(await files[i].arrayBuffer());
+  assert.equal(pdf.getPageCount(),[2,1,3][i]);
+  assert.equal(files[i].type,'application/pdf');
+  assert.deepEqual(new Uint8Array(await files[i].arrayBuffer()),docs[i]);
+ }
+ assert.deepEqual(requests.map(request=>request.order),selected);
  assert.equal(requests[0].token,'token');
 });
 
 test('a single generated PDF retains all its bytes', async () => {
  const original = await pdfBytes(2);
- const {prepareSelectedOrderPdf} = load();
- const file = await prepareSelectedOrderPdf([orders[0]],'api','',new AbortController().signal,async()=>original.buffer);
+ const {prepareSelectedOrderPdfs} = load();
+ const [file] = await prepareSelectedOrderPdfs([orders[0]],'api','',new AbortController().signal,async()=>new File([original],'PO#7.pdf',{type:'application/pdf'}));
+ assert.equal(file.name,'PO#7.pdf');
  assert.deepEqual(new Uint8Array(await file.arrayBuffer()),original);
 });
 
 test('generation errors identify the order and do not share a partial selection', async () => {
- const {prepareSelectedOrderPdf} = load();
- await assert.rejects(prepareSelectedOrderPdf(orders,'api','',new AbortController().signal,async()=>{throw new Error('Order unavailable');}),/Store order #7: Order unavailable/);
+ const {prepareSelectedOrderPdfs} = load();
+ await assert.rejects(prepareSelectedOrderPdfs(orders,'api','',new AbortController().signal,async()=>{throw new Error('Order unavailable');}),/Store order #7: Order unavailable/);
 });
 
 test('a changed selection aborts generation', async () => {
  const controller = new AbortController(); controller.abort();
  let generated=false;
- const {prepareSelectedOrderPdf}=load();
- await assert.rejects(prepareSelectedOrderPdf(orders,'api','',controller.signal,async()=>{generated=true;}),{name:'AbortError'});
+ const {prepareSelectedOrderPdfs}=load();
+ await assert.rejects(prepareSelectedOrderPdfs(orders,'api','',controller.signal,async()=>{generated=true;}),{name:'AbortError'});
  assert.equal(generated,false);
 });
 
-test('share opens immediately with a PDF file; cancellation does not download', async () => {
+test('share opens once with three separate PO-named files; cancellation does not download', async () => {
  const file=new File(['%PDF-'],'orders.pdf',{type:'application/pdf'});
  let shared;
  const api=load({navigator:{canShare:()=>true,share:data=>{shared=data;return Promise.resolve();}}});
- const result=api.shareSelectedOrderPdf(file);
- assert.deepEqual(shared,{files:[file]});
+ const files=[file,new File(['%PDF-'],'PO#2.pdf'),new File(['%PDF-'],'PO#3.pdf')];
+ const result=api.shareSelectedOrderPdfs(files);
+ assert.deepEqual(shared,{files});
  assert.equal(await result,'shared');
  const cancelled=load({navigator:{canShare:()=>true,share:async()=>{throw new DOMException('cancel','AbortError');}}});
- assert.equal(await cancelled.shareSelectedOrderPdf(file),'cancelled');
+ assert.equal(await cancelled.shareSelectedOrderPdfs([file]),'cancelled');
 });
 
-test('unsupported file sharing downloads the prepared PDF and revokes its URL', async () => {
- const file=new File(['%PDF-'],'orders.pdf',{type:'application/pdf'});
- let clicked=false,revoked=false;const link={click(){clicked=true;},remove(){}};
- const api=load({document:{createElement:()=>link,body:{appendChild(){}}},window:{setTimeout:fn=>fn()},URL:{createObjectURL:()=> 'blob:pdf',revokeObjectURL:()=>{revoked=true;}}});
- assert.equal(await api.shareSelectedOrderPdf(file),'downloaded');
- assert.equal(link.download,'orders.pdf');
- assert.equal(clicked,true);assert.equal(revoked,true);
+test('unsupported sharing downloads each PDF separately with its PO filename and revokes every URL', async () => {
+ const files=['PO#1.pdf','PO#2.pdf','PO#3.pdf'].map(name=>new File(['%PDF-'],name,{type:'application/pdf'}));
+ const downloads=[],revoked=[];
+ let nextUrl=0;
+ const api=load({
+  document:{createElement:()=>({click(){downloads.push(this.download);},remove(){}}),body:{appendChild(){}}},
+  window:{setTimeout:fn=>fn()},
+  URL:{createObjectURL:()=>`blob:pdf-${nextUrl++}`,revokeObjectURL:url=>revoked.push(url)},
+ });
+ assert.equal(await api.shareSelectedOrderPdfs(files),'downloaded');
+ assert.deepEqual(downloads,files.map(file=>file.name));
+ assert.deepEqual(revoked,['blob:pdf-0','blob:pdf-1','blob:pdf-2']);
 });
-
 
 test('sharing generates regular, fresh, and stock orders using the existing preview loaders and templates', async () => {
  const source = fs.readFileSync(path.join(__dirname,'../app/(admin-panel)/admin-panel/orders/generateSelectedOrderPdf.tsx'),'utf8');
@@ -87,8 +98,8 @@ test('sharing generates regular, fresh, and stock orders using the existing prev
    if(name.endsWith('RetailerPdf')) return {default:'retailer-template'};
    if(name==='@/lib/selectedOrderPdf') return load();
    if(name==='./orderPdfData') return {
-    loadRegularOrderPreview:async data=>{loaded=data;return {previewData:{details:[{barcode:'QR-1'}]}};},
-    loadRetailerOrderPreview:async data=>{loaded=data;return {details:[{barcode:'QR-2'}]};},
+    loadRegularOrderPreview:async data=>{loaded=data;return {previewData:{purchaseOrderNo:'PO#AMAN 2692',details:[{barcode:'QR-1'}]}};},
+    loadRetailerOrderPreview:async data=>{loaded=data;return {purchaseOrderNo:'PO#SUCCESS 2691',details:[{barcode:'QR-2'}]};},
    };
    throw new Error(name);
   };
@@ -96,8 +107,10 @@ test('sharing generates regular, fresh, and stock orders using the existing prev
    requested=url;
    return {ok:true,json:async()=>({success:true,data:{id:7,is_stock_order:type==='Stock',favourite_order:{id:10},Stock_order:{id:11}}})};
   });
-  const bytes=await exports.generateSelectedOrderPdf({id:7,orderType:type,orderSource:type==='Store'?'regular':'retailer'},'api','token',new AbortController().signal);
-  assert.equal(new TextDecoder().decode(bytes),'%PDF-generated');
+  const file=await exports.generateSelectedOrderPdf({id:7,orderType:type,orderSource:type==='Store'?'regular':'retailer'},'api','token',new AbortController().signal);
+  assert.equal(await file.text(),'%PDF-generated');
+  assert.equal(file.name,type==='Store'?'PO#AMAN 2692.pdf':'PO#SUCCESS 2691.pdf');
+  assert.equal(file.type,'application/pdf');
   assert.equal(rendered.type,type==='Store'?'regular-template':'retailer-template');
   assert.equal(loaded.orderType,type);
   if(type!=='Store') {

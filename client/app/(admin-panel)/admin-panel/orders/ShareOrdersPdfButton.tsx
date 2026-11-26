@@ -7,18 +7,19 @@ import { Button } from "@/components/ui/button";
 import { API_URL } from "@/lib/constants";
 import { getCookie } from "@/lib/utils";
 import {
-  prepareSelectedOrderPdf,
-  shareSelectedOrderPdf,
-  downloadSelectedOrderPdf,
+  prepareSelectedOrderPdfs,
+  shareSelectedOrderPdfs,
+  downloadSelectedOrderPdfs,
 } from "@/lib/selectedOrderPdf";
 import { useItems } from "./Delete";
 
 export default function ShareOrdersPdfButton() {
   const { items } = useItems();
   const selectionKey = JSON.stringify(items);
-  const [prepared, setPrepared] = useState<{ key: string; file: File } | null>(
-    null,
-  );
+  const [prepared, setPrepared] = useState<{
+    key: string;
+    files: File[];
+  } | null>(null);
   const [failure, setFailure] = useState<{
     key: string;
     message: string;
@@ -35,7 +36,7 @@ export default function ShareOrdersPdfButton() {
     return () => request.current?.abort();
   }, [selectionKey]);
 
-  const file = prepared?.key === selectionKey ? prepared.file : null;
+  const files = prepared?.key === selectionKey ? prepared.files : null;
   const error = failure?.key === selectionKey ? failure.message : "";
 
   const share = async () => {
@@ -43,36 +44,36 @@ export default function ShareOrdersPdfButton() {
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
-    let readyFile = file;
+    let readyFiles = files;
     setFailure(null);
     try {
-      if (!readyFile) {
+      if (!readyFiles) {
         setPreparing(true);
-        readyFile = await prepareSelectedOrderPdf(
+        readyFiles = await prepareSelectedOrderPdfs(
           items,
           API_URL,
           getCookie("token") || "",
           controller.signal,
         );
         controller.signal.throwIfAborted();
-        setPrepared({ key: selectionKey, file: readyFile });
+        setPrepared({ key: selectionKey, files: readyFiles });
         setPreparing(false);
         // Some browsers require a new click after lengthy PDF generation.
         if (
           typeof navigator.share === "function" &&
-          navigator.canShare?.({ files: [readyFile] }) &&
+          navigator.canShare?.({ files: readyFiles }) &&
           navigator.userActivation &&
           !navigator.userActivation.isActive
         ) {
-          toast.info("PDF is ready. Click Share PDF again to choose an app.");
+          toast.info("PDFs are ready. Click Share PDF again to choose an app.");
           return;
         }
       }
       setSharing(true);
-      const result = await shareSelectedOrderPdf(readyFile);
+      const result = await shareSelectedOrderPdfs(readyFiles);
       if (result === "downloaded")
         toast.info(
-          "File sharing is unavailable in this browser. PDF downloaded so you can attach it to your message.",
+          "File sharing is unavailable in this browser. PDFs downloaded separately so you can attach them to your message. Your browser may ask you to allow multiple downloads.",
         );
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -80,12 +81,12 @@ export default function ShareOrdersPdfButton() {
         error instanceof Error
           ? error.message
           : "Unable to generate or share PDF.";
-      if (readyFile) {
-        const downloadable = readyFile;
+      if (readyFiles) {
+        const downloadable = readyFiles;
         toast.error(message, {
           action: {
-            label: "Download PDF",
-            onClick: () => downloadSelectedOrderPdf(downloadable),
+            label: "Download PDFs",
+            onClick: () => downloadSelectedOrderPdfs(downloadable),
           },
         });
       } else {
@@ -111,7 +112,11 @@ export default function ShareOrdersPdfButton() {
         ) : (
           <Share2 className="mr-2 h-4 w-4" />
         )}
-        {preparing ? "Generating PDF" : error ? "Retry Share PDF" : "Share PDF"}
+        {preparing
+          ? "Generating PDFs"
+          : error
+            ? "Retry Share PDF"
+            : "Share PDF"}
         {items.length ? ` (${items.length})` : ""}
       </Button>
       {error && (

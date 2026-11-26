@@ -17,10 +17,11 @@ export async function generateSelectedOrderPdf(
   apiUrl: string,
   token: string,
   signal: AbortSignal,
-): Promise<ArrayBuffer> {
+): Promise<File> {
   const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
   signal.throwIfAborted();
   let document;
+  let purchaseOrderNo: string;
   if (selectedOrderPdfSource(order) === "order") {
     const result = await loadRegularOrderPreview(order, async () => {
       signal.throwIfAborted();
@@ -35,6 +36,7 @@ export async function generateSelectedOrderPdf(
       if (!response.ok)
         throw new Error(`Unable to prepare pieces for order #${order.id}.`);
     });
+    purchaseOrderNo = result.previewData.purchaseOrderNo;
     document = <FreshOrderPdf orderData={result.previewData} />;
   } else {
     const response = await fetch(`${apiUrl}/retailer-orders/${order.id}`, {
@@ -52,10 +54,13 @@ export async function generateSelectedOrderPdf(
       orderType: data.is_stock_order ? "Stock" : "Fresh",
       favouriteOrder: data.favourite_order,
     });
+    purchaseOrderNo = preview.purchaseOrderNo;
     document = <RetailerPdf orderData={preview} />;
   }
   signal.throwIfAborted();
   const blob = await pdf(document).toBlob();
   signal.throwIfAborted();
-  return blob.arrayBuffer();
+  return new File([blob], `${purchaseOrderNo}.pdf`, {
+    type: "application/pdf",
+  });
 }
