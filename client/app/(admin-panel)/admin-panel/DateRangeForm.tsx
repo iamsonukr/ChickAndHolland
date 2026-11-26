@@ -16,16 +16,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CalendarDays, Check } from "lucide-react";
-import {
-  addDays,
-  subDays,
-  startOfDay,
-  endOfDay,
-  format,
-  parse,
-  startOfYear,
-} from "date-fns";
-import { useCallback, useEffect, useState } from "react";
+import { subDays, startOfDay, endOfDay, format, parse } from "date-fns";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [
@@ -73,20 +65,26 @@ const PRESETS = [
   },
 ];
 
-export const DateRangeForm = () => {
+export const DateRangeForm = ({
+  startDateValue,
+  endDateValue,
+}: {
+  startDateValue: string;
+  endDateValue: string;
+}) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [startDate, setStartDate] = useState(() =>
+    parse(startDateValue, "yyyy-MM-dd", new Date()),
+  );
+  const [endDate, setEndDate] = useState(() =>
+    parse(endDateValue, "yyyy-MM-dd", new Date()),
+  );
 
-  const [startDate, setStartDate] = useState<Date>(
-    searchParams?.get("startDate")
-      ? parse(searchParams?.get("startDate")!, "yyyy-MM-dd", new Date())
-      : startOfYear(new Date()),
-  );
-  const [endDate, setEndDate] = useState<Date>(
-    searchParams?.get("endDate")
-      ? parse(searchParams?.get("endDate")!, "yyyy-MM-dd", new Date())
-      : endOfDay(new Date()),
-  );
+  useEffect(() => {
+    setStartDate(parse(startDateValue, "yyyy-MM-dd", new Date()));
+    setEndDate(parse(endDateValue, "yyyy-MM-dd", new Date()));
+  }, [startDateValue, endDateValue]);
 
   const [isStartOpen, setIsStartOpen] = useState(false);
   const [isEndOpen, setIsEndOpen] = useState(false);
@@ -102,33 +100,23 @@ export const DateRangeForm = () => {
     }
   };
 
-  const updateURL = useCallback(
-    (start: Date, end: Date) => {
-      router.push(
-        `?startDate=${format(start, "yyyy-MM-dd")}&endDate=${format(end, "yyyy-MM-dd")}`,
-      );
-    },
-    [router],
-  );
+  const updateURL = (start: Date, end: Date) => {
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set("startDate", format(start, "yyyy-MM-dd"));
+    params.set("endDate", format(end, "yyyy-MM-dd"));
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
 
   const onDateSelect = (date: Date | undefined, isStart: boolean) => {
     if (!date) return;
-
-    if (isStart) {
-      setStartDate(date);
-      setIsStartOpen(false);
-      if (date > endDate) setEndDate(addDays(date, 1));
-    } else {
-      setEndDate(date);
-      setIsEndOpen(false);
-      if (date < startDate) setStartDate(subDays(date, 1));
-    }
+    const nextStart = isStart ? date : date < startDate ? date : startDate;
+    const nextEnd = isStart ? (date > endDate ? date : endDate) : date;
+    setStartDate(nextStart);
+    setEndDate(nextEnd);
+    if (isStart) setIsStartOpen(false);
+    else setIsEndOpen(false);
+    updateURL(nextStart, nextEnd);
   };
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => updateURL(startDate, endDate), 500);
-    return () => clearTimeout(timeoutId);
-  }, [endDate, startDate, updateURL]);
 
   const selectedPreset = PRESETS.find(
     (preset) =>
@@ -145,7 +133,10 @@ export const DateRangeForm = () => {
         <span className="text-lg font-semibold text-gray-800">Date Range</span>
       </div>
 
-      <Select value={selectedPreset} onValueChange={onPresetSelect}>
+      <Select
+        value={selectedPreset || "Custom Range"}
+        onValueChange={onPresetSelect}
+      >
         <SelectTrigger className="w-full border-gray-200 bg-gray-50 transition-colors hover:bg-gray-100 sm:w-[200px]">
           <SelectValue
             placeholder="Select a preset"
@@ -153,6 +144,9 @@ export const DateRangeForm = () => {
           />
         </SelectTrigger>
         <SelectContent className="border-gray-200 bg-white shadow-md">
+          <SelectItem value="Custom Range" disabled>
+            Custom Range
+          </SelectItem>
           {PRESETS.map((preset) => (
             <SelectItem
               key={preset.label}
@@ -193,6 +187,7 @@ export const DateRangeForm = () => {
             <Calendar
               mode="single"
               selected={startDate}
+              defaultMonth={startDate}
               onSelect={(date) => onDateSelect(date, true)}
               className="rounded-lg"
             />
@@ -220,6 +215,7 @@ export const DateRangeForm = () => {
             <Calendar
               mode="single"
               selected={endDate}
+              defaultMonth={endDate}
               onSelect={(date) => onDateSelect(date, false)}
               className="rounded-lg"
             />

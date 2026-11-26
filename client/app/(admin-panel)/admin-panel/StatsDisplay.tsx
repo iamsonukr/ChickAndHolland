@@ -139,7 +139,7 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
             <div className="text-3xl font-extrabold text-blue-900">
               {safeData.total?.orders || 0}
             </div>
-            <p className="mt-1 text-xs text-blue-600">All Time</p>
+            <p className="mt-1 text-xs text-blue-600">Selected date range</p>
           </CardContent>
         </Card>
 
@@ -154,7 +154,7 @@ export const StatsDisplay = ({ data = {} }: { data?: any }) => {
             <div className="text-3xl font-extrabold text-green-900">
               {safeData.total?.total_quantity ?? "Unavailable"}
             </div>
-            <p className="mt-1 text-xs text-green-600">All Orders / All Status</p>
+            <p className="mt-1 text-xs text-green-600">Selected date range / All Status</p>
           </CardContent>
         </Card>
 

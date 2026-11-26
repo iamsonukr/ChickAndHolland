@@ -18,8 +18,8 @@ import {
 
 const chartConfig = {
   views: { label: "Orders" },
-  total_quantity: {
-    label: "Default",
+  order_count: {
+    label: "Orders",
     color: "hsl(var(--chart-1))",
   },
 } satisfies ChartConfig;
@@ -34,14 +34,14 @@ export default function DashboardCharts({
   endDate?: string;
 }) {
   const [activeChart, setActiveChart] =
-    React.useState<keyof typeof chartConfig>("total_quantity");
+    React.useState<keyof typeof chartConfig>("order_count");
 
   // 🧮 Helper for human-friendly description
   const formattedRange = React.useMemo(() => {
     if (!startDate || !endDate) return "No date range selected";
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
     const today = new Date();
 
     // Helper to compare just the date (ignore time)
@@ -67,14 +67,13 @@ export default function DashboardCharts({
     if (isSameDay(start, yesterday) && isSameDay(end, yesterday)) {
       return "for Yesterday";
     }
-    if (diffDays === 7) return "for Last 7 Days";
-    if (diffDays === 14) return "for Last 14 Days";
-    if (diffDays === 30) return "for Last 30 Days";
+    if (isSameDay(end, today) && diffDays === 7) return "for Last 7 Days";
+    if (isSameDay(end, today) && diffDays === 14) return "for Last 14 Days";
+    if (isSameDay(end, today) && diffDays === 30) return "for Last 30 Days";
 
     // This Month
     const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    if (isSameDay(start, firstOfMonth) && isSameDay(end, endOfMonth)) {
+    if (isSameDay(start, firstOfMonth) && isSameDay(end, today)) {
       return "for This Month";
     }
 

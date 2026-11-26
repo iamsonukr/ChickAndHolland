@@ -1,38 +1,3 @@
-// import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
-// import { DateRangeForm } from "./DateRangeForm";
-// import { StatsDisplay } from "./StatsDisplay";
-// import { getDashboardData } from "@/lib/data";
-// import DashboardCharts from "@/app/(admin-panel)/admin-panel/DashboardCharts";
-
-// const Dashboard = async ({
-//   searchParams,
-// }: {
-//   searchParams?: Promise<{ startDate?: string; endDate?: string }>;
-// }) => {
-//   const params = await searchParams; // ⬅️ important
-
-//   const startDate =
-//     params?.startDate || new Date().toISOString().split("T")[0];
-//   const endDate =
-//     params?.endDate || new Date().toISOString().split("T")[0];
-
-//   const data = await getDashboardData(startDate, endDate);
-
-//   return (
-//     <ContentLayout title="Dashboard">
-//       <div className="space-y-6">
-//         <DateRangeForm />
-//         <DashboardCharts
-//           data={data.graphData}
-//           startDate={startDate}
-//           endDate={endDate}
-//         />
-//         <StatsDisplay data={data} />
-//       </div>
-//     </ContentLayout>
-//   );
-// };
-// export default Dashboard;
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import { DateRangeForm } from "./DateRangeForm";
 import { getDashboardData, getOrderStageCounts } from "@/lib/data";
@@ -51,12 +16,25 @@ const Dashboard = async ({ searchParams }: any) => {
   const params = await searchParams;
   const today = new Date();
   const startOfYear = new Date(today.getFullYear(), 0, 1);
-  const startDate = params?.startDate || formatDateParam(startOfYear);
-  const endDate = params?.endDate || formatDateParam(today);
+  const validDate = (value: unknown): value is string => {
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
+      return false;
+    const date = new Date(`${value}T00:00:00Z`);
+    return (
+      !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+    );
+  };
+  const from = validDate(params?.startDate)
+    ? params.startDate
+    : formatDateParam(startOfYear);
+  const to = validDate(params?.endDate)
+    ? params.endDate
+    : formatDateParam(today);
+  const [startDate, endDate] = from <= to ? [from, to] : [to, from];
 
   const [data, orderStageCounts] = await Promise.all([
     getDashboardData(startDate, endDate),
-    getOrderStageCounts({}),
+    getOrderStageCounts({ dateFrom: startDate, dateTo: endDate }),
   ]);
   const dashboardData = {
     ...data,
@@ -69,7 +47,7 @@ const Dashboard = async ({ searchParams }: any) => {
   return (
     <ContentLayout title="Dashboard">
       <div className="space-y-6">
-        <DateRangeForm />
+        <DateRangeForm startDateValue={startDate} endDateValue={endDate} />
         <DashboardCharts
           data={data.graphData}
           startDate={startDate}

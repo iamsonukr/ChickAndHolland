@@ -365,14 +365,22 @@ router.get(
   "/dashboard",
   asyncHandler(async (req, res) => {
     const { startDate, endDate } = req.query;
+    const validDate = (value: unknown): value is string => {
+      if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const date = new Date(`${value}T00:00:00Z`);
+      return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+    };
+    if (!validDate(startDate) || !validDate(endDate) || startDate > endDate) {
+      return res.status(400).json({ success: false, message: "Provide a valid start and end date in chronological order." });
+    }
 
     const totalsQa = `SELECT 
     (
         (SELECT COUNT(ro.id) FROM retailer_orders AS ro 
-         WHERE ro.orderReceivedDate BETWEEN ? AND ? AND ro.status = 0)
+         WHERE ro.orderReceivedDate >= ? AND ro.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY) AND ro.status = 0)
         +
         (SELECT COUNT(o.id) FROM orders AS o 
-         WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published')
+         WHERE o.orderReceivedDate >= ? AND o.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY) AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published')
     ) AS orders, 
 
     (
@@ -397,11 +405,11 @@ router.get(
 
     (
         (SELECT COALESCE(SUM(${retailerOrderQuantitySql("ro")}), 0) FROM retailer_orders AS ro
-         WHERE ro.orderReceivedDate BETWEEN ? AND ? AND ro.status = 0)
+         WHERE ro.orderReceivedDate >= ? AND ro.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY) AND ro.status = 0)
         +
         (SELECT COALESCE(SUM(os.quantity), 0) FROM orders AS o
          INNER JOIN orderStyles os ON o.id = os.orderId
-         WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published')
+         WHERE o.orderReceivedDate >= ? AND o.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY) AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published')
     ) AS total_quantity
 ;`;
 
@@ -420,25 +428,22 @@ router.get(
       endDate,
     ]);
 
-    const graphDataQA = `SELECT 
-    order_date, 
-    SUM(total_quantity) AS total_quantity
-    FROM (
-        SELECT DATE(ro.orderReceivedDate) AS order_date, SUM(${retailerOrderQuantitySql("ro")}) AS total_quantity
+    const graphDataQA = `
+      SELECT order_date, SUM(order_count) AS order_count
+      FROM (
+        SELECT DATE(ro.orderReceivedDate) AS order_date, COUNT(*) AS order_count
         FROM retailer_orders ro
-        WHERE ro.orderReceivedDate BETWEEN ? AND ? AND ro.status = 0
+        WHERE ro.orderReceivedDate >= ? AND ro.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY) AND ro.status = 0
         GROUP BY DATE(ro.orderReceivedDate)
-        
         UNION ALL
-        
-        SELECT DATE(o.orderReceivedDate) AS order_date, SUM(os.quantity) AS total_quantity
+        SELECT DATE(o.orderReceivedDate) AS order_date, COUNT(*) AS order_count
         FROM orders o
-        INNER JOIN orderStyles os ON o.id = os.orderId
-        WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published'
+        WHERE o.orderReceivedDate >= ? AND o.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY)
+          AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published'
         GROUP BY DATE(o.orderReceivedDate)
-    ) combined_orders
-    GROUP BY order_date
-    ORDER BY order_date ASC;
+      ) combined_orders
+      GROUP BY order_date
+      ORDER BY order_date ASC;
     `;
 
     const graphData = await db.query(graphDataQA, [
@@ -461,7 +466,7 @@ router.get(
             ro.Size AS combined_sizes,
             ro.size_country AS combined_country
         FROM retailer_orders ro
-        WHERE ro.orderReceivedDate BETWEEN ? AND ? AND ro.status = 0 AND ro.StyleNo IS NOT NULL
+        WHERE ro.orderReceivedDate >= ? AND ro.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY) AND ro.status = 0 AND ro.StyleNo IS NOT NULL
         GROUP BY ro.StyleNo, ro.Size, ro.size_country
         
         UNION ALL
@@ -473,7 +478,7 @@ router.get(
             os.sizeCountry AS combined_country
         FROM orders o
         INNER JOIN orderStyles os ON o.id = os.orderId
-        WHERE o.orderReceivedDate BETWEEN ? AND ? AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published' AND os.styleNo IS NOT NULL
+        WHERE o.orderReceivedDate >= ? AND o.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY) AND o.status = 0 AND COALESCE(o.publishStatus, 'published') = 'published' AND os.styleNo IS NOT NULL
         GROUP BY os.styleNo, os.size, os.sizeCountry
     ) combined_products
     GROUP BY product_id
@@ -534,7 +539,7 @@ router.get(
           LEFT JOIN (
             SELECT id FROM currencies ORDER BY id LIMIT 1
           ) firstCurrency ON 1 = 1
-          WHERE ro.orderReceivedDate BETWEEN ? AND ?
+          WHERE ro.orderReceivedDate >= ? AND ro.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY)
             AND ro.status = 0
             AND (
               ro.isApproved = 1
@@ -570,7 +575,7 @@ router.get(
           LEFT JOIN (
             SELECT id FROM currencies ORDER BY id LIMIT 1
           ) firstCurrency ON 1 = 1
-          WHERE o.orderReceivedDate BETWEEN ? AND ?
+          WHERE o.orderReceivedDate >= ? AND o.orderReceivedDate < DATE_ADD(?, INTERVAL 1 DAY)
             AND o.status = 0
             AND COALESCE(o.publishStatus, 'published') = 'published'
         ) confirmedOrders
