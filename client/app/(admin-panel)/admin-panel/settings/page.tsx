@@ -1,6 +1,7 @@
 import { ContentLayout } from "@/components/custom/admin-panel/contentLayout";
 import ChangeResetPasswordForm from "./ChangeResetPasswordForm";
 import ChangeEditPasswordForm from "./ChangeEditPasswordForm";
+import ChangeRevenuePasswordForm from "./ChangeRevenuePasswordForm";
 import SampleOrderSequenceForm from "./SampleOrderSequenceForm";
 
 const AdminSettingsPage = () => {
@@ -11,6 +12,7 @@ const AdminSettingsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ChangeResetPasswordForm />
           <ChangeEditPasswordForm />
+          <ChangeRevenuePasswordForm />
           <SampleOrderSequenceForm />
         </div>
       </div>

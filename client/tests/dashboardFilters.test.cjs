@@ -35,7 +35,8 @@ test('order analytics include the full end day while customer counting keeps its
  const queries=[];let result;
  await analyticsHandler()({query:{startDate:'2026-11-26',endDate:'2026-11-26'}},{json:value=>result=value},{query:async(sql,params)=>{queries.push({sql,params});return [];}},()=> 'ro.quantity',()=> 'os.quantity');
  const filtered=queries.filter(query=>query.params);
- assert.equal(filtered.length,4);
+ assert.equal(filtered.length,3);
+ assert.equal(result.salesByCurrency,undefined);
  for(const {sql,params} of filtered) {
   const customerQuery = sql.match(/SELECT COUNT\(DISTINCT buyer_id\)[\s\S]*?AS customers,/);
   if (customerQuery) {

@@ -1,3 +1,4 @@
+import { updateRevenuePassword } from "../services/resetPassword.service";
 import { Request, Response, Router } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
 import { AdminUserContext, requireAdminUser } from "../middleware/AdminAuth";
@@ -181,6 +182,16 @@ router.put(
     });
   }),
 );
+
+router.put("/revenue-password", requireAdminUser(SETTINGS_PERMISSION_ROUTES), asyncHandler(async (req: Request, res: Response) => {
+  const { newPassword, confirmPassword } = req.body;
+  if (typeof newPassword !== "string" ||
+      newPassword !== confirmPassword) {
+    return res.status(400).json({ success: false, message: "New password and confirmation must match." });
+  }
+  await updateRevenuePassword(newPassword);
+  return res.json({ success: true, message: "Revenue Summary password updated." });
+}));
 
 export default router;
 

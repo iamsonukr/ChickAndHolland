@@ -3,6 +3,9 @@
 
 import { Request, Response, Router } from "express";
 import db from "../db";
+import { getRevenueSession, unlockRevenueSession, lockRevenueSession } from "../services/revenueSession.service";
+import { requireAdminUser } from "../middleware/AdminAuth";
+import { getRevenuePasswordHash, verifyRevenuePassword } from "../services/resetPassword.service";
 import asyncHandler from "../middleware/AsyncHandler";
 import { PRC_NAMES } from "../constants";
 import {
@@ -494,6 +497,72 @@ router.get(
       endDate,
     ]);
 
+    const failedEmailCountRows = await db.query(`
+      SELECT COUNT(*) AS count
+      FROM orders
+      WHERE status = 0
+        AND COALESCE(emailStatus, '') IN ('failed', 'undelivered')
+    `);
+
+    const failedEmailRows = await db.query(`
+      SELECT
+        id,
+        purchaeOrderNo,
+        manufacturingEmailAddress,
+        emailStatus,
+        emailFailureReason,
+        emailLastAttemptAt,
+        createdAt
+      FROM orders
+      WHERE status = 0
+        AND COALESCE(emailStatus, '') IN ('failed', 'undelivered')
+      ORDER BY COALESCE(emailLastAttemptAt, createdAt) DESC
+      LIMIT 5
+    `);
+
+    res.json({
+      success: true,
+      productData,
+      total,
+      graphData,
+      revenueDateRange: { startDate, endDate },
+      emailNotifications: {
+        failedCount: Number(failedEmailCountRows?.[0]?.count || 0),
+        latest: failedEmailRows,
+      },
+    });
+  }),
+);
+
+// Password attempts are bounded per authenticated user, without retaining passwords.
+const revenueAttempts = new Map<number, { count: number; expires: number }>();
+router.post("/revenue-summary", requireAdminUser(["/admin-panel"]), asyncHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const { password, startDate, endDate } = req.body;
+  const validDate = (value: unknown) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+  if (!validDate(startDate) || !validDate(endDate) || startDate > endDate) {
+    return res.status(400).json({ success: false, message: "Invalid date range." });
+  }
+  const loginToken = req.headers.authorization!.split(" ")[1];
+  let expiresAt = await getRevenueSession(loginToken);
+  if (!expiresAt) {
+  if (typeof password !== "string") return res.status(401).json({ success: false, message: "Revenue Summary is locked." });
+  const id = (req as any).adminUser.id;
+  const now = Date.now();
+  for (const [key, value] of revenueAttempts) if (value.expires <= now) revenueAttempts.delete(key);
+  const attempt = revenueAttempts.get(id) || { count: 0, expires: now + 15 * 60 * 1000 };
+  if (attempt.count >= 5) return res.status(429).json({ success: false, message: "Too many attempts. Try again in 15 minutes." });
+  const hash = await getRevenuePasswordHash();
+  if (!hash) return res.status(403).json({ success: false, message: "Set a Revenue Summary password in Settings first." });
+  attempt.count++;
+  revenueAttempts.set(id, attempt);
+  if (typeof password !== "string" || !await verifyRevenuePassword(password, hash)) {
+    return res.status(401).json({ success: false, message: "Incorrect Revenue Summary password." });
+  }
+  revenueAttempts.delete(id);
+    expiresAt = await unlockRevenueSession(loginToken);
+  }
     const salesByCurrencyQuery = `
       SELECT
         curr.id AS currencyId,
@@ -601,41 +670,13 @@ router.get(
       orderCount: Number(row.orderCount || 0),
     }));
 
-    const failedEmailCountRows = await db.query(`
-      SELECT COUNT(*) AS count
-      FROM orders
-      WHERE status = 0
-        AND COALESCE(emailStatus, '') IN ('failed', 'undelivered')
-    `);
+  return res.json({ success: true, salesByCurrency, expiresAt });
+}));
 
-    const failedEmailRows = await db.query(`
-      SELECT
-        id,
-        purchaeOrderNo,
-        manufacturingEmailAddress,
-        emailStatus,
-        emailFailureReason,
-        emailLastAttemptAt,
-        createdAt
-      FROM orders
-      WHERE status = 0
-        AND COALESCE(emailStatus, '') IN ('failed', 'undelivered')
-      ORDER BY COALESCE(emailLastAttemptAt, createdAt) DESC
-      LIMIT 5
-    `);
-
-    res.json({
-      success: true,
-      productData,
-      total,
-      graphData,
-      salesByCurrency,
-      emailNotifications: {
-        failedCount: Number(failedEmailCountRows?.[0]?.count || 0),
-        latest: failedEmailRows,
-      },
-    });
-  }),
-);
+router.post("/revenue-summary/lock", requireAdminUser(["/admin-panel"]), asyncHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  await lockRevenueSession(req.headers.authorization!.split(" ")[1]);
+  return res.json({ success: true });
+}));
 
 export default router;

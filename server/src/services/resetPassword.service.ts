@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import bcrypt from "bcrypt";
 import CONFIG from "../config";
 import db from "../db";
@@ -138,5 +139,32 @@ export const updateEditPassword = async (newPassword: string) => {
         updatedAt = CURRENT_TIMESTAMP(6)
     `,
     [EDIT_PASSWORD_SETTING_KEY, hashedPassword],
+  );
+};
+
+// Separate credential: never fall back to the login or order-edit password.
+export const getRevenuePasswordHash = async (): Promise<string | null> => {
+  await ensureAdminSettingsTable();
+  const [setting] = await db.query(
+    `SELECT settingValue FROM \`${TABLE_NAMES.ADMIN_SETTINGS}\` WHERE settingKey = ? LIMIT 1`,
+    ["revenue_summary_password_hash"],
+  );
+  return setting?.settingValue || null;
+};
+
+const revenuePasswordInput = (password: string) => createHash("sha256").update(password, "utf8").digest("base64");
+
+export const verifyRevenuePassword = (password: string, hash: string) =>
+  hash.startsWith("sha256:")
+    ? bcrypt.compare(revenuePasswordInput(password), hash.slice(7))
+    : bcrypt.compare(password, hash);
+
+export const updateRevenuePassword = async (password: string) => {
+  await ensureAdminSettingsTable();
+  const hash = "sha256:" + await bcrypt.hash(revenuePasswordInput(password), CONFIG.SALT_ROUNDS);
+  await db.query(
+    `INSERT INTO \`${TABLE_NAMES.ADMIN_SETTINGS}\` (settingKey, settingValue) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE settingValue = VALUES(settingValue), updatedAt = CURRENT_TIMESTAMP(6)`,
+    ["revenue_summary_password_hash", hash],
   );
 };

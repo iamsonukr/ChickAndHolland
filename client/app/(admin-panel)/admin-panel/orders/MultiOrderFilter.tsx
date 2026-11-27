@@ -22,7 +22,7 @@ export default function MultiOrderFilter({
   filterKey: string;
   label: string;
   allLabel: string;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; dotColor?: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -38,7 +38,7 @@ export default function MultiOrderFilter({
     ...options,
     ...selected
       .filter((item) => !options.some((option) => option.value === item))
-      .map((item) => ({ value: item, label: item })),
+      .map((item) => ({ value: item, label: item, dotColor: undefined })),
   ];
   const title = selected.length
     ? selected
@@ -106,6 +106,13 @@ export default function MultiOrderFilter({
                 )
               }
             >
+              {option.dotColor && (
+                <span
+                  aria-hidden="true"
+                  className="mr-2 h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: option.dotColor }}
+                />
+              )}
               {option.label}
             </DropdownMenuCheckboxItem>
           ))}
