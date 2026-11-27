@@ -1,4 +1,4 @@
-import { updateRevenuePassword } from "../services/resetPassword.service";
+import { updateRevenuePassword, getRevenuePasswordDisplay } from "../services/resetPassword.service";
 import { Request, Response, Router } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
 import { AdminUserContext, requireAdminUser } from "../middleware/AdminAuth";
@@ -182,6 +182,11 @@ router.put(
     });
   }),
 );
+
+router.get("/revenue-password", requireAdminUser(SETTINGS_PERMISSION_ROUTES), asyncHandler(async (_req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store");
+  return res.json({ success: true, ...await getRevenuePasswordDisplay() });
+}));
 
 router.put("/revenue-password", requireAdminUser(SETTINGS_PERMISSION_ROUTES), asyncHandler(async (req: Request, res: Response) => {
   const { newPassword, confirmPassword } = req.body;

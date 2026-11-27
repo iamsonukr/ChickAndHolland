@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { API_URL } from "@/lib/constants";
+import { getCookie } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ShieldCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -30,6 +33,29 @@ const changeRevenuePasswordSchema = z
 type ChangeRevenuePasswordValues = z.infer<typeof changeRevenuePasswordSchema>;
 
 const ChangeRevenuePasswordForm = () => {
+  const [saved, setSaved] = useState<{
+    configured: boolean;
+    password: string | null;
+  } | null>(null);
+  const [loadError, setLoadError] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${API_URL}/admin-settings/revenue-password`, {
+      cache: "no-store",
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${getCookie("token") || ""}` },
+    })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok)
+          throw new Error(result.message || "Unable to load saved password.");
+        if (!controller.signal.aborted) setSaved(result);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setLoadError(error.message);
+      });
+    return () => controller.abort();
+  }, []);
   const form = useForm<ChangeRevenuePasswordValues>({
     resolver: zodResolver(changeRevenuePasswordSchema),
     defaultValues: {
@@ -50,6 +76,8 @@ const ChangeRevenuePasswordForm = () => {
       );
 
       toast.success(response?.message ?? "Revenue password updated");
+      setSaved({ configured: true, password: values.newPassword });
+      setLoadError("");
       form.reset();
     } catch (error: any) {
       if (!error?.message) {
@@ -70,6 +98,26 @@ const ChangeRevenuePasswordForm = () => {
       <p className="mb-4 text-sm text-muted-foreground">
         Enter and confirm a new Revenue Summary password.
       </p>
+      <div className="mb-4 space-y-2">
+        <p className="text-sm font-medium">Last Saved Password</p>
+        {saved?.password !== null && saved?.password !== undefined ? (
+          <PasswordInput
+            aria-label="Last saved revenue password"
+            value={saved.password}
+            readOnly
+            autoComplete="off"
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {loadError ||
+              (!saved
+                ? "Loading..."
+                : saved.configured
+                  ? "Save the password again to make it viewable here."
+                  : "No password saved yet.")}
+          </p>
+        )}
+      </div>
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
           <FormField

@@ -1,4 +1,5 @@
 "use client";
+import { Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -81,6 +82,7 @@ export default function RevenueSummary({
   dateRange?: { startDate: string; endDate: string };
 }) {
   const [sales, setSales] = useState<SalesByCurrency[] | null>(null);
+  const [showPasswordBox, setShowPasswordBox] = useState(false);
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -156,6 +158,7 @@ export default function RevenueSummary({
         setSales(null);
         setExpiresAt(null);
         setPassword("");
+        setShowPasswordBox(false);
       }
     };
     const interval = window.setInterval(expire, 1000);
@@ -206,6 +209,7 @@ export default function RevenueSummary({
       setSales(null);
       setExpiresAt(null);
       setPassword("");
+      setShowPasswordBox(false);
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Unable to lock revenue.",
@@ -218,92 +222,126 @@ export default function RevenueSummary({
     <Card className="bg-gradient-to-br from-amber-50 to-white hover:shadow-lg">
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
-          <CardTitle className="text-sm font-semibold text-amber-700">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold text-amber-700">
             Revenue Summary
+            {!sales && (
+              <button
+                type="button"
+                aria-label={
+                  showPasswordBox
+                    ? "Hide revenue password form"
+                    : "Show revenue password form"
+                }
+                aria-expanded={showPasswordBox}
+                aria-controls="revenue-password-box"
+                onClick={() => {
+                  setShowPasswordBox((value) => !value);
+                  setPassword("");
+                }}
+                className="rounded p-1 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2"
+              >
+                {showPasswordBox ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            )}
           </CardTitle>
 
           <p className="mt-1 text-xs text-amber-600">
             Currency based sales overview
           </p>
         </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-lg font-bold text-amber-700">
-          {selectedSale.currencySymbol || selectedSale.currencyCode}
-        </div>{" "}
+        {sales && (
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-lg font-bold text-amber-700">
+            {selectedSale.currencySymbol || selectedSale.currencyCode}
+          </div>
+        )}
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {checking ? (
-          <p className="text-sm text-muted-foreground">Loading revenue...</p>
-        ) : !sales ? (
-          <form onSubmit={unlock} className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Enter the Revenue Summary password to view sales.
-            </p>
-            <Input
-              aria-label="Revenue Summary password"
-              type="password"
-              autoComplete="off"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-            <Button type="submit" disabled={busy || !dateRange}>
-              {busy ? "Unlocking..." : "Unlock Revenue Summary"}
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              Set or reset this password in Settings.
-            </p>
-          </form>
-        ) : (
-          <>
-            <Button variant="outline" size="sm" disabled={busy} onClick={lock}>
-              Lock
-            </Button>
-            {/* Currency Selector */}
-            <div>
-              <select
-                value={selectedCurrency}
-                onChange={(e) => setSelectedCurrency(e.target.value)}
-                className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-medium text-amber-700 outline-none focus:border-amber-400"
+      {(sales || showPasswordBox) && (
+        <CardContent id="revenue-password-box" className="space-y-4">
+          {checking ? (
+            <p className="text-sm text-muted-foreground">Loading revenue...</p>
+          ) : !sales ? (
+            <form onSubmit={unlock} className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Enter the Revenue Summary password to view sales.
+              </p>
+              <Input
+                aria-label="Revenue Summary password"
+                type="password"
+                autoComplete="off"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+              <Button type="submit" disabled={busy || !dateRange}>
+                {busy ? "Unlocking..." : "Unlock Revenue Summary"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Set or reset this password in Settings.
+              </p>
+            </form>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={lock}
               >
-                {salesByCurrency.map((sale) => (
-                  <option key={sale.currencyCode} value={sale.currencyCode}>
-                    {sale.currencyCode} — {sale.currencyName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Revenue */}
-            <div>
-              <h2 className="break-words text-3xl font-extrabold text-amber-900">
-                {formatCurrency(
-                  selectedSale.totalSales || 0,
-                  selectedSale.currencyCode || "USD",
-                  selectedSale.currencySymbol,
-                )}
-              </h2>
-
-              <p className="mt-1 text-xs text-amber-600">Total Revenue</p>
-            </div>
-
-            {/* Stats */}
-            <div className="border-t border-amber-100 pt-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Confirmed Orders</span>
-
-                <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                  {selectedSale.orderCount || 0}
-                </Badge>
+                Lock
+              </Button>
+              {/* Currency Selector */}
+              <div>
+                <select
+                  value={selectedCurrency}
+                  onChange={(e) => setSelectedCurrency(e.target.value)}
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-medium text-amber-700 outline-none focus:border-amber-400"
+                >
+                  {salesByCurrency.map((sale) => (
+                    <option key={sale.currencyCode} value={sale.currencyCode}>
+                      {sale.currencyCode} — {sale.currencyName}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </div>
-          </>
-        )}
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-      </CardContent>
+
+              {/* Revenue */}
+              <div>
+                <h2 className="break-words text-3xl font-extrabold text-amber-900">
+                  {formatCurrency(
+                    selectedSale.totalSales || 0,
+                    selectedSale.currencyCode || "USD",
+                    selectedSale.currencySymbol,
+                  )}
+                </h2>
+
+                <p className="mt-1 text-xs text-amber-600">Total Revenue</p>
+              </div>
+
+              {/* Stats */}
+              <div className="border-t border-amber-100 pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    Confirmed Orders
+                  </span>
+
+                  <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                    {selectedSale.orderCount || 0}
+                  </Badge>
+                </div>
+              </div>
+            </>
+          )}
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+        </CardContent>
+      )}
     </Card>
   );
 }

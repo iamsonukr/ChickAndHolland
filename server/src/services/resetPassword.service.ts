@@ -1,3 +1,4 @@
+import { encryptRevenuePassword, decryptRevenuePassword } from "../lib/revenuePasswordDisplay";
 import { createHash } from "crypto";
 import bcrypt from "bcrypt";
 import CONFIG from "../config";
@@ -163,8 +164,16 @@ export const updateRevenuePassword = async (password: string) => {
   await ensureAdminSettingsTable();
   const hash = "sha256:" + await bcrypt.hash(revenuePasswordInput(password), CONFIG.SALT_ROUNDS);
   await db.query(
-    `INSERT INTO \`${TABLE_NAMES.ADMIN_SETTINGS}\` (settingKey, settingValue) VALUES (?, ?)
+    `INSERT INTO \`${TABLE_NAMES.ADMIN_SETTINGS}\` (settingKey, settingValue) VALUES (?, ?), (?, ?)
      ON DUPLICATE KEY UPDATE settingValue = VALUES(settingValue), updatedAt = CURRENT_TIMESTAMP(6)`,
-    ["revenue_summary_password_hash", hash],
+    ["revenue_summary_password_hash", hash, "revenue_summary_password_display", encryptRevenuePassword(password)],
   );
+};
+
+export const getRevenuePasswordDisplay = async () => {
+  const configured = Boolean(await getRevenuePasswordHash());
+  const [setting] = await db.query(`SELECT settingValue FROM \`${TABLE_NAMES.ADMIN_SETTINGS}\` WHERE settingKey = ? LIMIT 1`, ["revenue_summary_password_display"]);
+  if (!setting?.settingValue) return { configured, password: null };
+  try { return { configured, password: decryptRevenuePassword(setting.settingValue) }; }
+  catch { return { configured, password: null }; }
 };

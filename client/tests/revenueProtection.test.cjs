@@ -59,7 +59,7 @@ test('revenue passwords accept short and long values without bcrypt truncation',
  const source=read('server/src/services/resetPassword.service.ts');
  const start=source.indexOf('const revenuePasswordInput');
  const exports={};let stored;
- new Function('exports','createHash','bcrypt','ensureAdminSettingsTable','CONFIG','db','TABLE_NAMES',compile(source.slice(start)))(exports,require('node:crypto').createHash,require('../../server/node_modules/bcrypt'),async()=>{},{SALT_ROUNDS:4},{query:async(sql,args)=>{stored=args[1];}},{ADMIN_SETTINGS:'admin_settings'});
+ new Function('exports','createHash','bcrypt','ensureAdminSettingsTable','CONFIG','db','TABLE_NAMES','encryptRevenuePassword',compile(source.slice(start)))(exports,require('node:crypto').createHash,require('../../server/node_modules/bcrypt'),async()=>{},{SALT_ROUNDS:4},{query:async(sql,args)=>{stored=args[1];}},{ADMIN_SETTINGS:'admin_settings'},value=>'encrypted:'+value);
  for(const password of ['1','','a'.repeat(100)+'X','?????']) {
   await exports.updateRevenuePassword(password);
   assert.equal(await exports.verifyRevenuePassword(password,stored),true);
@@ -111,4 +111,48 @@ test('unlock persists for the login token until explicit lock or JWT expiration'
  assert.equal(await api.getRevenueSession(token),null);
  const expired=jwt.sign({type:'USER',id:1},'test-secret',{expiresIn:-1});
  await assert.rejects(api.getRevenueSession(expired),{name:'TokenExpiredError'});
+});
+
+
+test('saved revenue password display is encrypted and detects tampering',()=>{
+ const exports={};
+ new Function('exports','require',compile(read('server/src/lib/revenuePasswordDisplay.ts')))(exports,name=>{
+  if(name==='crypto') return require('node:crypto');
+  if(name==='../config') return {default:{JWT_SECRET:'test-secret'}};
+  throw new Error(name);
+ });
+ for(const value of ['', '1', 'long password '.repeat(20)]) {
+  const encrypted=exports.encryptRevenuePassword(value);
+  assert.notEqual(encrypted,value);
+  assert.equal(exports.decryptRevenuePassword(encrypted),value);
+  const parts=encrypted.split('.');parts[1]=Buffer.alloc(16).toString('base64');
+  assert.throws(()=>exports.decryptRevenuePassword(parts.join('.')));
+ }
+ const source=read('server/src/controllers/AdminSettingsController.ts');
+ assert.match(source,/router.get\("\/revenue-password", requireAdminUser\(SETTINGS_PERMISSION_ROUTES\)/);
+});
+
+test('revenue eye toggles the password field and Unlock button as one box',()=>{
+ const source=read('client/app/(admin-panel)/admin-panel/RevenueSummary.tsx');
+ const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+ for(const visible of [false,true]) {
+  let index=0,toggled;
+  const exports={};
+  const jsx=(type,props)=>({type,props});
+  new Function('exports','require',code)(exports,name=>{
+   if(name==='react/jsx-runtime') return {jsx,jsxs:jsx,Fragment:'fragment'};
+   if(name==='react') return {useEffect(){},useState(initial){const current=index++;return [current===1?visible:initial===true?false:initial,current===1?fn=>{toggled=fn(visible);}:()=>{}];}};
+   if(name==='lucide-react') return {Eye:'eye',EyeOff:'eye-off'};
+   if(name==='@/lib/constants') return {API_URL:'api'};
+   if(name==='@/lib/utils') return {getCookie:()=>''};
+   return new Proxy({}, {get:(_,key)=>String(key)});
+  });
+  const tree=exports.default({dateRange:{startDate:'2026-11-01',endDate:'2026-11-27'}});
+  const nodes=[];function walk(node){if(!node||typeof node!=='object')return;if(Array.isArray(node)){node.forEach(walk);return;}nodes.push(node);walk(node.props?.children);}walk(tree);
+  assert.equal(nodes.some(n=>n.type==='form'),visible);
+  assert.equal(nodes.some(n=>n.props?.['aria-label']==='Revenue Summary password'),visible);
+  assert.equal(nodes.some(n=>n.props?.type==='submit'),visible);
+  const eye=nodes.find(n=>n.props?.['aria-controls']==='revenue-password-box');
+  assert.equal(eye.props['aria-expanded'],visible);eye.props.onClick();assert.equal(toggled,!visible);
+ }
 });
