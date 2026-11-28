@@ -60,7 +60,9 @@ export const mail = async (config: MailOptions): Promise<any> => {
       ...(config.attachments && {
         attachments: config.attachments.map((a) => ({
           filename: a.filename,
-          content: a.content,
+          content: Buffer.isBuffer(a.content)
+            ? a.content.toString("base64")
+            : a.content,
         })),
       }),
     } as Parameters<typeof resend.emails.send>[0];
