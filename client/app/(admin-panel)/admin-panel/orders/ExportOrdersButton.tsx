@@ -68,6 +68,7 @@ const ORDER_EXPORT_COLUMNS = [
   "PO Number",
   "Beader",
   "Product Status",
+  "Marked Ship Date",
   "Order Received Date",
   "Order Cancellation Date",
   "Exhibition Location",
@@ -104,7 +105,8 @@ const getExportCellValue = (row: any, column: string) => {
 
   if (
     sourceColumn === "Order Received Date" ||
-    sourceColumn === "Order Cancellation Date"
+    sourceColumn === "Order Cancellation Date" ||
+    sourceColumn === "Marked Ship Date"
   ) {
     return formatDateOnlyDisplay(value, "DD-MM-YYYY");
   }
@@ -603,7 +605,7 @@ export default function ExportOrdersButton({
         due,
         beader,
       };
-      const columns = useFilters ? FILTERED_EXPORT_COLUMNS : ORDER_EXPORT_COLUMNS;
+      const columns = useFilters && !providedRows ? FILTERED_EXPORT_COLUMNS : ORDER_EXPORT_COLUMNS;
       const worksheet = buildWorksheet(
         exportRows,
         buildExportTitle(exportFilters, currentStatus),

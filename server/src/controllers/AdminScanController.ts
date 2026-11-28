@@ -6,6 +6,9 @@ import Order, { OrderStatus, ShippingStatus } from "../models/Order";
 import { RetailerOrder } from "../models/RetailerOrder";
 import RetailerOrderStyles from "../models/RetailerOrderStyles";
 import StockOrderStyles from "../models/StockOrderStyles";
+import OrderStyle from "../models/OrderStyle";
+import StoreStyleProgress from "../models/StoreStyleProgress";
+import StyleProgress, { StyleStage } from "../models/StyleProgress";
 import { AdminUserContext, requireAdminUser } from "../middleware/AdminAuth";
 import { ensureScanGuardTable } from "../lib/scanGuard";
 import { verifyResetPassword } from "../services/resetPassword.service";
@@ -541,6 +544,40 @@ router.post(
       message: "QR comment saved successfully.",
       data: { barcode, orderType, comment },
     });
+  }),
+);
+
+router.post(
+  "/barcodes/ship",
+  requireAdminUser(["/admin-panel/orders"]),
+  asyncHandler(async (req: Request, res: Response) => {
+    const barcode = String(req.body?.barcode || "").trim();
+    const orderType = String(req.body?.orderType || "").toUpperCase();
+    if (!barcode || !["STORE", "RETAILER", "STOCK"].includes(orderType)) {
+      return res.status(400).json({ success: false, message: "Valid barcode and order type are required." });
+    }
+
+    const result = await db.transaction(async (manager) => {
+      const entity = orderType === "STORE" ? OrderStyle : orderType === "STOCK" ? StockOrderStyles : RetailerOrderStyles;
+      const item = await manager.createQueryBuilder(entity, "item")
+        .where("item.barcode = :barcode", { barcode })
+        .andWhere("item.deletedAt IS NULL")
+        .setLock("pessimistic_write")
+        .getOne();
+      if (!item) return null;
+
+      if (orderType === "STORE") {
+        const last = await manager.findOne(StoreStyleProgress, { where: { barcode }, order: { id: "DESC" } });
+        if (last?.status === "Shipped") return last;
+        return manager.save(StoreStyleProgress, manager.create(StoreStyleProgress, { barcode, status: "Shipped", qty: 1 }));
+      }
+      const last = await manager.findOne(StyleProgress, { where: { barcode }, order: { id: "DESC" } });
+      if (last?.stage === StyleStage.Shipped) return last;
+      return manager.save(StyleProgress, manager.create(StyleProgress, { barcode, stage: StyleStage.Shipped, qty: 1 }));
+    });
+
+    if (!result) return res.status(404).json({ success: false, message: "QR item not found." });
+    return res.json({ success: true, message: "Item marked as shipped", data: { shippedAt: result.createdAt } });
   }),
 );
 

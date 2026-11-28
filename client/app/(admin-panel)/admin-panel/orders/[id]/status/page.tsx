@@ -47,6 +47,13 @@ import { DEFAULT_ORDER_STAGE, ORDER_STAGE_FLOW } from "@/lib/stageFlow";
 
 const formatReportValue = (value: unknown) => String(value ?? "").trim() || "-";
 
+const getShippedDate = (progress: any[]) => {
+  const latest = [...progress].sort((a, b) =>
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || Number(b.id) - Number(a.id),
+  )[0];
+  return (latest?.stage || latest?.status) === "Shipped" ? latest.createdAt : null;
+};
+
 const getCurrentStageLabel = (progress: any[]) => {
   const sorted = [...progress].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
@@ -163,9 +170,11 @@ function BulkActionBar({
   onDownloadAll,
   onPrintAll,
   onResetSelected,
+  onShipSelected,
   downloading,
   printing,
   resetting,
+  shipping,
 }: {
   selected: number;
   total: number;
@@ -175,9 +184,11 @@ function BulkActionBar({
   onDownloadAll: () => void;
   onPrintAll: () => void;
   onResetSelected: () => void;
+  onShipSelected: () => void;
   downloading: boolean;
   printing: boolean;
   resetting: boolean;
+  shipping: boolean;
 }) {
   if (selected === 0) return null;
 
@@ -225,10 +236,17 @@ function BulkActionBar({
 
         <button
           onClick={onResetSelected}
-          disabled={resetting}
+          disabled={resetting || shipping}
           className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-60"
         >
           {resetting ? "Resetting..." : `Reset QR (${selected})`}
+        </button>
+        <button
+          onClick={onShipSelected}
+          disabled={shipping || resetting}
+          className="rounded-lg bg-green-700 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-800 disabled:opacity-60"
+        >
+          {shipping ? "Marking..." : `Mark Shipped (${selected})`}
         </button>
       </div>
     </div>
@@ -380,6 +398,20 @@ function ItemCard({
 
   const progress: any[] = raw.progress ?? [];
   const currentStageLabel = getCurrentStageLabel(progress);
+  const shippedAt = getShippedDate(progress);
+  const { executeAsync: shipItem, loading: shipping } = useHttp("/admin-scan/barcodes/ship", "POST");
+
+  const handleShip = async () => {
+    try {
+      await shipItem({ barcode, orderType: type }, {}, (error) =>
+        toast.error(error?.message ?? "Failed to mark item as shipped"),
+      );
+      toast.success("Item marked as shipped");
+      await onRefresh();
+    } catch {
+      // Request errors are displayed by the callback above.
+    }
+  };
 
   useEffect(() => {
     setComment(String(raw.comment ?? ""));
@@ -419,7 +451,7 @@ function ItemCard({
         />
       )}
       <div
-        className={`relative flex w-[240px] flex-shrink-0 flex-col gap-2.5 rounded-lg border bg-white p-2.5 shadow-sm ring-1 transition-all sm:p-3 ${isSelected ? `${TYPE_RING[type]} ring-2` : "ring-gray-200"}`}
+        className={`relative flex w-[240px] flex-shrink-0 flex-col gap-2.5 rounded-lg border p-2.5 shadow-sm ring-1 transition-all sm:p-3 ${shippedAt ? "border-green-500 bg-green-100" : "bg-white"} ${isSelected ? `${TYPE_RING[type]} ring-2` : shippedAt ? "ring-green-400" : "ring-gray-200"}`}
       >
         {/* ── Checkbox (top-left) ── */}
         <button
@@ -568,6 +600,19 @@ function ItemCard({
           >
             Reset QR
           </button>
+          <button
+            type="button"
+            onClick={handleShip}
+            disabled={shipping || Boolean(shippedAt) || !barcode}
+            className="min-h-[36px] w-full rounded-md bg-green-700 px-2 py-2 text-[11px] font-medium text-white hover:bg-green-800 disabled:opacity-70"
+          >
+            {shippedAt ? "Shipped" : shipping ? "Marking..." : "Mark as Shipped"}
+          </button>
+          {shippedAt && (
+            <p className="text-center text-[11px] font-medium text-green-800">
+              Marked ship date: {new Date(shippedAt).toLocaleDateString("en-GB")}
+            </p>
+          )}
         </div>
       </div>
     </>
@@ -603,6 +648,8 @@ export default function OrderStatusPage({
 
   const { executeAsync: resetSelectedQrItems, loading: resettingQrItems } =
     useHttp("/admin-scan/barcodes/reset", "POST");
+  const [bulkShipping, setBulkShipping] = useState(false);
+  const { executeAsync: shipSelectedItem } = useHttp("/admin-scan/barcodes/ship", "POST");
 
   const getItemKey = (raw: any, type: ReportType, i: number) =>
     `${type}-${raw.styleId ?? raw.id ?? i}`;
@@ -781,6 +828,7 @@ export default function OrderStatusPage({
       "PO Number": raw.purchaseOrderNo ?? raw.purchaeOrderNo ?? "",
       Beader: raw.beader ?? "",
       "Product Status": getCurrentStageLabel(progress),
+      "Marked Ship Date": getShippedDate(progress),
       "Order Received Date": raw.orderReceivedDate,
       "Order Cancellation Date": raw.orderCancellationDate,
     };
@@ -803,6 +851,38 @@ export default function OrderStatusPage({
       await mergeAndPrintPdfs(selectedItems);
     } finally {
       setBulkPrinting(false);
+    }
+  };
+
+  const handleBulkShip = async () => {
+    if (bulkShipping || !selectedItems.length) return;
+    const items = selectedItems.filter(({ raw }) => !getShippedDate(raw.progress ?? []));
+    if (!items.length) {
+      toast.info("Selected items are already shipped");
+      return;
+    }
+    if (items.some(({ raw }) => !normalizeBarcodeValue(raw.barcode))) {
+      toast.error("Selected items include an invalid barcode");
+      return;
+    }
+    setBulkShipping(true);
+    let shipped = 0;
+    let failed = 0;
+    try {
+      for (const { raw, type } of items) {
+        try {
+          await shipSelectedItem({ barcode: normalizeBarcodeValue(raw.barcode), orderType: type });
+          shipped++;
+        } catch {
+          failed++;
+        }
+      }
+      if (shipped) toast.success(`${shipped} selected item${shipped === 1 ? "" : "s"} marked as shipped`);
+      if (failed) toast.error(`${failed} item${failed === 1 ? "" : "s"} could not be shipped. Please retry.`);
+      if (!failed) clearAll();
+      await fetchReport();
+    } finally {
+      setBulkShipping(false);
     }
   };
 
@@ -944,9 +1024,11 @@ export default function OrderStatusPage({
           onDownloadAll={handleBulkDownload}
           onPrintAll={handleBulkPrint}
           onResetSelected={openResetDialog}
+          onShipSelected={handleBulkShip}
           downloading={bulkDownloading}
           printing={bulkPrinting}
           resetting={resettingQrItems}
+          shipping={bulkShipping}
         />
 
         <Dialog

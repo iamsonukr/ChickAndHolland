@@ -3559,6 +3559,22 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
       return res.json({ success: true, data });
     }
 
+    const shippedDates = new Map<string, Date>();
+    for (const [type, table, column] of [
+      ["STORE", "store_style_progress", "status"],
+      ["OTHER", "styleProgress", "stage"],
+    ]) {
+      const barcodes = productRows
+        .filter((row) => type === "STORE" ? row.qrType === "STORE" : row.qrType !== "STORE")
+        .map((row) => String(row.barcode || "")).filter(Boolean);
+      if (!barcodes.length) continue;
+      const rows = await db.query(
+        `SELECT barcode, MAX(createdAt) AS shippedAt FROM ${table} WHERE barcode IN (?) AND ${column} = ? GROUP BY barcode`,
+        [barcodes, "Shipped"],
+      );
+      for (const row of rows) shippedDates.set(`${type}:${row.barcode}`, row.shippedAt);
+    }
+
     const data = productRows
       .map((row) => {
         const progressMap =
@@ -3584,6 +3600,9 @@ function exportProducts(req: Request, res: Response, next: NextFunction) {
             "PO Number": row.purchaseOrderNo,
             "Exhibition Location": row.exhibitionLocation ?? "",
             "Product Status": productStatus,
+            "Marked Ship Date": productStatus === "Shipped"
+              ? shippedDates.get(`${row.qrType === "STORE" ? "STORE" : "OTHER"}:${barcode}`) ?? null
+              : null,
             "Order Received Date": formatDateOnly(row.orderReceivedDate),
             "Order Cancellation Date": formatDateOnly(row.orderCancellationDate),
           },
