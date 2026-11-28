@@ -866,8 +866,8 @@ export default function OrderStatusPage({
     <div className="px-3 py-4 sm:p-4 md:p-6">
       <div className="rounded-lg bg-white p-3 shadow sm:p-4 md:p-6">
         <div className="mb-4 flex flex-col gap-3 sm:mb-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
+          <div className="flex flex-col gap-3  sm:justify-between">
+            <div className="min-w-100">
               <GoBackButton className="mb-2" label="Back to Orders" />
               <h1 className="break-words text-xl font-bold sm:text-2xl">
                 Order Status Report

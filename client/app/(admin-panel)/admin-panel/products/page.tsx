@@ -279,7 +279,10 @@ const ProductPage = async ({ searchParams }: PageProps) => {
                   <TableCell>
                     {product.beader?.trim() || "-"}
                   </TableCell>
-                  <TableCell>{product.price}</TableCell>
+                  <TableCell>
+                    <span className="mr-1 font-bold text-[#8B4513]">€</span>
+                    {product.price}
+                  </TableCell>
                   <TableCell>
                     <PriceIncreaseHistoryBadges
                       history={getProductHistory(product)}
